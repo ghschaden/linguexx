@@ -16,6 +16,28 @@
 \GlossTierLang{1}{de}
 \title{An accessible linguistics document}
 \author{A. Linguist}
+\usepackage[normalem]{ulem}
+
+% Not a linguexx concern: the LaTeX kernel's own \footnoterule (the short
+% separator above footnotes, article.cls) is pure decoration, but the
+% TL2026 tagging=on machinery does not mark it as an Artifact by default,
+% so veraPDF flags the \hrule as "neither marked as Artifact nor tagged as
+% real content" (PDF/UA-2, 8.2.2).  Reproduces with a bare \documentclass
+% {article} and a single \footnote, no linguexx code involved -- an
+% upstream kernel gap, worked around here at the document level.
+\makeatletter
+\ExplSyntaxOn
+\renewcommand\footnoterule{%
+  \kern-3\p@
+  \cs_if_exist:NT \tag_mc_begin:n
+    { \tag_if_active:T { \tag_mc_begin:n { artifact } } }
+  \hrule\@width.4\columnwidth
+  \cs_if_exist:NT \tag_mc_end:
+    { \tag_if_active:T { \tag_mc_end: } }
+  \kern2.6\p@}
+\ExplSyntaxOff
+\makeatother
+
 \begin{document}
 \maketitle
 
@@ -34,4 +56,25 @@ Ordinary running text precedes the first example.
 Examples survive inside footnotes,\footnote{With an example: \ex. Footnoted.
 
 } and interleave with cross-references such as \ref{intro}.
+
+
+\section{Glossed alternatives (\texttt{\string\altg}):}
+
+\exg. Die \altg{Frau}{Socke}{Maus}{Tonne} ist hier.\\
+      The.\lpzg{sg} \altg{woman.\lpzg{sg}}{sock.\lpzg{sg}}{mouse.\lpzg{sg}}{ton.\lpzg{sg}} is.\lpzg{prs} here.\\
+
+\noindent Two alternatives, multi-word:
+
+\exg. Ich sah \altg{den Mann}{die Frau} gestern.\\
+      I see.\lpzg{pst} \altg{the.\lpzg{acc} man}{the.\lpzg{acc} woman} yesterday\\
+
+\noindent\textbf{\texttt{\string\alt} now braces both sides:}
+
+\ex. \alt{\sout{This girl in the red coat}}{She}{Mary} will put a picture of \alt{Bill}{him} on your desk.
+
 \end{document}
+
+%%% Local Variables:
+%%% mode: LaTeX
+%%% TeX-master: t
+%%% End:

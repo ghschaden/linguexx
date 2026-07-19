@@ -441,6 +441,15 @@
 %% spoken form (#1) is non-blank, wrap the mark in a Span with /Alt so it
 %% is read aloud as #1.  Otherwise typeset the mark exactly as before, so
 %% untagged output and non-tagging engines are unaffected.
+%% \lx@makeitem calls \lx@emitjudge (hence this) as the very FIRST thing
+%% after \item, i.e. at the start of a fresh list-item paragraph.  At that
+%% point the kernel's own paragraph-tagging may already have an MC span
+%% open for the not-yet-shown P; opening our Span's struct/MC directly, as
+%% earlier versions did, nested our BDC inside that still-open one without
+%% suspending it ("nested marked content found" / "no mc to end", and a
+%% veraPDF untagged-content failure once that P's real MC never got
+%% closed).  \tag_mc_end_push:/\tag_mc_begin_pop:n{} -- the same idiom
+%% \lpzg and the gloss column code use -- suspends the ambient MC first.
 \cs_new_protected:Npn \lx@hangjudge #1#2
   {
     \leavevmode
@@ -453,11 +462,13 @@
               {
                 \tag_if_active:TF
                   {
+                    \tag_mc_end_push:
                     \tag_struct_begin:n { tag = Span , alt = {#1} }
                     \tag_mc_begin:n { tag = Span }
                     #2
                     \tag_mc_end:
                     \tag_struct_end:
+                    \tag_mc_begin_pop:n {}
                   }
                   { #2 }
               }
@@ -1496,19 +1507,36 @@
           { \text_purify:n { \seq_item:Nn \l__lxp_alt_seq {##1} } }
       }
   }
-%% the stacked alternatives, as a tabular; also records total height
+%% the stacked alternatives, as a tabular; also records total height.
+%% Under active tagging, plain LaTeX auto-tags every tabular as a real
+%% /Table (with /TR, /TD ...); this stack is presentational, not data, and
+%% the auto Table is built (wrongly) as a child of whatever structure
+%% element is open at THIS point -- typically the ambient paragraph, since
+%% the surrounding Span for \alt has not been opened yet (that happens
+%% later, in \__lxp_alt_emit_tagged:, around \box_use:N).  That produced
+%% both an invalid Table-under-P/LI nesting and, whenever more than one
+%% \alt occurred in a paragraph, corrupted paragraph-tagging bookkeeping
+%% (veraPDF/tagpdf: "Parent-Child ... Relation is not allowed").  Building
+%% the box with table auto-tagging suspended avoids this: the box then
+%% carries no struct/MC of its own, so its content is correctly attributed
+%% to the Span when \box_use:N later places it inside one.  \hbox_gset:Nn
+%% (not \hbox_set:Nn) is required because the group that scopes the
+%% \tagpdfsetup change would otherwise also discard the box.
 \cs_new_protected:Npn \__lxp_alt_setstack:
   {
-    \hbox_set:Nn \l__lxp_alt_box
-      {
-        \use:x
-          {
-            \exp_not:N \begin { tabular } [c]
-              { @{} \str_case:VnF \l__lxp_alt_align_tl { {l}{l} {r}{r} } {c} @{} }
-          }
-          \seq_use:Nn \l__lxp_alt_seq { \\ }
-        \end { tabular }
-      }
+    \group_begin:
+      \cs_if_exist:NT \tagpdfsetup { \tagpdfsetup { table/tagging = false } }
+      \hbox_gset:Nn \l__lxp_alt_box
+        {
+          \use:x
+            {
+              \exp_not:N \begin { tabular } [c]
+                { @{} \str_case:VnF \l__lxp_alt_align_tl { {l}{l} {r}{r} } {c} @{} }
+            }
+            \seq_use:Nn \l__lxp_alt_seq { \\ }
+          \end { tabular }
+        }
+    \group_end:
     \dim_set:Nn \l__lxp_alt_ht_dim
       { \box_ht:N \l__lxp_alt_box + \box_dp:N \l__lxp_alt_box }
   }
@@ -1666,14 +1694,22 @@
         }
     \group_end:
   }
-%% the stack: one [c]-centred tabular; per-side extents recorded
+%% the stack: one [c]-centred tabular; per-side extents recorded.  Table
+%% auto-tagging is suspended while building it, for the same reason as in
+%% \__lxp_alt_setstack: above (see the comment there): the tabular is
+%% presentational, the enclosing Span is not open yet at this point, and
+%% \hbox_gset:Nn is required so the box survives the group that scopes the
+%% \tagpdfsetup change.
 \cs_new_protected:Npn \__lxp_altg_setstack:n #1
   {
-    \hbox_set:Nn \l__lxp_altg_stack_box
-      { #1 \renewcommand \lpzg [1] { \textsc {##1} }
-        \use:x { \exp_not:N \begin { tabular } [c] { @{}l@{} }
-                 \seq_use:Nn \l__lxp_altg_seq { \\ } }
-        \end { tabular } }
+    \group_begin:
+      \cs_if_exist:NT \tagpdfsetup { \tagpdfsetup { table/tagging = false } }
+      \hbox_gset:Nn \l__lxp_altg_stack_box
+        { #1 \renewcommand \lpzg [1] { \textsc {##1} }
+          \use:x { \exp_not:N \begin { tabular } [c] { @{}l@{} }
+                   \seq_use:Nn \l__lxp_altg_seq { \\ } }
+          \end { tabular } }
+    \group_end:
     \dim_set:Nn \l__lxp_altg_bxht_dim { \box_ht:N \l__lxp_altg_stack_box }
     \dim_set:Nn \l__lxp_altg_bxdp_dim { \box_dp:N \l__lxp_altg_stack_box }
     \dim_set:Nn \l__lxp_altg_ht_dim
