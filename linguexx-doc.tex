@@ -1,0 +1,1361 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=30mm]{geometry}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{hologo}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{enumitem}
+\usepackage{fancyvrb}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage[normalem]{ulem}
+\usepackage[lazy,gb4e]{linguexx}
+\usepackage[colorlinks,linkcolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+
+% --- documentation helpers --------------------------------------------------
+\definecolor{codebg}{gray}{0.96}
+\newcommand{\cs}[1]{\texttt{\textbackslash #1}}
+\newcommand{\pkg}[2][]{\textsf{#2}}
+\newcommand{\opt}[1]{\texttt{#1}}
+\newcommand{\meta}[1]{\textrm{\itshape\textlangle#1\textrangle}}
+\newcommand{\marg}[1]{\texttt{\{}\meta{#1}\texttt{\}}}
+\newcommand{\oarg}[1]{\texttt{[}\meta{#1}\texttt{]}}
+% a length/command name set as text, for the box-model diagram
+\newcommand{\lname}[1]{\text{\ttfamily\scriptsize\textbackslash #1}}
+
+\DefineVerbatimEnvironment{code}{Verbatim}
+  {frame=leftline,framerule=1pt,rulecolor=\color{gray!40},
+   xleftmargin=8pt,fontsize=\small,samepage=true}
+
+\newcommand{\rendered}{\par\medskip\noindent\textcolor{gray!70}{\small renders as:}\par\nobreak\smallskip}
+\newcommand{\afterex}{\par\addvspace{\medskipamount}}
+
+\title{The \pkg{linguexx} package\\[4pt]
+  \large Numbered examples, interlinear glosses and grammaticality
+  judgments\\ for linguistics}
+\author{Gerhard Schaden}
+\date{Version 1.0 --- \today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+\pkg{linguexx} typesets the standard apparatus of linguistic writing:
+numbered examples with lettered sub-examples, grammaticality judgments
+that hang in the margin, interlinear morpheme-by-morpheme glosses with any
+number of tiers, cross-references that follow the numbering automatically,
+and examples inside footnotes. Its input syntax is deliberately terse ---
+\cs{ex.}\ starts an example, a blank line ends it --- so that data does not
+disappear under markup.
+
+\smallskip\noindent
+That syntax is not new, and no claim is made that it is: it is the syntax
+of Wolfgang Sternefeld's \pkg{linguex}, which this package owes almost
+everything to, and which it is designed to replace. \pkg{linguexx} is a
+reimplementation from the ground up, undertaken for two reasons. The
+first is to repair the structural weaknesses of the original: a globally
+drifting sub-example depth counter (the source of the notorious
+\texttt{Check example numbering (screwed up?)}), a judgment tokenizer
+built on catcode manipulation, and a termination rule that failed at the
+end of a \pkg{beamer} frame. All three are gone --- not patched, but
+designed out. The second is to bring the glossing up to the level of John
+Frampton's \pkg{expex}, the one facility in which \pkg{linguex} was
+decisively behind: glosses may now have any number of tiers, each with its
+own font, rather than the two or three that \pkg{cgloss4e} allowed.
+
+\smallskip\noindent
+The package's dependencies are \pkg{graphicx} and \pkg{tikz} (used only by
+\cs{alt}), plus the \pkg{expl3} layer, part of the \LaTeX{} kernel since
+2020, and it works identically
+under \hologo{pdfLaTeX}, \hologo{XeLaTeX} and \hologo{LuaLaTeX}. This manual is self-contained and assumes no
+acquaintance with \pkg{linguex} or any other example package:
+section~\ref{sec:tour} gets you writing examples in two pages;
+sections~\ref{sec:examples}--\ref{sec:extras} treat each facility in turn;
+section~\ref{sec:reference} is a command reference. Section~\ref{sec:origins}
+sets out the relation to \pkg{linguex}, \pkg{expex} and \pkg{gb4e} for
+those who know them.
+\end{abstract}
+
+\tableofcontents
+
+% ===========================================================================
+\section{A two-page tour}\label{sec:tour}
+% ===========================================================================
+
+Load the package:
+
+\begin{code}
+\usepackage{linguexx}
+\end{code}
+
+\noindent An example is introduced by \cs{ex.}\ --- note the period, which
+is part of the command name --- and ended by a \emph{blank line}:
+
+\begin{code}
+\ex. Colourless green ideas sleep furiously.
+\end{code}
+
+\rendered
+\ex. Colourless green ideas sleep furiously.
+
+\afterex
+Numbering is automatic and runs through the document. Sub-examples are
+introduced by \cs{a.}, and continued by \cs{b.}, \cs{c.}\ and so on:
+
+\begin{code}
+\ex.
+\a. Ich habe geschlafen.
+\b. Ich bin geschlafen.
+\end{code}
+
+\rendered
+\ex.
+\a. Ich habe geschlafen.
+\b. Ich bin geschlafen.
+
+\afterex
+A grammaticality judgment typed at the start of an example is recognized
+automatically and set in the margin, so that the example texts stay
+aligned:
+
+\begin{code}
+\ex.
+\a. Ich habe geschlafen.
+\b. *Ich bin geschlafen.
+\end{code}
+
+\rendered
+\ex.
+\a. Ich habe geschlafen.
+\b. *Ich bin geschlafen.
+
+\afterex
+Interlinear glosses are written with \cs{gll} (two tiers), with the free
+translation on a \cs{glt} line. The tiers are aligned word by word, and
+category labels are set in small capitals with \cs{lpzg}:
+
+\begin{code}
+\ex. \gll Ich schlief. \\
+          I   sleep.\lpzg{pst} \\
+\glt `I slept.'
+\end{code}
+
+\rendered
+\ex. \gll Ich schlief. \\
+     I sleep.\lpzg{pst} \\
+\glt `I slept.'
+
+\afterex
+To refer to an example, label it and use \cs{ref}, exactly as with any
+other \LaTeX{} counter; the parentheses come for free. \cs{Next} and
+\cs{Last} refer to the next and the previous example without a label:
+
+\begin{code}
+\ex.\label{ex:sleep} Ich habe geschlafen.
+
+As \ref{ex:sleep} shows, ... The contrast in \Next\ is sharper:
+
+\ex. *Ich bin geschlafen.
+\end{code}
+
+\rendered
+\ex.\label{ex:sleep} Ich habe geschlafen.
+
+As \ref{ex:sleep} shows, \dots The contrast in \Next\ is sharper:
+
+\ex. *Ich bin geschlafen.
+
+\afterex
+That is the whole of everyday use. The rest of this manual fills in the
+details: more nesting levels, more gloss tiers, arbitrary judgment marks,
+reference ranges, examples in footnotes, source attributions, and the
+layout parameters.
+
+% ===========================================================================
+\section{Origins, and relation to other packages}\label{sec:origins}
+% ===========================================================================
+
+\noindent
+Readers who have never used another example package can skip this section
+with no loss; it is here because the debts are real and ought to be stated
+plainly.
+
+\paragraph{\pkg{linguex} (Wolfgang Sternefeld).} The input language of
+\pkg{linguexx} \emph{is} the input language of \pkg{linguex}, deliberately
+and almost exhaustively: \cs{ex.}, \cs{a.}--\cs{f.}, \cs{z.}, termination
+by blank line, custom labels in brackets, automatic roman numbering in
+footnotes, the \cs{Next}/\cs{Last} family, \cs{exg.}\ and its relatives,
+and the layout parameters down to their names. Existing \pkg{linguex}
+documents compile essentially unchanged; the default geometry is a little
+tighter than \pkg{linguex}'s, and the option \opt{legacy} reproduces the
+original spacing exactly (section~\ref{sec:layout}). What has been replaced
+is the
+machinery underneath. \pkg{linguex} tracks sub-example depth in a global
+counter that drifts out of step whenever an example is malformed, and the
+damage then propagates to the numbering of every later example; it
+recognizes judgments with a hand-written tokenizer that manipulates
+category codes; and it scans an example body up to the next \cs{par}, so
+that an example may not end a \pkg{beamer} frame. In \pkg{linguexx} the
+depth is held in the grouping structure itself, so drift is not merely
+unlikely but impossible; judgments are recognized by token inspection with
+no catcode trickery, and any mark whatever may be used
+(section~\ref{sec:judgments}); and the body is collected by a scanner that
+stops at a blank line, at \cs{z.}, or at a structural boundary such as
+\cs{end}\marg{frame}. Two facilities of \pkg{linguex} were dropped as more
+trouble than they are worth: examples embedded inside sub-examples, and the
+index variants \cs{exi.}/\cs{ai.}.
+
+\paragraph{\pkg{cgloss4e} (Hans-Peter Kolb and Craig Thiersch).} The
+glossing commands \cs{gll}, \cs{glll} and \cs{glt} come from here, by way
+of \pkg{linguex}. The engine behind them is new, and the vertical space
+that \pkg{cgloss4e} inserted around a gloss is gone by construction.
+
+\paragraph{\pkg{expex} (John Frampton).} \pkg{expex} is the most capable
+glossing package in the field, and on that one axis \pkg{linguex} was
+simply outclassed: two or three tiers against an arbitrary number.
+\cs{gl}\ \dots\ \cs{endgl} (section~\ref{sec:glosses}) closes that gap ---
+any number of tiers, each with its own font command. It does not close
+every gap: \pkg{expex} retains finer control over the vertical layout of
+individual tiers, and its keyval interface exposes more parameters than
+the eight lengths of section~\ref{sec:layout}. If the glossing is the hard
+part of your document, \pkg{expex} may still be the better instrument.
+
+\paragraph{\pkg{gb4e}.} Not an ancestor of the implementation, but its
+environment syntax is accepted: \texttt{exe}, \texttt{xlist} and the
+bracketed judgment form of \cs{ex} work as they do there
+(section~\ref{sec:envs}). It is worth knowing that \pkg{gb4e} makes
+\texttt{\_} and \texttt{\^{}} active in text mode, which is a frequent
+source of clashes with other packages; \pkg{linguexx} changes no
+category codes.
+
+\paragraph{Parenthesis-free references.} The \cs{pref}/\cs{pNext} family
+follows a construction of Alan Munn's.
+
+% ===========================================================================
+\section{Examples}\label{sec:examples}
+% ===========================================================================
+
+\subsection{Starting and ending an example}
+
+\cs{ex.}\ starts a numbered example. Three things end it:
+
+\begin{enumerate}[itemsep=2pt]
+\item a \textbf{blank line} (or an explicit \cs{par}) --- the normal case;
+\item \textbf{\cs{z.}} (section~\ref{sec:z}), which ends it at the point
+  where it stands;
+\item a \textbf{structural boundary}: the end of the enclosing environment
+  or group. An example may therefore run directly into
+  \cs{end}\marg{frame} or the closing brace of a group, with no blank line
+  at all.
+\end{enumerate}
+
+\noindent Environments \emph{inside} an example do not end it: a
+\texttt{tabular}, a \texttt{tikzpicture} or a math display is passed
+through untouched.
+
+\subsection{Sub-examples}
+
+\cs{a.}\ opens a level of sub-examples; \cs{b.}\ through \cs{f.}\ add
+further items at the level currently open. The letters printed come from a
+counter, not from the command name, so \cs{b.}\ prints ``b.'' only because
+it happens to be the second item --- the commands are interchangeable and
+purely mnemonic. A second \cs{a.}\ opens a deeper level, numbered in roman:
+
+\begin{code}
+\ex.
+\a. First.
+\b. Second.
+\a. First of the deeper level.
+\b. Second of the deeper level.
+\c. Back at the letter level? No -- see below.
+\end{code}
+
+\rendered
+\ex.
+\a. First.
+\b. Second.
+\a. First of the deeper level.
+\b. Second of the deeper level.
+\c. Back at the letter level? No -- see below.
+
+\afterex
+The last \cs{c.}\ comes out as item~iii: the continuation commands stay
+at the level currently open. Two sub-levels are the maximum; a third
+\cs{a.}\ raises an error. To \emph{leave} a level, use \cs{z.}.
+
+\subsection{Returning to a higher level: \cs{z.}}\label{sec:z}
+
+\cs{z.}\ pops exactly one level, counting the surrounding prose as the
+outermost level. From the roman level it returns to the letters, so that
+a following \cs{b.}\ continues there; from the letter level --- or in an
+example with no sub-examples open --- it ends the example, and what
+follows is ordinary prose. Consecutive \cs{z.}'s therefore pop
+successively out of the example:
+
+\begin{code}
+\ex.
+\a. First
+\b. Second
+\a. Second a
+\b. Second b
+\z.
+\b. third
+\z.
+Ordinary text again.
+\end{code}
+
+\rendered
+\ex.
+\a. First
+\b. Second
+\a. Second a
+\b. Second b
+\z.
+\b. third
+\z.
+Ordinary text again.
+
+\afterex
+The first \cs{z.}\ leaves the roman level, so \cs{b.}\ yields item~c; the
+second leaves the example. Text on the same line as an example-ending \cs{z.}\
+--- like ``Ordinary text again''\ above --- is a \emph{continuation}: it is
+set flush left under the example, without a paragraph indent. To start a
+genuinely new paragraph instead, indented as the class prescribes, leave a
+blank line after \cs{z.}:
+
+\begin{code}
+\ex. An example. \z.
+
+A new, ordinarily indented paragraph.
+\end{code}
+
+\rendered
+\ex. An example. \z.
+
+A new, ordinarily indented paragraph.
+
+\afterex
+
+\subsection{Custom labels}
+
+An optional argument replaces the number, without advancing the counter ---
+useful for repeating an earlier example, or for primed variants:
+
+\begin{code}
+\ex.[(7$'$)] A repeated or modified example.
+\end{code}
+
+\rendered
+\ex.[(7$'$)] A repeated or modified example.
+
+\afterex
+
+\subsection{An environment interface}\label{sec:envs}
+
+Everything above can equally be written with conventional environments,
+whose syntax is that of \pkg{gb4e}. They are enabled by a package
+option: \cs{usepackage[gb4e]\{linguexx\}} loads \emph{only} this
+syntax --- the dot commands are then not defined, which keeps documents
+and error messages clean, and as a side benefit leaves the kernel accent
+commands \cs{b}, \cs{c}, \cs{d} untouched, so no \pkg{hyperref}
+workaround is needed. The default (equivalently, the option
+\opt{lazy}) loads only the dot syntax of the preceding sections. The
+two may be combined, \opt{[lazy,gb4e]}, for a document that
+deliberately mixes them --- this manual does --- and then the two forms
+drive the same engine, sharing one counter, one label system and all
+layout parameters. These options choose the input \emph{syntax}; a further,
+orthogonal option \opt{legacy} chooses the \emph{geometry} of the original
+\pkg{linguex} and may be added to either (section~\ref{sec:layout}). \texttt{exe} is a \emph{batch}:
+every \cs{ex} inside it --- written \emph{without} the period --- is a
+new top-level example. \texttt{xlist} embeds a sub-level, nestable once
+more for the romans; its items are made by \cs{ex} (or by plain
+\cs{item}). A judgment is given in the \pkg{gb4e} manner as an optional
+argument, \cs{ex}\oarg{judgment}\marg{text}, where the judgment may be
+\emph{any} mark, not only the auto-detected four --- or typed directly
+after a plain \cs{ex}, as everywhere else:
+
+\begin{code}
+\begin{exe}
+\ex\label{here} Here is one.
+\ex[*]{Here another is.}
+\ex Here are some with judgements.
+ \begin{xlist}
+ \ex[]{A grammatical sentence am I.}
+ \ex[??]{A dubious sentence is she.}
+ \end{xlist}
+\end{exe}
+\end{code}
+
+\rendered
+\begin{exe}
+\ex\label{gbdoc} Here is one.
+\ex[*]{Here another is.}
+\ex Here are some with judgements.
+ \begin{xlist}
+ \ex[]{A grammatical sentence am I.}
+ \ex[??]{A dubious sentence is she.}
+ \end{xlist}
+\end{exe}
+
+\afterex
+Two differences follow from the syntax itself: the environments end at
+their \cs{end} and nothing else, so blank lines inside them are ordinary
+paragraph breaks; and \cs{z.}\ has no role to play, since an environment
+names its own end. An \texttt{xlist} may also sit inside a dot-command
+example, and \cs{a.}\ works inside \texttt{exe}. Use whichever form
+suits the document --- or the editor.
+
+\subsection{Examples in footnotes}
+
+Inside a footnote, examples are numbered independently, in roman numerals,
+on their own counter; the running-text numbering is not disturbed, and
+references made inside the footnote resolve against the footnote's series.
+Nothing special needs to be done: write \cs{ex.}\ as usual.\footnote{Like
+so:
+\ex. First footnote example.
+
+\ex. *Second one, with a judgment.
+
+and \Last\ refers to the second of these, not to a text example.}
+
+% ===========================================================================
+\section{Grammaticality judgments}\label{sec:judgments}
+% ===========================================================================
+
+Marks are also given \emph{spoken forms} for accessible PDFs, so that a
+screen reader announces a judgment by its meaning rather than by its glyph
+(section~\ref{sec:jdgspoken}). That is one of the tagging features drawn
+together in section~\ref{sec:tagging}.
+
+\subsection{Automatic marks}
+
+The characters \texttt{*} and \texttt{?} and the commands \cs{\#} and
+\cs{\%}, in any combination, are recognized automatically when they open an
+example or sub-example. They are set in the margin, hanging to the left of
+the example text, so that judged and unjudged examples align:
+
+\begin{code}
+\ex.
+\a. Ich habe geschlafen.
+\b. ??Ich habe geschlaft.
+\c. *Ich bin geschlafen.
+\d. \#Ich schlafte.
+\end{code}
+
+\rendered
+\ex.
+\a. Ich habe geschlafen.
+\b. ??Ich habe geschlaft.
+\c. *Ich bin geschlafen.
+\d. \#Ich schlafte.
+
+\afterex
+The mark must come first in the item, \emph{before} anything else including
+a \cs{label}. The conventional readings are the usual ones (\texttt{*}
+ungrammatical, \texttt{?} degraded, \texttt{\#} semantically or
+pragmatically deviant, \texttt{\%} varying across speakers), but the
+package attaches no meaning to them: it only places them.
+
+\subsection{Space for judgments}\label{sec:jdgspace}
+
+A hanging mark takes no horizontal space, so it can never push the example
+text out of alignment --- but it can, if long enough, run into the example
+\emph{label} to its left. The room available is the clear space inside the
+label box plus the label gap, i.e.
+\[
+  \meta{labelwidth} - \hbox{width of the printed label} + \cs{Exlabelsep}.
+\]
+At the main level the number box (\cs{Exlabelwidth}, \texttt{2.6em}) leaves
+ample room. At the sub-levels the default widths
+(\cs{SubExlabelwidth}~\texttt{1.6em}, \cs{SubSubExlabelwidth}~\texttt{1.9em})
+are chosen so that \textbf{two marks built from \texttt{?} and \texttt{*}}
+(\texttt{??}, \texttt{?*}, \dots) fit clear of the letter. Note that
+\cs{\#} and \cs{\%} are nearly twice as wide as \texttt{?} in most fonts,
+so they count roughly double. If you use \textbf{three marks} (or wide
+marks) on sub-examples \textbf{as a routine matter}, widen the boxes:
+
+\begin{code}
+\setlength{\SubExlabelwidth}{2.4em}
+\setlength{\SubSubExlabelwidth}{2.5em}
+\end{code}
+
+\noindent which carries \texttt{?*\#} comfortably. (An occasional long
+mark that grazes the letter is harmless; only alignment is guaranteed, and
+that unconditionally.)
+
+\subsection{Arbitrary marks: \cs{jdg}}
+
+For any other mark, \cs{jdg}\marg{mark} hangs an arbitrary symbol into the
+margin, at any position, not only at the start of an example:
+
+\begin{code}
+\ex. \jdg{\dag}A mark of one's own choosing.
+
+\ex. \jdg{$\to$}Or an arrow, or anything else.
+\end{code}
+
+\rendered
+\ex. \jdg{\dag}A mark of one's own choosing.
+
+\ex. \jdg{$\to$}Or an arrow, or anything else.
+
+\afterex
+Because the mark occupies no horizontal space, alignment is preserved
+whatever its width. To give a recurrent mark a name of its own, use
+\cs{DeclareJudgment}\marg{command}\marg{mark}:
+
+\begin{code}
+\DeclareJudgment{\dubious}{\dag\dag}
+\ex. \dubious A doubly daggered example.
+\end{code}
+
+\rendered
+{\DeclareJudgment{\dubious}{\dag\dag}%
+\ex. \dubious A doubly daggered example.
+
+}
+
+\afterex
+The distance between mark and text is the length \cs{JdgSep}
+(default \texttt{0.15em}).
+
+\subsection{Spoken forms for tagged PDFs}\label{sec:jdgspoken}
+A judgment mark is a symbol whose meaning a screen reader cannot guess:
+read literally, \texttt{*} is ``asterisk''. When the document is compiled
+with the PDF tagging code active (a \cs{DocumentMetadata} line enabling
+the tagging \texttt{testphase}), \pkg{linguexx} wraps each mark in a
+structure element carrying an \emph{alternate text} so it is announced by
+its meaning instead. The built-in marks have sensible defaults:
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+mark & spoken as \\
+\midrule
+\texttt{*}  & ungrammatical \\
+\texttt{?}  & questionable \\
+\texttt{??} & highly questionable \\
+\texttt{?*} & extremely degraded \\
+\texttt{\#} & infelicitous \\
+\texttt{\%} & grammatical for some speakers \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent This affects only the tagged PDF's accessibility layer; the
+printed output is unchanged, and nothing happens on an engine or in a
+document without active tagging. To set the spoken form of a mark, give
+\cs{DeclareJudgment} its optional \texttt{spoken} key --- which both names
+the mark and registers its spoken form, so a leading scanned mark is
+announced the same way ---
+
+\begin{code}
+\DeclareJudgment[spoken={marginal, some speakers}]{\pcent}{\%}
+\end{code}
+
+\noindent or, for a mark you do not need to name, \cs{SetJudgmentSpoken}\-
+\marg{mark}\marg{phrase}. An explicit \cs{jdg} may also carry a one-off
+spoken form as an optional argument: \cs{jdg}\oarg{ungrammatical}\marg{*}.
+
+% ===========================================================================
+\section{Interlinear glosses}\label{sec:glosses}
+% ===========================================================================
+
+\subsection{Two and three tiers}
+
+\cs{gll} takes an object line and a gloss line, each ended by \verb|\\|;
+\cs{glll} takes three lines. \cs{glt} introduces the free translation,
+which is set as an ordinary line, not aligned:
+
+\begin{code}
+\ex. \gll Der Hund hat geschlafen \\
+          the dog  has slept      \\
+\glt `The dog slept.'
+\end{code}
+
+\rendered
+\ex. \gll Der Hund hat geschlafen \\
+     the dog has slept \\
+\glt `The dog slept.'
+
+\afterex
+Words are separated by spaces, and \emph{braced material counts as one
+word}. This is how one object-language word is glossed by several English
+words, or the reverse:
+
+\begin{code}
+\ex. \gll Das {kleine Kind} schl\"aft \\
+          the {little child} sleeps   \\
+\glt `The little child sleeps.'
+\end{code}
+
+\rendered
+\ex. \gll Das {kleine Kind} schl\"aft \\
+     the {little child} sleeps \\
+\glt `The little child sleeps.'
+
+\afterex
+If the tiers are of unequal length, the missing cells are simply left
+empty --- no error. A gloss too long for the line wraps between columns,
+never inside one.
+
+\subsection{Any number of tiers: \cs{gl} \dots\ \cs{endgl}}
+
+Heavily annotated data --- transliteration, segmentation, gloss, category
+line --- needs more than three tiers. \cs{gl} takes any number of lines,
+each ended by \verb|\\|, up to \cs{endgl}:
+
+\begin{code}
+\GlossTierFont{4}{\textit}
+
+\ex. \gl Der Hund schl\"aft \\
+         der Hund schlaf-t \\
+         DEF.NOM.SG.M dog sleep-3SG \\
+         D N V \\ \endgl
+\glt `The dog sleeps.'
+\end{code}
+
+\rendered
+{\GlossTierFont{4}{\textit}%
+\ex. \gl Der Hund schl\"aft \\
+     der Hund schlaf-t \\
+     DEF.NOM.SG.M dog sleep-3SG \\
+     D N V \\ \endgl
+\glt `The dog sleeps.'
+
+}
+
+\afterex
+All the conventions of \cs{gll} carry over: spaces separate words, braces
+group them, unequal tiers get empty cells, long examples wrap between
+columns. \cs{gll} and \cs{glll} are in fact abbreviations of this one
+engine.
+
+\subsection{Fonts and spacing}
+
+Each tier is set with a one-argument command, declared by
+\cs{GlossTierFont}\marg{n}\marg{command}. Tiers~1--3 have traditional
+names of their own --- \cs{eachwordone}, \cs{eachwordtwo},
+\cs{eachwordthree} --- which may be redefined instead; all default to
+\cs{textnormal}, so glosses inherit the surrounding font (under
+\pkg{beamer}, they come out sans-serif, as they should). To set the gloss
+line in small capitals throughout:
+
+\begin{code}
+\renewcommand{\eachwordtwo}[1]{\textsc{#1}}
+\end{code}
+
+\noindent The space between columns is the macro \cs{GlossSep}, a glue
+specification (default \texttt{.5em plus .3em minus .1em}), changed with
+\cs{renewcommand}.
+
+\subsection{The language of a tier (tagged PDFs)}\label{sec:glosslang}
+The object line of a gloss is usually in a different language from the
+document. In a tagged PDF that difference can be recorded so that a screen
+reader pronounces each tier with its own phonetics rather than reading, say,
+German words as though they were English. Declare the language of a tier
+with \cs{GlossTierLang}\marg{tier}\marg{code}, where \meta{code} is a
+language tag such as \texttt{de} or \texttt{fr}:
+
+\begin{code}
+\GlossTierLang{1}{de}
+\ex.
+\gll Der Hund bellte.\\ the dog barked.\\
+\glt `The dog barked.'
+\end{code}
+
+\noindent Each word of tier~1 is then wrapped, in the structure tree, in a
+span carrying that language; the other tiers are unaffected.
+
+\cs{GlossTierLang} obeys the usual scope rule. Given in the preamble or in
+the document body between examples, it sets a \emph{document-wide default}
+for that tier. Given \emph{inside} an example, before the gloss, it
+overrides that tier for that one example only and reverts afterwards, so a
+document that glosses several object languages needs only a local
+\cs{GlossTierLang} in the odd example that departs from the default:
+
+\begin{code}
+\GlossTierLang{1}{de}          % default: object line is German
+...
+\ex.
+\GlossTierLang{1}{fr}          % this example only
+\gll Le chien aboya.\\ the dog bark.\lpzg{pst}\\
+\glt `The dog barked.'
+\end{code}
+
+\noindent As with the rest of the tagging support this is inert unless
+tagging is active (section~\ref{sec:tagging}): it changes nothing in the
+printed gloss and nothing in an untagged document. A tier with no declared
+language behaves exactly as before.
+
+\subsection{Gloss abbreviations: \cs{lpzg}}\label{sec:leipzig}
+Category labels in a gloss are written in small capitals by convention
+(\textsc{sg}, \textsc{pst}, \textsc{nom}). \cs{lpzg}\marg{label} is a
+convenience for exactly this: it sets its argument in small capitals, so
+\cs{lpzg}\marg{sg} is a shorter, meaning-bearing spelling of
+\cs{textsc}\marg{sg}. A whole compound label goes in one call, written the
+Leipzig way --- a leading person number flush against the number, then
+further categories separated by periods:
+
+\begin{code}
+\gll Der Hund bellte.\\
+     the dog \lpzg{3sg.pst}\\
+\glt `The dog barked.'
+\end{code}
+
+\rendered
+\gll Der Hund bellte.\\
+     the dog \lpzg{3sg.pst}\\
+\glt `The dog barked.'
+
+\afterex
+\noindent \cs{lpzg}\marg{3sg.pst} simply sets \textsc{3sg.pst}. Its
+argument is a label you would otherwise have typed by hand; there is no
+fixed vocabulary as far as \emph{typesetting} is concerned. What
+\cs{lpzg} adds over \cs{textsc} appears only in a tagged PDF, where it
+records the spoken expansion of the label (``third person singular past'')
+for a screen reader; that behaviour, and the list of abbreviations it
+knows, are described in section~\ref{sec:leipzigtag}. \cs{lpzg} is
+self-contained and does not require, or interact with, the \pkg{leipzig}
+package.
+
+\subsection{Abbreviations: \cs{exg.}\ and \cs{ag.}}
+
+\cs{exg.}\ abbreviates \cs{ex.}\ \cs{gll}, and \cs{ag.}\ through
+\cs{fg.}\ abbreviate \cs{a.}\ \cs{gll} and so on, for glossed
+sub-examples. Judgments still work in front of the gloss:
+
+\begin{code}
+\exg. *Das Beispiel funktionieren \\
+      the example  work.INF       \\
+\glt (intended: `The example works.')
+\end{code}
+
+\rendered
+\exg. *Das Beispiel funktionieren \\
+      the example work.INF \\
+\glt (intended: `The example works.')
+
+\afterex
+
+% ===========================================================================
+\section{Cross-references}\label{sec:refs}
+% ===========================================================================
+
+\subsection{Labels}
+
+Examples and sub-examples are ordinary \LaTeX{} counters: \cs{label} them
+and \cs{ref} them. The reference prints with parentheses, and a
+sub-example reference includes its letter:
+
+\begin{code}
+\ex.\label{ex:main}
+\a.\label{ex:a} Erste.
+\b.\label{ex:b} Zweite.
+
+See \ref{ex:main}, and in particular \ref{ex:b}.
+\end{code}
+
+\rendered
+\ex.\label{ex:main}
+\a.\label{ex:a} Erste.
+\b.\label{ex:b} Zweite.
+
+See \ref{ex:main}, and in particular \ref{ex:b}.
+
+\afterex
+
+\subsection{References without parentheses}
+
+In running text one often wants ``example 3\,b'' rather than ``example
+(3\,b)''. Every reference command has a \texttt{p}-prefixed twin that omits
+the parentheses: \cs{pref}, \cs{pNext}, \cs{pLast}, \cs{pNNext},
+\cs{pLLast}, \cs{pTextNext}.
+
+\begin{code}
+\ref{ex:b} with parentheses, \pref{ex:b} without.
+\end{code}
+
+\rendered
+\ref{ex:b} with parentheses, \pref{ex:b} without.
+
+\afterex
+
+\subsection{Relative references}
+
+To refer to a neighbouring example without labelling it:
+
+\begin{center}
+\begin{tabular}{@{}>{\ttfamily}l l@{}}
+\toprule
+\normalfont Command & \normalfont Refers to \\
+\midrule
+\textbackslash Next     & the next example \\
+\textbackslash NNext    & the one after that \\
+\textbackslash Last     & the previous example \\
+\textbackslash LLast    & the one before that \\
+\textbackslash TextNext & the next example in the running text (for use inside footnotes) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent Inside a footnote these refer to the footnote's own series, which
+is nearly always what is meant; \cs{TextNext} escapes to the main series.
+
+\subsection{Ranges}
+
+\cs{refrange}\marg{first}\marg{last} sets a compact range over
+sub-examples, printing ``(3a--c)'' rather than ``(3a)--(3c)''. The
+sub-examples must be labelled with \cs{sublabel} instead of \cs{label}
+(this records the letter in the \texttt{.aux} file; \cs{sublabel} also does
+everything \cs{label} does, so \cs{ref} keeps working):
+
+\begin{code}
+\ex.
+\a.\sublabel{r:a} Erste.
+\b. Zweite.
+\c.\sublabel{r:c} Dritte.
+
+The examples in \refrange{r:a}{r:c} all show ...
+\end{code}
+
+\rendered
+\ex.
+\a.\sublabel{r:a} Erste.
+\b. Zweite.
+\c.\sublabel{r:c} Dritte.
+
+The examples in \refrange{r:a}{r:c} all show \dots
+
+\afterex
+\cs{prefrange} is the parenthesis-free variant; \cs{Refrange} sets a range
+over two whole examples, as (10)--(12). The range dash is the macro
+\cs{rangedash} (default an en-dash). The dash between number and letter is
+\cs{firstrefdash} --- empty by default, so ``(3a)'', but \texttt{-} under
+\opt{legacy} --- and between letter and roman numeral \cs{secondrefdash}
+(\texttt{-} in both modes); see section~\ref{sec:layout}.
+
+% ===========================================================================
+\section{Further apparatus}\label{sec:extras}
+% ===========================================================================
+
+\subsection{Stacked alternatives: \cs{alt}}
+
+A set of interchangeable constituents is conventionally stacked inside a
+curly brace. \cs{alt} takes any number of brace groups and stacks them:
+
+\begin{code}
+\ex. \alt{\sout{This girl in the red coat}}{She}{Mary} will put a
+picture of \alt{Bill}{him} on your desk.
+\end{code}
+
+\rendered
+\ex. \alt{\sout{This girl in the red coat}}{She}{Mary} will put a
+picture of \alt{Bill}{him} on your desk.
+
+\afterex
+The alternatives are collected as long as brace groups follow one another
+immediately; the first non-brace token ends the list. Strike-through
+(\cs{sout}) is available for an excluded alternative if your document
+loads \pkg{ulem} --- the package does not load it for you. An
+optional argument sets the alignment: \opt{[c]} (default), \opt{[l]},
+\opt{[r]}.
+
+\paragraph{A name clash worth knowing.} \pkg{beamer} uses \cs{alt} for
+overlays. The package detects this, leaves beamer's command alone, and
+notes it in the log. \textbf{Under beamer, write \cs{lxAlt}}; everywhere
+else \cs{alt} and \cs{lxAlt} are the same command.
+
+For a light word-level alternation inside a glossed line a slash
+(\texttt{gehe/laufe}) is often enough; when each alternative needs a gloss
+of its own, use \cs{altg} (section~\ref{sec:altg}).
+
+\cs{alt} is set in text mode: the alternatives are the rows of a
+\pkg{tabular}, braced on both sides with braces drawn with Ti\emph{k}Z, so
+no mathematics is involved (the package needs \pkg{graphicx} and
+\pkg{tikz}, not \pkg{amsmath}). The braces are tunable through four
+macros --- \cs{AltBraceWidth} (default \texttt{0.9ex}),
+\cs{AltBraceAmplitude} (\texttt{4pt}, how far the brace's centre point
+juts out), \cs{AltBraceSep} (\texttt{0.3em}, the gap between brace and
+stack), and \cs{AltBraceRaise} (\texttt{0pt}, a vertical nudge) ---
+redefined with \cs{renewcommand}.
+
+Because the alternatives are ordinary text rather than a formula, they are
+read sensibly in a tagged PDF. Under active tagging \cs{alt} wraps the stack
+in a span carrying a spoken form of the list --- ``This girl in the red
+coat, She, or Mary'' --- built from the alternatives themselves, with any
+formatting (such as the \cs{sout} above) stripped for speech. The printed
+output is unchanged, and an untagged document is unaffected
+(section~\ref{sec:tagging}).
+
+\subsection{Glossed alternatives: \cs{altg}}\label{sec:altg}
+
+Where \cs{alt} stacks bare constituents, \cs{altg} stacks a paradigm in
+which each alternative carries its own gloss. Inside an interlinear
+gloss it is written \emph{twice} --- once in the object line with the
+object words, once in the gloss line with their glosses:
+
+\begin{code}
+\exg. Die \altg{Frau}{Socke}{Maus}{Tonne} ist hier.\\
+      The.\lpzg{sg} \altg{woman.\lpzg{sg}}{sock.\lpzg{sg}}%
+        {mouse.\lpzg{sg}}{ton.\lpzg{sg}} is.\lpzg{prs} here.\\
+\end{code}
+
+\rendered
+\exg. Die \altg{Frau}{Socke}{Maus}{Tonne} ist hier.\\
+      The.\lpzg{sg} \altg{woman.\lpzg{sg}}{sock.\lpzg{sg}}%
+        {mouse.\lpzg{sg}}{ton.\lpzg{sg}} is.\lpzg{prs} here.\\
+
+\afterex
+The two calls occupy the two tiers of one gloss column and assemble a
+single paradigm: object stack on the left, gloss stack to its right
+(offset by \cs{AltgColSep}), braced on \emph{both} sides. The block is
+centred on the midline between the object tier and the gloss tier: with
+four alternatives, rows two and three ride the object and gloss lines
+and the outer rows protrude symmetrically, with the surrounding lines
+keeping clear. The example number stays on the object baseline, where
+\cs{exg.} puts it.
+
+Three rules of use. The two calls must list the same number of
+alternatives --- the package stops with an error otherwise. No spaces
+may separate the brace groups: a space both ends the collection and
+splits the gloss into separate columns; break long calls across source
+lines with \texttt{\%}, as above. And the alternatives are paired by
+position --- the $n$-th gloss glosses the $n$-th object word.
+
+Outside a gloss, a single \cs{altg} sets one both-braced stack on the
+current baseline --- \cs{alt} with a closing brace, in effect.
+
+Because each stack already competes for both tiers, \cs{lpzg} inside it
+prints as plain small caps, without the abbreviation span of
+section~\ref{sec:tagging}; the expansions are not lost --- they reappear
+in the spoken forms. Under active tagging each call is wrapped in a span
+carrying a spoken \texttt{/Alt} of its own list --- ``Frau, Socke, Maus,
+or Tonne'' for the object call, ``woman.singular, sock.singular,
+mouse.singular, or ton.singular'' for the gloss call --- with simple
+\cs{lpzg} keys expanded from the Leipzig table; compound keys
+(\texttt{3sg.pst}) and unknown keys are spoken as printed. Like
+\cs{alt}, none of this is mathematics, so the alternatives remain
+ordinary tagged text.
+
+Two settings of its own, redefined with \cs{renewcommand}:
+\cs{AltgColSep} (default \texttt{1.2em}), the gap between the object and
+gloss stacks, and \cs{AltgTransFont} (default \cs{normalfont}), the font
+of the gloss stack. The braces are drawn with the \cs{alt} tunables
+(\cs{AltBraceWidth}, \cs{AltBraceAmplitude}, \cs{AltBraceSep}). If some
+other package owns \cs{altg}, the package leaves it alone and only
+\cs{lxAltg} is available, as with \cs{alt}/\cs{lxAlt}.
+
+\subsection{Source attributions: \cs{exsource}}
+
+\cs{exsource} sets an attribution flush right at the end of an example,
+dropping it onto a line of its own if it does not fit:
+
+\begin{code}
+\ex. This girl in the red coat will put a picture of Bill on your desk.
+\exsource{(Perlmutter 1971: 76)}
+\end{code}
+
+\rendered
+\ex. This girl in the red coat will put a picture of Bill on your desk.
+\exsource{(Perlmutter 1971: 76)}
+
+\afterex
+It works in every part of a multipart example, and after a gloss. The font
+is the hook \cs{ExSourceFont} (default \cs{normalfont}\cs{footnotesize});
+the argument may contain a \cs{cite}.
+
+% ===========================================================================
+\section{Layout}\label{sec:layout}
+% ===========================================================================
+
+The geometry is uniform across levels: each level reserves a label box of
+fixed width, followed by the shared gap \cs{Exlabelsep}; the text margin of
+a level is its label width plus \cs{Exlabelsep}, measured from the margin
+of the level above (figure~\ref{fig:boxmodel}). Judgments hang to the left
+of the text margin and take no space.
+
+\begin{figure}[htbp]
+\centering
+{\setlength{\fboxsep}{2.2pt}\setlength{\arraycolsep}{2pt}%
+ \renewcommand{\arraystretch}{1.5}%
+ \resizebox{\linewidth}{!}{%
+ $\begin{array}[t]{@{}l|l|l|l|l@{}}
+  \multicolumn{5}{@{}c@{}}{\lname{Extopsep}\ \updownarrow\ 0.66\,\lname{baselineskip}}\\[1.2ex]
+  \underbrace{\lname{Exindent}}_{\text{\scriptsize0pt}}
+    & \fbox{\lname{Exlabelwidth}}\underbrace{\lname{Exlabelsep}}_{\text{\scriptsize.6em}}
+    & \text{\footnotesize main text}\ldots & & \\[2.6ex]
+    & & \fbox{\lname{SubExlabelwidth}}\underbrace{\lname{Exlabelsep}}_{\text{\scriptsize.6em}}
+    & \text{\footnotesize sub text}\ldots & \\[2.6ex]
+    & & & \fbox{\lname{SubSubExlabelwidth}}\underbrace{\lname{Exlabelsep}}_{\text{\scriptsize.6em}}
+    & \text{\footnotesize roman text}\ldots \\[1.2ex]
+  \multicolumn{5}{@{}c@{}}{\lname{Extopsep}\ \updownarrow\ 0.66\,\lname{baselineskip}}
+ \end{array}$}}
+\caption{The default box model. On each line, reading left to right: an
+  optional \cs{Exindent} (0\,pt), the label box, then the shared gap
+  \cs{Exlabelsep}; the text of a level begins one label box plus one
+  \cs{Exlabelsep} to the right of the level above, so the boxes cascade
+  down the page. Each box is named for the length that fixes its width
+  (\cs{Exlabelwidth} 2.6\,em, \cs{SubExlabelwidth} 1.6\,em,
+  \cs{SubSubExlabelwidth} 1.6\,em) and holds the number, the letter and
+  the roman label respectively; the vertical rules mark the three text
+  margins. \cs{Extopsep} is the space left above and below. Under
+  \opt{legacy} the sub-levels are driven instead by two leftmargins,
+  \cs{SubExleftmargin} and \cs{SubSubExleftmargin}, as in \pkg{linguex}.}
+\label{fig:boxmodel}
+\end{figure}
+
+\noindent Every parameter is an ordinary length, set with \cs{setlength}
+anywhere in the document:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}>{\ttfamily}l l p{0.44\linewidth}@{}}
+\toprule
+\normalfont Length & Default & Role \\
+\midrule
+\textbackslash Extopsep & \texttt{.66\textbackslash baselineskip} &
+  Vertical space before and after an example. \\
+\textbackslash Exredux & \texttt{-.66\textbackslash baselineskip} &
+  Correction inserted between \emph{consecutive} examples, so the gap is
+  not doubled. Keep it at $-\cs{Extopsep}$ for an even rhythm. \\
+\textbackslash Exlabelwidth & \texttt{2.6em} &
+  Width of the number box --- room for ``(199)''. Widen it for four-digit
+  numbering. \\
+\textbackslash Exlabelsep & \texttt{.6em} &
+  Gap between any label box and its text. \\
+\textbackslash SubExlabelwidth & \texttt{1.6em} &
+  Width of the letter box (``a.''). Deliberately wider than the letter:
+  the surplus is where a hanging judgment goes
+  (section~\ref{sec:jdgspace}). \\
+\textbackslash SubSubExlabelwidth & \texttt{1.6em} &
+  Width of the roman box, sized for the widest label up to ``vi.''
+  (``iii.''), which is the same width as the widest letter; equal to
+  \cs{SubExlabelwidth}, so the two sub-levels share one box width. \\
+\textbackslash JdgSep & \texttt{0.15em} &
+  Gap between a hanging judgment and the text. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent A few further knobs are macros, not lengths, and are changed with
+\cs{renewcommand}: \cs{GlossSep} (glue between gloss columns) and the three
+reference dashes. \cs{rangedash} (default \texttt{-\/-}) separates the two
+ends of a range; \cs{firstrefdash} sits between an example number and a
+sub-example letter in a reference such as ``(3a)'', and
+\cs{secondrefdash} between the letter and a roman numeral in ``(3a-i)''.
+Their defaults differ by mode: in the default scheme \cs{firstrefdash} is
+\emph{empty} (giving ``(3a)'') and \cs{secondrefdash} is \texttt{-};
+under \opt{legacy} both are \texttt{-}, so the same reference prints
+``(3-a)'' and ``(3-a-i)'', as \pkg{linguex} does. The sub-label
+delimiters \cs{SubExLBr}/\cs{SubExRBr} and
+\cs{SubSubExLBr}/\cs{SubSubExRBr} bracket the letter and roman labels
+themselves; they are \texttt{\{\}}/\texttt{\{.\}} in both modes for the
+letter (``a.''), while the roman is bare ``i.'' by default but
+parenthesised ``(i)'' under \opt{legacy}.
+
+The counters are \texttt{ExNo}, \texttt{SubExNo}, \texttt{SubSubExNo} and
+\texttt{FnExNo} (footnotes). To change the style of the numbering,
+redefine \cs{theExNo} and its relatives in the usual \LaTeX{} way.
+
+\paragraph{The default scheme and \opt{legacy}.} The values in the table
+are the \emph{default} scheme. The option \opt{legacy} selects instead the
+exact geometry and conventions of \pkg{linguex}: the number box is sized
+per example from the width of its digits rather than fixed at
+\cs{Exlabelwidth}; the sub-levels are positioned by two leftmargins,
+\cs{SubExleftmargin} (\texttt{2em}) and \cs{SubSubExleftmargin}
+(\texttt{2.4em}), rather than by a label width plus \cs{Exlabelsep}; roman
+sub-sub-labels print as ``(i)''; \cs{firstrefdash} is \texttt{-}; and, in a
+book-class document, \texttt{ExNo} resets at each \cs{chapter}. \opt{legacy}
+is orthogonal to the choice of input syntax: combine it freely, as in
+\opt{[legacy,gb4e]}. Both parameter sets exist in either mode ---
+\cs{SubExleftmargin} always equals \cs{SubExlabelwidth}${}+{}$\cs{Exlabelsep}
+--- so a document can be nudged from one scheme toward the other one length
+at a time.
+
+\cs{resetExdefaults} restores every layout parameter to the values of the
+mode in force; it is what the package runs for you as it loads. Because the
+defaults are applied at load time, not \cs{AtBeginDocument} as in
+\pkg{linguex}, a \cs{setlength} in your preamble simply wins --- there is
+no need to hook it into \cs{resetExdefaults} to keep it from being
+overwritten. The two font-relative lengths, \cs{Extopsep} and
+\cs{Exredux}, are the exception: they are finalised at \cs{begin\{document\}}
+so that they follow the body font, unless you have already given either an
+explicit value.
+
+% ===========================================================================
+\section{Command reference}\label{sec:reference}
+% ===========================================================================
+
+\begingroup
+\renewcommand{\arraystretch}{1.2}
+\setlength{\tabcolsep}{4pt}
+\setlength{\LTpre}{\medskipamount}\setlength{\LTpost}{\medskipamount}
+\begin{longtable}{@{}>{\ttfamily\raggedright\arraybackslash}p{0.31\linewidth} p{0.60\linewidth}@{}}
+\toprule
+\normalfont Command & \normalfont Effect \\
+\midrule
+\endhead
+\midrule
+\multicolumn{2}{r@{}}{\normalfont\footnotesize\itshape continued on the next page} \\
+\endfoot
+\bottomrule
+\endlastfoot
+\multicolumn{2}{@{}l}{\itshape Examples} \\
+\textbackslash ex. & Start a numbered example; a blank line ends it.
+  \cs{ex.}\oarg{label} uses a custom label without advancing the counter. \\
+\textbackslash a. & Open a level of sub-examples (letters, then roman). \\
+\textbackslash b. -- \textbackslash f. & Next item at the level currently open. \\
+\textbackslash z. & Leave one level; from the letter level or an example without sub-examples, end it. \\
+exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package option \opt{gb4e}); items via \cs{ex}, \cs{ex}\oarg{judgment}\marg{text}, or plain \cs{item}. \\
+\textbackslash exg. & \cs{ex.}\ followed by \cs{gll}. \\
+\textbackslash ag. -- \textbackslash fg. & \cs{a.}--\cs{f.}\ followed by \cs{gll}. \\
+\addlinespace
+\multicolumn{2}{@{}l}{\itshape Judgments} \\
+\textbackslash jdg\marg{mark} & Hang an arbitrary mark in the margin. \\
+\textbackslash DeclareJudgment\allowbreak\marg{cmd}\marg{mark} & Give a mark a name. \\
+\addlinespace
+\multicolumn{2}{@{}l}{\itshape Glosses} \\
+\textbackslash gll, \textbackslash glll & Two-, three-tier gloss; lines end in \verb|\\|. \\
+\textbackslash gl \dots\ \textbackslash endgl & Gloss with any number of tiers. \\
+\textbackslash glt & Free-translation line. (\cs{gln} is a synonym.) \\
+\textbackslash GlossTierFont\allowbreak\marg{n}\marg{cmd} & Font command for tier \meta{n}. \\
+\textbackslash GlossTierLang\allowbreak\marg{n}\marg{code} & Language of tier \meta{n} for tagged PDFs (section~\ref{sec:glosslang}). \\
+\textbackslash lpzg\marg{abbr} & Gloss abbreviation in small caps, with spoken expansion when tagged (section~\ref{sec:leipzig}). \\
+\textbackslash SetLeipzig\allowbreak\marg{abbr}\marg{expansion} & Add or override a Leipzig abbreviation expansion. \\
+\textbackslash eachwordone/two/three & Font commands for tiers 1--3. \\
+\textbackslash GlossSep & Glue between gloss columns. \\
+\addlinespace
+\multicolumn{2}{@{}l}{\itshape References} \\
+\textbackslash label, \textbackslash ref & As usual; references print in parentheses. \\
+\textbackslash sublabel\marg{key} & Label a sub-example for use in a range. \\
+\textbackslash Next, \textbackslash NNext, \textbackslash Last, \textbackslash LLast & Relative references. \\
+\textbackslash TextNext & Next example of the running text (from a footnote). \\
+\textbackslash pref, \textbackslash pNext, \dots & Parenthesis-free twins of all of the above. \\
+\textbackslash refrange\marg{a}\marg{b} & Compact range, as (3a--c). \\
+\textbackslash prefrange, \textbackslash Refrange & Without parentheses; over whole examples. \\
+\addlinespace
+\multicolumn{2}{@{}l}{\itshape Further apparatus} \\
+\textbackslash alt\marg{$\dots$}\marg{$\dots$} & Stacked alternatives; \oarg{c/l/r} alignment. Under beamer: \cs{lxAlt}. \\
+\textbackslash altg\marg{alt}\marg{alt}$\dots$ & Glossed alternatives: written in both lines of \textbackslash exg. (objects, then glosses); both-braced, centred. Also \cs{lxAltg}. \\
+\textbackslash exsource\marg{text} & Flush-right attribution. \\
+\addlinespace
+\multicolumn{2}{@{}l}{\itshape Layout and options} \\
+\opt{lazy}, \opt{gb4e} & Package options: dot syntax (default), \pkg{gb4e} environment syntax; combinable. \\
+\opt{legacy} & Package option: the geometry and dash conventions of \pkg{linguex}; orthogonal to the syntax options. \\
+\textbackslash resetExdefaults & Restore all layout lengths to the current mode's defaults. \\
+\textbackslash firstrefdash & Number--letter dash in ``(3a)''; empty by default, \texttt{-} under \opt{legacy}. \\
+\textbackslash secondrefdash & Letter--roman dash in ``(3a-i)''; \texttt{-} in both modes. \\
+\textbackslash rangedash & Dash in a whole-example range. \\
+\end{longtable}
+\endgroup
+
+% ===========================================================================
+\section{PDF tagging and accessibility}\label{sec:tagging}
+% ===========================================================================
+
+\pkg{linguexx} is aware of the \LaTeX{} project's PDF tagging code. If the
+document begins with a \cs{DocumentMetadata} line that turns tagging on,
+for example, on a current \TeX{} distribution,
+
+\begin{code}
+\DocumentMetadata{lang=en,tagging=on}
+\end{code}
+
+\noindent then examples are written into the PDF's structure tree as
+genuine, accessible objects rather than as loose ink. Without such a line
+nothing below applies: the printed output is identical and the package
+behaves exactly as in the rest of this manual.
+
+The exact spelling of that line is a moving target. The \texttt{tagging=on}
+key is the recommended form from the \LaTeX{} release of November~2025
+onward. On distributions between roughly 2023 and 2025 the tagging code
+lives behind the experimental \texttt{testphase} key instead; the portable
+choice there, which also works on current \TeX{}, is
+
+\begin{code}
+\DocumentMetadata{lang=en,testphase={phase-III}}
+\end{code}
+
+\noindent Both enable the same comprehensive tagging as far as
+\pkg{linguexx} is concerned. Avoid the older habit of naming individual
+modules (\texttt{testphase=\{tagpdf,\dots\}}): those names have been
+reorganised and can now load only part of the machinery.
+
+What works today, on \hologo{pdfLaTeX}, \hologo{XeLaTeX} and
+\hologo{LuaLaTeX} alike. The structure tree is valid, including the
+awkward case of an example inside a footnote. Each example is a list item
+with its number as the label and its content as the body; the letter and
+roman sub-levels are nested lists inside it, so assistive technology can
+walk into and out of the hierarchy. Those lists are marked as
+\emph{ordered}, matching their numbering. Grammaticality marks are given a
+spoken form, so a screen reader announces ``ungrammatical'' rather than
+``asterisk'' (section~\ref{sec:jdgspoken}). In an interlinear gloss each
+column --- an object word together with its aligned gloss(es) --- is
+grouped as one structure element, so the gloss is read and navigated word
+bundle by word bundle, in the object-then-gloss order, rather than as one
+undifferentiated run of text. The object language of a tier can be recorded
+(section~\ref{sec:glosslang}), so it is pronounced with its own phonetics;
+and category abbreviations written with \cs{lpzg} carry their expansion
+(section~\ref{sec:leipzigtag}), so a reader hears ``past'' rather than
+``pee-ess-tee''. Stacked alternatives (\cs{alt}) are set in text mode
+rather than as a formula, and carry a spoken form of the list
+(section~\ref{sec:extras}), so they are read as ``A, B, or C'' rather than
+as a run of braces and glyphs.
+
+Validation. A document built with the accessibility preamble above
+validates as PDF/UA-2: veraPDF reports it conformant, with every rule and
+check passing and no exceptions. Conformance is a document-level property,
+not only a matter of the examples --- it also needs a document title and a
+few other pieces of metadata --- so the package ships a short checklist
+(\texttt{PDFUA-CHECKLIST}) giving the preamble that supplies them. What a
+validator cannot certify is that the result is \emph{pleasant} to listen
+to; that still wants testing with a real screen reader.
+
+A caution on stability. Tagging in \LaTeX{} is, at the time of writing, an
+evolving feature: the interface has already moved from named
+\texttt{testphase} modules through \texttt{testphase=\{phase-III\}} to the
+\texttt{tagging=on} key, and the internal machinery still changes between
+releases. A recent \LaTeX{} is required. \pkg{linguexx}'s support is
+written to degrade quietly --- if the tagging machinery is absent or turned
+off, the relevant code does nothing --- but it should be regarded as
+provisional and may need a touch-up as the tagging project matures. The
+\opt{legacy} option is orthogonal to all of this; tagging support targets
+the default mode.
+
+
+\subsection{Gloss abbreviations and their expansions}\label{sec:leipzigtag}
+Under active tagging, \cs{lpzg}\marg{label} does more than set small
+capitals (section~\ref{sec:leipzig}): it records the label's
+\emph{expansion} as the PDF ``expansion text'' (the \texttt{/E} entry of an
+abbreviation), so a screen reader announces ``singular'' while the page
+still shows \textsc{sg} and copy-and-paste still yields \texttt{sg}. This is
+the correct mechanism for an abbreviation --- distinct from an
+\emph{alternate text}, and unlike \texttt{/ActualText} it leaves the copied
+text alone.
+
+A compound label is parsed for the expansion: it is split on periods, a
+leading \texttt{1}, \texttt{2} or \texttt{3} is taken as the person, and
+each piece is expanded and joined into one phrase, so \cs{lpzg}\marg{3sg.pst}
+reads ``third person singular past''. A piece not in the table below passes
+through verbatim; a label with nothing recognisable in it gets no expansion,
+and no warning, so project-specific labels are safe. Extend or override the
+table with \cs{SetLeipzig}\marg{label}\marg{expansion}:
+
+\begin{code}
+\SetLeipzig{obv}{obviative}
+\end{code}
+
+\noindent The built-in table is the standard Leipzig Glossing Rules list;
+the meaning column is what a screen reader speaks.
+
+\begin{center}
+\small
+\begin{longtable}{@{}llll@{}}
+\toprule
+label & meaning & label & meaning \\
+\midrule
+\endfirsthead
+\toprule label & meaning & label & meaning \\ \midrule \endhead
+\bottomrule
+\textsc{1} & first person & \textsc{indf} & indefinite \\
+\textsc{2} & second person & \textsc{inf} & infinitive \\
+\textsc{3} & third person & \textsc{ins} & instrumental \\
+\textsc{a} & agent & \textsc{intr} & intransitive \\
+\textsc{abl} & ablative & \textsc{ipfv} & imperfective \\
+\textsc{abs} & absolutive & \textsc{irr} & irrealis \\
+\textsc{acc} & accusative & \textsc{loc} & locative \\
+\textsc{adj} & adjective & \textsc{m} & masculine \\
+\textsc{adv} & adverbial & \textsc{n} & neuter \\
+\textsc{agr} & agreement & \textsc{neg} & negative \\
+\textsc{all} & allative & \textsc{nmlz} & nominalizer \\
+\textsc{antip} & antipassive & \textsc{nom} & nominative \\
+\textsc{appl} & applicative & \textsc{obj} & object \\
+\textsc{art} & article & \textsc{obl} & oblique \\
+\textsc{aux} & auxiliary & \textsc{p} & patient \\
+\textsc{ben} & benefactive & \textsc{pass} & passive \\
+\textsc{caus} & causative & \textsc{pfv} & perfective \\
+\textsc{clf} & classifier & \textsc{pl} & plural \\
+\textsc{com} & comitative & \textsc{poss} & possessive \\
+\textsc{comp} & complementizer & \textsc{pred} & predicative \\
+\textsc{compl} & completive & \textsc{prf} & perfect \\
+\textsc{cond} & conditional & \textsc{prog} & progressive \\
+\textsc{cop} & copula & \textsc{proh} & prohibitive \\
+\textsc{cvb} & converb & \textsc{prox} & proximal \\
+\textsc{dat} & dative & \textsc{prs} & present \\
+\textsc{decl} & declarative & \textsc{pst} & past \\
+\textsc{def} & definite & \textsc{ptcp} & participle \\
+\textsc{dem} & demonstrative & \textsc{purp} & purposive \\
+\textsc{det} & determiner & \textsc{q} & question particle \\
+\textsc{dist} & distal & \textsc{quot} & quotative \\
+\textsc{distr} & distributive & \textsc{recp} & reciprocal \\
+\textsc{du} & dual & \textsc{refl} & reflexive \\
+\textsc{dur} & durative & \textsc{rel} & relative \\
+\textsc{erg} & ergative & \textsc{res} & resultative \\
+\textsc{excl} & exclusive & \textsc{s} & argument of intransitive verb \\
+\textsc{f} & feminine & \textsc{sbj} & subject \\
+\textsc{foc} & focus & \textsc{sbjv} & subjunctive \\
+\textsc{fut} & future & \textsc{sg} & singular \\
+\textsc{gen} & genitive & \textsc{top} & topic \\
+\textsc{imp} & imperative & \textsc{tr} & transitive \\
+\textsc{incl} & inclusive & \textsc{voc} & vocative \\
+\textsc{ind} & indicative & & \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+% ===========================================================================
+\section{Notes and limitations}
+% ===========================================================================
+
+\begin{itemize}[itemsep=4pt]
+\item \textbf{Two sub-levels.} A third \cs{a.}\ is an error. Deeper
+  hierarchies are almost always better expressed as separate examples.
+
+\item \textbf{The period is part of the command.} \cs{ex.}, \cs{a.},
+  \cs{z.}\ --- not \cs{ex}, \cs{a}, \cs{z}. This is what allows the syntax
+  to be so light.
+
+\item \textbf{\cs{z.}\ at brace depth 0.} \cs{z.}\ is recognized in the
+  body of an example, not inside a brace group within it.
+
+\item \textbf{\pkg{ulem} is not loaded.} For struck-through alternatives
+  (\cs{sout} inside \cs{alt}), load \pkg{ulem} yourself; the usual choice
+  is \cs{usepackage[normalem]\{ulem\}}, which keeps \cs{emph} italic.
+
+\item \textbf{\pkg{hyperref} and \cs{b}, \cs{c}, \cs{d}.} Under the
+  default \opt{lazy} mode, \pkg{linguexx} defines \cs{b.}, \cs{c.},
+  \cs{d.}\ and re-asserts them at \cs{begin\{document\}}, since
+  \pkg{hyperref} redefines these names (they are accent commands used in
+  bookmarks); either load order works, but the bar-under, cedilla and
+  dot-under accents are then unavailable. Under \opt{[gb4e]} alone the
+  letter commands are never defined and the accents work normally.
+
+\item \textbf{Footnote examples.} End an example inside a footnote with a
+  blank line or \cs{z.}\ rather than letting it run into the footnote's own
+  end.
+
+\item \textbf{Glosses and alternatives do not combine.} See
+  section~\ref{sec:extras}.
+
+\item \textbf{Where \pkg{expex} still does more.} Tier \emph{count} and
+  tier \emph{fonts} are unrestricted here, but the vertical layout of a
+  gloss is not individually adjustable per tier, and there is no keyval
+  interface. See section~\ref{sec:origins}.
+\end{itemize}
+
+\vfill
+\noindent\small
+\pkg{linguexx} owes its input syntax to Wolfgang Sternefeld's \pkg{linguex},
+its glossing commands to the \pkg{cgloss4e} of Hans-Peter Kolb and Craig
+Thiersch, the ambition of its gloss engine to John Frampton's \pkg{expex},
+and its parenthesis-free references to a construction of Alan Munn's. The
+implementation is its own; the debts are not.
+
+\end{document}

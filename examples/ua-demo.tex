@@ -1,0 +1,37 @@
+% ---------------------------------------------------------------------------
+% PDF/UA-oriented build of the linguexx accessibility demo.
+%
+% On TeX Live 2025-11 or newer, use the first \DocumentMetadata line
+% (tagging=on).  On TeX Live 2023-2025 use the second (testphase=phase-III).
+% Everything else is identical.  pdfstandard=ua-2 requires PDF 2.0; for a
+% PDF 1.7 target use pdfversion=1.7 and pdfstandard=ua-1.
+% ---------------------------------------------------------------------------
+\DocumentMetadata{lang=en,pdfversion=2.0,pdfstandard=ua-2,tagging=on}
+% \DocumentMetadata{lang=en,pdfversion=2.0,pdfstandard=ua-2,testphase={phase-III}}
+\documentclass{article}
+\usepackage[lazy]{linguexx}
+\usepackage{hyperref}
+\hypersetup{pdftitle={An accessible linguistics document},
+            pdfdisplaydoctitle=true}
+\GlossTierLang{1}{de}
+\title{An accessible linguistics document}
+\author{A. Linguist}
+\begin{document}
+\maketitle
+
+\section{Tagged linguistic examples}
+Ordinary running text precedes the first example.
+
+\ex.\label{intro} A numbered example.
+\a. A sub-example.
+\b. *A judged sub-example.
+\a. A sub-sub-example.
+\z.\z.
+
+\exg. Der Hund bellte.\\ the dog bark.\lpzg{pst}\\
+\glt `The dog barked.'
+
+Examples survive inside footnotes,\footnote{With an example: \ex. Footnoted.
+
+} and interleave with cross-references such as \ref{intro}.
+\end{document}

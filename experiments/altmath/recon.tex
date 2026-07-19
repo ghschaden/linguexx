@@ -1,0 +1,48 @@
+% Reconnaissance: what math-tagging machinery does this TeX Live have, and
+% what does the accessibility tree actually contain for an \alt-style formula?
+% Compiled by CI on texlive/texlive:latest (a current TeX Live).
+\DocumentMetadata{lang=en,pdfversion=2.0,pdfstandard=ua-2,tagging=on,uncompress}
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\hypersetup{pdftitle={recon},pdfdisplaydoctitle=true}
+\title{recon}\author{a}
+\begin{document}
+\maketitle
+
+\ExplSyntaxOn
+\iow_term:n { }
+\iow_term:n { ===PROBE-COMMANDS=== }
+\cs_if_exist:NTF \UseMathForPositioningText
+  { \iow_term:n { PROBE~UseMathForPositioningText~:~YES } }
+  { \iow_term:n { PROBE~UseMathForPositioningText~:~no~ } }
+\cs_if_exist:NTF \MathCollectFalse
+  { \iow_term:n { PROBE~MathCollectFalse~:~YES } }
+  { \iow_term:n { PROBE~MathCollectFalse~:~no~ } }
+\cs_if_exist:NTF \mathalt
+  { \iow_term:n { PROBE~mathalt~:~YES } }
+  { \iow_term:n { PROBE~mathalt~:~no~ } }
+\cs_if_exist:NTF \tag_math_alt:n
+  { \iow_term:n { PROBE~tag_math_alt:n~:~YES } }
+  { \iow_term:n { PROBE~tag_math_alt:n~:~no~ } }
+\cs_if_exist:NTF \__tag_math_alt:n
+  { \iow_term:n { PROBE~__tag_math_alt:n~:~YES } }
+  { \iow_term:n { PROBE~__tag_math_alt:n~:~no~ } }
+\cs_if_exist:NTF \luamml_annotate:nn
+  { \iow_term:n { PROBE~luamml_annotate:nn~:~YES } }
+  { \iow_term:n { PROBE~luamml_annotate:nn~:~no~ } }
+\iow_term:n { ===END-PROBE-COMMANDS=== }
+\ExplSyntaxOff
+
+\newcommand\altbody{\left\{\begin{array}{@{}c@{}}%
+  \text{the cat}\\ \text{a dog}\\ \text{the bird}\end{array}\right\}}
+
+Sample A (plain): I saw $\altbody$ yesterday.
+
+Sample B (positioning text): I saw
+  {\UseMathForPositioningText $\altbody$} yesterday.
+
+Sample C (math collect off): I saw
+  {\MathCollectFalse $\altbody$} yesterday.
+
+\end{document}

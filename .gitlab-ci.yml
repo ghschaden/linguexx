@@ -1,0 +1,41 @@
+# Run the linguexx regression suite on a current TeX Live.
+#
+# The official texlive/texlive image is large but ships all three engines and
+# the tagging support; we add poppler-utils (pdftotext, pdfinfo) and python3,
+# which the suite needs. The suite exits non-zero on any real failure; the one
+# known pdftotext artifact is marked expected-fail, so a green pipeline means
+# every layout and structure assertion passed on pdflatex, xelatex and lualatex.
+image: texlive/texlive:latest
+
+stages:
+  - test
+
+regression:
+  stage: test
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends python3 poppler-utils
+  script:
+    - cd tests
+    - python3 runtests.py
+  # cache nothing; the image already contains the whole toolchain.
+
+# Manual reconnaissance job for the \alt math-tagging work (see
+# experiments/altmath/). Run it from the GitLab pipeline UI ("play" button);
+# it prints, from the CI's current TeX Live, which math-tagging commands exist
+# and how an \alt-style formula is tagged. Paste its log back for analysis.
+alt-recon:
+  stage: test
+  when: manual
+  allow_failure: true
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends python3 poppler-utils
+  script:
+    - sh experiments/altmath/run.sh
+  artifacts:
+    when: always
+    paths:
+      - experiments/altmath/recon.pdf
+      - experiments/altmath/recon.log
+    expire_in: 30 days

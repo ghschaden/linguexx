@@ -1,0 +1,36 @@
+\input{_preamble-tagged}
+\GlossTierLang{1}{de}
+% PDF tagging smoke test: every construct here has, at some point,
+% corrupted the structure tree (mismatched text-unit bookkeeping) under
+% the latex-lab testphase code.  -halt-on-error turns any tagpdf
+% accounting error into a failed compile, which is the assertion that
+% matters; the text checks below just confirm the content arrived.
+\noindent CCC margin reference.
+
+AAA start.
+
+\ex. MAINTEXT one.
+\a. LETTERA plain sub.
+\b. *LETTERB judged sub.
+\a. ROMANI roman sub.
+\z.\z.
+
+\exg. GLOSSA GLOSSB GLOSSC.\\
+      glossa glossb \lpzg{3sg.pst}.\\
+\glt `Translation.'
+
+\ex. I saw \alt{the cat}{a dog} here.
+
+\exg. ALTGHOST \altg{Socke}{Tonne} ALTGVERB.\\
+      altghost \altg{sock.\lpzg{sg}}{ton.\lpzg{sg}} altgverb.\\
+
+FNHOST here.\footnote{In the note: \ex. FNEX example.
+
+}
+
+\begin{exe}
+\ex[??]{EXEITEM one.}
+\end{exe}
+
+BBB following paragraph after everything.
+\end{document}

@@ -1,0 +1,31 @@
+# LaTeX build artefacts
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.bbl
+*.blg
+*.nav
+*.snm
+*.vrb
+*.xmpi
+
+# tagging / MathML sidecars
+*-mathml.html
+*-luamml-mathml.html
+*.html
+
+# test scratch
+tests/cases/
+__pycache__/
+*.pyc
+
+# built example/test PDFs are regenerable; keep only the manual
+examples/*.pdf
+tests/*.pdf
+!linguexx-doc.pdf

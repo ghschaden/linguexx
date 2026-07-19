@@ -1,0 +1,220 @@
+\documentclass{article}
+\usepackage[a4paper]{geometry}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else
+  \usepackage{fontspec}
+\fi
+\usepackage[normalem]{ulem}% for \sout in the alternatives tests
+\usepackage[lazy,gb4e]{linguexx}
+\usepackage{hyperref}
+
+\begin{document}
+
+\section*{Numbering and nesting}
+
+\ex. Plain example one.
+
+\ex.
+\a. First sub.
+\b. Second sub.
+\a. Sub-sub roman one.
+\b. Sub-sub roman two.
+
+\ex.\label{lbl:main} Labelled example: text continues.
+
+\ex.[(4$'$)] Custom label, counter not stepped.
+
+\ex. Counter continues correctly at four.
+
+\section*{Judgments}
+
+\ex. *Auto-detected star.
+
+\ex. ??This one is doubly questionable.
+
+\ex. ?*Mixed marks.
+
+\ex. \#Hash via control sequence.
+
+\ex. \%\#Percent-hash combination.
+
+\ex.
+\a. *Starred sub-example,
+\b. plain sub-example: texts must align.
+
+\ex. \jdg{\dag}Explicit arbitrary mark via jdg.
+
+\section*{Glossing}
+
+\ex. \gll Dies ist ein kleines Beispiel \\
+     this is a small example \\
+\glt `This is a small example.'
+
+\ex. \gll Das {kleine Kind} schl\"aft \\
+     the {little child} sleeps \\
+\glt `The little child sleeps.' (braced group = one column)
+
+\ex. \gll Eins zwei drei vier \\
+     one two \\
+\glt Unequal lines: empty gloss cells.
+
+\ex. \glll Ich habe geschlafen \\
+      ich hab-e schlaf-en \\
+      1SG have-1SG sleep-PTCP \\
+\glt `I slept.' (three-line gloss)
+
+\ex. \gll Ein sehr sehr sehr langes Beispiel damit die Glossenzeilen
+umgebrochen werden m\"ussen und wir sehen ob der Umbruch zwischen den
+Spalten funktioniert wie er soll \\
+one very very very long example so.that the gloss.lines broken
+become must and we see whether the break between the columns
+works as it should \\
+\glt `Wrapping test.'
+
+\GlossTierFont{4}{\textit}
+\ex. \gl Der Hund schl\"aft \\
+     der Hund schlaf-t \\
+     DEF.NOM.SG.M dog sleep-3SG \\
+     D N V \\ \endgl
+\glt `The dog sleeps.' (four tiers, tier 4 italic via GlossTierFont)
+
+\ex. \gl Unequal tiers and {braced pairs} here \\
+     only two \\
+     third {tier has} a braced group \\ \endgl
+\glt Multi-tier: empty cells and braces.
+
+\section*{References}
+
+\ex.\label{r:one}
+\a.\sublabel{r:a} Premier.
+\b. Deuxi\`eme.
+\c.\sublabel{r:c} Troisi\`eme.
+
+Refs: \ref{r:one}, \ref{r:a}, \pref{r:c}; range \refrange{r:a}{r:c};
+bare \prefrange{r:a}{r:c}; relative: \Last, \pLast, \LLast; and the next
+example will be \Next.
+
+\ex. As announced.
+
+\section*{Footnote examples}
+
+Main text example numbering\footnote{A footnote with examples:
+\ex. First footnote example, roman.
+
+\ex. *Second, with judgment.
+
+Footnote-internal refs: \Last\ and \LLast.} is not disturbed:
+
+\ex. Text example after the footnote; this is \Last.
+
+\section*{Alternatives and sources}
+
+\ex. \alt{\sout{This girl in the red coat}}{she}{Mary} will put a
+picture of \alt{Bill}{him} on your desk. \exsource{(Perlmutter 1971)}
+
+\ex.
+\a. Multipart source A. \exsource{(Source A)}
+\b. Multipart source B, same number. \exsource{(Source B)}
+
+\ex. \gll Dies ist ein Beispiel mit Glosse und Quelle \\
+     this is an example with gloss and source \\
+\glt `Glossed with source.' \exsource{(Schaden 2020: 45)}
+
+A very long example sentence follows to test the flush-right fallback.
+
+\ex. This example sentence is specifically designed to run almost to the
+end of the line so that the source cannot fit and must be pushed onto its
+own line, flush right. \exsource{(Tolsto\"i 1869: t.~2, p.~334)}
+
+\section*{Glossed shorthands and early termination}
+
+\exg. *Das Beispiel funktionieren \\
+      the example work.INF \\
+\glt Judged glossed shorthand: star hangs left of the first column.
+
+\ex.
+\ag. Erstes Unterbeispiel mit Glosse \\
+     first sub.example with gloss \\
+\bg. Zweites auch \\
+     second too \\
+
+\ex. An example ended early by z. \z. This continuation must sit flush
+left at the outer margin, outside the example.
+
+\ex. Numbering continues undisturbed after z.
+
+\ex.
+\a. Sub level,
+\a. sub-sub level, then \z.\z. two pops escape from two levels deep.
+
+\ex. And the counter is still right.
+
+\section*{Termination without blank lines (v3.2)}
+
+\ex. Ended by z with no blank line after it. \z.This prose follows
+immediately in the source, on the same line.
+\ex. And this example follows with no blank line before it either.
+
+\begin{minipage}{0.8\textwidth}
+\ex. In a minipage, terminated by the environment boundary itself.\end{minipage}
+
+\ex. With \begin{tabular}{ll} a & b \\ c & d \end{tabular} inside,
+ended by a blank line: environment counting works.
+
+{\ex. Inside a brace group, ended by the group's closing brace.}
+
+Footnote examples without blank lines:\footnote{Before.
+\ex. Footnote example ended by z. \z.After, still in the footnote.}
+main text continues.
+
+\ex.
+\a. First
+\b. Second
+\a. Second a
+\b. Second b
+\z.
+\b. third: z popped one level, so this is item c.
+\z.
+and this is prose outside the example, flush left.
+
+\ex.
+\a. A forgotten blank line after a sub-item:
+\ex. this example is still set at top level, not misindented.
+
+\section*{Mixing environments and dot syntax}
+
+\ex.
+\a. Dot sub-example,
+\begin{xlist}
+\ex with an xlist sub-sub inside,
+\item made by ex or by plain item,
+\end{xlist}
+\b. and letters resume after it.
+
+\section*{gb4e-compatible interface}
+
+\begin{exe}
+\ex\label{gb:one} First in a batch.
+\ex[*]{Judged via the bracket form.}
+\ex Plain, with nesting:
+ \begin{xlist}
+ \ex[]{Empty judgment,}
+ \ex[??]{double mark,}
+ \ex
+  \begin{xlist}
+  \ex[**]{roman with stars,}
+  \ex[\%]{and a percent.}
+  \end{xlist}
+ \ex after the nesting.
+ \end{xlist}
+\ex Last of the batch; ref: \ref{gb:one}.
+\end{exe}
+
+\ex. The very last example, and the counter survived it all: this is \Last.
+
+Final paragraph: normal text after everything, correctly outdented.
+
+\end{document}

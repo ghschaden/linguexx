@@ -1,0 +1,21 @@
+This material is subject to the LaTeX Project Public License 1.3c or later.
+
+Author and copyright holder: Gerhard Schaden.
+
+This work has the LPPL maintenance status "maintained". The Current Maintainer
+of this work is Gerhard Schaden.
+
+This work consists of the files
+    linguexx.sty
+    linguexx-doc.tex
+and the derived file linguexx-doc.pdf, together with the examples, tests and
+documentation distributed alongside them.
+
+The LaTeX Project Public License, version 1.3c, is available from
+    https://www.latex-project.org/lppl.txt
+and every distribution of LaTeX version 2005/12/01 or later includes a copy.
+
+Under that license you may distribute and/or modify this work provided that the
+conditions there stated are met; in particular, a modified copy that is
+distributed must be clearly identified as such and must not be passed off as the
+original.

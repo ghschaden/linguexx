@@ -1,0 +1,36 @@
+% Demonstrator: linguexx examples in a tagged (PDF/UA-oriented) document.
+% Compile with lualatex (recommended for tagging), pdflatex, or xelatex.
+% The \DocumentMetadata line is what turns tagging on; remove it and the
+% same source typesets identically, untagged.
+% Tagging is enabled by the \DocumentMetadata line below.
+% On TeX Live 2025-11 or newer, \DocumentMetadata{lang=en,tagging=on} is
+% the recommended form.  testphase={phase-III} works on TeX Live 2023
+% through 2026 and selects the current comprehensive tagging.
+\DocumentMetadata{lang=en,pdfversion=2.0,testphase={phase-III}}
+\documentclass{article}
+\usepackage[lazy,gb4e]{linguexx}
+\GlossTierLang{1}{de} % object line is German
+\begin{document}
+
+\section{Tagged linguistic examples}
+
+Ordinary running text precedes the first example.
+
+\ex.\label{intro} A numbered example, tagged as a labelled list item.
+\a. A sub-example at the letter level.
+\b. *A judged sub-example.
+\a. A sub-sub-example at the roman level.
+\z.\z.
+
+A gloss, whose tiers are word-aligned:
+
+\exg. Der Hund bellte laut.\\
+      the dog bark.\lpzg{pst} loudly.\\
+\glt `The dog barked loudly.'
+
+Examples survive inside footnotes,\footnote{Footnote text with its own
+example: \ex. A footnoted example. }
+straddle page boundaries, and interleave with cross-references such as
+\ref{intro}.
+
+\end{document}

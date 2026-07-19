@@ -1,0 +1,19 @@
+\input{_preamble}
+\begin{document}
+\ex.\label{r:one}
+\a.\sublabel{r:a} First.
+\b. Second.
+\c.\sublabel{r:c} Third.
+
+RANGE \refrange{r:a}{r:c} PLAINREF \ref{r:one} PREF \pref{r:c}
+LAST \Last{} NEXT \Next{}
+
+\ex. Target of Next.
+
+Footnote test\footnote{FN
+\ex. First footnote example.
+
+\ex. Second one.
+
+FNLAST \Last{} FNLLAST \LLast{}} done.
+\end{document}

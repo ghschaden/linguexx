@@ -1,0 +1,28 @@
+name: alt-recon
+
+# Manual reconnaissance for the \alt math-tagging work.
+# Trigger from the Actions tab ("Run workflow"); read the job log, and/or
+# download the recon.pdf / recon.log artifact.
+on:
+  workflow_dispatch:
+
+jobs:
+  recon:
+    runs-on: ubuntu-latest
+    container: texlive/texlive:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install poppler-utils and Python
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends python3 poppler-utils
+      - name: Reconnaissance
+        run: sh experiments/altmath/run.sh
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alt-recon
+          path: |
+            experiments/altmath/recon.pdf
+            experiments/altmath/recon.log

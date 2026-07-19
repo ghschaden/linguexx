@@ -1,0 +1,23 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    # The official TeX Live image ships all three engines and the tagging code.
+    container: texlive/texlive:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install poppler-utils and Python
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends python3 poppler-utils
+
+      - name: Run the regression suite
+        run: |
+          cd tests
+          python3 runtests.py
