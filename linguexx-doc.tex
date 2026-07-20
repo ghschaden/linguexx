@@ -54,38 +54,33 @@ and examples inside footnotes. Its input syntax is deliberately terse ---
 \cs{ex.}\ starts an example, a blank line ends it --- so that data does not
 disappear under markup.
 
-\smallskip\noindent
-That syntax is not new, and no claim is made that it is: it is the syntax
-of Wolfgang Sternefeld's \pkg{linguex}, which this package owes almost
-everything to, and which it is designed to replace. \pkg{linguexx} is a
-reimplementation from the ground up, undertaken for two reasons. The
-first is to repair the structural weaknesses of the original: a globally
-drifting sub-example depth counter (the source of the notorious
-\texttt{Check example numbering (screwed up?)}), a judgment tokenizer
-built on catcode manipulation, and a termination rule that failed at the
-end of a \pkg{beamer} frame. All three are gone --- not patched, but
-designed out. The second is to bring the glossing up to the level of John
-Frampton's \pkg{expex}, the one facility in which \pkg{linguex} was
-decisively behind: glosses may now have any number of tiers, each with its
-own font, rather than the two or three that \pkg{cgloss4e} allowed.
+That syntax comes from Wolfgang Sternefeld's \pkg{linguex}, which this
+package owes almost everything to, and which it is designed to
+replace. \pkg{linguexx} is a reimplementation from the ground up,
+undertaken for two reasons. The first is to repair the structural
+weaknesses of the original: a globally drifting sub-example depth
+counter, a judgment tokenizer built on catcode manipulation, and a
+termination rule that failed at the end of a \pkg{beamer} frame. All
+three are gone. The second is to bring the glossing closer to the
+level of John Frampton's \pkg{expex}: glosses may now have any number
+of tiers, each with its own font, rather than the two or three that
+\pkg{cgloss4e} allowed.
 
-\smallskip\noindent
-The package's dependencies are \pkg{graphicx} and \pkg{tikz} (used only by
-\cs{alt}), plus the \pkg{expl3} layer, part of the \LaTeX{} kernel since
-2020, and it works identically
-under \hologo{pdfLaTeX}, \hologo{XeLaTeX} and \hologo{LuaLaTeX}. This manual is self-contained and assumes no
-acquaintance with \pkg{linguex} or any other example package:
-section~\ref{sec:tour} gets you writing examples in two pages;
-sections~\ref{sec:examples}--\ref{sec:extras} treat each facility in turn;
-section~\ref{sec:reference} is a command reference. Section~\ref{sec:origins}
-sets out the relation to \pkg{linguex}, \pkg{expex} and \pkg{gb4e} for
-those who know them.
+The package also provides an implementation of linguistic glossing
+that is fully compatible with tagged pdfs, and produces valid output
+according to \pkg{veraPDF}.
+
+The package's only dependencies are \pkg{graphicx} and \pkg{tikz},
+plus the \pkg{expl3} layer, part of the \LaTeX{} kernel since 2020,
+and it works identically under \hologo{pdfLaTeX}, \hologo{XeLaTeX} and
+\hologo{LuaLaTeX}. This manual is self-contained and assumes no
+acquaintance with \pkg{linguex} or any other example package.
 \end{abstract}
 
 \tableofcontents
 
 % ===========================================================================
-\section{A two-page tour}\label{sec:tour}
+\section{A quick tour}\label{sec:tour}
 % ===========================================================================
 
 Load the package:
@@ -178,38 +173,40 @@ reference ranges, examples in footnotes, source attributions, and the
 layout parameters.
 
 % ===========================================================================
-\section{Origins, and relation to other packages}\label{sec:origins}
+\section{Origins, acknowledgments, and relation to other packages}
+\label{sec:origins}
 % ===========================================================================
 
 \noindent
 Readers who have never used another example package can skip this section
-with no loss; it is here because the debts are real and ought to be stated
-plainly.
+with no loss. 
 
-\paragraph{\pkg{linguex} (Wolfgang Sternefeld).} The input language of
-\pkg{linguexx} \emph{is} the input language of \pkg{linguex}, deliberately
-and almost exhaustively: \cs{ex.}, \cs{a.}--\cs{f.}, \cs{z.}, termination
-by blank line, custom labels in brackets, automatic roman numbering in
-footnotes, the \cs{Next}/\cs{Last} family, \cs{exg.}\ and its relatives,
-and the layout parameters down to their names. Existing \pkg{linguex}
-documents compile essentially unchanged; the default geometry is a little
-tighter than \pkg{linguex}'s, and the option \opt{legacy} reproduces the
-original spacing exactly (section~\ref{sec:layout}). What has been replaced
-is the
-machinery underneath. \pkg{linguex} tracks sub-example depth in a global
-counter that drifts out of step whenever an example is malformed, and the
-damage then propagates to the numbering of every later example; it
-recognizes judgments with a hand-written tokenizer that manipulates
-category codes; and it scans an example body up to the next \cs{par}, so
-that an example may not end a \pkg{beamer} frame. In \pkg{linguexx} the
-depth is held in the grouping structure itself, so drift is not merely
-unlikely but impossible; judgments are recognized by token inspection with
-no catcode trickery, and any mark whatever may be used
-(section~\ref{sec:judgments}); and the body is collected by a scanner that
-stops at a blank line, at \cs{z.}, or at a structural boundary such as
-\cs{end}\marg{frame}. Two facilities of \pkg{linguex} were dropped as more
-trouble than they are worth: examples embedded inside sub-examples, and the
-index variants \cs{exi.}/\cs{ai.}.
+\paragraph{\pkg{linguex} (Wolfgang Sternefeld).} This package started
+from a set of patches I made to \pkg{linguex} over the years. As a
+consequence, the input language of \pkg{linguexx} \emph{is} the input
+language of \pkg{linguex}, deliberately and almost exhaustively:
+\cs{ex.}, \cs{a.}--\cs{f.}, \cs{z.}, termination by blank line, custom
+labels in brackets, automatic roman numbering in footnotes, the
+\cs{Next}/\cs{Last} family, \cs{exg.}\ and its relatives, and the
+layout parameters down to their names. Existing \pkg{linguex}
+documents compile essentially unchanged; the default geometry is a
+little tighter than \pkg{linguex}'s, and the option \opt{legacy}
+reproduces the original spacing exactly (section~\ref{sec:layout}).
+What has been replaced is the machinery underneath. \pkg{linguex}
+tracks sub-example depth in a global counter that drifts out of step
+whenever an example is malformed, and the damage then propagates to
+the numbering of every later example; it recognizes judgments with a
+hand-written tokenizer that manipulates category codes; and it scans
+an example body up to the next \cs{par}, so that an example may not
+end a \pkg{beamer} frame. In \pkg{linguexx} the depth is held in the
+grouping structure itself, so drift is not merely unlikely but
+impossible; judgments are recognized by token inspection with no
+catcode trickery, and any mark whatever may be used
+(section~\ref{sec:judgments}); and the body is collected by a scanner
+that stops at a blank line, at \cs{z.}, or at a structural boundary
+such as \cs{end}\marg{frame}. Two facilities of \pkg{linguex} were
+dropped as more trouble than they are worth: examples embedded inside
+sub-examples, and the index variants \cs{exi.}/\cs{ai.}.
 
 \paragraph{\pkg{cgloss4e} (Hans-Peter Kolb and Craig Thiersch).} The
 glossing commands \cs{gll}, \cs{glll} and \cs{glt} come from here, by way
@@ -226,6 +223,10 @@ individual tiers, and its keyval interface exposes more parameters than
 the eight lengths of section~\ref{sec:layout}. If the glossing is the hard
 part of your document, \pkg{expex} may still be the better instrument.
 
+\paragraph{\pkg{leipzig} (Natalie Weber).} This package contains a set
+of glossing conventions (the Leipzig glossing rules) that were lifted
+from Natalie Weber's package.
+
 \paragraph{\pkg{gb4e}.} Not an ancestor of the implementation, but its
 environment syntax is accepted: \texttt{exe}, \texttt{xlist} and the
 bracketed judgment form of \cs{ex} work as they do there
@@ -237,6 +238,12 @@ category codes.
 \paragraph{Parenthesis-free references.} The \cs{pref}/\cs{pNext} family
 follows a construction of Alan Munn's.
 
+\paragraph{Contributors} This package has been coded and documented
+via generative AI (Claude), under the instruction and supervision of
+Gerhard Schaden.
+
+
+
 % ===========================================================================
 \section{Examples}\label{sec:examples}
 % ===========================================================================
@@ -246,7 +253,7 @@ follows a construction of Alan Munn's.
 \cs{ex.}\ starts a numbered example. Three things end it:
 
 \begin{enumerate}[itemsep=2pt]
-\item a \textbf{blank line} (or an explicit \cs{par}) --- the normal case;
+\item a \textbf{blank line} (or an explicit \cs{par}) --- the only thing that ended an example in \pkg{linguex};
 \item \textbf{\cs{z.}} (section~\ref{sec:z}), which ends it at the point
   where it stands;
 \item a \textbf{structural boundary}: the end of the enclosing environment
@@ -305,7 +312,7 @@ successively out of the example:
 \a. Second a
 \b. Second b
 \z.
-\b. third
+\b. Third
 \z.
 Ordinary text again.
 \end{code}
@@ -317,7 +324,7 @@ Ordinary text again.
 \a. Second a
 \b. Second b
 \z.
-\b. third
+\b. Third
 \z.
 Ordinary text again.
 
@@ -428,10 +435,11 @@ and \Last\ refers to the second of these, not to a text example.}
 \section{Grammaticality judgments}\label{sec:judgments}
 % ===========================================================================
 
-Marks are also given \emph{spoken forms} for accessible PDFs, so that a
-screen reader announces a judgment by its meaning rather than by its glyph
-(section~\ref{sec:jdgspoken}). That is one of the tagging features drawn
-together in section~\ref{sec:tagging}.
+This section deals with the typesetting; marks are also given
+\emph{spoken forms} for accessible PDFs, so that a screen reader
+announces a judgment by its meaning rather than by its glyph
+(section~\ref{sec:jdgspoken}). That is one of the tagging features
+drawn together in section~\ref{sec:tagging}.
 
 \subsection{Automatic marks}
 
@@ -525,43 +533,6 @@ whatever its width. To give a recurrent mark a name of its own, use
 The distance between mark and text is the length \cs{JdgSep}
 (default \texttt{0.15em}).
 
-\subsection{Spoken forms for tagged PDFs}\label{sec:jdgspoken}
-A judgment mark is a symbol whose meaning a screen reader cannot guess:
-read literally, \texttt{*} is ``asterisk''. When the document is compiled
-with the PDF tagging code active (a \cs{DocumentMetadata} line enabling
-the tagging \texttt{testphase}), \pkg{linguexx} wraps each mark in a
-structure element carrying an \emph{alternate text} so it is announced by
-its meaning instead. The built-in marks have sensible defaults:
-
-\begin{center}
-\begin{tabular}{@{}ll@{}}
-\toprule
-mark & spoken as \\
-\midrule
-\texttt{*}  & ungrammatical \\
-\texttt{?}  & questionable \\
-\texttt{??} & highly questionable \\
-\texttt{?*} & extremely degraded \\
-\texttt{\#} & infelicitous \\
-\texttt{\%} & grammatical for some speakers \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-\noindent This affects only the tagged PDF's accessibility layer; the
-printed output is unchanged, and nothing happens on an engine or in a
-document without active tagging. To set the spoken form of a mark, give
-\cs{DeclareJudgment} its optional \texttt{spoken} key --- which both names
-the mark and registers its spoken form, so a leading scanned mark is
-announced the same way ---
-
-\begin{code}
-\DeclareJudgment[spoken={marginal, some speakers}]{\pcent}{\%}
-\end{code}
-
-\noindent or, for a mark you do not need to name, \cs{SetJudgmentSpoken}\-
-\marg{mark}\marg{phrase}. An explicit \cs{jdg} may also carry a one-off
-spoken form as an optional argument: \cs{jdg}\oarg{ungrammatical}\marg{*}.
 
 % ===========================================================================
 \section{Interlinear glosses}\label{sec:glosses}
@@ -590,13 +561,13 @@ word}. This is how one object-language word is glossed by several English
 words, or the reverse:
 
 \begin{code}
-\ex. \gll Das {kleine Kind} schl\"aft \\
+\ex. \gll Das {kleine Kind} schläft \\
           the {little child} sleeps   \\
 \glt `The little child sleeps.'
 \end{code}
 
 \rendered
-\ex. \gll Das {kleine Kind} schl\"aft \\
+\ex. \gll Das {kleine Kind} schläft \\
      the {little child} sleeps \\
 \glt `The little child sleeps.'
 
@@ -605,6 +576,37 @@ If the tiers are of unequal length, the missing cells are simply left
 empty --- no error. A gloss too long for the line wraps between columns,
 never inside one.
 
+\subsection{Gloss abbreviations: \cs{lpzg}}\label{sec:leipzig}
+Category labels in a gloss are written in small capitals by convention
+(\textsc{sg}, \textsc{pst}, \textsc{nom}). \cs{lpzg}\marg{label} is a
+convenience for exactly this: it sets its argument in small capitals, so
+\cs{lpzg}\marg{sg} is a shorter, meaning-bearing spelling of
+\cs{textsc}\marg{sg}. A whole compound label goes in one call, written the
+Leipzig way --- a leading person number flush against the number, then
+further categories separated by periods:
+
+\begin{code}
+\gll Der Hund bellte.\\
+     the dog  bark.\lpzg{3sg.pst}\\
+\glt `The dog barked.'
+\end{code}
+
+\rendered
+\gll Der Hund bellte.\\
+     the dog bark.\lpzg{3sg.pst}\\
+\glt `The dog barked.'
+
+\afterex
+\noindent \cs{lpzg}\marg{3sg.pst} simply sets \textsc{3sg.pst}. Its
+argument is a label you would otherwise have typed by hand; there is no
+fixed vocabulary as far as \emph{typesetting} is concerned. What
+\cs{lpzg} adds over \cs{textsc} appears only in a tagged PDF, where it
+records the spoken expansion of the label (``third person singular past'')
+for a screen reader; that behaviour, and the list of abbreviations it
+knows, are described in section~\ref{sec:leipzigtag}. \cs{lpzg} is
+self-contained and does not require, or interact with, the \pkg{leipzig}
+package.
+
 \subsection{Any number of tiers: \cs{gl} \dots\ \cs{endgl}}
 
 Heavily annotated data --- transliteration, segmentation, gloss, category
@@ -612,20 +614,19 @@ line --- needs more than three tiers. \cs{gl} takes any number of lines,
 each ended by \verb|\\|, up to \cs{endgl}:
 
 \begin{code}
-\GlossTierFont{4}{\textit}
-
-\ex. \gl Der Hund schl\"aft \\
-         der Hund schlaf-t \\
-         DEF.NOM.SG.M dog sleep-3SG \\
-         D N V \\ \endgl
+\GlossTierFont{4}{\textit}%
+\ex. \gl Der Hund schläft \\
+     der Hund schlaf-t \\
+     \lpzg{def.nom.sg.m} dog sleep-\lpzg{3sg} \\
+     D N V \\ \endgl
 \glt `The dog sleeps.'
 \end{code}
 
 \rendered
 {\GlossTierFont{4}{\textit}%
-\ex. \gl Der Hund schl\"aft \\
+\ex. \gl Der Hund schläft \\
      der Hund schlaf-t \\
-     DEF.NOM.SG.M dog sleep-3SG \\
+     \lpzg{def.nom.sg.m} dog sleep-\lpzg{3sg} \\
      D N V \\ \endgl
 \glt `The dog sleeps.'
 
@@ -694,36 +695,6 @@ tagging is active (section~\ref{sec:tagging}): it changes nothing in the
 printed gloss and nothing in an untagged document. A tier with no declared
 language behaves exactly as before.
 
-\subsection{Gloss abbreviations: \cs{lpzg}}\label{sec:leipzig}
-Category labels in a gloss are written in small capitals by convention
-(\textsc{sg}, \textsc{pst}, \textsc{nom}). \cs{lpzg}\marg{label} is a
-convenience for exactly this: it sets its argument in small capitals, so
-\cs{lpzg}\marg{sg} is a shorter, meaning-bearing spelling of
-\cs{textsc}\marg{sg}. A whole compound label goes in one call, written the
-Leipzig way --- a leading person number flush against the number, then
-further categories separated by periods:
-
-\begin{code}
-\gll Der Hund bellte.\\
-     the dog \lpzg{3sg.pst}\\
-\glt `The dog barked.'
-\end{code}
-
-\rendered
-\gll Der Hund bellte.\\
-     the dog \lpzg{3sg.pst}\\
-\glt `The dog barked.'
-
-\afterex
-\noindent \cs{lpzg}\marg{3sg.pst} simply sets \textsc{3sg.pst}. Its
-argument is a label you would otherwise have typed by hand; there is no
-fixed vocabulary as far as \emph{typesetting} is concerned. What
-\cs{lpzg} adds over \cs{textsc} appears only in a tagged PDF, where it
-records the spoken expansion of the label (``third person singular past'')
-for a screen reader; that behaviour, and the list of abbreviations it
-knows, are described in section~\ref{sec:leipzigtag}. \cs{lpzg} is
-self-contained and does not require, or interact with, the \pkg{leipzig}
-package.
 
 \subsection{Abbreviations: \cs{exg.}\ and \cs{ag.}}
 
@@ -844,6 +815,9 @@ over two whole examples, as (10)--(12). The range dash is the macro
 % ===========================================================================
 \section{Further apparatus}\label{sec:extras}
 % ===========================================================================
+
+\pkg{linguexx} contains three constructs that were not part of its
+ancestor \pkg{linguex}: \cs{alt}, \cs{altg}, and \cs{exsource}.
 
 \subsection{Stacked alternatives: \cs{alt}}
 
@@ -972,7 +946,7 @@ is the hook \cs{ExSourceFont} (default \cs{normalfont}\cs{footnotesize});
 the argument may contain a \cs{cite}.
 
 % ===========================================================================
-\section{Layout}\label{sec:layout}
+\section{Example and glossing layout}\label{sec:layout}
 % ===========================================================================
 
 The geometry is uniform across levels: each level reserves a label box of
@@ -1090,73 +1064,6 @@ so that they follow the body font, unless you have already given either an
 explicit value.
 
 % ===========================================================================
-\section{Command reference}\label{sec:reference}
-% ===========================================================================
-
-\begingroup
-\renewcommand{\arraystretch}{1.2}
-\setlength{\tabcolsep}{4pt}
-\setlength{\LTpre}{\medskipamount}\setlength{\LTpost}{\medskipamount}
-\begin{longtable}{@{}>{\ttfamily\raggedright\arraybackslash}p{0.31\linewidth} p{0.60\linewidth}@{}}
-\toprule
-\normalfont Command & \normalfont Effect \\
-\midrule
-\endhead
-\midrule
-\multicolumn{2}{r@{}}{\normalfont\footnotesize\itshape continued on the next page} \\
-\endfoot
-\bottomrule
-\endlastfoot
-\multicolumn{2}{@{}l}{\itshape Examples} \\
-\textbackslash ex. & Start a numbered example; a blank line ends it.
-  \cs{ex.}\oarg{label} uses a custom label without advancing the counter. \\
-\textbackslash a. & Open a level of sub-examples (letters, then roman). \\
-\textbackslash b. -- \textbackslash f. & Next item at the level currently open. \\
-\textbackslash z. & Leave one level; from the letter level or an example without sub-examples, end it. \\
-exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package option \opt{gb4e}); items via \cs{ex}, \cs{ex}\oarg{judgment}\marg{text}, or plain \cs{item}. \\
-\textbackslash exg. & \cs{ex.}\ followed by \cs{gll}. \\
-\textbackslash ag. -- \textbackslash fg. & \cs{a.}--\cs{f.}\ followed by \cs{gll}. \\
-\addlinespace
-\multicolumn{2}{@{}l}{\itshape Judgments} \\
-\textbackslash jdg\marg{mark} & Hang an arbitrary mark in the margin. \\
-\textbackslash DeclareJudgment\allowbreak\marg{cmd}\marg{mark} & Give a mark a name. \\
-\addlinespace
-\multicolumn{2}{@{}l}{\itshape Glosses} \\
-\textbackslash gll, \textbackslash glll & Two-, three-tier gloss; lines end in \verb|\\|. \\
-\textbackslash gl \dots\ \textbackslash endgl & Gloss with any number of tiers. \\
-\textbackslash glt & Free-translation line. (\cs{gln} is a synonym.) \\
-\textbackslash GlossTierFont\allowbreak\marg{n}\marg{cmd} & Font command for tier \meta{n}. \\
-\textbackslash GlossTierLang\allowbreak\marg{n}\marg{code} & Language of tier \meta{n} for tagged PDFs (section~\ref{sec:glosslang}). \\
-\textbackslash lpzg\marg{abbr} & Gloss abbreviation in small caps, with spoken expansion when tagged (section~\ref{sec:leipzig}). \\
-\textbackslash SetLeipzig\allowbreak\marg{abbr}\marg{expansion} & Add or override a Leipzig abbreviation expansion. \\
-\textbackslash eachwordone/two/three & Font commands for tiers 1--3. \\
-\textbackslash GlossSep & Glue between gloss columns. \\
-\addlinespace
-\multicolumn{2}{@{}l}{\itshape References} \\
-\textbackslash label, \textbackslash ref & As usual; references print in parentheses. \\
-\textbackslash sublabel\marg{key} & Label a sub-example for use in a range. \\
-\textbackslash Next, \textbackslash NNext, \textbackslash Last, \textbackslash LLast & Relative references. \\
-\textbackslash TextNext & Next example of the running text (from a footnote). \\
-\textbackslash pref, \textbackslash pNext, \dots & Parenthesis-free twins of all of the above. \\
-\textbackslash refrange\marg{a}\marg{b} & Compact range, as (3a--c). \\
-\textbackslash prefrange, \textbackslash Refrange & Without parentheses; over whole examples. \\
-\addlinespace
-\multicolumn{2}{@{}l}{\itshape Further apparatus} \\
-\textbackslash alt\marg{$\dots$}\marg{$\dots$} & Stacked alternatives; \oarg{c/l/r} alignment. Under beamer: \cs{lxAlt}. \\
-\textbackslash altg\marg{alt}\marg{alt}$\dots$ & Glossed alternatives: written in both lines of \textbackslash exg. (objects, then glosses); both-braced, centred. Also \cs{lxAltg}. \\
-\textbackslash exsource\marg{text} & Flush-right attribution. \\
-\addlinespace
-\multicolumn{2}{@{}l}{\itshape Layout and options} \\
-\opt{lazy}, \opt{gb4e} & Package options: dot syntax (default), \pkg{gb4e} environment syntax; combinable. \\
-\opt{legacy} & Package option: the geometry and dash conventions of \pkg{linguex}; orthogonal to the syntax options. \\
-\textbackslash resetExdefaults & Restore all layout lengths to the current mode's defaults. \\
-\textbackslash firstrefdash & Number--letter dash in ``(3a)''; empty by default, \texttt{-} under \opt{legacy}. \\
-\textbackslash secondrefdash & Letter--roman dash in ``(3a-i)''; \texttt{-} in both modes. \\
-\textbackslash rangedash & Dash in a whole-example range. \\
-\end{longtable}
-\endgroup
-
-% ===========================================================================
 \section{PDF tagging and accessibility}\label{sec:tagging}
 % ===========================================================================
 
@@ -1173,7 +1080,7 @@ genuine, accessible objects rather than as loose ink. Without such a line
 nothing below applies: the printed output is identical and the package
 behaves exactly as in the rest of this manual.
 
-The exact spelling of that line is a moving target. The \texttt{tagging=on}
+The exact spelling of that line may depend on your version of \LaTeX{}. The \texttt{tagging=on}
 key is the recommended form from the \LaTeX{} release of November~2025
 onward. On distributions between roughly 2023 and 2025 the tagging code
 lives behind the experimental \texttt{testphase} key instead; the portable
@@ -1184,32 +1091,34 @@ choice there, which also works on current \TeX{}, is
 \end{code}
 
 \noindent Both enable the same comprehensive tagging as far as
-\pkg{linguexx} is concerned. Avoid the older habit of naming individual
+\pkg{linguexx} is concerned.\footnote{Avoid the older habit of naming individual
 modules (\texttt{testphase=\{tagpdf,\dots\}}): those names have been
-reorganised and can now load only part of the machinery.
+reorganised and can now load only part of the machinery.}
 
-What works today, on \hologo{pdfLaTeX}, \hologo{XeLaTeX} and
-\hologo{LuaLaTeX} alike. The structure tree is valid, including the
-awkward case of an example inside a footnote. Each example is a list item
-with its number as the label and its content as the body; the letter and
-roman sub-levels are nested lists inside it, so assistive technology can
-walk into and out of the hierarchy. Those lists are marked as
-\emph{ordered}, matching their numbering. Grammaticality marks are given a
-spoken form, so a screen reader announces ``ungrammatical'' rather than
-``asterisk'' (section~\ref{sec:jdgspoken}). In an interlinear gloss each
-column --- an object word together with its aligned gloss(es) --- is
-grouped as one structure element, so the gloss is read and navigated word
-bundle by word bundle, in the object-then-gloss order, rather than as one
-undifferentiated run of text. The object language of a tier can be recorded
-(section~\ref{sec:glosslang}), so it is pronounced with its own phonetics;
-and category abbreviations written with \cs{lpzg} carry their expansion
-(section~\ref{sec:leipzigtag}), so a reader hears ``past'' rather than
-``pee-ess-tee''. Stacked alternatives (\cs{alt}) are set in text mode
-rather than as a formula, and carry a spoken form of the list
-(section~\ref{sec:extras}), so they are read as ``A, B, or C'' rather than
-as a run of braces and glyphs.
+The structure tree of all structures provided by \pkg{linguexx} is
+valid, including the case of an example inside a footnote. Each
+example is a list item with its number as the label and its content as
+the body; the letter and roman sub-levels are nested lists inside it,
+so assistive technology can walk into and out of the hierarchy. Those
+lists are marked as \emph{ordered}, matching their numbering.
+Grammaticality marks are given a spoken form, so a screen reader
+announces ``ungrammatical'' rather than ``asterisk''
+(section~\ref{sec:jdgspoken}). In an interlinear gloss each column ---
+an object word together with its aligned gloss(es) --- is grouped as
+one structure element, so the gloss is read and navigated word bundle
+by word bundle, in the object-then-gloss order, rather than as one
+undifferentiated run of text. The object language of a tier can be
+recorded (section~\ref{sec:glosslang}), so it is pronounced with its
+own phonetics; and category abbreviations written with \cs{lpzg} carry
+their expansion (section~\ref{sec:leipzigtag}), so a reader hears
+``past'' rather than ``pee-ess-tee''.\footnote{This also means that
+  tagging is only useful for English at the current time.} Stacked
+alternatives (\cs{alt}) are set in text mode rather than as a formula,
+and carry a spoken form of the list (section~\ref{sec:extras}), so
+they are read as ``A, B, or C'' rather than as a run of braces and
+glyphs.
 
-Validation. A document built with the accessibility preamble above
+A document built with the accessibility preamble above
 validates as PDF/UA-2: veraPDF reports it conformant, with every rule and
 check passing and no exceptions. Conformance is a document-level property,
 not only a matter of the examples --- it also needs a document title and a
@@ -1218,19 +1127,58 @@ few other pieces of metadata --- so the package ships a short checklist
 validator cannot certify is that the result is \emph{pleasant} to listen
 to; that still wants testing with a real screen reader.
 
-A caution on stability. Tagging in \LaTeX{} is, at the time of writing, an
-evolving feature: the interface has already moved from named
-\texttt{testphase} modules through \texttt{testphase=\{phase-III\}} to the
-\texttt{tagging=on} key, and the internal machinery still changes between
-releases. A recent \LaTeX{} is required. \pkg{linguexx}'s support is
-written to degrade quietly --- if the tagging machinery is absent or turned
-off, the relevant code does nothing --- but it should be regarded as
-provisional and may need a touch-up as the tagging project matures. The
-\opt{legacy} option is orthogonal to all of this; tagging support targets
-the default mode.
+A caution on stability. Tagging in \LaTeX{} requires a recent
+\LaTeX{}. \pkg{linguexx}'s support is written to degrade quietly ---
+if the tagging machinery is absent or turned off, the relevant code
+does nothing --- but it should be regarded as provisional and may need
+a touch-up as the tagging project matures. The \opt{legacy} option is
+orthogonal to all of this; tagging support targets the default mode.
+
+\subsection{Spoken forms for tagged PDFs}\label{sec:jdgspoken}
+A judgment mark is a symbol whose meaning a screen reader cannot guess:
+read literally, \texttt{*} is ``asterisk''. When the document is compiled
+with the PDF tagging code active (a \cs{DocumentMetadata} line enabling
+the tagging \texttt{testphase}), \pkg{linguexx} wraps each mark in a
+structure element carrying an \emph{alternate text} so it is announced by
+its meaning instead. The built-in marks have the following defaults:
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+mark & spoken as \\
+\midrule
+\texttt{*}  & ungrammatical \\
+\texttt{?}  & questionable \\
+\texttt{??} & highly questionable \\
+\texttt{?*} & extremely degraded \\
+\texttt{\#} & infelicitous \\
+\texttt{\%} & grammatical for some speakers \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent This affects only the tagged PDF's accessibility layer; the
+printed output is unchanged, and nothing happens on an engine or in a
+document without active tagging. To set the spoken form of a mark, give
+\cs{DeclareJudgment} its optional \texttt{spoken} key --- which both names
+the mark and registers its spoken form, so a leading scanned mark is
+announced the same way ---
+
+\begin{code}
+\DeclareJudgment[spoken={marginal, some speakers}]{\pcent}{\%}
+\end{code}
+
+\noindent or, for a mark you do not need to name, \cs{SetJudgmentSpoken}\-
+\marg{mark}\marg{phrase}. An explicit \cs{jdg} may also carry a one-off
+spoken form as an optional argument:
+
+\begin{code}
+\jdg[contradictory]{*}
+\end{code}
 
 
-\subsection{Gloss abbreviations and their expansions}\label{sec:leipzigtag}
+\subsection{Gloss abbreviations and their expansions}
+\label{sec:leipzigtag}
 Under active tagging, \cs{lpzg}\marg{label} does more than set small
 capitals (section~\ref{sec:leipzig}): it records the label's
 \emph{expansion} as the PDF ``expansion text'' (the \texttt{/E} entry of an
@@ -1350,12 +1298,86 @@ label & meaning & label & meaning \\
   interface. See section~\ref{sec:origins}.
 \end{itemize}
 
+
+\clearpage
+
+% ===========================================================================
+\section{Command reference}\label{sec:reference}
+% ===========================================================================
+
+\begingroup
+\renewcommand{\arraystretch}{1.2}
+\setlength{\tabcolsep}{4pt}
+\setlength{\LTpre}{\medskipamount}\setlength{\LTpost}{\medskipamount}
+\begin{longtable}{@{}>{\ttfamily\raggedright\arraybackslash}p{0.31\linewidth} p{0.60\linewidth}@{}}
+\toprule
+\normalfont Command & \normalfont Effect \\
+\midrule
+\endhead
+\midrule
+\multicolumn{2}{r@{}}{\normalfont\footnotesize\itshape continued on the next page} \\
+\endfoot
+\bottomrule
+\endlastfoot
+\multicolumn{2}{@{}l}{\itshape Examples} \\
+\textbackslash ex. & Start a numbered example; a blank line ends it.
+  \cs{ex.}\oarg{label} uses a custom label without advancing the counter. \\
+\textbackslash a. & Open a level of sub-examples (letters, then roman). \\
+\textbackslash b. -- \textbackslash f. & Next item at the level currently open. \\
+\textbackslash z. & Leave one level; from the letter level or an example without sub-examples, end it. \\
+exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package option \opt{gb4e}); items via \cs{ex}, \cs{ex}\oarg{judgment}\marg{text}, or plain \cs{item}. \\
+\textbackslash exg. & \cs{ex.}\ followed by \cs{gll}. \\
+\textbackslash ag. -- \textbackslash fg. & \cs{a.}--\cs{f.}\ followed by \cs{gll}. \\
+\addlinespace
+\multicolumn{2}{@{}l}{\itshape Judgments} \\
+\textbackslash jdg\marg{mark} & Hang an arbitrary mark in the margin. \\
+\textbackslash DeclareJudgment\allowbreak\marg{cmd}\marg{mark} & Give a mark a name. \\
+\addlinespace
+\multicolumn{2}{@{}l}{\itshape Glosses} \\
+\textbackslash gll, \textbackslash glll & Two-, three-tier gloss; lines end in \verb|\\|. \\
+\textbackslash gl \dots\ \textbackslash endgl & Gloss with any number of tiers. \\
+\textbackslash glt & Free-translation line. (\cs{gln} is a synonym.) \\
+\textbackslash GlossTierFont\allowbreak\marg{n}\marg{cmd} & Font command for tier \meta{n}. \\
+\textbackslash GlossTierLang\allowbreak\marg{n}\marg{code} & Language of tier \meta{n} for tagged PDFs (section~\ref{sec:glosslang}). \\
+\textbackslash lpzg\marg{abbr} & Gloss abbreviation in small caps, with spoken expansion when tagged (section~\ref{sec:leipzig}). \\
+\textbackslash SetLeipzig\allowbreak\marg{abbr}\marg{expansion} & Add or override a Leipzig abbreviation expansion. \\
+\textbackslash eachwordone/two/three & Font commands for tiers 1--3. \\
+\textbackslash GlossSep & Glue between gloss columns. \\
+\addlinespace
+\multicolumn{2}{@{}l}{\itshape References} \\
+\textbackslash label, \textbackslash ref & As usual; references print in parentheses. \\
+\textbackslash sublabel\marg{key} & Label a sub-example for use in a range. \\
+\textbackslash Next, \textbackslash NNext, \textbackslash Last, \textbackslash LLast & Relative references. \\
+\textbackslash TextNext & Next example of the running text (from a footnote). \\
+\textbackslash pref, \textbackslash pNext, \dots & Parenthesis-free twins of all of the above. \\
+\textbackslash refrange\marg{a}\marg{b} & Compact range, as (3a--c). \\
+\textbackslash prefrange, \textbackslash Refrange & Without parentheses; over whole examples. \\
+\addlinespace
+\multicolumn{2}{@{}l}{\itshape Further apparatus} \\
+\textbackslash alt\marg{$\dots$}\marg{$\dots$} & Stacked alternatives; \oarg{c/l/r} alignment. Under beamer: \cs{lxAlt}. \\
+\textbackslash altg\marg{alt}\marg{alt}$\dots$ & Glossed alternatives: written in both lines of \textbackslash exg. (objects, then glosses); both-braced, centred. Also \cs{lxAltg}. \\
+\textbackslash exsource\marg{text} & Flush-right attribution. \\
+\addlinespace
+\multicolumn{2}{@{}l}{\itshape Layout and options} \\
+\opt{lazy}, \opt{gb4e} & Package options: dot syntax (default), \pkg{gb4e} environment syntax; combinable. \\
+\opt{legacy} & Package option: the geometry and dash conventions of \pkg{linguex}; orthogonal to the syntax options. \\
+\textbackslash resetExdefaults & Restore all layout lengths to the current mode's defaults. \\
+\textbackslash firstrefdash & Number--letter dash in ``(3a)''; empty by default, \texttt{-} under \opt{legacy}. \\
+\textbackslash secondrefdash & Letter--roman dash in ``(3a-i)''; \texttt{-} in both modes. \\
+\textbackslash rangedash & Dash in a whole-example range. \\
+\end{longtable}
+\endgroup
 \vfill
 \noindent\small
-\pkg{linguexx} owes its input syntax to Wolfgang Sternefeld's \pkg{linguex},
-its glossing commands to the \pkg{cgloss4e} of Hans-Peter Kolb and Craig
-Thiersch, the ambition of its gloss engine to John Frampton's \pkg{expex},
-and its parenthesis-free references to a construction of Alan Munn's. The
-implementation is its own; the debts are not.
+\pkg{linguexx} owes its input syntax to Wolfgang Sternefeld's
+\pkg{linguex}, its glossing commands to the \pkg{cgloss4e} of
+Hans-Peter Kolb and Craig Thiersch, the ambition of its gloss engine
+to John Frampton's \pkg{expex}, and its parenthesis-free references to
+a construction of Alan Munn's. The implementation is its own.
 
 \end{document}
+
+%%% Local Variables:
+%%% mode: LaTeX
+%%% TeX-master: t
+%%% End:
