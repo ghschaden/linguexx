@@ -5,7 +5,7 @@
 %%%% This program can be redistributed and/or modified under the terms
 %%%% of the LaTeX Project Public License
 \NeedsTeXFormat{LaTeX2e}[2020/10/01]% expl3 in kernel required
-\ProvidesPackage{linguexx}[2026/07/15 Standalone linguistic examples, linguex-compatible interface v. 1.14]
+\ProvidesPackage{linguexx}[2026/07/20 Standalone linguistic examples, linguex-compatible interface v. 1.15]
 %% v. 1.1: [legacy] option; empty \firstrefdash by default.
 %% v. 1.2: tagging-safe under \DocumentMetadata (PDF tagging testphase):
 %%         lists opened/closed through the environment interface; no TeX
@@ -89,6 +89,9 @@
 %%          \alt now closes its stack with a right brace as well (the
 %%          pre-1.13 look), and the TikZ brace direction is corrected --
 %%          since 1.13 the brace was drawn mirrored.
+%% v. 1.15: \alt/\lxAlt renamed to \altn/\lxAltn -- \alt collides with
+%%          beamer, glossaries-extra, revtex/revsymb, tex4ht, and others;
+%%          \altn is unclaimed.  \altg/\lxAltg unaffected (no collisions).
 %% Package options come in two independent groups.
 %%
 %% SYNTAX:
@@ -124,11 +127,11 @@
 \iflx@gbfour\else\lx@lazytrue\fi
 
 \RequirePackage{graphicx}%          \scalebox etc.
-\RequirePackage{tikz}%              drawn brace for \lxAlt (no math mode)
+\RequirePackage{tikz}%              drawn brace for \lxAltn (no math mode)
 \usetikzlibrary{decorations.pathreplacing}
 % The only other dependency is the expl3 programming layer, part of the
 % LaTeX kernel since 2020.  In particular, ulem is NOT loaded: if you
-% want struck-through alternatives (\sout inside \alt), load ulem
+% want struck-through alternatives (\sout inside \altn), load ulem
 % yourself, with whatever options you prefer.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1450,7 +1453,7 @@
 \let\gln\glt % cgloss4e-compat alias
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%  Stacked alternatives: \alt / \lxAlt                                %%%%
+%%%%  Stacked alternatives: \altn / \lxAltn                              %%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \ExplSyntaxOn
@@ -1462,14 +1465,14 @@
 \dim_new:N  \l__lxp_alt_dp_dim
 \int_new:N  \l__lxp_alt_n_int
 
-%% \lxAlt collects its brace-delimited alternatives (one leading mandatory
+%% \lxAltn collects its brace-delimited alternatives (one leading mandatory
 %% argument, then any number of further brace groups) and sets them as a
 %% braced vertical stack.  This is deliberately NOT math: the stack is a
 %% tabular and the brace is drawn with TikZ, so the alternatives are ordinary
 %% tagged text.  Under active tagging the whole thing is wrapped in a Span
 %% carrying a spoken /Alt ("A, B, or C"), built with \text_purify:n so that
 %% formatting in an alternative (\sout, \textbf, ...) is stripped for speech.
-\NewDocumentCommand \lxAlt { O{c} m }
+\NewDocumentCommand \lxAltn { O{c} m }
   {
     \tl_set:Nn   \l__lxp_alt_align_tl {#1}
     \seq_clear:N \l__lxp_alt_seq
@@ -1513,10 +1516,10 @@
 %% /Table (with /TR, /TD ...); this stack is presentational, not data, and
 %% the auto Table is built (wrongly) as a child of whatever structure
 %% element is open at THIS point -- typically the ambient paragraph, since
-%% the surrounding Span for \alt has not been opened yet (that happens
+%% the surrounding Span for \altn has not been opened yet (that happens
 %% later, in \__lxp_alt_emit_tagged:, around \box_use:N).  That produced
 %% both an invalid Table-under-P/LI nesting and, whenever more than one
-%% \alt occurred in a paragraph, corrupted paragraph-tagging bookkeeping
+%% \altn occurred in a paragraph, corrupted paragraph-tagging bookkeeping
 %% (veraPDF/tagpdf: "Parent-Child ... Relation is not allowed").  Building
 %% the box with table auto-tagging suspended avoids this: the box then
 %% carries no struct/MC of its own, so its content is correctly attributed
@@ -1615,13 +1618,13 @@
 \newcommand\AltBraceOuterSep{0.7em}
 \newcommand\AltBraceRaise{0pt}
 
-% Alias \alt -> \lxAlt unless somebody (beamer!) already owns \alt.
+% Alias \altn -> \lxAltn unless somebody already owns \altn.
 \AtBeginDocument{%
-  \@ifundefined{alt}%
-    {\global\let\alt\lxAlt}%
+  \@ifundefined{altn}%
+    {\global\let\altn\lxAltn}%
     {\PackageInfo{linguexx}%
-      {\string\alt\space is already defined (beamer?);\MessageBreak
-       only \string\lxAlt\space is available}}}
+      {\string\altn\space is already defined;\MessageBreak
+       only \string\lxAltn\space is available}}}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1664,9 +1667,9 @@
 %% collection AND splits gloss columns; break lines with %).
 %%
 %% Outside a gloss, a single \lxAltg sets one both-braced stack on the
-%% current baseline, like \lxAlt with a closing brace added.
+%% current baseline, like \lxAltn with a closing brace added.
 %%
-%% Like \lxAlt this is deliberately NOT math.  Inside the stacks \lpzg is
+%% Like \lxAltn this is deliberately NOT math.  Inside the stacks \lpzg is
 %% reduced to plain small caps (each stack forms a single marked-content
 %% span under tagging, so nested abbreviation Spans are suppressed);
 %% expansions reappear in the spoken form.  Under active tagging each
@@ -1845,7 +1848,7 @@
 \ExplSyntaxOff
 
 % Tunables.  The braces share \AltBraceWidth/\AltBraceAmplitude/\AltBraceSep
-% with \lxAlt (declared above).
+% with \lxAltn (declared above).
 \newcommand\AltgColSep{1.2em}%   glue between object and gloss columns
 \newcommand\AltgTransFont{\normalfont}% font of the gloss stack
 

@@ -3,6 +3,15 @@
 All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
+## 1.15
+- `\alt`/`\lxAlt` renamed to `\altn`/`\lxAltn`. `\alt` is claimed by
+  `beamer`, `glossaries-extra`, `revtex`/`revsymb`, `tex4ht`,
+  `mdwtools/syntax`, and several document classes; `\altn` is unclaimed by
+  anything in TeX Live 2026. `\altg`/`\lxAltg` are unaffected -- no known
+  collisions, so the name stays. As before, if some other package already
+  owns `\altn`, `linguexx` leaves it alone and only `\lxAltn` is available.
+  **Breaking change**: documents using `\alt` must switch to `\altn`.
+
 ## 1.14
 - `\altg`/`\lxAltg` return, rebuilt in text mode as a glossed paradigm of
   alternatives. Inside an interlinear gloss it is written **twice** -- once in

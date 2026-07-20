@@ -817,21 +817,21 @@ over two whole examples, as (10)--(12). The range dash is the macro
 % ===========================================================================
 
 \pkg{linguexx} contains three constructs that were not part of its
-ancestor \pkg{linguex}: \cs{alt}, \cs{altg}, and \cs{exsource}.
+ancestor \pkg{linguex}: \cs{altn}, \cs{altg}, and \cs{exsource}.
 
-\subsection{Stacked alternatives: \cs{alt}}
+\subsection{Stacked alternatives: \cs{altn}}
 
 A set of interchangeable constituents is conventionally stacked inside a
-curly brace. \cs{alt} takes any number of brace groups and stacks them:
+curly brace. \cs{altn} takes any number of brace groups and stacks them:
 
 \begin{code}
-\ex. \alt{\sout{This girl in the red coat}}{She}{Mary} will put a
-picture of \alt{Bill}{him} on your desk.
+\ex. \altn{\sout{This girl in the red coat}}{She}{Mary} will put a
+picture of \altn{Bill}{him} on your desk.
 \end{code}
 
 \rendered
-\ex. \alt{\sout{This girl in the red coat}}{She}{Mary} will put a
-picture of \alt{Bill}{him} on your desk.
+\ex. \altn{\sout{This girl in the red coat}}{She}{Mary} will put a
+picture of \altn{Bill}{him} on your desk.
 
 \afterex
 The alternatives are collected as long as brace groups follow one another
@@ -841,16 +841,19 @@ loads \pkg{ulem} --- the package does not load it for you. An
 optional argument sets the alignment: \opt{[c]} (default), \opt{[l]},
 \opt{[r]}.
 
-\paragraph{A name clash worth knowing.} \pkg{beamer} uses \cs{alt} for
-overlays. The package detects this, leaves beamer's command alone, and
-notes it in the log. \textbf{Under beamer, write \cs{lxAlt}}; everywhere
-else \cs{alt} and \cs{lxAlt} are the same command.
+\paragraph{A guaranteed-available fallback.} \cs{altn} was chosen because
+nothing in a current \TeX\ Live distribution defines it (unlike the shorter
+\cs{alt}, which \pkg{beamer} and several other packages already claim). If
+some other package you load ever does define \cs{altn} first, \pkg{linguexx}
+detects this, leaves that command alone, notes it in the log, and falls
+back: \textbf{write \cs{lxAltn}} instead. Otherwise \cs{altn} and
+\cs{lxAltn} are the same command.
 
 For a light word-level alternation inside a glossed line a slash
 (\texttt{gehe/laufe}) is often enough; when each alternative needs a gloss
 of its own, use \cs{altg} (section~\ref{sec:altg}).
 
-\cs{alt} is set in text mode: the alternatives are the rows of a
+\cs{altn} is set in text mode: the alternatives are the rows of a
 \pkg{tabular}, braced on both sides with braces drawn with Ti\emph{k}Z, so
 no mathematics is involved (the package needs \pkg{graphicx} and
 \pkg{tikz}, not \pkg{amsmath}). The braces are tunable through five
@@ -864,7 +867,7 @@ side), and \cs{AltBraceRaise} (\texttt{0pt}, a vertical nudge) ---
 redefined with \cs{renewcommand}.
 
 Because the alternatives are ordinary text rather than a formula, they are
-read sensibly in a tagged PDF. Under active tagging \cs{alt} wraps the stack
+read sensibly in a tagged PDF. Under active tagging \cs{altn} wraps the stack
 in a span carrying a spoken form of the list --- ``This girl in the red
 coat, She, or Mary'' --- built from the alternatives themselves, with any
 formatting (such as the \cs{sout} above) stripped for speech. The printed
@@ -873,7 +876,7 @@ output is unchanged, and an untagged document is unaffected
 
 \subsection{Glossed alternatives: \cs{altg}}\label{sec:altg}
 
-Where \cs{alt} stacks bare constituents, \cs{altg} stacks a paradigm in
+Where \cs{altn} stacks bare constituents, \cs{altg} stacks a paradigm in
 which each alternative carries its own gloss. Inside an interlinear
 gloss it is written \emph{twice} --- once in the object line with the
 object words, once in the gloss line with their glosses:
@@ -907,7 +910,7 @@ lines with \texttt{\%}, as above. And the alternatives are paired by
 position --- the $n$-th gloss glosses the $n$-th object word.
 
 Outside a gloss, a single \cs{altg} sets one both-braced stack on the
-current baseline --- \cs{alt} with a closing brace, in effect.
+current baseline --- \cs{altn} with a closing brace, in effect.
 
 Because each stack already competes for both tiers, \cs{lpzg} inside it
 prints as plain small caps, without the abbreviation span of
@@ -918,17 +921,17 @@ or Tonne'' for the object call, ``woman.singular, sock.singular,
 mouse.singular, or ton.singular'' for the gloss call --- with simple
 \cs{lpzg} keys expanded from the Leipzig table; compound keys
 (\texttt{3sg.pst}) and unknown keys are spoken as printed. Like
-\cs{alt}, none of this is mathematics, so the alternatives remain
+\cs{altn}, none of this is mathematics, so the alternatives remain
 ordinary tagged text.
 
 Two settings of its own, redefined with \cs{renewcommand}:
 \cs{AltgColSep} (default \texttt{1.2em}), the gap between the object and
 gloss stacks, and \cs{AltgTransFont} (default \cs{normalfont}), the font
-of the gloss stack. The braces are drawn with the \cs{alt} tunables
+of the gloss stack. The braces are drawn with the \cs{altn} tunables
 (\cs{AltBraceWidth}, \cs{AltBraceAmplitude}, \cs{AltBraceSep},
 \cs{AltBraceOuterSep}). If some
 other package owns \cs{altg}, the package leaves it alone and only
-\cs{lxAltg} is available, as with \cs{alt}/\cs{lxAlt}.
+\cs{lxAltg} is available, as with \cs{altn}/\cs{lxAltn}.
 
 \subsection{Source attributions: \cs{exsource}}
 
@@ -1117,7 +1120,7 @@ own phonetics; and category abbreviations written with \cs{lpzg} carry
 their expansion (section~\ref{sec:leipzigtag}), so a reader hears
 ``past'' rather than ``pee-ess-tee''.\footnote{This also means that
   tagging is only useful for English at the current time.} Stacked
-alternatives (\cs{alt}) are set in text mode rather than as a formula,
+alternatives (\cs{altn}) are set in text mode rather than as a formula,
 and carry a spoken form of the list (section~\ref{sec:extras}), so
 they are read as ``A, B, or C'' rather than as a run of braces and
 glyphs.
@@ -1278,7 +1281,7 @@ label & meaning & label & meaning \\
   body of an example, not inside a brace group within it.
 
 \item \textbf{\pkg{ulem} is not loaded.} For struck-through alternatives
-  (\cs{sout} inside \cs{alt}), load \pkg{ulem} yourself; the usual choice
+  (\cs{sout} inside \cs{altn}), load \pkg{ulem} yourself; the usual choice
   is \cs{usepackage[normalem]\{ulem\}}, which keeps \cs{emph} italic.
 
 \item \textbf{\pkg{hyperref} and \cs{b}, \cs{c}, \cs{d}.} Under the
@@ -1358,7 +1361,7 @@ exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package opt
 \textbackslash prefrange, \textbackslash Refrange & Without parentheses; over whole examples. \\
 \addlinespace
 \multicolumn{2}{@{}l}{\itshape Further apparatus} \\
-\textbackslash alt\marg{$\dots$}\marg{$\dots$} & Stacked alternatives; \oarg{c/l/r} alignment. Under beamer: \cs{lxAlt}. \\
+\textbackslash altn\marg{$\dots$}\marg{$\dots$} & Stacked alternatives; \oarg{c/l/r} alignment. Fallback: \cs{lxAltn}. \\
 \textbackslash altg\marg{alt}\marg{alt}$\dots$ & Glossed alternatives: written in both lines of \textbackslash exg. (objects, then glosses); both-braced, centred. Also \cs{lxAltg}. \\
 \textbackslash exsource\marg{text} & Flush-right attribution. \\
 \addlinespace

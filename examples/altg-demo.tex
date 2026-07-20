@@ -1,7 +1,7 @@
-% Demo of \altg (v1.14 two-call syntax) and the both-braced \alt.
+% Demo of \altg (v1.14 two-call syntax) and the both-braced \altn.
 \documentclass[11pt]{article}
 \usepackage[a4paper,margin=2.5cm]{geometry}
-\usepackage[normalem]{ulem}% for \sout in the \alt example
+\usepackage[normalem]{ulem}% for \sout in the \altn example
 \usepackage{linguexx}
 \begin{document}
 \noindent\textbf{Glossed alternatives (\texttt{\string\altg}):}
@@ -14,9 +14,9 @@
 \exg. Ich sah \altg{den Mann}{die Frau} gestern.\\
       I see.\lpzg{pst} \altg{the.\lpzg{acc} man}{the.\lpzg{acc} woman} yesterday\\
 
-\noindent\textbf{\texttt{\string\alt} now braces both sides:}
+\noindent\textbf{\texttt{\string\altn} now braces both sides:}
 
-\ex. \alt{\sout{This girl in the red coat}}{She}{Mary} will put a picture of \alt{Bill}{him} on your desk.
+\ex. \altn{\sout{This girl in the red coat}}{She}{Mary} will put a picture of \altn{Bill}{him} on your desk.
 
 \noindent Solo \texttt{\string\altg} outside a gloss: \lxAltg{AA}{BB}{CC} inline.
 \end{document}

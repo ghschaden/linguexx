@@ -237,9 +237,9 @@ unchanged; untagged it is a plain `\textsc`. The `tagged` case asserts a
 package.
 
 
-## Stacked alternatives (\alt)
+## Stacked alternatives (\altn)
 
-`\alt` is set in text mode -- a `tabular` stack with a TikZ-drawn brace, no
+`\altn` is set in text mode -- a `tabular` stack with a TikZ-drawn brace, no
 math -- so the alternatives are ordinary tagged text and there is no
 `Formula`. Under active tagging the stack is wrapped in a `Span` carrying a
 spoken `/Alt` ("A, B, or C"), built from the alternatives with
