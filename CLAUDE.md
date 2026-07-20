@@ -17,10 +17,10 @@ Standalone and modern reimplementation of `linguex` (numbered linguistic example
 
 
 ## Package Invariants
-- ` lt` / ` ltg`: TEXT mode only. No math, no italics, no amsmath. No `Formula` element in the tree (this is what broke PDF/UA-2 before v1.12; avoiding it is the goal).
+- `\alt` / `\altg`: TEXT mode only. No math, no italics, no amsmath. No `Formula` element in the tree (this is what broke PDF/UA-2 before v1.12; avoiding it is the goal).
 - Braces drawn in TikZ on both sides. The `brace` decoration bulges according to the path direction: ascending = opening `{`, descending = closing `}`.
-- ` ltg` is written twice in a gloss (objects, then glosses); same number of alternatives in both calls; no spaces between groups.
-- Tagging idiom: `	ag_mc_end_push:` … `	ag_mc_begin_pop:n{}`.
+- `\altg` is written twice in a gloss (objects, then glosses); same number of alternatives in both calls; no spaces between groups.
+- Tagging idiom: `\tag_mc_end_push:` … `\tag_mc_begin_pop:n{}`.
 - `[legacy]` mode = geometric fidelity to linguex; orthogonal to `[lazy]`/`[gb4e]`.
 
 ## Do Not
