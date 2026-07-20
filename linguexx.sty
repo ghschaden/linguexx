@@ -1459,6 +1459,7 @@
 \tl_new:N   \l__lxp_alt_alt_tl
 \box_new:N  \l__lxp_alt_box
 \dim_new:N  \l__lxp_alt_ht_dim
+\dim_new:N  \l__lxp_alt_dp_dim
 \int_new:N  \l__lxp_alt_n_int
 
 %% \lxAlt collects its brace-delimited alternatives (one leading mandatory
@@ -1537,16 +1538,22 @@
           \end { tabular }
         }
     \group_end:
+    \dim_set:Nn \l__lxp_alt_dp_dim { \box_dp:N \l__lxp_alt_box }
     \dim_set:Nn \l__lxp_alt_ht_dim
-      { \box_ht:N \l__lxp_alt_box + \box_dp:N \l__lxp_alt_box }
+      { \box_ht:N \l__lxp_alt_box + \l__lxp_alt_dp_dim }
   }
 %% one brace, side L or R, drawn with TikZ to the stack height.  The
 %% decoration bulges to the side determined by the path direction: an
 %% upward path gives an opening brace, a downward path a closing one
-%% (the v1.13 downward path drew the left brace mirrored).
+%% (the v1.13 downward path drew the left brace mirrored).  The raise is
+%% pinned to the stack's own depth, not half the total height: a stack is
+%% seldom split evenly around its baseline (an all-caps or struck-through
+%% row above pulls height, ordinary rows below add less depth), so using
+%% the true box_dp keeps the brace's centre level with the stack's actual
+%% midpoint instead of drifting toward whichever side is taller.
 \cs_new_protected:Npn \__lxp_alt_brace:n #1
   {
-    \raisebox { \dim_eval:n { \AltBraceRaise - 0.5 \l__lxp_alt_ht_dim } }
+    \raisebox { \dim_eval:n { \AltBraceRaise - \l__lxp_alt_dp_dim } }
       {
         \begin { tikzpicture }
           \useasboundingbox (0,0) rectangle ( \AltBraceWidth , \l__lxp_alt_ht_dim ) ;
@@ -1561,16 +1568,21 @@
         \end { tikzpicture }
       }
   }
-%% the printed object (brace + stack + brace), no tagging
+%% the printed object (brace + stack + brace), no tagging.  A
+%% \AltBraceSep gap is left outside both braces as well as inside: the
+%% TikZ brace decoration bulges outward past its own bounding box (the
+%% curl reaches further than the box declared for it), so without this
+%% outer gap the bulge collides with whatever text precedes or follows.
 \cs_new_protected:Npn \__lxp_alt_emit:
-  { \leavevmode \__lxp_alt_brace:n { L } \hspace{\AltBraceSep}
+  { \leavevmode \hspace{\AltBraceSep} \__lxp_alt_brace:n { L } \hspace{\AltBraceSep}
     \box_use:N \l__lxp_alt_box
-    \hspace{\AltBraceSep} \__lxp_alt_brace:n { R } }
+    \hspace{\AltBraceSep} \__lxp_alt_brace:n { R } \hspace{\AltBraceSep} }
 %% the printed object wrapped in a Span carrying the spoken /Alt
 \cs_new_protected:Npn \__lxp_alt_emit_tagged:
   {
     \__lxp_alt_buildalt:
     \leavevmode
+    \hspace{\AltBraceSep}
     \tag_mc_end_push:
     \exp_args:Ne \tag_struct_begin:n { tag = Span , alt = { \l__lxp_alt_alt_tl } }
     \tag_mc_begin:n { tag = Span }
@@ -1580,6 +1592,7 @@
     \tag_mc_end:
     \tag_struct_end:
     \tag_mc_begin_pop:n {}
+    \hspace{\AltBraceSep}
   }
 \cs_new_protected:Npn \__lxp_alt_print:
   {
@@ -1743,7 +1756,8 @@
 \cs_new_protected:Npn \__lxp_altg_shape_obj:
   {
     \hbox_set:Nn \l__lxp_altg_out_box
-      { \raisebox { \dim_eval:n { -0.5 \baselineskip } }
+      { \hspace { \AltBraceSep }
+        \raisebox { \dim_eval:n { -0.5 \baselineskip } }
           { \__lxp_altg_brace:n { L } \hspace { \AltBraceSep }
             \box_use:N \l__lxp_altg_stack_box } }
     \dim_gset:Nn \g__lxp_altg_indent_dim
@@ -1757,15 +1771,18 @@
       { \skip_horizontal:n { \g__lxp_altg_indent_dim }
         \raisebox { \dim_eval:n { 0.5 \baselineskip } }
           { \box_use:N \l__lxp_altg_stack_box \hspace { \AltBraceSep }
-            \__lxp_altg_brace:n { R } } }
+            \__lxp_altg_brace:n { R } }
+        \hspace { \AltBraceSep } }
     \box_set_ht:Nn \l__lxp_altg_out_box { 0pt }
     \box_use:N \l__lxp_altg_out_box
   }
 \cs_new_protected:Npn \__lxp_altg_shape_solo:
   {
+    \hspace { \AltBraceSep }
     \__lxp_altg_brace:n { L } \hspace { \AltBraceSep }
     \box_use:N \l__lxp_altg_stack_box
     \hspace { \AltBraceSep } \__lxp_altg_brace:n { R }
+    \hspace { \AltBraceSep }
   }
 %% emit one shape, tag-guarded: under active tagging the shape is wrapped
 %% in a Span carrying the spoken /Alt of this call's list.
