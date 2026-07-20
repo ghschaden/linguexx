@@ -7,14 +7,8 @@ on:
 jobs:
   regression:
     runs-on: ubuntu-latest
-    # Pinned to the frozen TL2025 snapshot rather than :latest. TL2026's
-    # rolling kernel updated the experimental latex-lab-block tagging
-    # internals (hardcoded LI/Lbl/LBody tag names replaced by a
-    # namespace/registry lookup) some time after 2025-11-01, and our
-    # tagging hooks (see linguexx.sty, \__block_list_begin: patch) don't
-    # yet track that; see tests/tagged.tex's "tagged" case. Revisit once
-    # linguexx is updated for the new latex-lab internals.
-    container: texlive/texlive:TL2025-historic
+    # The official TeX Live image ships all three engines and the tagging code.
+    container: texlive/texlive:latest
     steps:
       - uses: actions/checkout@v4
 

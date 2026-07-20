@@ -471,8 +471,16 @@ def a_tagged(p: Page):
     tags = [s for s, c in els]
     r.append(check(tags.count("list") >= 2,
                    f"nested example lists present (>=2 L elements, got {tags.count('list')})"))
-    for t in ("LI", "Lbl", "LBody"):
-        r.append(check(t in tags, f"list structure has {t} elements"))
+    # The kernel's list-tagging code (latex-lab-block) renamed these from
+    # hardcoded PDF tag names to role-mapped symbolic ones at some point
+    # between the 2025-11-01 and 2026-06-01 LaTeX releases (LI -> item,
+    # Lbl -> itemlabel, LBody -> itembody), with a /RoleMap back to the
+    # classic names for AT/viewers. Accept either vocabulary so this
+    # doesn't break again on the next kernel either side of that rename
+    # ships with.
+    for old, new in (("LI", "item"), ("Lbl", "itemlabel"), ("LBody", "itembody")):
+        r.append(check(old in tags or new in tags,
+                       f"list structure has {old}/{new} elements"))
     ex_lists = [c for s, c in els if s == "list"]
     ok_classes = {"lxOLdecimal", "lxOLalpha", "lxOLroman"}
     r.append(check(ex_lists and all(c in ok_classes for c in ex_lists),
