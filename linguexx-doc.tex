@@ -857,14 +857,25 @@ of its own, use \cs{altg} (section~\ref{sec:altg}).
 \pkg{tabular}, braced on both sides with braces drawn with Ti\emph{k}Z, so
 no mathematics is involved (the package needs \pkg{graphicx} and
 \pkg{tikz}, not \pkg{amsmath}). The braces are tunable through five
-macros --- \cs{AltBraceWidth} (default \texttt{0.9ex}),
-\cs{AltBraceAmplitude} (\texttt{4pt}, how far the brace's centre point
-juts out), \cs{AltBraceSep} (\texttt{0.15em}, the gap between brace and
-stack), \cs{AltBraceOuterSep} (\texttt{0.7em}, the gap between the brace
-and whatever precedes or follows it --- wider than \cs{AltBraceSep}
-because the drawn curl bulges outward past its own box only on that
-side), and \cs{AltBraceRaise} (\texttt{0pt}, a vertical nudge) ---
-redefined with \cs{renewcommand}.
+macros, redefined with \cs{renewcommand}. Two govern the drawn shape of
+the bracket itself: \cs{AltBraceWidth} (default \texttt{0.9ex}) is the
+horizontal box reserved for one brace glyph --- the vertical spine of the
+\texttt{\{}/\texttt{\}} is drawn close to the edge of this box that faces
+the stack, so widening \cs{AltBraceWidth} leaves more room on the far
+side for the curl to bulge into; and \cs{AltBraceAmplitude}
+(\texttt{4pt}) is passed straight through as Ti\emph{k}Z's own
+\texttt{brace} decoration \texttt{amplitude} key --- how far the small
+pointed tip at mid-height projects sideways from that spine, so a larger
+value draws a more pronounced curl and a smaller one flattens the
+bracket toward a plain vertical stroke. The other three govern
+placement, not shape: \cs{AltBraceSep} (\texttt{0.15em}, the gap between
+brace and stack), \cs{AltBraceOuterSep} (\texttt{0.7em}, the gap between
+the brace and whatever precedes or follows it --- wider than
+\cs{AltBraceSep} because the drawn curl bulges outward past its own box
+only on that side), and \cs{AltBraceRaise} (\texttt{0pt}, a vertical
+nudge). \cs{altg} (section~\ref{sec:altg}) draws its braces with the same
+\cs{AltBraceWidth} and \cs{AltBraceAmplitude}, so changing either one
+here reshapes both commands' brackets together.
 
 Because the alternatives are ordinary text rather than a formula, they are
 read sensibly in a tagged PDF. Under active tagging \cs{altn} wraps the stack
