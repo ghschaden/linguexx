@@ -853,11 +853,14 @@ of its own, use \cs{altg} (section~\ref{sec:altg}).
 \cs{alt} is set in text mode: the alternatives are the rows of a
 \pkg{tabular}, braced on both sides with braces drawn with Ti\emph{k}Z, so
 no mathematics is involved (the package needs \pkg{graphicx} and
-\pkg{tikz}, not \pkg{amsmath}). The braces are tunable through four
+\pkg{tikz}, not \pkg{amsmath}). The braces are tunable through five
 macros --- \cs{AltBraceWidth} (default \texttt{0.9ex}),
 \cs{AltBraceAmplitude} (\texttt{4pt}, how far the brace's centre point
-juts out), \cs{AltBraceSep} (\texttt{0.3em}, the gap between brace and
-stack), and \cs{AltBraceRaise} (\texttt{0pt}, a vertical nudge) ---
+juts out), \cs{AltBraceSep} (\texttt{0.15em}, the gap between brace and
+stack), \cs{AltBraceOuterSep} (\texttt{0.7em}, the gap between the brace
+and whatever precedes or follows it --- wider than \cs{AltBraceSep}
+because the drawn curl bulges outward past its own box only on that
+side), and \cs{AltBraceRaise} (\texttt{0pt}, a vertical nudge) ---
 redefined with \cs{renewcommand}.
 
 Because the alternatives are ordinary text rather than a formula, they are
@@ -922,7 +925,8 @@ Two settings of its own, redefined with \cs{renewcommand}:
 \cs{AltgColSep} (default \texttt{1.2em}), the gap between the object and
 gloss stacks, and \cs{AltgTransFont} (default \cs{normalfont}), the font
 of the gloss stack. The braces are drawn with the \cs{alt} tunables
-(\cs{AltBraceWidth}, \cs{AltBraceAmplitude}, \cs{AltBraceSep}). If some
+(\cs{AltBraceWidth}, \cs{AltBraceAmplitude}, \cs{AltBraceSep},
+\cs{AltBraceOuterSep}). If some
 other package owns \cs{altg}, the package leaves it alone and only
 \cs{lxAltg} is available, as with \cs{alt}/\cs{lxAlt}.
 

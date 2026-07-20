@@ -1568,21 +1568,20 @@
         \end { tikzpicture }
       }
   }
-%% the printed object (brace + stack + brace), no tagging.  A
-%% \AltBraceSep gap is left outside both braces as well as inside: the
-%% TikZ brace decoration bulges outward past its own bounding box (the
-%% curl reaches further than the box declared for it), so without this
-%% outer gap the bulge collides with whatever text precedes or follows.
+%% the printed object (brace + stack + brace), no tagging.  The outer
+%% gap (\AltBraceOuterSep) clears the decoration's outward bulge from
+%% whatever precedes/follows; the inner gap (\AltBraceSep) just
+%% separates the brace from the stack it braces.
 \cs_new_protected:Npn \__lxp_alt_emit:
-  { \leavevmode \hspace{\AltBraceSep} \__lxp_alt_brace:n { L } \hspace{\AltBraceSep}
+  { \leavevmode \hspace{\AltBraceOuterSep} \__lxp_alt_brace:n { L } \hspace{\AltBraceSep}
     \box_use:N \l__lxp_alt_box
-    \hspace{\AltBraceSep} \__lxp_alt_brace:n { R } \hspace{\AltBraceSep} }
+    \hspace{\AltBraceSep} \__lxp_alt_brace:n { R } \hspace{\AltBraceOuterSep} }
 %% the printed object wrapped in a Span carrying the spoken /Alt
 \cs_new_protected:Npn \__lxp_alt_emit_tagged:
   {
     \__lxp_alt_buildalt:
     \leavevmode
-    \hspace{\AltBraceSep}
+    \hspace{\AltBraceOuterSep}
     \tag_mc_end_push:
     \exp_args:Ne \tag_struct_begin:n { tag = Span , alt = { \l__lxp_alt_alt_tl } }
     \tag_mc_begin:n { tag = Span }
@@ -1592,7 +1591,7 @@
     \tag_mc_end:
     \tag_struct_end:
     \tag_mc_begin_pop:n {}
-    \hspace{\AltBraceSep}
+    \hspace{\AltBraceOuterSep}
   }
 \cs_new_protected:Npn \__lxp_alt_print:
   {
@@ -1603,10 +1602,17 @@
   }
 \ExplSyntaxOff
 
-% Tunable dimensions of the drawn brace.
+% Tunable dimensions of the drawn brace.  AltBraceSep is the INNER gap,
+% between the brace and the stack it braces; AltBraceOuterSep is the
+% OUTER gap, between the brace and whatever precedes/follows it in the
+% surrounding text.  They differ because the TikZ brace decoration
+% bulges outward past its own bounding box (the curl reaches further
+% than the box declared for it) only on the outer side -- the inner
+% side has no such overflow to clear, so it can sit much closer.
 \newcommand\AltBraceWidth{0.9ex}
 \newcommand\AltBraceAmplitude{4pt}
-\newcommand\AltBraceSep{0.3em}
+\newcommand\AltBraceSep{0.15em}
+\newcommand\AltBraceOuterSep{0.7em}
 \newcommand\AltBraceRaise{0pt}
 
 % Alias \alt -> \lxAlt unless somebody (beamer!) already owns \alt.
@@ -1756,7 +1762,7 @@
 \cs_new_protected:Npn \__lxp_altg_shape_obj:
   {
     \hbox_set:Nn \l__lxp_altg_out_box
-      { \hspace { \AltBraceSep }
+      { \hspace { \AltBraceOuterSep }
         \raisebox { \dim_eval:n { -0.5 \baselineskip } }
           { \__lxp_altg_brace:n { L } \hspace { \AltBraceSep }
             \box_use:N \l__lxp_altg_stack_box } }
@@ -1772,17 +1778,17 @@
         \raisebox { \dim_eval:n { 0.5 \baselineskip } }
           { \box_use:N \l__lxp_altg_stack_box \hspace { \AltBraceSep }
             \__lxp_altg_brace:n { R } }
-        \hspace { \AltBraceSep } }
+        \hspace { \AltBraceOuterSep } }
     \box_set_ht:Nn \l__lxp_altg_out_box { 0pt }
     \box_use:N \l__lxp_altg_out_box
   }
 \cs_new_protected:Npn \__lxp_altg_shape_solo:
   {
-    \hspace { \AltBraceSep }
+    \hspace { \AltBraceOuterSep }
     \__lxp_altg_brace:n { L } \hspace { \AltBraceSep }
     \box_use:N \l__lxp_altg_stack_box
     \hspace { \AltBraceSep } \__lxp_altg_brace:n { R }
-    \hspace { \AltBraceSep }
+    \hspace { \AltBraceOuterSep }
   }
 %% emit one shape, tag-guarded: under active tagging the shape is wrapped
 %% in a Span carrying the spoken /Alt of this call's list.
