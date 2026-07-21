@@ -56,19 +56,18 @@ disappear under markup.
 
 That syntax comes from Wolfgang Sternefeld's \pkg{linguex}, which this
 package owes almost everything to, and which it is designed to
-replace. \pkg{linguexx} is a reimplementation from the ground up,
+replace. With one exception, any document that compiles under \pkg{linguex} should also compile under \pkg{linguexx} – and given one switch, it should look the same.
+
+\pkg{linguexx} is a reimplementation from the ground up,
 undertaken for two reasons. The first is to repair the structural
-weaknesses of the original: a globally drifting sub-example depth
-counter, a judgment tokenizer built on catcode manipulation, and a
-termination rule that failed at the end of a \pkg{beamer} frame. All
-three are gone. The second is to bring the glossing closer to the
+weaknesses of the original. The second is to bring the glossing closer to the
 level of John Frampton's \pkg{expex}: glosses may now have any number
 of tiers, each with its own font, rather than the two or three that
 \pkg{cgloss4e} allowed.
 
-The package also provides an implementation of linguistic glossing
-that is fully compatible with tagged pdfs, and produces valid output
-according to \pkg{veraPDF}.
+A further new feature is that the package tags the whole example
+apparatus, from numbered examples to interlinear glosses, for a
+PDF/UA-2-conformant result (checked with \texttt{veraPDF}).
 
 The package's only dependencies are \pkg{graphicx} and \pkg{tikz},
 plus the \pkg{expl3} layer, part of the \LaTeX{} kernel since 2020,
@@ -167,19 +166,15 @@ As \ref{ex:sleep} shows, \dots The contrast in \Next\ is sharper:
 \ex. *Ich bin geschlafen.
 
 \afterex
-That is the whole of everyday use. The rest of this manual fills in the
-details: more nesting levels, more gloss tiers, arbitrary judgment marks,
-reference ranges, examples in footnotes, source attributions, and the
-layout parameters.
+This concludes the presentation of the essential syntax for the most elementary needs.
+The rest of this manual fills in the details: more nesting levels,
+more gloss tiers, arbitrary judgment marks, reference ranges, examples
+in footnotes, source attributions, and the layout parameters.
 
 % ===========================================================================
 \section{Origins, acknowledgments, and relation to other packages}
 \label{sec:origins}
 % ===========================================================================
-
-\noindent
-Readers who have never used another example package can skip this section
-with no loss. 
 
 \paragraph{\pkg{linguex} (Wolfgang Sternefeld).} This package started
 from a set of patches I made to \pkg{linguex} over the years. As a
@@ -1226,7 +1221,7 @@ the meaning column is what a screen reader speaks.
 \begin{longtable}{@{}llll@{}}
 \toprule
 label & meaning & label & meaning \\
-\midrule
+%\midrule
 \endfirsthead
 \toprule label & meaning & label & meaning \\ \midrule \endhead
 \bottomrule
