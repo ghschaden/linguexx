@@ -8,7 +8,7 @@ input syntax and first-class support for **accessible (tagged) PDF output**.
 fresh `expl3` engine, with no dependency on `linguex`, `cgloss4e`, or `xspace`.
 It runs on **pdfLaTeX, XeLaTeX and LuaLaTeX**. A `[legacy]` option reproduces
 `linguex`'s exact geometry for drop-in replacement; the default mode is a
-slightly tidier variant.
+slightly tighter variant.
 
 ## Accessibility
 
@@ -40,7 +40,8 @@ for turning a document into a PDF/UA-conformant build.
 \a. a sub-example
 \b. *a judged sub-example
 
-\exg. Der Hund bellte.\\ the dog barked.\\
+\exg. Der Hund bellte.\\ 
+the dog barked.\\
 \glt `The dog barked.'
 \end{document}
 ```
@@ -88,4 +89,4 @@ LaTeX Project Public License 1.3c or later — see `LICENSE`.
 
 ## Author
 
-Gerhard Schaden.
+Gerhard Schaden \& Claude (Fable, Opus, Sonnet).
