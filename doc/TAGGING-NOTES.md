@@ -5,7 +5,7 @@
 linguexx must compile and produce a **valid, uncorrupted structure
 tree** — the precondition for everything else (real tagging, PDF/UA).
 This is the level Alan Munn expected to be unreachable for a
-linguex-style package. It is reached here for linguexx v1.2, on
+linguex-style package. It is reached here for linguexx v0.2, on
 lualatex, pdflatex and xelatex.
 
 This is *tagging-safety*, not full semantic tagging: examples currently
@@ -88,7 +88,7 @@ i.e. `L > LI > Lbl + LBody`, with letter and roman sub-levels as **nested
 `L`s** inside the parent `LBody`. That much came for free from objective 1's
 choice to use real lists.
 
-What v1.3 adds is the missing *semantics*: an example list is **ordered**
+What v0.3 adds is the missing *semantics*: an example list is **ordered**
 (numbered `(1)`, lettered `a.`, roman `i.`), but the block code, seeing a
 `\begin{list}` with an empty default label, tagged it with the label-less
 class (`/ListNumbering/None`). linguexx gives each example list a valid, per-level `/ListNumbering`:

@@ -1,4 +1,4 @@
-> **Status: superseded (v1.13).** `\alt` was rebuilt in text mode (a
+> **Status: superseded (v0.13).** `\alt` was rebuilt in text mode (a
 > tabular stack with a TikZ brace, no math), which removes the `Formula`
 > entirely and lets the alternatives be tagged as text with a spoken
 > `/Alt`. The math-tagging reconnaissance below is kept only as a record

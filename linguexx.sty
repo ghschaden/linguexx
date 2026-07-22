@@ -5,9 +5,9 @@
 %%%% This program can be redistributed and/or modified under the terms
 %%%% of the LaTeX Project Public License
 \NeedsTeXFormat{LaTeX2e}[2020/10/01]% expl3 in kernel required
-\ProvidesPackage{linguexx}[2026/07/20 Standalone linguistic examples, linguex-compatible interface v. 1.15]
-%% v. 1.1: [legacy] option; empty \firstrefdash by default.
-%% v. 1.2: tagging-safe under \DocumentMetadata (PDF tagging testphase):
+\ProvidesPackage{linguexx}[2026/07/20 Standalone linguistic examples, linguex-compatible interface v. 1.0]
+%% v. 0.1: [legacy] option; empty \firstrefdash by default.
+%% v. 0.2: tagging-safe under \DocumentMetadata (PDF tagging testphase):
 %%         lists opened/closed through the environment interface; no TeX
 %%         group around the example as a whole; explicit @endpe/text-unit
 %%         cleanup after each example.  Labels set flush left in a
@@ -18,19 +18,19 @@
 %%         Default \SubSubExlabelwidth reduced 1.9em->1.6em (sized for
 %%         roman labels up to "vi."; equals \SubExlabelwidth), so the
 %%         roman level no longer has a visibly larger label-to-text gap.
-%% v. 1.3: PDF tagging objective 2 -- examples as proper list structure.
+%% v. 0.3: PDF tagging objective 2 -- examples as proper list structure.
 %%         Because examples are real \begin{list} environments, the tagged
 %%         output already nests L > LI > Lbl > LBody with sub-levels as
-%%         nested Ls; v1.3 additionally marks each example list ORDERED
+%%         nested Ls; v0.3 additionally marks each example list ORDERED
 %%         (/ListNumbering/Ordered) instead of the default label-less
 %%         class.  Tag-guarded; no effect without active tagging.
-%% v. 1.4: PDF tagging objective 3 -- spoken forms for judgment marks.
+%% v. 0.4: PDF tagging objective 3 -- spoken forms for judgment marks.
 %%         Under active tagging each mark is wrapped in a Span carrying
 %%         /Alt so a screen reader announces its meaning ("ungrammatical")
 %%         rather than the glyph.  Defaults for * ? ?? ?* # % ; override
 %%         via \DeclareJudgment[spoken=...] or \SetJudgmentSpoken.
 %%         Tag-guarded; printed output and untagged runs are unchanged.
-%% v. 1.5: fix an invalid PDF attribute value from v1.3.  Ordered example
+%% v. 0.5: fix an invalid PDF attribute value from v0.3.  Ordered example
 %%         lists were routed through the block code's enumerate class,
 %%         whose /ListNumbering value is /Ordered -- not one of the values
 %%         the PDF spec allows, so validators reject it.  Each level now
@@ -38,7 +38,7 @@
 %%         /LowerAlpha for letters, /LowerRoman for romans.  If the tagged
 %%         list internal is unavailable the lists fall back to the default
 %%         (valid) /None rather than the bad value.
-%% v. 1.6: PDF tagging objective 4 -- interlinear glosses as structure.
+%% v. 0.6: PDF tagging objective 4 -- interlinear glosses as structure.
 %%         Each gloss column (an object word with its aligned glosses) is
 %%         wrapped in a Span, so a screen reader reads and navigates the
 %%         gloss word bundle by word bundle in object-then-gloss order
@@ -46,39 +46,39 @@
 %%         column (\tag_mc_end_push:/..._begin_pop:) and each word gets
 %%         its own mc under the column Span.  Tag-guarded; the printed
 %%         grid and untagged output are unchanged.
-%% v. 1.7: PDF tagging objective 5 -- language of a gloss tier.
+%% v. 0.7: PDF tagging objective 5 -- language of a gloss tier.
 %%         \GlossTierLang{tier}{code} records a language code for a tier;
 %%         under tagging each word of that tier is wrapped in a Span with
 %%         /Lang so a screen reader uses the right phonetics.  Tiers with
 %%         no declared language are unchanged.  Tag-guarded.
-%% v. 1.8: PDF tagging objective 6 -- Leipzig gloss abbreviations.
+%% v. 0.8: PDF tagging objective 6 -- Leipzig gloss abbreviations.
 %%         \lpzg{sg} sets the abbreviation in small caps and, under
 %%         tagging, wraps it in a Span carrying /E (expansion text) so a
 %%         screen reader announces "singular" while print and copy keep
 %%         SG.  Built-in standard Leipzig table, keyed by short form;
 %%         \SetLeipzig{key}{expansion} extends/overrides; unknown keys
 %%         print with no expansion.  Tag-guarded; self-contained.
-%% v. 1.9: \lpzg accepts a whole compound label in one call (3sg.pst):
+%% v. 0.9: \lpzg accepts a whole compound label in one call (3sg.pst):
 %%         split on periods, a leading person digit peeled off, each piece
 %%         expanded and joined into one /E ("third person singular past").
 %%         \GlossTierLang is now scoped: a document-wide default in the
 %%         preamble, overridable per example by issuing it inside the
 %%         example (local assignment, reverts afterwards).
-%% v. 1.10: (reverted in 1.11) attempt to give \alt/\altg a spoken /Alt.
-%% v. 1.11: revert the 1.10 \alt/\altg tagging.  Wrapping the alternatives
+%% v. 0.10: (reverted in 0.11) attempt to give \alt/\altg a spoken /Alt.
+%% v. 0.11: revert the 0.10 \alt/\altg tagging.  Wrapping the alternatives
 %%          formula in a Span carrying /Alt is invalid under PDF/UA-2 when
 %%          the formula begins an example (a Span may not contain the
 %%          Part/P that the math tagging then builds), and veraPDF rejects
 %%          it.  \alt/\altg revert to the plain formula, which validates;
 %%          giving them a spoken form needs the "positioning text" math
 %%          interface and is deferred.
-%% v. 1.12: remove \altg/\lxAltg (alternatives with translations).
-%% v. 1.13: \alt rebuilt in text mode -- a tabular stack with a TikZ-drawn
+%% v. 0.12: remove \altg/\lxAltg (alternatives with translations).
+%% v. 0.13: \alt rebuilt in text mode -- a tabular stack with a TikZ-drawn
 %%          brace, no math and no amsmath, so the alternatives are ordinary
 %%          tagged text.  Under tagging the stack is wrapped in a Span with a
 %%          spoken /Alt ("A, B, or C", built with \text_purify:n).  Requires
 %%          graphicx + tikz instead of amsmath.
-%% v. 1.14: \altg/\lxAltg return, rebuilt in text mode.  Written twice in
+%% v. 0.14: \altg/\lxAltg return, rebuilt in text mode.  Written twice in
 %%          an interlinear gloss -- object words in the object line,
 %%          glosses in the gloss line -- the two calls occupy the two
 %%          tiers of one column and assemble a single paradigm: object
@@ -87,9 +87,9 @@
 %%          own spoken /Alt under tagging; no math, so the PDF/UA-2
 %%          failure that removed the old \altg does not recur.  Also:
 %%          \alt now closes its stack with a right brace as well (the
-%%          pre-1.13 look), and the TikZ brace direction is corrected --
-%%          since 1.13 the brace was drawn mirrored.
-%% v. 1.15: \alt/\lxAlt renamed to \altn/\lxAltn -- \alt collides with
+%%          pre-0.13 look), and the TikZ brace direction is corrected --
+%%          since 0.13 the brace was drawn mirrored.
+%% v. 1.0: \alt/\lxAlt renamed to \altn/\lxAltn -- \alt collides with
 %%          beamer, glossaries-extra, revtex/revsymb, tex4ht, and others;
 %%          \altn is unclaimed.  \altg/\lxAltg unaffected (no collisions).
 %% Package options come in two independent groups.
@@ -1548,7 +1548,7 @@
 %% one brace, side L or R, drawn with TikZ to the stack height.  The
 %% decoration bulges to the side determined by the path direction: an
 %% upward path gives an opening brace, a downward path a closing one
-%% (the v1.13 downward path drew the left brace mirrored).  The raise is
+%% (the v0.13 downward path drew the left brace mirrored).  The raise is
 %% pinned to the stack's own depth, not half the total height: a stack is
 %% seldom split evenly around its baseline (an all-caps or struck-through
 %% row above pulls height, ordinary rows below add less depth), so using

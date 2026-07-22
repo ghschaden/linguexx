@@ -17,12 +17,12 @@ Standalone and modern reimplementation of `linguex` (numbered linguistic example
 
 
 ## Package Invariants
-- `\altn` / `\altg`: TEXT mode only. No math, no italics, no amsmath. No `Formula` element in the tree (this is what broke PDF/UA-2 before v1.12; avoiding it is the goal).
+- `\altn` / `\altg`: TEXT mode only. No math, no italics, no amsmath. No `Formula` element in the tree (this is what broke PDF/UA-2 before v0.12; avoiding it is the goal).
 - Braces drawn in TikZ on both sides. The `brace` decoration bulges according to the path direction: ascending = opening `{`, descending = closing `}`.
 - `\altg` is written twice in a gloss (objects, then glosses); same number of alternatives in both calls; no spaces between groups.
 - Tagging idiom: `\tag_mc_end_push:` … `\tag_mc_begin_pop:n{}`.
 - `[legacy]` mode = geometric fidelity to linguex; orthogonal to `[lazy]`/`[gb4e]`.
 
 ## Do Not
-- Ship a tagging fix without validating it with veraPDF on TL2026 (lesson from v1.10: Span > Part/P broke compliance).
+- Ship a tagging fix without validating it with veraPDF on TL2026 (lesson from v0.10: Span > Part/P broke compliance).
 - Introduce a new user syntax "by default" without prior explicit validation.

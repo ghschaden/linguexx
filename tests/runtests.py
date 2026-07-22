@@ -511,10 +511,10 @@ def a_tagged(p: Page):
     r.append(check(any("or a dog" in a or "cat, a dog" in a for a in alts),
                    f"text-mode alt carries a spoken /Alt list "
                    f"(got {[a for a in alts if 'dog' in a]})"))
-    # v1.14: \altg embedded in a gloss carries ONE spoken /Alt over the
+    # v0.14: \altg embedded in a gloss carries ONE spoken /Alt over the
     # whole paradigm, with simple \lpzg keys expanded from the Leipzig
     # table; and it stays out of math (no Formula element anywhere, which
-    # is what broke the pre-1.12 math-mode \altg under PDF/UA-2).
+    # is what broke the pre-0.12 math-mode \altg under PDF/UA-2).
     r.append(check(p.find("ALTGVERB") is not None, "altg example typeset"))
     r.append(check(any("Socke or Tonne" in a for a in alts),
                    f"altg object call carries a spoken /Alt "
