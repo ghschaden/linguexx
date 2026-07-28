@@ -692,8 +692,11 @@ openers \texttt{(\,[\,<}. Change the set with
 \cs{GlossPhantomChars}\marg{chars}, e.g.\ \cs{GlossPhantomChars}\texttt{\{[(\}}
 to react to square and round brackets only.
 
-The feature is \emph{off by default}, since turning it on shifts the
-horizontal position of glosses under bracketed material. Enable it document-wide
+The feature is \emph{off by default} --- only because turning it on shifts
+the horizontal position of glosses under bracketed material, and existing
+documents should keep the layout they were written for. For new documents it
+is \emph{recommended}: it is what makes an interlinear gloss line up the way a
+reader expects, and it costs nothing under tagging. Enable it document-wide
 with the package option \opt{phantomalign} or with \cs{GlossPhantomAlign};
 \cs{GlossPhantomAlignOff} turns it back off, so it can be scoped to a single
 example inside a group. It applies to the space-separated words of
@@ -1430,6 +1433,9 @@ exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package opt
 \textbackslash SetLeipzig\allowbreak\marg{abbr}\marg{expansion} & Add or override a Leipzig abbreviation expansion. \\
 \textbackslash eachwordone/two/three & Font commands for tiers 1--3. \\
 \textbackslash GlossSep & Glue between gloss columns. \\
+\textbackslash GlossPhantomAlign & Align gloss words past leading brackets, parentheses and judgment marks (\emph{recommended}; section~\ref{sec:phantomalign}). Also the package option \opt{phantomalign}; \cs{GlossPhantomAlignOff} reverts. \\
+\textbackslash GlossPhantomChars\allowbreak\marg{chars} & Leading characters that alignment skips (default \texttt{*?\#\%([<}). \\
+\textbackslash GlossPhantom\allowbreak\marg{material} & Manual override: pad a gloss word by an invisible box the width of \meta{material}, in the object font. \\
 \addlinespace
 \multicolumn{2}{@{}l}{\itshape References} \\
 \textbackslash label, \textbackslash ref & As usual; references print in parentheses. \\
