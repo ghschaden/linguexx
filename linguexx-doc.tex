@@ -79,24 +79,30 @@ acquaintance with \pkg{linguex} or any other example package.
 \tableofcontents
 
 % ===========================================================================
-\section{A quick tour}\label{sec:tour}
+\section{A quick tour \& recommended usage}\label{sec:tour}
 % ===========================================================================
 
-Load the package:
+This section illustrates the recommended use for a total novice in
+linguistic glossing. If you already know \pkg{linguex}, you can do
+what you are used to do.
+
+Load the package, with the recommended option \texttt{phantomalign} (see Section~\ref{sec:phantomalign}):
 
 \begin{code}
-\usepackage{linguexx}
+\usepackage[phantomalign]{linguexx}
 \end{code}
 
 \noindent An example is introduced by \cs{ex.}\ --- note the period, which
-is part of the command name --- and ended by a \emph{blank line}:
+is part of the command name --- and ended by a \cs{z.}, or alternatively, a blank line:
 
 \begin{code}
 \ex. Colourless green ideas sleep furiously.
+\z.
 \end{code}
 
 \rendered
 \ex. Colourless green ideas sleep furiously.
+\z.
 
 \afterex
 Numbering is automatic and runs through the document. Sub-examples are
@@ -106,12 +112,14 @@ introduced by \cs{a.}, and continued by \cs{b.}, \cs{c.}\ and so on:
 \ex.
 \a. Ich habe geschlafen.
 \b. Ich bin geschlafen.
+\z.
 \end{code}
 
 \rendered
 \ex.
 \a. Ich habe geschlafen.
 \b. Ich bin geschlafen.
+\z.
 
 \afterex
 A grammaticality judgment typed at the start of an example is recognized
@@ -121,13 +129,15 @@ aligned:
 \begin{code}
 \ex.
 \a. Ich habe geschlafen.
-\b. *Ich bin geschlafen.
+\b. *Ich habe gestorben.
+\z. 
 \end{code}
 
 \rendered
 \ex.
 \a. Ich habe geschlafen.
-\b. *Ich bin geschlafen.
+\b. *Ich habe gestorben.
+\z.
 
 \afterex
 Interlinear glosses are written with \cs{gll} (two tiers), with the free
@@ -138,12 +148,14 @@ category labels are set in small capitals with \cs{lpzg}:
 \ex. \gll Ich schlief. \\
           I   sleep.\lpzg{pst} \\
 \glt `I slept.'
+\z.
 \end{code}
 
 \rendered
 \ex. \gll Ich schlief. \\
      I sleep.\lpzg{pst} \\
 \glt `I slept.'
+\z.
 
 \afterex
 To refer to an example, label it and use \cs{ref}, exactly as with any
@@ -152,18 +164,22 @@ other \LaTeX{} counter; the parentheses come for free. \cs{Next} and
 
 \begin{code}
 \ex.\label{ex:sleep} Ich habe geschlafen.
+\z.
 
 As \ref{ex:sleep} shows, ... The contrast in \Next\ is sharper:
 
-\ex. *Ich bin geschlafen.
+\ex. *Ich habe gestorben.
+\z.
 \end{code}
 
 \rendered
 \ex.\label{ex:sleep} Ich habe geschlafen.
+\z.
 
 As \ref{ex:sleep} shows, \dots The contrast in \Next\ is sharper:
 
-\ex. *Ich bin geschlafen.
+\ex. *Ich habe gestorben.
+\z.
 
 \afterex
 This concludes the presentation of the essential syntax for the most elementary needs.
