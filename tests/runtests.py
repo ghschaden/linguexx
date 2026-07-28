@@ -360,6 +360,84 @@ def a_altg(p: Page):
     return r
 
 
+def a_phantomalign(p: Page):
+    """Phantom bracket alignment (opt-in).  A gloss word under a bracketed
+    object word is padded so its first real glyph sits under the object
+    word's first real glyph.  Each probe pairs object "<marks><STEM>" with
+    gloss "<STEM>": when aligned, the two share their trailing STEM glyphs,
+    so their RIGHT edges coincide; the column origin is the object token's
+    left edge (the mark).  Off, the gloss falls back to the column origin."""
+    r = []
+
+    def obj(stem_token):   # object token, e.g. "[Aaa"
+        return p.find(stem_token)
+
+    # (1) ON, single bracket: gloss stem ends under object stem (right edges
+    # coincide), and its origin is shifted right of the column origin.
+    o1, g1 = obj("[Aaa"), p.find("Aaa")
+    r.append(check(abs(g1.x1 - o1.x1) < TOL,
+                   f"ON: gloss stem ends under object stem "
+                   f"(right edges {g1.x1:.2f} vs {o1.x1:.2f})"))
+    shift1 = g1.x0 - o1.x0
+    r.append(check(shift1 > 1.0,
+                   f"ON: gloss is shifted right past the bracket "
+                   f"(shift {shift1:.2f}pt)"))
+
+    # (2) ON, three leading marks "*([": right edges still coincide, and the
+    # shift is strictly larger than the single-bracket shift.
+    o2, g2 = obj("*([Ddd"), p.find("Ddd")
+    r.append(check(abs(g2.x1 - o2.x1) < TOL,
+                   f"ON: gloss aligns under stem past 3 marks "
+                   f"(right edges {g2.x1:.2f} vs {o2.x1:.2f})"))
+    shift2 = g2.x0 - o2.x0
+    r.append(check(shift2 > shift1 + 1.0,
+                   f"ON: three marks shift more than one bracket "
+                   f"({shift2:.2f} vs {shift1:.2f})"))
+
+    # (3) ON, \footnotesize gloss tier: the shift equals the full-size
+    # bracket shift of (1) -- the phantom is set in the object font, so a
+    # smaller gloss tier does not change the padding.
+    o3, g3 = obj("[Ccc"), p.find("Ccc")
+    shift3 = g3.x0 - o3.x0
+    r.append(check(abs(shift3 - shift1) < TOL,
+                   f"ON: footnotesize gloss uses the full-size bracket shift "
+                   f"({shift3:.2f} vs {shift1:.2f})"))
+
+    # (4) OFF: the gloss stem returns to the column origin (under the mark),
+    # so its LEFT edge meets the object token's left edge and its right edge
+    # is short of the object stem by the bracket width.
+    o4, g4 = obj("[Bbb"), p.find("Bbb")
+    r.append(check(abs(g4.x0 - o4.x0) < TOL,
+                   f"OFF: gloss sits at the column origin "
+                   f"(left edges {g4.x0:.2f} vs {o4.x0:.2f})"))
+    r.append(check(o4.x1 - g4.x1 > 1.0,
+                   f"OFF: gloss stem is short of the object stem by the "
+                   f"bracket width ({g4.x1:.2f} vs {o4.x1:.2f})"))
+
+    # (5) manual \GlossPhantom, automatic alignment still OFF, over a
+    # macro-wrapped bracket the auto-scanner cannot see: the gloss stem is
+    # nonetheless pushed right so its right edge lands under the object
+    # stem's right edge.
+    o5, g5 = obj("[Kkk"), p.find("Kkk")
+    r.append(check(abs(g5.x1 - o5.x1) < TOL,
+                   f"\\GlossPhantom: gloss stem ends under object stem "
+                   f"(right edges {g5.x1:.2f} vs {o5.x1:.2f})"))
+    r.append(check(g5.x0 > o5.x0 + 1.0,
+                   f"\\GlossPhantom: gloss is shifted right past the bracket "
+                   f"(shift {g5.x0 - o5.x0:.2f}pt)"))
+
+    # (6) auto ON over a macro-wrapped bracket: no automatic phantom fires, so
+    # the gloss stem "Mmm" stays at the column origin, its right edge short of
+    # the object stem "Mmm" by the bracket width.  If the character set holds
+    # a stray backslash it matches the leading \textbf and pads the gloss,
+    # pushing it right (edge no longer short) -- this catches that.
+    o6, g6 = obj("[Mmm"), p.find("Mmm")
+    r.append(check(o6.x1 - g6.x1 > 2.0,
+                   f"auto ignores a macro-wrapped bracket: gloss stem stays "
+                   f"short of the object stem ({g6.x1:.2f} vs {o6.x1:.2f})"))
+    return r
+
+
 def a_termination(p: Page):
     r = []
     aaa, bbb, ccc = p.find("AAA"), p.find("BBB"), p.find("CCC")
@@ -619,6 +697,7 @@ ASSERTIONS = {
     "exsource": a_exsource,
     "zpop": a_zpop,
     "gloss": a_gloss,
+    "phantomalign": a_phantomalign,
     "altg": a_altg,
     "termination": a_termination,
     "refs": a_refs,

@@ -3,6 +3,23 @@
 All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
+## Unreleased
+- Phantom bracket alignment for interlinear glosses (opt-in, off by default).
+  When an object word opens with a run of brackets, parentheses or judgment
+  marks, the gloss word below it can be padded by a `\phantom` of that run --
+  set in the object-line font -- so its first real glyph sits under the object
+  word's first real glyph rather than under the mark. Enable with the package
+  option `phantomalign` or `\GlossPhantomAlign` (`\GlossPhantomAlignOff` to
+  scope it); `\GlossPhantomChars{...}` sets the leading characters that count
+  (default `*?#%([<`). For material the automatic scan cannot see (a
+  macro-wrapped bracket) or a hand-picked target, `\GlossPhantom{material}`
+  is a manual override: placed at the front of a gloss word it pads it by an
+  invisible box the width of `material`, set in the object-line font. The
+  phantom ships no ink and no marked content, so PDF/UA tagging is unchanged
+  (verified with veraPDF on `examples/ua-demo` and on a `\GlossPhantom`
+  build). Alignment survives a size change of the gloss tier (e.g.
+  `\footnotesize`). `\altg` alternative columns are not covered.
+
 ## 1.0
 - `\alt`/`\lxAlt` renamed to `\altn`/`\lxAltn`. `\alt` is claimed by
   `beamer`, `glossaries-extra`, `revtex`/`revsymb`, `tex4ht`,

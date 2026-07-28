@@ -1,0 +1,59 @@
+\input{_preamble}
+%% Phantom bracket/paren/judgment alignment (opt-in).  When an object word
+%% opens with delimiters or judgment marks, the gloss word below it is
+%% padded by a \phantom of that leading run -- set in the OBJECT-tier font --
+%% so its first real glyph sits under the object word's first real glyph.
+%%
+%% Test geometry.  Each probe column pairs an object word "<marks><STEM>"
+%% with a gloss word "<STEM>" carrying the SAME stem glyphs.  When the
+%% phantom is right, the gloss stem sits exactly under the object stem, so
+%% their RIGHT edges coincide (pdftotext gives us that directly); when it is
+%% off, the gloss stem is short of the object stem by the marks' width.
+\begin{document}
+
+% (1) alignment ON: gloss stem "Aaa" should end under object stem "Aaa".
+\GlossPhantomAlign
+\ex. \gll [Aaa BBB \\
+     Aaa bbb \\
+\glt `ON: single bracket.'
+
+% (2) alignment ON, multiple leading marks "*([" before stem "Ddd".
+\ex. \gll *([Ddd EEE \\
+     Ddd eee \\
+\glt `ON: three leading marks.'
+
+% (3) alignment ON, gloss tier in \footnotesize: the shift must be the same
+% full-size bracket width as in (1) (phantom is set in the object font).
+% Scoped in a group so the smaller tier font cannot leak into (4)/(5).
+{\GlossTierFont{2}{\footnotesize}%
+\ex. \gll [Ccc FFF \\
+     Ccc fff \\
+\glt `ON: footnotesize gloss tier.'
+}
+
+% (4) alignment OFF: gloss stem "Bbb" sits at the column origin, under "[".
+\GlossPhantomAlignOff
+\ex. \gll [Bbb GGG \\
+     Bbb ggg \\
+\glt `OFF: gloss under the bracket.'
+
+% (5) manual \GlossPhantom, automatic alignment still OFF: the manual
+% phantom, set in the object-tier font, pushes gloss stem "Kkk" so its right
+% edge lands under object stem "Kkk".  Brackets do not kern with letters, so
+% the match is exact.
+\ex. \gll [Kkk III \\
+     \GlossPhantom{[}Kkk iii \\
+\glt `Manual: gloss aligns past a bracket.'
+
+% (6) auto ON must NOT fire on a macro-wrapped bracket: the scanner reads the
+% control word (\textbf), not the "[" it hides, so no automatic phantom is
+% added and the gloss stem stays at the column origin (left of the object
+% stem by the bracket width).  Regression: the default character set once
+% held stray backslashes (from writing \#\% in \str_set:Nn), which matched
+% the leading control sequence of ANY macro-wrapped word and padded it.
+\GlossPhantomAlign
+\ex. \gll \textbf{[}Mmm NNN \\
+     Mmm nnn \\
+\glt `Auto does not see through a macro-wrapped bracket.'
+
+\end{document}

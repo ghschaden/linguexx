@@ -118,9 +118,11 @@
 \newif\iflx@lazy
 \newif\iflx@gbfour
 \newif\iflx@legacy
+\newif\iflx@phantomalign
 \DeclareOption{lazy}{\lx@lazytrue}
 \DeclareOption{gb4e}{\lx@gbfourtrue}
 \DeclareOption{legacy}{\lx@legacytrue}
+\DeclareOption{phantomalign}{\lx@phantomaligntrue}
 \DeclareOption*{\PackageWarning{linguexx}{Unknown option
   '\CurrentOption' ignored}}
 \ProcessOptions\relax
@@ -1395,6 +1397,66 @@
           } } }
 \ExplSyntaxOff
 \ExplSyntaxOn
+%% Phantom bracket alignment (opt-in, off by default).  When a word in the
+%% object line opens with a run of delimiter/judgment characters -- e.g.
+%% "[ein" in "ich bin [ein Idiot]" -- the gloss word below it normally
+%% left-aligns with the "[", not with "ein".  With alignment on, the gloss
+%% word (and any further tiers) is preceded by a \phantom of that leading
+%% run, SET IN THE OBJECT-TIER FONT, so its first real glyph sits under the
+%% first real glyph of the object word regardless of the gloss-tier size
+%% (e.g. \footnotesize glosses still line up).  The phantom ships no ink and
+%% no marked content, so tagging is unaffected.  Enable with the package
+%% option [phantomalign] or \GlossPhantomAlign; \GlossPhantomAlignOff turns
+%% it back off.  \GlossPhantomChars sets the leading characters that count
+%% (default: the judgment marks * ? # % and the openers ( [ < ).  \altg
+%% alternative columns are not covered.
+\bool_new:N \l__lx_gl_phantom_bool
+\iflx@phantomalign \bool_set_true:N \l__lx_gl_phantom_bool \fi
+\str_new:N \l__lx_gl_phantomchars_str
+% The set must hold BARE "#" and "%": writing them as \#\% in \str_set:Nn
+% would stringify to "\#\%" and leave literal backslashes in the set, so any
+% object word beginning with a control sequence would then match "\" and be
+% padded.  \c_hash_str / \c_percent_str are the catcode-12 characters.
+\str_set:Ne \l__lx_gl_phantomchars_str { *?([< \c_hash_str \c_percent_str }
+\tl_new:N  \l__lx_gl_prefix_tl
+\tl_new:N  \l__lx_gl_obj_tl
+\str_new:N \l__lx_gl_word_str
+\str_new:N \l__lx_gl_head_str
+\prg_generate_conditional_variant:Nnn \str_if_in:Nn { NV } { T }
+\cs_new_protected:Npn \GlossPhantomAlign
+  { \bool_set_true:N \l__lx_gl_phantom_bool }
+\cs_new_protected:Npn \GlossPhantomAlignOff
+  { \bool_set_false:N \l__lx_gl_phantom_bool }
+\cs_new_protected:Npn \GlossPhantomChars #1
+  { \str_set:Nn \l__lx_gl_phantomchars_str {#1} }
+% Manual per-word override: \GlossPhantom{stuff} typesets an invisible box
+% the width of #1 SET IN THE OBJECT-TIER FONT.  Placed at the front of a
+% gloss word it aligns that word past #1 regardless of the automatic
+% detection or the gloss-tier size -- for material the auto-scanner cannot
+% see (a macro-wrapped bracket, a whole prefix word) or a bespoke target.
+\cs_new_protected:Npn \GlossPhantom #1
+  { \phantom { \lx@glfontuse {1} {#1} } }
+% Peel the leading run of phantom characters off word #1 into
+% \l__lx_gl_prefix_tl (as a str; catcode-12 punctuation, safe in \phantom).
+\cs_new_protected:Npn \__lx_gl_leadprefix:N #1
+  {
+    \tl_clear:N \l__lx_gl_prefix_tl
+    \str_set:Nx \l__lx_gl_word_str { \tl_to_str:N #1 }
+    \__lx_gl_leadprefix_loop:
+  }
+\cs_new_protected:Npn \__lx_gl_leadprefix_loop:
+  {
+    \str_if_empty:NF \l__lx_gl_word_str
+      {
+        \str_set:Nx \l__lx_gl_head_str { \str_head:N \l__lx_gl_word_str }
+        \str_if_in:NVT \l__lx_gl_phantomchars_str \l__lx_gl_head_str
+          {
+            \tl_put_right:NV \l__lx_gl_prefix_tl \l__lx_gl_head_str
+            \str_set:Nx \l__lx_gl_word_str { \str_tail:N \l__lx_gl_word_str }
+            \__lx_gl_leadprefix_loop:
+          }
+      }
+  }
 \cs_gset_protected:Npn \lx@gloss@multi #1
   {
     \seq_set_split:Nnn \l__lx_gl_lines_seq { \\ } {#1}
@@ -1421,12 +1483,29 @@
     \int_step_inline:nn { \l__lx_gl_maxwords_int }
       { % column ##1
         \lx@gl@colbegin
+        \bool_if:NTF \l__lx_gl_phantom_bool
+          {
+            % Retrieve the object word WITHOUT expanding it: the auto-scan
+            % must see the leading literal characters, not expand a macro
+            % (e.g. \textbf{[}ein) and reach a "[" that the printed word only
+            % shows through a control word.  Full expansion here would make
+            % the scan fire on macro-wrapped brackets and double up with a
+            % manual \GlossPhantom.  f-expansion evaluates \seq_item only.
+            \exp_args:NNf \tl_set:Nn \l__lx_gl_obj_tl
+              { \seq_item:cn { l__lx_gl_tier_1_seq } {##1} }
+            \__lx_gl_leadprefix:N \l__lx_gl_obj_tl
+          }
+          { \tl_clear:N \l__lx_gl_prefix_tl }
         \vtop
           {
             \int_step_inline:nn { \l__lx_gl_ntiers_int }
               { % tier ####1
                 \hbox:n
                   { \strut
+                    \int_compare:nNnT {####1} > { 1 }
+                      { \tl_if_empty:NF \l__lx_gl_prefix_tl
+                          { \phantom
+                              { \lx@glfontuse {1} { \l__lx_gl_prefix_tl } } } }
                     \lx@gl@wordbegin {####1}
                     \lx@glfontuse {####1}
                       { \seq_item:cn { l__lx_gl_tier_ ####1 _seq } {##1} }

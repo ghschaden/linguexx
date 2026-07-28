@@ -651,6 +651,80 @@ line in small capitals throughout:
 specification (default \texttt{.5em plus .3em minus .1em}), changed with
 \cs{renewcommand}.
 
+\subsection{Aligning past brackets and judgment marks}\label{sec:phantomalign}
+When an object word opens with a bracket, a parenthesis or a judgment mark,
+the gloss word below it normally lines up with that mark, not with the word
+it introduces. Thus
+
+\begin{code}
+\ex. \gll Ich bin [<ein Idiot>]\\
+I am a idiot\\
+\end{code}
+
+\noindent{}renders as:
+
+\ex. \gll Ich bin [<ein Idiot>]\\ I am a idiot\\
+\z.
+
+\noindent Here the gloss word \texttt{a} sits flush under the \texttt{[}, far to
+the left of \texttt{ein}. Switching on \emph{phantom alignment} makes the
+gloss word skip the leading run of marks, so its first real glyph sits under
+the object word's first real glyph (\texttt{a} under \texttt{ein}):
+
+\begin{code}
+{\GlossPhantomAlign
+\ex. \gll Ich bin [<ein Idiot>]\\
+I am a idiot\\
+}
+\end{code}
+
+\rendered
+{\GlossPhantomAlign
+\ex. \gll Ich bin [<ein Idiot>]\\ I am a idiot\\}
+
+\noindent The padding is a \cs{phantom} of the leading marks \emph{set in
+the object-line font}, so alignment holds even when the gloss tier is set at
+a different size (a \cs{footnotesize} gloss still lines up under the
+full-size bracket). It ships no ink and no marked content, so tagging is
+unaffected. Any number of leading marks are skipped together; the marks that
+count are, by default, the judgment marks \texttt{*\,?\,\#\,\%} and the
+openers \texttt{(\,[\,<}. Change the set with
+\cs{GlossPhantomChars}\marg{chars}, e.g.\ \cs{GlossPhantomChars}\texttt{\{[(\}}
+to react to square and round brackets only.
+
+The feature is \emph{off by default}, since turning it on shifts the
+horizontal position of glosses under bracketed material. Enable it document-wide
+with the package option \opt{phantomalign} or with \cs{GlossPhantomAlign};
+\cs{GlossPhantomAlignOff} turns it back off, so it can be scoped to a single
+example inside a group. It applies to the space-separated words of
+\cs{gll}/\cs{glll}/\cs{gl}; alternatives stacked with \cs{altg} are not
+covered.
+
+For anything the automatic scan cannot see --- a bracket wrapped in a macro
+(the scanner reads the control word, not the \texttt{[}), or a target you
+want to choose by hand --- there is a manual escape hatch:
+\cs{GlossPhantom}\marg{material} typesets an invisible box the width of
+\meta{material}, \emph{set in the object-line font}. Put it at the front of a
+gloss word to push that word past \meta{material}:
+
+\begin{code}
+\ex. \gll Das ist \textbf{[}ein Reh\\
+This is \GlossPhantom{\textbf{[}}a deer\\
+\end{code}
+
+\rendered
+\ex. \gll Das ist \textbf{[}ein Reh\\ This is \GlossPhantom{\textbf{[}}a deer\\
+
+\noindent Give it whatever the object word opens with (here
+\cs{textbf}\texttt{\{[\}}, so the phantom is a \emph{bold} bracket and the
+widths match). Unlike a bare \cs{phantom}\marg{material}, which would be set
+in the gloss font, \cs{GlossPhantom} borrows the object font, so it aligns at
+any gloss-tier size. One caveat: because it reproduces the width of the
+leading material \emph{alone}, alignment is exact only when that material does
+not kern with the letter that follows it in the object word. Brackets,
+parentheses and judgment marks do not kern with letters, so in practice this
+never bites; a leading slash or the like might land a fraction off.
+
 \subsection{The language of a tier (tagged PDFs)}\label{sec:glosslang}
 The object line of a gloss is usually in a different language from the
 document. In a tagged PDF that difference can be recorded so that a screen

@@ -53,6 +53,13 @@ Ordinary running text precedes the first example.
 \exg. Der Hund bellte.\\ the dog bark.\lpzg{pst}\\
 \glt `The dog barked.'
 
+% Phantom bracket alignment: the gloss word under a bracketed constituent
+% lines up with the constituent, not with the bracket.  The \phantom ships
+% no ink and no marked content, so the tagging tree is unchanged.
+{\GlossPhantomAlign
+\exg. ich bin [ein Idiot]\\ I am a idiot\\
+\glt `I am an idiot.'}
+
 Examples survive inside footnotes,\footnote{With an example: \ex. Footnoted.
 
 } and interleave with cross-references such as \ref{intro}.
