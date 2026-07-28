@@ -25,7 +25,8 @@ into the PDF structure tree as genuine, accessible objects:
   screen readers read in the wrong order);
 - a gloss tier's language can be recorded (`\GlossTierLang{1}{de}` → `/Lang`);
 - Leipzig category abbreviations carry their expansion (`\lpzg{sg}` → `/E`
-  "singular"), so they are spoken in full while the page still shows SG.
+  "singular"), so they are spoken in full while the page still shows SG, and
+  `\lpzglist` prints the list of those actually used, as a tagged list.
 
 See `doc/TAGGING-NOTES.md` for the technical account and `doc/PDFUA-CHECKLIST.md`
 for turning a document into a PDF/UA-conformant build.

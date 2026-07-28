@@ -602,6 +602,93 @@ knows, are described in section~\ref{sec:leipzigtag}. \cs{lpzg} is
 self-contained and does not require, or interact with, the \pkg{leipzig}
 package.
 
+\subsection{The list of abbreviations used: \cs{lpzglist}}
+\label{sec:lpzglist}
+A paper that glosses its examples owes the reader a list of the
+abbreviations it uses. \cs{lpzglist} prints one, and prints exactly the
+abbreviations the document actually uses: every label passed to
+\cs{lpzg} is recorded, and a compound label is recorded piece by piece, so
+one \cs{lpzg}\marg{3sg.pst} contributes three entries --- \textsc{3},
+\textsc{sg} and \textsc{pst} --- and nothing else. Each entry is set as
+the abbreviation followed by its full form:
+
+\begin{code}
+\lpzglist
+\end{code}
+
+\rendered
+\lpzglist
+
+\afterex
+\noindent --- which, here, is the list of everything this manual glosses
+with \cs{lpzg}, collected from its own examples. The record survives in
+the \texttt{.aux} file, so the list may
+stand where such a list belongs --- in the front matter, before the
+examples it reports on. Like a table of contents it is then one run
+behind: \pkg{linguexx} asks for a rerun when the list is out of date. A
+list at the \emph{end} of a document is complete on the first run.
+
+Abbreviations that appear outside \cs{lpzg} --- in running text, in a
+figure, in a table --- are unknown to the recorder. Register them with
+\cs{lpzgadd}\marg{labels}, a comma list:
+
+\begin{code}
+\lpzgadd{erg,abs}
+\end{code}
+
+\noindent An abbreviation for which no expansion is known (a
+project-specific label neither in the built-in table of
+section~\ref{sec:leipzigtag} nor declared with \cs{SetLeipzig}) cannot be
+explained in the list, and is left out of it with a warning naming it.
+Either declare it, or ask for \opt{unexplained=keep} to have it listed
+with an empty explanation.
+
+\subsubsection*{Customisation}
+\cs{lpzglist} takes optional key--value settings for one list;
+\cs{lpzglistsetup}\marg{keys} sets them for all of them:
+
+\medskip
+\noindent
+\begin{tabular}{@{}>{\ttfamily}l p{0.68\linewidth}@{}}
+\toprule
+\normalfont key & \normalfont effect \\
+\midrule
+style & \texttt{list} (the default): a two-column list of entries.
+  \texttt{inline}: one paragraph, entries separated by \texttt{sep}. \\
+sort & \texttt{true} (the default): alphabetically, the person numbers
+  first. \texttt{false}: in order of first use. \\
+include & \texttt{used} (the default) or \texttt{all}, which prints the
+  whole built-in table --- a ready-made reference list. \\
+ignore & Comma list of labels to leave out. \\
+add & Comma list of labels to include in this list only (unlike
+  \cs{lpzgadd}, which registers a label for every list). \\
+unexplained & \texttt{omit} (the default) or \texttt{keep}; see above. \\
+title & A heading for the list; none by default. \\
+titlestyle & The one-argument command that sets the heading, by default
+  \cs{lpzglisttitle} (\cs{section*} where that exists). \\
+sep & Separator of the \texttt{inline} style, by default a semicolon. \\
+itemsep & Vertical space between entries of the \texttt{list} style,
+  \texttt{0pt} by default. \\
+format & The entry itself, \texttt{\#1} the abbreviation and
+  \texttt{\#2} its full form. \\
+\bottomrule
+\end{tabular}
+\medskip
+
+\noindent So a list headed like a section, with the abbreviations set in
+bold roman rather than the small capitals of \cs{lpzg}:
+
+\begin{code}
+\lpzglist[title=Abbreviations,
+          format={\item[\textbf{#1}] #2}]
+\end{code}
+
+\noindent \texttt{format} is the one-shot form of \cs{lpzglistentry},
+which the \texttt{list} style calls with an \cs{item} and the
+\texttt{inline} style without one; redefine it with \cs{renewcommand} to
+change every list at once. The label column of the \texttt{list} style is
+as wide as the widest abbreviation in it.
+
 \subsection{Any number of tiers: \cs{gl} \dots\ \cs{endgl}}
 
 Heavily annotated data --- transliteration, segmentation, gloss, category
@@ -1431,6 +1518,10 @@ exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package opt
 \textbackslash GlossTierLang\allowbreak\marg{n}\marg{code} & Language of tier \meta{n} for tagged PDFs (section~\ref{sec:glosslang}). \\
 \textbackslash lpzg\marg{abbr} & Gloss abbreviation in small caps, with spoken expansion when tagged (section~\ref{sec:leipzig}). \\
 \textbackslash SetLeipzig\allowbreak\marg{abbr}\marg{expansion} & Add or override a Leipzig abbreviation expansion. \\
+\textbackslash lpzglist\oarg{keys} & List of the abbreviations the document uses, each with its full form (section~\ref{sec:lpzglist}). Keys: \opt{style}, \opt{sort}, \opt{include}, \opt{ignore}, \opt{add}, \opt{unexplained}, \opt{title}, \opt{titlestyle}, \opt{sep}, \opt{itemsep}, \opt{format}. \\
+\textbackslash lpzglistsetup\marg{keys} & The same keys, for every list. \\
+\textbackslash lpzgadd\marg{abbrs} & Register abbreviations used outside \cs{lpzg} so that they reach the list. \\
+\textbackslash lpzglistentry\allowbreak\marg{abbr}\marg{full form} & One entry of the list; redefine to restyle every list. \\
 \textbackslash eachwordone/two/three & Font commands for tiers 1--3. \\
 \textbackslash GlossSep & Glue between gloss columns. \\
 \textbackslash GlossPhantomAlign & Align gloss words past leading brackets, parentheses and judgment marks (\emph{recommended}; section~\ref{sec:phantomalign}). Also the package option \opt{phantomalign}; \cs{GlossPhantomAlignOff} reverts. \\

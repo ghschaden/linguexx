@@ -1317,6 +1317,7 @@
   }
 \cs_new_protected:Npn \lx@lpzg@lookup #1
   {
+    \lx@lpzg@record {#1}
     \prop_get:NnNTF \g_lx_lpzg_prop {#1} \l__lx_lpzg_tl
       { \bool_set_true:N \l__lx_lpzg_any_bool
         \exp_args:NV \lx@lpzg@append \l__lx_lpzg_tl }
@@ -1367,6 +1368,320 @@
       }
       { \textsc {#1} }
   }
+
+%% \lpzglist: the list of abbreviations the document actually uses.
+%%
+%% Every piece \lpzg resolves is recorded -- the ATOMIC pieces, so
+%% \lpzg{3sg.pst} contributes 3, sg and pst separately, which is what a
+%% list of abbreviations wants.  Each key is recorded once and written to
+%% the .aux, so \lpzglist may stand anywhere, in particular in the front
+%% matter, before the uses it reports on: it prints the keys of the
+%% PREVIOUS run plus everything used so far in this one (so a list at the
+%% end of the document is already complete on the first run).  A key that
+%% the .aux did not know about, or that no list accounts for, means some
+%% list came out short: \AtEndDocument asks for a rerun, as for a table of
+%% contents.
+%%
+%% Keys with no known expansion (project labels not in the Leipzig table
+%% and not declared with \SetLeipzig) are omitted and reported once; ask
+%% for unexplained=keep to list them with an empty explanation instead.
+%%
+%% Every key is normalised to a STRING before it is stored or compared.
+%% It has to be: a label reaches \lpzg as letters, but the piece peeled
+%% off a compound one comes out of a str variable (catcode 12), and the
+%% keys read back from the .aux are letters again -- three spellings of
+%% "sg" that a seq would take for three different entries.
+\seq_new:N  \g__lx_lpzg_used_seq   % keys seen on THIS run, in order of use
+\prop_new:N \g__lx_lpzg_used_prop  % the same, as a set: the duplicate guard
+\seq_new:N  \g__lx_lpzg_aux_seq    % keys read back from the .aux (last run)
+\bool_new:N \g__lx_lpzg_doc_bool   % true once the .aux is open for writing
+\bool_new:N \g__lx_lpzg_rerun_bool % a key the .aux did not know about
+\str_new:N  \l__lx_lpzg_key_str
+\AtBeginDocument { \bool_gset_true:N \g__lx_lpzg_doc_bool }
+%% written to and read from the .aux
+\cs_new_protected:Npn \lx@lpzg@used #1
+  { \seq_gput_right:Ne \g__lx_lpzg_aux_seq { \tl_to_str:n {#1} } }
+\bool_new:N \l__lx_lpzg_norecord_bool % true while \lpzglist typesets itself
+\cs_new_protected:Npn \lx@lpzg@record #1
+  {
+    \bool_if:NF \l__lx_lpzg_norecord_bool
+      { \lx@lpzg@record@ {#1} }
+  }
+\cs_new_protected:Npn \lx@lpzg@record@ #1
+  {
+    \str_set:Nn \l__lx_lpzg_key_str {#1}
+    \prop_if_in:NVF \g__lx_lpzg_used_prop \l__lx_lpzg_key_str
+      {
+        \prop_gput:NVn \g__lx_lpzg_used_prop \l__lx_lpzg_key_str { }
+        \seq_gput_right:NV \g__lx_lpzg_used_seq \l__lx_lpzg_key_str
+        %% Recorded in the preamble, a key is there before any list is
+        %% typeset, so it needs neither the .aux nor a rerun.  Recorded in
+        %% the body and unknown to the .aux, it means the .aux is one run
+        %% behind and a list placed before this point is short of an entry.
+        \bool_if:NT \g__lx_lpzg_doc_bool
+          {
+            \seq_if_in:NVF \g__lx_lpzg_aux_seq \l__lx_lpzg_key_str
+              { \bool_gset_true:N \g__lx_lpzg_rerun_bool }
+            \legacy_if:nT { @filesw }
+              { \iow_now:Ne \@auxout
+                  { \token_to_str:N \lx@lpzg@used { \l__lx_lpzg_key_str } } }
+          }
+      }
+  }
+%% \lpzgadd{key,key,...} records abbreviations used outside \lpzg (in a
+%% figure, in running text) so that they appear in the list all the same.
+\NewDocumentCommand \lpzgadd { m }
+  { \clist_map_inline:nn {#1} { \lx@lpzg@record@ {##1} } }
+
+\seq_new:N   \l__lx_lpzglist_seq        % the entries to print
+\seq_new:N   \l__lx_lpzglist_tmp_seq
+\seq_new:N   \l__lx_lpzglist_unknown_seq
+\seq_new:N   \g__lx_lpzglist_printed_seq
+\bool_new:N  \g__lx_lpzglist_used_bool
+\bool_new:N  \l__lx_lpzglist_rerun_bool
+\bool_new:N  \l__lx_lpzglist_first_bool
+\box_new:N   \l__lx_lpzglist_box
+\dim_new:N   \l__lx_lpzglist_wd_dim
+\msg_new:nnn { linguexx } { lpzglist-rerun }
+  {
+    Abbreviation~list~out~of~date.~
+    Rerun~LaTeX~to~get~\iow_char:N \\lpzglist~right.
+  }
+\msg_new:nnn { linguexx } { lpzglist-unknown }
+  {
+    No~expansion~known~for~#1~--~omitted~from~
+    \iow_char:N \\lpzglist.\\
+    Declare~it~with~\iow_char:N \\SetLeipzig,~
+    or~pass~unexplained=keep~to~list~it~unexplained.
+  }
+
+%% Presentation.  Everything below is either a key of \lpzglist (set for
+%% one list) or of \lpzglistsetup (set for all of them), or one of the two
+%% user commands \lpzglistentry / \lpzglisttitle, which may be redefined
+%% wholesale with \renewcommand.
+\str_new:N   \l__lx_lpzglist_style_str
+\str_new:N   \l__lx_lpzglist_incl_str
+\tl_new:N    \l__lx_lpzglist_title_tl
+\tl_new:N    \l__lx_lpzglist_titlestyle_tl
+\tl_new:N    \l__lx_lpzglist_sep_tl
+\clist_new:N \l__lx_lpzglist_ignore_clist
+\clist_new:N \l__lx_lpzglist_add_clist
+\bool_new:N  \l__lx_lpzglist_sort_bool
+\bool_new:N  \l__lx_lpzglist_keepun_bool
+\skip_new:N  \l__lx_lpzglist_itemsep_skip
+\keys_define:nn { lx / lpzglist }
+  {
+    style        .choices:nn =
+      { list , inline }
+      { \str_set:NV \l__lx_lpzglist_style_str \l_keys_choice_tl } ,
+    include      .choices:nn =
+      { used , all }
+      { \str_set:NV \l__lx_lpzglist_incl_str \l_keys_choice_tl } ,
+    sort         .bool_set:N  = \l__lx_lpzglist_sort_bool ,
+    sort         .default:n   = { true } ,
+    unexplained  .choices:nn  =
+      { omit , keep }
+      {
+        \bool_set:Nn \l__lx_lpzglist_keepun_bool
+          { \str_if_eq_p:Vn \l_keys_choice_tl { keep } }
+      } ,
+    unexplained  .default:n   = { keep } ,
+    title        .tl_set:N    = \l__lx_lpzglist_title_tl ,
+    titlestyle   .tl_set:N    = \l__lx_lpzglist_titlestyle_tl ,
+    sep          .tl_set:N    = \l__lx_lpzglist_sep_tl ,
+    itemsep      .skip_set:N  = \l__lx_lpzglist_itemsep_skip ,
+    ignore       .clist_set:N = \l__lx_lpzglist_ignore_clist ,
+    add          .clist_set:N = \l__lx_lpzglist_add_clist ,
+    format       .code:n      =
+      { \cs_set_protected:Npn \lpzglistentry ##1##2 {#1} } ,
+  }
+\keys_set:nn { lx / lpzglist }
+  {
+    style = list , include = used , sort = true , unexplained = omit ,
+    title = { } , titlestyle = \lpzglisttitle , sep = { ;~ } ,
+    itemsep = 0pt ,
+  }
+\NewDocumentCommand \lpzglistsetup { m }
+  { \keys_set:nn { lx / lpzglist } {#1} }
+%% One entry: #1 the key, #2 its expansion (empty if none is known).
+\NewDocumentCommand \lpzglistentry { m m }
+  {
+    \str_if_eq:VnTF \l__lx_lpzglist_style_str { inline }
+      { \lpzg {#1} ~ #2 }
+      { \item [ \lpzg {#1} ] #2 }
+  }
+\NewDocumentCommand \lpzglisttitle { m }
+  {
+    \cs_if_exist:NTF \section
+      { \section * {#1} }
+      { \par \noindent \textbf {#1} \par \nobreak \smallskip }
+  }
+
+%% Collect the keys to print, in printing order.  Keys arrive as strings
+%% from the recorder, but as letters from the built-in table and from the
+%% add= and ignore= lists, so every one of them is normalised here too.
+\cs_generate_variant:Nn \seq_remove_all:Nn { NV }
+\cs_new_protected:Npn \lx@lpzglist@put #1
+  {
+    \str_set:Nn \l__lx_lpzg_key_str {#1}
+    \seq_if_in:NVF \l__lx_lpzglist_seq \l__lx_lpzg_key_str
+      { \seq_put_right:NV \l__lx_lpzglist_seq \l__lx_lpzg_key_str }
+  }
+\cs_new_protected:Npn \lx@lpzglist@collect
+  {
+    \seq_clear:N \l__lx_lpzglist_seq
+    \seq_clear:N \l__lx_lpzglist_unknown_seq
+    \str_if_eq:VnTF \l__lx_lpzglist_incl_str { all }
+      { \prop_map_inline:Nn \g_lx_lpzg_prop { \lx@lpzglist@put {##1} } }
+      {
+        %% the .aux (a full run) first, this run's new keys after it, so
+        %% that sort=false yields the order of first use
+        \seq_map_inline:Nn \g__lx_lpzg_aux_seq  { \lx@lpzglist@put {##1} }
+        \seq_map_inline:Nn \g__lx_lpzg_used_seq { \lx@lpzglist@put {##1} }
+      }
+    \clist_map_inline:Nn \l__lx_lpzglist_add_clist { \lx@lpzglist@put {##1} }
+    \clist_map_inline:Nn \l__lx_lpzglist_ignore_clist
+      {
+        \str_set:Nn \l__lx_lpzg_key_str {##1}
+        \seq_remove_all:NV \l__lx_lpzglist_seq \l__lx_lpzg_key_str
+      }
+    \seq_set_eq:NN \l__lx_lpzglist_tmp_seq \l__lx_lpzglist_seq
+    \seq_clear:N \l__lx_lpzglist_seq
+    \seq_map_inline:Nn \l__lx_lpzglist_tmp_seq
+      {
+        \prop_if_in:NnTF \g_lx_lpzg_prop {##1}
+          { \seq_put_right:Nn \l__lx_lpzglist_seq {##1} }
+          {
+            \seq_put_right:Nn \l__lx_lpzglist_unknown_seq {##1}
+            \bool_if:NT \l__lx_lpzglist_keepun_bool
+              { \seq_put_right:Nn \l__lx_lpzglist_seq {##1} }
+          }
+      }
+    \bool_if:NT \l__lx_lpzglist_sort_bool
+      {
+        \seq_sort:Nn \l__lx_lpzglist_seq
+          {
+            \str_compare:nNnTF {##1} > {##2}
+              { \sort_return_swapped: } { \sort_return_same: }
+          }
+      }
+  }
+%% One entry, expansion looked up (empty for an unknown key kept on request).
+\cs_new_protected:Npn \lx@lpzglist@item #1
+  {
+    \prop_get:NnNTF \g_lx_lpzg_prop {#1} \l__lx_lpzg_tl
+      { \exp_args:NnV \lpzglistentry {#1} \l__lx_lpzg_tl }
+      { \lpzglistentry {#1} { } }
+  }
+%% The label column is as wide as the widest abbreviation.  Measured with
+%% \textsc, which is what \lpzg prints, and NOT with \lpzg itself: \lpzg
+%% opens structure elements, and a box that is measured and thrown away
+%% would leave them behind in the tree.
+\cs_new_protected:Npn \lx@lpzglist@widest
+  {
+    \dim_zero:N \l__lx_lpzglist_wd_dim
+    \seq_map_inline:Nn \l__lx_lpzglist_seq
+      {
+        \hbox_set:Nn \l__lx_lpzglist_box { \textsc {##1} }
+        \dim_set:Nn \l__lx_lpzglist_wd_dim
+          { \dim_max:nn \l__lx_lpzglist_wd_dim { \box_wd:N \l__lx_lpzglist_box } }
+      }
+  }
+\cs_new_protected:Npn \lx@lpzglist@dolist
+  {
+    \lx@lpzglist@widest
+    %% No \lx@ol@set here: the abbreviation list is NOT an ordered list,
+    %% and it keeps the block code's own class for a labelled list.  A
+    %% class of its own carrying /ListNumbering /None looks right and is
+    %% not: PDF/UA-2 8.2.5.25 forbids /None precisely when the items have
+    %% Lbl elements, which these do (veraPDF rejects the file).  What the
+    %% block code puts there instead is /Unordered, which is what a
+    %% labelled list is; poppler warns about the value, veraPDF accepts it.
+    \begin { list } { }
+      {
+        \dim_set:Nn \labelwidth { \l__lx_lpzglist_wd_dim }
+        \dim_set:Nn \leftmargin { \labelwidth + \labelsep }
+        \dim_zero:N \itemindent
+        \dim_zero:N \listparindent
+        \dim_zero:N \rightmargin
+        \skip_set_eq:NN \itemsep \l__lx_lpzglist_itemsep_skip
+        \skip_zero:N \parsep
+        \skip_zero:N \partopsep
+        %% \lx@flushlabel, not \hfil: under active tagging the block code
+        %% re-boxes a label flush RIGHT unless it already fills its own
+        %% \labelwidth box (the same reason the example labels use it).
+        \cs_set_eq:NN \makelabel \lx@flushlabel
+      }
+      \seq_map_inline:Nn \l__lx_lpzglist_seq { \lx@lpzglist@item {##1} }
+    \end { list }
+  }
+%% The \unskip guards the separator against an entry whose expansion is
+%% empty (an unexplained key kept on request), which would otherwise leave
+%% the space of the entry format sitting in front of the semicolon.
+\cs_new_protected:Npn \lx@lpzglist@doinline
+  {
+    \bool_set_true:N \l__lx_lpzglist_first_bool
+    \seq_map_inline:Nn \l__lx_lpzglist_seq
+      {
+        \bool_if:NTF \l__lx_lpzglist_first_bool
+          { \bool_set_false:N \l__lx_lpzglist_first_bool }
+          { \unskip \l__lx_lpzglist_sep_tl }
+        \lx@lpzglist@item {##1}
+      }
+    \unskip
+  }
+\cs_new_protected:Npn \lx@lpzglist@render
+  {
+    \tl_if_blank:VF \l__lx_lpzglist_title_tl
+      { \l__lx_lpzglist_titlestyle_tl { \l__lx_lpzglist_title_tl } }
+    \str_if_eq:VnTF \l__lx_lpzglist_style_str { inline }
+      { \lx@lpzglist@doinline }
+      { \lx@lpzglist@dolist }
+  }
+\NewDocumentCommand \lpzglist { O{} }
+  {
+    \group_begin:
+      %% the list's own \lpzg calls must not enlarge the set they report on
+      \bool_set_true:N \l__lx_lpzg_norecord_bool
+      \keys_set:nn { lx / lpzglist } {#1}
+      \lx@lpzglist@collect
+      \bool_gset_true:N \g__lx_lpzglist_used_bool
+      %% what this list accounts for: everything it prints, everything it
+      %% was told to leave out, and the keys it could not explain (those
+      %% are reported here and now, not as a rerun request)
+      \seq_map_inline:Nn \l__lx_lpzglist_seq
+        { \seq_gput_right:Nn \g__lx_lpzglist_printed_seq {##1} }
+      \seq_map_inline:Nn \l__lx_lpzglist_unknown_seq
+        { \seq_gput_right:Nn \g__lx_lpzglist_printed_seq {##1} }
+      \clist_map_inline:Nn \l__lx_lpzglist_ignore_clist
+        { \seq_gput_right:Ne \g__lx_lpzglist_printed_seq { \tl_to_str:n {##1} } }
+      \seq_if_empty:NF \l__lx_lpzglist_seq { \lx@lpzglist@render }
+      \bool_lazy_and:nnT
+        { ! \l__lx_lpzglist_keepun_bool }
+        { ! \seq_if_empty_p:N \l__lx_lpzglist_unknown_seq }
+        {
+          \msg_warning:nnx { linguexx } { lpzglist-unknown }
+            { \seq_use:Nnnn \l__lx_lpzglist_unknown_seq { ~and~ } { ,~ } { ,~and~ } }
+        }
+    \group_end:
+  }
+%% Anything used but not accounted for by a list means the .aux was one
+%% run behind: ask for a rerun, as \tableofcontents does.
+\cs_new_protected:Npn \lx@lpzglist@checkrerun
+  {
+    \bool_if:NT \g__lx_lpzglist_used_bool
+      {
+        \bool_set_eq:NN \l__lx_lpzglist_rerun_bool \g__lx_lpzg_rerun_bool
+        \seq_map_inline:Nn \g__lx_lpzg_used_seq
+          {
+            \seq_if_in:NnF \g__lx_lpzglist_printed_seq {##1}
+              { \bool_set_true:N \l__lx_lpzglist_rerun_bool }
+          }
+        \bool_if:NT \l__lx_lpzglist_rerun_bool
+          { \msg_warning:nn { linguexx } { lpzglist-rerun } }
+      }
+  }
+\AtEndDocument { \lx@lpzglist@checkrerun }
 
 \cs_new_protected:Npn \lx@gl@colbegin
   { \cs_if_exist:NT \tag_struct_begin:n
@@ -1806,7 +2121,11 @@
     \group_begin:
       \cs_if_exist:NT \tagpdfsetup { \tagpdfsetup { table/tagging = false } }
       \hbox_gset:Nn \l__lxp_altg_stack_box
-        { #1 \renewcommand \lpzg [1] { \textsc {##1} }
+        %% \lx@lpzg@build parses the label without printing anything: the
+        %% abbreviation is set plain here, but it still counts as used and
+        %% reaches \lpzglist like any other.
+        { #1 \renewcommand \lpzg [1]
+            { \lx@lpzg@build {##1} \textsc {##1} }
           \use:x { \exp_not:N \begin { tabular } [c] { @{}l@{} }
                    \seq_use:Nn \l__lxp_altg_seq { \\ } }
           \end { tabular } }

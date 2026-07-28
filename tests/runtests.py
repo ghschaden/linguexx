@@ -560,10 +560,17 @@ def a_tagged(p: Page):
         r.append(check(old in tags or new in tags,
                        f"list structure has {old}/{new} elements"))
     ex_lists = [c for s, c in els if s == "list"]
-    ok_classes = {"lxOLdecimal", "lxOLalpha", "lxOLroman"}
+    # "list" is the block code's own class, carried by the abbreviation
+    # list (\lpzglist), which is labelled rather than numbered; every
+    # EXAMPLE list must carry one of the three ordered classes, and all
+    # three levels occur in this file.
+    ok_classes = {"lxOLdecimal", "lxOLalpha", "lxOLroman", "list"}
     r.append(check(ex_lists and all(c in ok_classes for c in ex_lists),
                    f"every example list has a valid ordered ListNumbering "
                    f"class; classes={sorted(set(str(c) for c in ex_lists))}"))
+    r.append(check({"lxOLdecimal", "lxOLalpha", "lxOLroman"} <= set(ex_lists),
+                   f"all three example levels carry their own class; "
+                   f"classes={sorted(set(str(c) for c in ex_lists))}"))
     r.append(check(b"/Ordered" not in getattr(p, "raw", b""),
                    "no invalid /ListNumbering /Ordered value is emitted"))
     # objective 3: the judged sub-example's "*" carries a spoken /Alt
@@ -602,6 +609,22 @@ def a_tagged(p: Page):
                    f"(got {[a for a in alts if 'sock' in a]})"))
     r.append(check("Formula" not in tags,
                    "no Formula element: alternatives stay text-mode"))
+    # \lpzglist is a tagged list of its own: its labels must stay flush
+    # left.  A short label that does not fill its own \labelwidth box is
+    # re-boxed flush RIGHT by the block code -- the same regression that
+    # once shifted the sub-example letters -- and the two keys here have
+    # different widths, so right-aligning them spreads their origins.
+    lst = _band_lines(p, p.find("LPZGLIST").y1,
+                      max(w.y1 for w in p.words) + 1)[:2]  # footnote follows
+    labels = [l[0].text for l in lst]
+    r.append(check(labels == ["pst", "sg"],
+                   f"abbreviation list under tagging: {labels} != ['pst', 'sg']"))
+    if len(lst) == 2:
+        r.append(check(abs(lst[0][0].x0 - lst[1][0].x0) < TOL,
+                       f"list labels stay flush left under tagging "
+                       f"({lst[0][0].x0:.2f} vs {lst[1][0].x0:.2f})"))
+        r.append(check(all(l[0].x1 < l[1].x0 + TOL for l in lst),
+                       "no list label overruns its explanation under tagging"))
     return r
 
 
@@ -688,6 +711,81 @@ def struct_alts(raw: bytes):
     return alts
 
 
+def _band_lines(p: Page, y_top: float, y_bottom: float):
+    """The rendered lines of a horizontal band, top to bottom.
+
+    Each line is the words of one baseline, left to right.  Used to read a
+    two-column list (label, explanation) off the page.
+    """
+    band = [w for w in p.words if w.y0 >= y_top - 0.5 and w.y1 <= y_bottom + 0.5]
+    ids = {id(w) for w in band}
+    seen, out = set(), []
+    for w in sorted(band, key=lambda w: (w.y0, w.x0)):
+        if id(w) in seen:
+            continue
+        line = [x for x in p.line_of(w) if id(x) in ids]
+        seen.update(id(x) for x in line)
+        out.append(line)
+    return out
+
+
+def a_lpzglist(p: Page):
+    """\\lpzglist reports exactly the abbreviations the document uses.
+
+    The list under FRONTLIST stands BEFORE every use it reports on, so a
+    complete list also proves the .aux round trip; acc is used only inside
+    an \\altg stack (where \\lpzg prints plain) and voc only via \\lpzgadd,
+    so both entries prove their own recording path.  NOWHERE has no
+    expansion and must be dropped without a trace.
+    """
+    r = []
+    lines = _band_lines(p, p.find("FRONTLIST").y1, p.find("(1)").y0)
+    labels = [l[0].text for l in lines]
+    expected = ["3", "acc", "def", "nom", "obv", "pl", "prs", "pst", "sg", "voc"]
+    r.append(check(labels == expected,
+                   f"front list is complete and alphabetical: {labels} != {expected}"))
+    texts = {l[0].text: " ".join(w.text for w in l[1:]) for l in lines}
+    for key, meaning in (("3", "third person"), ("acc", "accusative"),
+                         ("obv", "obviative"), ("voc", "vocative")):
+        r.append(check(texts.get(key) == meaning,
+                       f"{key} is explained as {meaning!r} (got {texts.get(key)!r})"))
+    # labels flush left in a column of their own: same origin for all of
+    # them (a right-aligned label column would spread them by width), and
+    # none of them running into its explanation (\labelwidth is the width
+    # of the WIDEST key, not of the first one).
+    entries = [l for l in lines if len(l) > 1]
+    xs = [l[0].x0 for l in entries]
+    starts = [l[1].x0 for l in entries]
+    r.append(check(xs and max(xs) - min(xs) < TOL,
+                   f"list labels are flush left "
+                   f"(spread {max(xs) - min(xs):.2f}pt)" if xs else
+                   "list labels are flush left (the list is empty)"))
+    r.append(check(entries and all(l[0].x1 < l[1].x0 + TOL for l in entries),
+                   "no label overruns its explanation column"))
+    r.append(check(starts and max(starts) - min(starts) < TOL,
+                   f"explanations share one column "
+                   f"(spread {max(starts) - min(starts):.2f}pt)" if starts else
+                   "explanations share one column (the list is empty)"))
+    # style=inline, sort=false: one run of text (it wraps), in order of
+    # first use, with the ignored keys gone
+    inline = p.find("INLINELIST")
+    custom = p.find("CUSTOMLIST")
+    words = []
+    for line in _band_lines(p, inline.y0, custom.y1):
+        if any(w.text == "CUSTOMLIST" for w in line):
+            break            # the inline list ends where the next one starts
+        words += [w.text for w in line]
+    got = " ".join(words)
+    want = ("INLINELIST sg singular; pst past; pl plural; prs present; "
+            "acc accusative; obv obviative; voc vocative")
+    r.append(check(got == want, f"inline list, order of first use: {got!r} != {want!r}"))
+    # a custom entry format replaces the default one entirely
+    tail = _band_lines(p, custom.y1, max(w.y1 for w in p.words) + 1)
+    r.append(check(bool(tail) and " ".join(w.text for w in tail[0]) == "sg = singular",
+                   f"format= drives the entry: {tail[0] if tail else None}"))
+    return r
+
+
 ASSERTIONS = {
     "legacy": a_legacy,
     "tagged": a_tagged,
@@ -697,6 +795,7 @@ ASSERTIONS = {
     "exsource": a_exsource,
     "zpop": a_zpop,
     "gloss": a_gloss,
+    "lpzglist": a_lpzglist,
     "phantomalign": a_phantomalign,
     "altg": a_altg,
     "termination": a_termination,

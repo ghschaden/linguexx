@@ -4,6 +4,22 @@ All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
 ## Unreleased
+- `\lpzglist`: the list of the abbreviations the document actually uses, each
+  with its full form. Every label passed to `\lpzg` is recorded piece by piece
+  (`\lpzg{3sg.pst}` contributes `3`, `sg` and `pst`), written to the `.aux`,
+  and reported by `\lpzglist` wherever it stands -- in the front matter as
+  readily as at the end; when the list is a run behind, a rerun is requested.
+  `\lpzgadd{erg,abs}` registers abbreviations used outside `\lpzg`.
+  Abbreviations with no known expansion are omitted with a warning naming them
+  (`unexplained=keep` lists them unexplained instead). Customisation, per list
+  via `\lpzglist[...]` or document-wide via `\lpzglistsetup{...}`: `style`
+  (`list`/`inline`), `sort`, `include` (`used`/`all`), `ignore`, `add`,
+  `unexplained`, `title`, `titlestyle`, `sep`, `itemsep`, and `format` (the
+  one-shot form of `\lpzglistentry`, `#1` the abbreviation, `#2` its full
+  form). Under tagging the default style is a real tagged list (`L → LI → Lbl
+  → LBody`) whose labels keep their `/E` expansion and stay flush left;
+  verified with veraPDF on `examples/ua-demo`. `\lpzg` inside an `\altg` stack,
+  which prints plain, now counts as used as well.
 - Phantom bracket alignment for interlinear glosses (opt-in, off by default).
   When an object word opens with a run of brackets, parentheses or judgment
   marks, the gloss word below it can be padded by a `\phantom` of that run --
