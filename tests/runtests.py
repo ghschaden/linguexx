@@ -69,6 +69,7 @@ PASSES = {"ua": 3}
 EXPECT_ERROR = {
     "altg-unpaired": "has no partner",
     "judgment-badarg": "needs one command here",
+    "straysub": "no example to attach it to",
 }
 CASES = Path(__file__).parent / "cases"
 if not CASES.is_dir():                       # flat layout: cases beside the script

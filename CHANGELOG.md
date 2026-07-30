@@ -84,6 +84,12 @@ version string.
   now anchor on the footnote series, `lxfnex.<FnExNo>.<letter>` and
   `lxfnex.<FnExNo>.<letter>.<n>`, matching `\theHFnExNo`. Main-text anchors
   are unchanged.
+- Fix: a stray `\a.` in prose, with no example of either kind open, is now a
+  package error naming itself. It used to open a list and a `\begingroup`
+  that nothing ever closed, and the document died much later with
+  "`\begin{list} ended by \end{document}`" -- a message naming neither `\a.`
+  nor the line it stood on. `\a.` inside an `exe` batch is unaffected: it
+  reaches the same code path legitimately, and stays legal.
 - `\glt` (the free translation) gains two hooks, both opt-in and both
   leaving the default output and the default tag tree byte-for-byte as they
   were:

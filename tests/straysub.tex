@@ -1,0 +1,20 @@
+%% A stray "\a." in prose, with no example of either kind open.
+%%
+%% This used to open a list and a \begingroup that nothing ever closed.
+%% Nothing complained at the point of the mistake; the document died much
+%% later with "\begin{list} ended by \end{document}", which names neither
+%% \a. nor the line it stood on, so the author had no way back to the
+%% cause.  The package error IS the fix, hence EXPECT_ERROR rather than an
+%% assertion function: what has to be pinned is that the construct still
+%% refuses, and a check deleted from the .sty leaves every other case in
+%% the suite green.
+%%
+%% Note what must NOT be rejected: "\a." inside an exe batch reaches the
+%% very same code path (through the global \a hook, with no \lx@run@ex
+%% involved), and is documented as legal -- tests/gbfour.tex covers it.
+\input{_preamble}
+\begin{document}
+STRAYPROSE, with no example anywhere in sight.
+
+\a. This must not silently open a list.
+\end{document}

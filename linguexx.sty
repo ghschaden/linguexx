@@ -128,6 +128,12 @@
 %%          one linked to the main-text one.  Both now branch on
 %%          \if@noftnote and anchor footnote sub-examples on the
 %%          footnote series (lxfnex.<FnExNo>....).
+%%          Fix: a stray \a. in prose, with no example of either kind
+%%          open, is a package error naming itself instead of opening
+%%          a list and a \begingroup that nothing closes -- which
+%%          surfaced as "\begin{list} ended by \end{document}"
+%%          arbitrarily far away.  \a. inside an exe batch reaches the
+%%          same path legitimately and stays legal.
 %%          \glt gains \GlossTransStyle (a declaration styling the free
 %%          translation) and \GlossTransLang (its language, emitted as a
 %%          Span with /Lang under tagging -- babel's \foreignlanguage
@@ -1175,13 +1181,38 @@
 % depth 0 -> open letter level.  \lx@letters@local goes right after the
 % \begingroup, so \b.-\f. are live for the rest of this level (and are
 % undone by the matching \endgroup in \lx@closesubs / \z.).  It matters
-% here and not only in \lx@run@ex: "\a." can open a level with no
-% enclosing \ex. or exe at all, reached through the global \a hook.
+% here and not only in \lx@run@ex: "\a." inside an exe batch reaches this
+% path through the global \a hook, with no \lx@run@ex anywhere.
+%
+% Which is also why the guard accepts \iflx@inexe as well as
+% \iflx@inexample.  What it rejects is a stray "\a." in ordinary prose,
+% with no example of either kind open: that used to open a list and a
+% \begingroup that nothing would ever close, and the failure surfaced as
+% "\begin{list} ended by \end{document}" arbitrarily far away, naming
+% neither \a. nor the line it stood on.  Erring instead of pushing (the
+% same shape as \lx@subpush@err one level down) keeps the document in a
+% state the error message describes.
 \def\lx@subpush@i{%
+  \iflx@inexample
+    \let\lx@donext\lx@subpush@i@go
+  \else\iflx@inexe
+    \let\lx@donext\lx@subpush@i@go
+  \else
+    \let\lx@donext\lx@subpush@outside@err
+  \fi\fi
+  \lx@donext}
+\def\lx@subpush@i@go{%
   \begingroup\advance\lx@subdepth\@ne
   \lx@letters@local
   \lx@sublist@i
   \lx@subitem}
+\def\lx@subpush@outside@err{%
+  \PackageError{linguexx}{\string\a. with no example to attach it to}%
+    {A sub-example has to sit inside an example: open one with
+     \string\ex.\space (or \string\begin{exe}) first.\MessageBreak
+     Left to stand, \string\a.\space here would open a list that nothing
+     closes, and you would be told about it as "\string\begin{list} ended
+     by \string\end{document}" instead.}}
 
 % depth 1 -> open roman level
 \def\lx@subpush@ii{%
