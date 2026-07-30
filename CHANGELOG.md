@@ -134,6 +134,24 @@ version string.
 - The suite caps each engine run (`CASE_TIMEOUT`). A TeX loop ignores
   `-interaction=nonstopmode` and spins with an empty log, so one bad case
   hung the whole suite rather than failing it.
+- Regression coverage for literal UTF-8 input, which is how the `ç` bug
+  escaped: every case wrote its accents the way the manual does (`\c c`,
+  `\"a`), and none typed what a user types. `tests/utf8.tex` puts raw UTF-8
+  in every example position — body collector, judgment scanner, gloss tiers,
+  `\glt`, `\altn`/`\altg`, `\exsource` — under all three engines, with the
+  languages chosen for the accent command each exercises rather than for
+  prestige. Restoring the old letter-clobbering makes it fail under pdflatex
+  with the original error while xe/lua still pass, i.e. it reproduces the
+  bug's exact signature. No new fault was found: raw multi-byte input
+  survives every position already.
+- `tests/utf8-unicode.tex` covers what pdflatex cannot represent at all —
+  Hittite `ḫ`, Semitic `ʾ ʿ ḏ ṯ ẓ`, Vietnamese stacked vowels, IPA — under
+  the Unicode engines only, via a new `ENGINES_FOR` in the suite. Recorded
+  there too, because it is silent and matters for accessibility: pdflatex
+  *typesets* Indic dot-below (`ḍ ṇ ṭ ṣ ḥ`) and Latvian comma-below
+  (`ģ ķ ļ ņ`) correctly but does not *extract* them — copy-paste and screen
+  readers get `kr.s.n.ah.` and `gimen , u`. A Unicode engine is needed for
+  those scripts to be accessible, not merely to look right.
 - The suite now runs veraPDF itself, on a new PDF/UA-2 case (`tests/ua.tex`),
   so the release gate that used to be a manual step before delivering is
   enforced on every run and under all three engines. This is what catches a

@@ -1,0 +1,47 @@
+%% The scripts a linguist needs that pdflatex cannot represent at all.
+%%
+%% XELATEX AND LUALATEX ONLY (see ENGINES_FOR in runtests.py).  This is not
+%% a linguexx limit but a font-encoding one: T1 has no slot for these, and
+%% inputenc rejects them outright with "Unicode character ... not set up for
+%% use with LaTeX".  Verified per character before this case was written:
+%%
+%%   ḫ Ḫ          breve-below -- Hittite, the standard transcription of the
+%%                laryngeal, so essentially every Hittite example needs a
+%%                Unicode engine
+%%   ʾ ʿ          modifier half-rings -- Semitic aleph and ayin
+%%   ḏ ṯ ṟ        macron-below -- Semitic and Indic transliteration
+%%   ẓ            dot-below z, Semitic emphatic
+%%   ế ệ ộ ồ ữ ự  stacked diacritics -- Vietnamese (tone on top of quality);
+%%                ơ ư with horn likewise
+%%   ɸ θ ʃ ʒ ɲ ʔ ə ɛ ɔ   IPA
+%%
+%% Dot-below (ḍ ṇ ṭ ṣ ḥ ṛ ṃ) and comma-below (ģ ķ ļ ņ) are NOT here: pdflatex
+%% typesets them, so utf8.tex compiles them under all three engines.  Their
+%% TEXT is asserted here instead, because only a Unicode engine extracts them
+%% correctly -- under pdflatex they come back as "kr.s.n.ah." and
+%% "gimen , u", which is a real accessibility trap worth recording.
+\input{_preamble}
+\begin{document}
+UURUN running text: ḫattušili ʾarṣu ếch.
+
+\ex. UUMAIN ḫḪʾʿḏṯṟẓếệộồữựơưɸθʃʒɲʔəɛɔ
+\a. UUSUBA ḫattušili
+\b. UUSUBB ʾarṣu
+\a. UUROM tiếng
+\z.\z.
+
+\ex. *UUJUDGE ʿaraḏ
+
+%% Hittite: the laryngeal in the object tier, its gloss below
+\exg. UUOBJ ḫattušili ẓāhir\\ UUGLOSS Hattusili apparent\\
+\glt `UUTRANS ʾarṣu ʿaraḏ'
+
+\ex. UUALTN saw \altn{ḫattuša}{ʾarṣu} here.
+
+\exg. UUALTG \altg{ḫatti}{ẓāhir} ist da.\\
+      altg \altg{tiếng}{ʃibboleθ} is there.\\
+\glt `UUALTGT ɲuɔʔ'
+
+%% the two that pdflatex typesets but mis-extracts; correct here
+\ex. UUXTR kṛṣṇaḥ ģimeņu
+\end{document}

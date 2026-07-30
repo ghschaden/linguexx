@@ -1,0 +1,60 @@
+%% Raw UTF-8 in every example position, under all three engines.
+%%
+%% This is the case the "ç" bug escaped.  The suite was exhaustive over
+%% CONSTRUCTS and still missed it, because every case wrote its accents the
+%% way the manual does -- \c c, \"a, \'e -- and none typed what a user
+%% actually types.  Under pdflatex an accented character is not a character:
+%% inputenc turns "ç" into the two tokens \c c, so a package claiming
+%% one-letter control sequences is squatting in the accent namespace.
+%% Everything below is literal UTF-8, never a command, and sits in EVERY
+%% position an example offers -- the body collector, the judgment scanner,
+%% the gloss splitter and the alternatives each walk their input token by
+%% token, and a multi-byte character could derail any of them separately.
+%%
+%% Languages are chosen for the ACCENT COMMAND they exercise, not for
+%% prestige, so that between them they cover the European repertoire:
+%%
+%%   façade        \c      cedilla: French, Portuguese, Turkish
+%%   çağrı         \c \u \i  Turkish, incl. dotless i
+%%   příliš        \v      caron: Czech, Slovak, Croatian, Slovene
+%%   zażółć        \. \l \' Polish
+%%   tükörfúrógép  \" \'   Hungarian
+%%   smørrebrød    \o      Danish, Norwegian
+%%   þjóðólfur     \th \dh Icelandic
+%%   Ünsinn        \"      German, after a judgment mark
+%%   šuppiluliuma  \v      Hittite, in the subset T1 can set
+%%
+%% U8XTR carries the two that pdflatex TYPESETS but cannot EXTRACT, so they
+%% are here to prove they compile and are asserted for their text only in
+%% utf8-unicode.tex, where extraction is correct:
+%%   ģimeņu   Latvian comma-below (\c again, but on g/n) -> "gimen , u"
+%%   kṛṣṇaḥ   Indic dot-below (\d) -> "kr.s.n.ah.", T1 composing it from a
+%%            period, so copy-paste and screen readers get it wrong
+\input{_preamble}
+\begin{document}
+U8RUN running text before any example: façade příliš zażółć.
+
+%% every accent command T1 can set, in one word, in the main example
+\ex. U8MAIN çğşűőåøæœßñãäéêëíîïóôöúûüýÿčšžďťňřěąęįāēīłńżċ
+\a. U8SUBA façade
+\b. U8SUBB příliš
+\a. U8ROM zażółć
+\z.\z.
+
+%% the judgment scanner peeks at what follows \ex. -- here a multi-byte
+%% character, reaching it as an active byte plus its continuation bytes
+\ex. *U8JUDGE Ünsinn
+
+\exg. U8OBJ smørrebrød\\ U8GLOSS þjóðólfur\\
+\glt `U8TRANS tükörfúrógép'
+
+\ex. U8ALTN saw \altn{çağrı}{façade} here.
+
+\exg. U8ALTG \altg{tükör}{fúró} ist da.\\
+      altg \altg{příliš}{zażółć} is there.\\
+\glt `U8ALTGT šuppiluliuma'
+
+\ex. U8SRC text \exsource{(Þjóðólfur 2020: 12)}
+
+\ex. U8XTR kṛṣṇaḥ ģimeņu
+\end{document}

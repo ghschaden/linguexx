@@ -50,6 +50,14 @@ KNOWN_XFAIL = {"pdflatex/judgment-align"}
 #: -interaction=nonstopmode and spins forever, so without a cap one bad case
 #: hangs the whole suite rather than failing it.
 CASE_TIMEOUT = 120
+#: Cases that only some engines can run.  Not a way to duck a failure: the
+#: entry is for input pdflatex CANNOT REPRESENT AT ALL -- T1 has no slot for
+#: a breve-below or a stacked Vietnamese vowel, and inputenc rejects it with
+#: "Unicode character ... not set up for use with LaTeX".  Anything pdflatex
+#: can typeset belongs in a case that runs everywhere.
+ENGINES_FOR = {
+    "utf8-unicode": ("xelatex", "lualatex"),
+}
 DEFAULT_PASSES = 2
 PASSES = {"ua": 3}
 #: Cases that must FAIL to compile, mapped to a substring their .log has to
@@ -726,6 +734,101 @@ def a_judgments(p: Page):
     return r
 
 
+def _nfc(s):
+    """Compose combining sequences, so an engine that emits "a + combining
+    macron" compares equal to one that emits the precomposed character."""
+    import unicodedata
+    return unicodedata.normalize("NFC", s)
+
+
+def _utf8_positions(p: Page, prefix, expect):
+    """Assert the accented payload that follows each position sentinel.
+
+    Shared by the two UTF-8 cases, which differ only in their repertoire.
+    `expect` maps a sentinel to the word that must follow it -- the point
+    being that the text has to survive the machinery of each position, not
+    merely that the file compiled.
+    """
+    # \glt sets its line inside quotes, which pdftotext glues to the first
+    # and last word of it ("‘U8TRANS", "tükörfúrógép’"), so neither the
+    # sentinel nor the payload can be matched whole.
+    quotes = "‘’“”`'"
+    r = []
+    words = p.words
+    for sent, want in expect.items():
+        hits = [i for i, w in enumerate(words) if sent in w.text]
+        if len(hits) != 1:
+            r.append((False, f"{sent}: expected once, found {len(hits)}"))
+            continue
+        i = hits[0]
+        got = (_nfc(words[i + 1].text).strip(quotes)
+               if i + 1 < len(words) else "<end>")
+        r.append(check(got == _nfc(want),
+                       f"{prefix} {sent}: {want!r} survives (got {got!r})"))
+    return r
+
+
+def a_utf8(p: Page):
+    r"""Literal UTF-8 in every example position, all three engines.
+
+    The "ç" bug lived here: under pdflatex inputenc expands an accented
+    character into an accent command plus its argument, so raw UTF-8 in an
+    example body is a different input from the \c c the other cases write.
+    Compiling at all is half the assertion -- a clobbered accent command is
+    a hard error, not a wrong glyph -- and the payload checks are the other
+    half, since a mangled multi-byte character would still compile.
+    """
+    r = _utf8_positions(p, "utf8", {
+        "U8SUBA":  "façade",          # \c   cedilla
+        "U8SUBB":  "příliš",          # \v   caron
+        "U8ROM":   "zażółć",          # \. \l \'
+        "U8JUDGE": "Ünsinn",          # after a judgment mark
+        "U8OBJ":   "smørrebrød",      # \o   object tier
+        "U8GLOSS": "þjóðólfur",       # \th \dh  gloss tier
+        "U8TRANS": "tükörfúrógép",    # \" \'  free translation
+        "U8ALTGT": "šuppiluliuma",    # \v   after an \altg paradigm
+    })
+    txt = _nfc(" ".join(w.text for w in p.words))
+    # running text, the baseline that always worked
+    r.append(check("façade příliš zażółć" in txt,
+                   "accents in running text before any example"))
+    # the alternatives are collected token by token of their own
+    for tok in ("çağrı", "tükör", "fúró", "příliš", "zażółć"):
+        r.append(check(tok in txt, f"\\altn/\\altg alternative survives: {tok}"))
+    # \exsource sets its argument in a box of its own
+    r.append(check("(Þjóðólfur" in txt, "\\exsource argument survives"))
+    # the breadth line and the two mis-extracting scripts are compile-only
+    # here; their text is asserted in utf8-unicode.tex
+    for sent in ("U8MAIN", "U8XTR"):
+        r.append(check(p.find(sent) is not None, f"typeset: {sent}"))
+    return r
+
+
+def a_utf8_unicode(p: Page):
+    r"""The repertoire pdflatex cannot represent: Hittite, Semitic,
+    Vietnamese, IPA -- and the two scripts pdflatex typesets but
+    mis-extracts, whose text can only be checked on a Unicode engine."""
+    r = _utf8_positions(p, "utf8-unicode", {
+        "UUSUBA":  "ḫattušili",   # breve-below, Hittite
+        "UUSUBB":  "ʾarṣu",       # modifier half-ring, Semitic
+        "UUROM":   "tiếng",       # stacked diacritics, Vietnamese
+        "UUJUDGE": "ʿaraḏ",       # ayin + macron-below, after a judgment
+        "UUOBJ":   "ḫattušili",   # object tier
+        "UUGLOSS": "Hattusili",   # gloss tier
+        "UUTRANS": "ʾarṣu",       # free translation
+        "UUXTR":   "kṛṣṇaḥ",      # dot-below: correct only here
+    })
+    txt = _nfc(" ".join(w.text for w in p.words))
+    # comma-below, the other script pdflatex mis-extracts ("gimen , u")
+    r.append(check("ģimeņu" in txt,
+                   "Latvian comma-below extracts correctly on a Unicode engine"))
+    r.append(check("ẓāhir" in txt, "Semitic emphatic in the object tier"))
+    for tok in ("ḫattuša", "ʾarṣu", "ḫatti", "tiếng"):
+        r.append(check(tok in txt, f"alternative survives: {tok}"))
+    r.append(check(p.find("UUMAIN") is not None, "typeset: UUMAIN"))
+    return r
+
+
 def a_lpzgsetup(p: Page):
     r"""\lpzglistsetup, \lpzglisttitle and \lpzglistentry.
 
@@ -1250,6 +1353,8 @@ ASSERTIONS = {
     "legacy": a_legacy,
     "tagged": a_tagged,
     "ua": a_ua,
+    "utf8": a_utf8,
+    "utf8-unicode": a_utf8_unicode,
     "gbfour": a_gbfour,
     "numbering": a_numbering,
     "judgment-align": a_judgment_align,
@@ -1303,6 +1408,13 @@ def suite_integrity():
         problems.append(f"'{name}' is registered but has no {name}.tex in {CASES}.")
     for name in sorted(set(PASSES) - known):
         problems.append(f"PASSES['{name}'] names no known case.")
+    for name in sorted(set(ENGINES_FOR) - known):
+        problems.append(f"ENGINES_FOR['{name}'] names no known case.")
+    for name, engs in sorted(ENGINES_FOR.items()):
+        for e in engs:
+            if e not in ENGINES:
+                problems.append(
+                    f"ENGINES_FOR['{name}'] names no known engine: {e!r}.")
     for key in sorted(KNOWN_XFAIL):
         engine, _, name = key.partition("/")
         if engine not in ENGINES:
@@ -1401,6 +1513,8 @@ def main():
             continue
         print(f"\n=== {engine} ===")
         for name in names:
+            if engine not in ENGINES_FOR.get(name, ENGINES):
+                continue
             results = run_case(name, engine, args.verbose)
             ok = sum(1 for good, _ in results if good)
             total += len(results)
