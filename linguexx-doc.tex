@@ -1121,8 +1121,13 @@ and the outer rows protrude symmetrically, with the surrounding lines
 keeping clear. The example number stays on the object baseline, where
 \cs{exg.} puts it.
 
-Three rules of use. The two calls must list the same number of
-alternatives --- the package stops with an error otherwise. No spaces
+Four rules of use. The two calls must list the same number of
+alternatives --- the package stops with an error otherwise. They must also
+fall in the \emph{same} gloss column, one in the object tier and one in the
+gloss tier: a column carrying a stack in only one of its tiers cannot be
+paired up, and is likewise an error. (This is why a three-tier
+\cs{glll} cannot take a stack in its third tier either. Alternatives
+spread over three tiers are not supported.) No spaces
 may separate the brace groups: a space both ends the collection and
 splits the gloss into separate columns; break long calls across source
 lines with \texttt{\%}, as above. And the alternatives are paired by
