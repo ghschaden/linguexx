@@ -115,7 +115,11 @@
 %%          translation) and \GlossTransLang (its language, emitted as a
 %%          Span with /Lang under tagging -- babel's \foreignlanguage
 %%          reaches no structure element on TL2026).  Both opt-in; the
-%%          default output and tag tree are unchanged.
+%%          default output and tag tree are unchanged.  Fix: \sublabel
+%%          records the label of the LEVEL it is used at; it always
+%%          recorded the letter counter, so a \refrange over roman
+%%          sub-sub-examples closed with the enclosing letter
+%%          ("(1b-i--b)") instead of the numeral.
 %% Package options come in two independent groups.
 %%
 %% SYNTAX:
@@ -2516,9 +2520,31 @@
 
 \newcommand\rangedash{--}
 \newcommand\lx@setsub[2]{\expandafter\gdef\csname lx@sub@#1\endcsname{#2}}
+%% \sublabel records in the .aux the BARE label of the sub-example it marks
+%% -- just the letter or numeral, no \SubExLBr/\SubExRBr delimiters -- which
+%% is what \prefrange needs for the closing half of a compact range
+%% ("(1a--c)": the range ends in a letter, not in a second full reference).
+%%
+%% It has to record the label of the level it is USED at.  Recording
+%% \Exalph{SubExNo} unconditionally, as this did, is right only at the letter
+%% level: at the roman level SubExNo names the ENCLOSING letter, so every
+%% roman sub-sub-example under one letter recorded the same value and
+%% \refrange over them printed "(1b-i--b)" instead of "(1b-i--iii)" -- a
+%% silently wrong reference, since nothing about it is an error.
+%%
+%% At the main level there is no sub-label to record (and \Exalph{SubExNo}
+%% would be \alph{0}, i.e. "Counter too large"), so nothing is written;
+%% \lx@subletter then falls back to a full \pref, which is the sensible
+%% reading of a range whose end is a whole example.
+\newcommand\lx@writesub[2]{%
+  \immediate\write\@auxout{\string\lx@setsub{#1}{#2}}}
 \newcommand\sublabel[1]{\label{#1}%
   \if@filesw
-    \immediate\write\@auxout{\string\lx@setsub{#1}{\Exalph{SubExNo}}}%
+    \ifcase\lx@subdepth
+      % main level: no sub-label, \lx@subletter falls back to \pref
+    \or \lx@writesub{#1}{\Exalph{SubExNo}}%
+    \or \lx@writesub{#1}{\Exroman{SubSubExNo}}%
+    \fi
   \fi}
 \newcommand\lx@subletter[1]{%
   \ifcsname lx@sub@#1\endcsname

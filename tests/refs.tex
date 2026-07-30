@@ -8,6 +8,21 @@
 RANGE \refrange{r:a}{r:c} PLAINREF \ref{r:one} PREF \pref{r:c}
 LAST \Last{} NEXT \Next{}
 
+%% \sublabel must record the label of the level it is used at.  Recording the
+%% letter counter unconditionally makes every roman sub-sub-example under one
+%% letter store the same value, and the range below then ends in that letter
+%% ("1b-i--b") instead of in the roman numeral -- a silently wrong reference.
+\ex.\label{r:two}
+\a. Letter a of the second example.
+\b.\sublabel{r:bletter} Letter b, which encloses the romans.
+\a.\sublabel{r:ri} Roman one.
+\b. Roman two.
+\c.\sublabel{r:riii} Roman three.
+\z.\z.
+
+ROMANRANGE \refrange{r:ri}{r:riii} ROMANREF \ref{r:riii}
+LETTERRANGE \refrange{r:bletter}{r:bletter}
+
 \ex. Target of Next.
 
 Footnote test\footnote{FN

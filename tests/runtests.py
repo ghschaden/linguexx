@@ -487,6 +487,19 @@ def a_refs(p: Page):
     r.append(check(re.search(r"PREF 1c\b", txt), "\\pref drops the parentheses"))
     r.append(check("LAST (1)" in txt, "\\Last gives (1)"))
     r.append(check("NEXT (2)" in txt, "\\Next gives (2)"))
+    # \sublabel records the label of the level it sits at: a range over roman
+    # sub-sub-examples must END in a roman numeral.  Recording the letter
+    # counter for every level instead gave "(2b-i--b)" -- no error, just a
+    # wrong reference, and every roman under one letter aliased to it.
+    r.append(check(re.search(r"ROMANRANGE \(2b-i-+iii\)", norm),
+                   f"roman range ends in the roman numeral, not the enclosing "
+                   f"letter; got {norm[norm.find('ROMANRANGE'):][:30]!r}"))
+    r.append(check("ROMANREF (2b-iii)" in txt,
+                   f"\\ref to a sub-sub-example is unchanged; got "
+                   f"{txt[txt.find('ROMANREF'):][:20]!r}"))
+    r.append(check(re.search(r"LETTERRANGE \(2b-+b\)", norm),
+                   f"the letter level still records its letter; got "
+                   f"{norm[norm.find('LETTERRANGE'):][:26]!r}"))
     # footnote: roman numbering, and footnote-internal \Last resolves to (ii)
     r.append(check("(i)" in txt and "(ii)" in txt, "footnote examples number (i),(ii)"))
     r.append(check("FNLAST (ii)" in txt, "\\Last in a footnote refers to the footnote series"))

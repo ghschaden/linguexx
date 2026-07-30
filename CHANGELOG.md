@@ -80,6 +80,14 @@ version string.
     translation whose language differs from the document's, which is the
     normal case when writing in one language and glossing into another.
     Verified with veraPDF on `examples/ua-demo`.
+- Fix: `\sublabel` records the label of the level it is used at. It always
+  recorded the letter counter, so at the roman level every sub-sub-example
+  under one letter stored that same letter, and `\refrange` over them printed
+  `(1b-i--b)` instead of `(1b-i--iii)` — a silently wrong reference, since
+  nothing about it raised an error. On a main-level example it now records
+  nothing and the range closes with a full `\pref` (it used to expand
+  `\alph{0}`, i.e. "Counter too large"). `\ref` to a sub-sub-example went
+  through a different path and was always correct.
 - The suite now runs veraPDF itself, on a new PDF/UA-2 case (`tests/ua.tex`),
   so the release gate that used to be a manual step before delivering is
   enforced on every run and under all three engines. This is what catches a

@@ -988,8 +988,12 @@ is nearly always what is meant; \cs{TextNext} escapes to the main series.
 \cs{refrange}\marg{first}\marg{last} sets a compact range over
 sub-examples, printing ``(3a--c)'' rather than ``(3a)--(3c)''. The
 sub-examples must be labelled with \cs{sublabel} instead of \cs{label}
-(this records the letter in the \texttt{.aux} file; \cs{sublabel} also does
-everything \cs{label} does, so \cs{ref} keeps working):
+(this records the label in the \texttt{.aux} file; \cs{sublabel} also does
+everything \cs{label} does, so \cs{ref} keeps working). It works at either
+sub-level, recording the letter at the letter level and the numeral at the
+roman one, so a range over sub-sub-examples closes with a numeral:
+``(3b-i--iii)''. On a main-level example it records nothing, and the range
+closes with a full reference instead:
 
 \begin{code}
 \ex.
