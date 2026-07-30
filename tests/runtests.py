@@ -1409,6 +1409,95 @@ def a_legacy(p: Page):
     return r
 
 
+def a_legacy_gb4e(p: Page):
+    r"""[legacy,gb4e]: linguex's geometry reached through gb4e's syntax.
+
+    The two option groups are orthogonal and each is covered on its own
+    (a_legacy, a_gbfour), but the combination is not the conjunction of the
+    two cases: exe/xlist open the sub-levels through their own code path,
+    which then picks up the LEGACY geometry hooks, and the bracket judgment
+    hangs into a gap legacy sizes differently (\JdgSep=0pt, and the whole
+    2em sub margin is the label box).  Nothing pinned that.
+    """
+    r = []
+    txt = " ".join(w.text for w in p.words)
+    label = re.compile(r"^(\(\w+\)|[a-f]\.|[ivx]+\.)$")
+
+    # --- linguex geometry, measured as in a_legacy: the sub-levels are
+    # indented by \SubExleftmargin (2em) and \SubSubExleftmargin (2.4em),
+    # here off xlist rather than off the dot syntax.
+    em = 11.0
+    main, sub, rom = p.find("LGONE"), p.find("LGSUBC"), p.find("LGROMAN")
+    d1, d2 = sub.x0 - main.x0, rom.x0 - sub.x0
+    r.append(check(abs(d1 - 2.0 * em) < TOL,
+                   f"xlist text indented \\SubExleftmargin=2em ({d1:.2f}pt)"))
+    r.append(check(abs(d2 - 2.4 * em) < TOL,
+                   f"nested xlist text indented \\SubSubExleftmargin=2.4em "
+                   f"({d2:.2f}pt)"))
+    # legacy sets the sub label flush left inside that margin, with no
+    # \labelsep: the letter starts exactly at the text margin of the level
+    # above.  A non-zero labelsep in the legacy sub geometry would push it
+    # left of that margin instead.
+    lets = [w for w in p.words if w.text in ("a.", "b.", "c.")]
+    r.append(check(len(lets) == 3 and all(abs(w.x0 - main.x0) < TOL for w in lets),
+                   f"xlist letters sit flush at the main text margin "
+                   f"({[round(w.x0, 2) for w in lets]} vs {main.x0:.2f})"))
+    # the roman label is looked up defensively: under a mutation that drops
+    # legacy's \SubSubEx*Br the token is "i." and does not exist at all, and
+    # that must be a failing assertion, not a setup crash.
+    romlab = [w for w in p.words if w.text == "(i)"]
+    r.append(check(romlab and abs(romlab[0].x0 - sub.x0) < TOL,
+                   f"the roman label sits flush at the letter text margin "
+                   f"({romlab[0].x0:.2f} vs {sub.x0:.2f})" if romlab else
+                   "the roman label (i) is not in the output at all"))
+
+    # --- linguex conventions on gb4e input: letters a.-c., and a roman
+    # sub-sub-example printed "(i)" (\SubSubEx*Br), not "i."
+    letters = [w.text for w in p.words if re.fullmatch(r"[a-f]\.|[ivx]+\.", w.text)]
+    r.append(check(letters == ["a.", "b.", "c."],
+                   f"xlist letters run a.,b.,c. with no roman 'i.'; got {letters}"))
+    r.append(check(romlab and "i." not in letters,
+                   f"the nested xlist prints (i), linguex-style; got {letters}"))
+
+    # --- the bracket judgment hangs: it must not displace the text, and it
+    # must actually protrude left of the text block.  Measured on the word
+    # AFTER a shared leading word, because legacy's \JdgSep=0pt guarantees
+    # pdftotext merges the mark with the word it precedes.
+    for judged, plain, where in (("LGJMAIN", "LGPMAIN", "exe main level"),
+                                 ("LGJSUB", "LGPSUB", "xlist letter level")):
+        wj, wp = p.find(judged), p.find(plain)
+        r.append(check(abs(wj.x0 - wp.x0) < TOL,
+                       f"{where}: [judgment] does not displace text "
+                       f"({wj.x0:.2f} vs {wp.x0:.2f})"))
+        lj = min(t.x0 for t in p.line_of(wj) if not label.match(t.text))
+        lp = min(t.x0 for t in p.line_of(wp) if not label.match(t.text))
+        r.append(check(lj < lp - 0.5,
+                       f"{where}: the mark hangs left of the text block "
+                       f"({lj:.2f} vs {lp:.2f})"))
+    # legacy's sub label box is the full 2em margin, so TWO marks still
+    # clear the letter: "b." survives as its own token (pdftotext merges
+    # tokens closer than ~2pt) with the marks to its right.
+    bl = [w for w in p.words if w.text == "b."]
+    marks = [w for w in p.line_of(p.find("LGJSUB")) if w.text.startswith("??")]
+    r.append(check(len(bl) == 1 and marks and marks[0].x0 > bl[0].x1,
+                   f"two marks clear the letter in the legacy sub label box "
+                   f"(letter ends {bl[0].x1:.2f}, marks at "
+                   f"{marks[0].x0:.2f})" if bl and marks else
+                   "two marks overlap the letter: label and marks merged"))
+
+    # --- numbering and cross-referencing across the batch
+    labw = [w for w in p.words if re.fullmatch(r"\(\d+\)", w.text)]
+    margin = min(w.x0 for w in labw)
+    got = [w.text for w in labw if abs(w.x0 - margin) < TOL]
+    r.append(check(got == ["(1)", "(2)", "(3)", "(4)"],
+                   f"the exe batch numbers each \\ex, xlist items excluded; "
+                   f"got {got}"))
+    r.append(check("LGREFS (1) and (4)." in txt,
+                   f"\\label and \\Last resolve across the batch; got "
+                   f"{txt[txt.find('LGREFS'):][:24]!r}"))
+    return r
+
+
 
 # --- PDF structure-tree inspection (uncompressed output only) -------------
 
@@ -1597,6 +1686,7 @@ ASSERTIONS = {
     "cedilla-gb4e": a_cedilla_gb4e,
     "cedilla-internal": a_cedilla_internal,
     "legacy": a_legacy,
+    "legacy-gb4e": a_legacy_gb4e,
     "tagged": a_tagged,
     "ua": a_ua,
     "utf8": a_utf8,

@@ -1,0 +1,17 @@
+%% [legacy,gb4e]: the two option groups are orthogonal -- [legacy] chooses
+%% linguex's lengths and conventions, [gb4e] chooses the environment
+%% syntax -- so this combination is gb4e input laid out with linguex
+%% geometry.  Note that [gb4e] without [lazy] means the dot commands
+%% \ex. \a. \z. are NOT defined here, even though [legacy] alone would
+%% imply them.
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=25mm]{geometry}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else
+  \usepackage{fontspec}
+\fi
+\usepackage[legacy,gb4e]{linguexx}
+\pagestyle{empty}

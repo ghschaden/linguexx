@@ -1,0 +1,36 @@
+%% [legacy,gb4e] -- gb4e's syntax with linguex's geometry.  The two option
+%% groups are orthogonal, but nothing pinned the combination, and each half
+%% reaches the layout through code the other does not use: the exe/xlist
+%% openers pick the geometry hooks (\lx@geom@sub, \lx@geom@subsub) whose
+%% legacy branch parametrises the sub-levels by their TEXT MARGIN
+%% (\SubExleftmargin=2em, \SubSubExleftmargin=2.4em) instead of by the
+%% label width, and the bracket judgment of \ex[*]{...} hangs into a gap
+%% that legacy sizes differently (\JdgSep=0pt, and the label box is the
+%% whole sub-level margin).  Note also that [gb4e] without [lazy] leaves
+%% the dot commands undefined even though [legacy] alone would imply them,
+%% so every example here is written in the environment syntax.
+%%
+%% In each judged/plain pair the leading word is identical, so the sentinel
+%% that FOLLOWS it must land at the same x unless the mark consumed
+%% horizontal space in the text block -- pdftotext merges a hung mark with
+%% the word it precedes into one token (all the more so under legacy, where
+%% \JdgSep is 0pt), so the mark's own token is no use for that measurement.
+\input{_preamble-legacy-gb4e}
+\begin{document}
+\begin{exe}
+\ex\label{lg:one} LGONE first example at the main level.
+\ex[*]{Text LGJMAIN judged with a bracket mark.}
+\ex Text LGPMAIN plain main item.
+ \begin{xlist}
+ \ex Text LGPSUB plain sub-example.
+ \ex[??]{Text LGJSUB judged sub-example.}
+ \ex LGSUBC third letter, with a nesting.
+  \begin{xlist}
+  \ex LGROMAN roman sub-sub-example.
+  \end{xlist}
+ \end{xlist}
+\ex LGFOUR last in the batch.
+\end{exe}
+
+LGREFS \ref{lg:one} and \Last.
+\end{document}
