@@ -131,6 +131,7 @@ def parse_pdf(pdf: Path) -> Page:
         words.append(Word(txt, float(x0), float(y0), float(x1), float(y1)))
     page = Page(words, width)
     page.raw = pdf.read_bytes()
+    page.path = pdf
     return page
 
 
@@ -485,6 +486,43 @@ def a_refs(p: Page):
 
 
 
+def a_glt(p: Page):
+    r"""\GlossTransStyle reaches the free translation, and nothing else.
+
+    Each sentinel occurs twice with identical spelling -- once in the
+    unstyled example, once in the styled one -- so the two widths are
+    directly comparable and any difference is the hook's doing.
+    """
+    r = []
+
+    def widths(tok):
+        ws = [w.x1 - w.x0 for w in p.find_all(tok)]
+        if len(ws) != 2:
+            raise AssertionError(f"expected {tok} exactly twice, got {len(ws)}")
+        return ws
+
+    plain, styled = widths("GLTTRANS")
+    # \Large on a 7-glyph sentinel is worth ~15pt; require well above TOL so
+    # the check cannot pass on rounding noise
+    r.append(check(styled - plain > 5.0,
+                   f"\\GlossTransStyle applies to the translation "
+                   f"({plain:.2f} -> {styled:.2f})"))
+    # the tiers of the gloss ABOVE the \glt must be unaffected: the
+    # declaration is issued after the gloss is already set
+    for tok, what in (("GLTOBJ", "object tier"), ("GLTGLOSS", "gloss tier")):
+        a, b = widths(tok)
+        r.append(check(abs(a - b) < TOL,
+                       f"{what} unaffected by \\GlossTransStyle "
+                       f"({a:.2f} vs {b:.2f})"))
+    # and it must not leak past the end of the example: body text before and
+    # after the styled example is set identically
+    a, b = widths("GLTBODY")
+    r.append(check(abs(a - b) < TOL,
+                   f"\\GlossTransStyle does not leak out of the example "
+                   f"({a:.2f} vs {b:.2f})"))
+    return r
+
+
 def a_cedilla(p: Page):
     r""" \a.-\f. must not clobber the accents \b \c \d outside an example,
     and must still drive sub-examples inside one -- including inside an exe
@@ -700,6 +738,25 @@ def a_tagged(p: Page):
     langs = struct_langs(getattr(p, "raw", b""))
     r.append(check("de" in langs,
                    f"object-language tier is marked with /Lang (got {sorted(set(langs))})"))
+    # ... and the free translation carries its own, declared fr here.  babel's
+    # \foreignlanguage does not reach the structure tree on TL2026, so this
+    # Span is the only thing that marks a translation whose language differs
+    # from the document's.
+    r.append(check("fr" in langs,
+                   f"free translation is marked with /Lang "
+                   f"(got {sorted(set(langs))})"))
+    # ... and that Span is CLOSED again.  Leaving it open is spec-valid, so
+    # veraPDF passes and every flat check above passes, while the whole rest
+    # of the document silently becomes its child -- and would be announced in
+    # the translation's language.  Depth is what gives it away.
+    depths = struct_label_depths(p.path)
+    r.append(check(len(depths) >= 3,
+                   f"structure tree exposes the example numbers "
+                   f"(got {depths})"))
+    r.append(check(len({d for _, d in depths}) == 1,
+                   f"no structure element leaks past the example that opened "
+                   f"it: top-level example numbers must share one depth, got "
+                   f"{depths}"))
     # objective 6: a Leipzig abbreviation carries its /E expansion text
     exps = struct_exps(getattr(p, "raw", b""))
     r.append(check("third person singular past" in exps,
@@ -811,6 +868,27 @@ def struct_langs(raw: bytes):
             for m in _re.finditer(rb"/Lang\s*\(([^)]*)\)", raw)]
 
 
+def struct_label_depths(pdf: Path):
+    """(label, nesting depth) for every top-level example number in the tree.
+
+    The raw-bytes helpers here see structure elements but not their PARENTAGE,
+    and neither does veraPDF: an inline element left open -- a Span whose
+    \\tag_struct_end: never runs -- reparents the entire rest of the document
+    underneath itself while staying perfectly spec-valid, so it passes
+    validation and every flat check in this file.  What it does change is
+    DEPTH, and pdfinfo's indentation is the cheapest faithful view of that.
+
+    Top-level example numbers are siblings, so they must all sit at one
+    depth; if any element between them leaks, the ones after it drop a level.
+    Footnote examples are numbered in romans and are legitimately nested
+    deeper, so the digit-only pattern skips them.
+    """
+    out = subprocess.run(["pdfinfo", "-struct-text", str(pdf)],
+                         capture_output=True, text=True).stdout
+    return [(m.group(2), len(m.group(1)))
+            for m in re.finditer(r'(?m)^( *)"\((\d+)\)"', out)]
+
+
 def struct_alts(raw: bytes):
     """Decoded /Alt strings on Span elements (spoken judgment forms)."""
     import re as _re
@@ -916,6 +994,7 @@ ASSERTIONS = {
     "exsource": a_exsource,
     "zpop": a_zpop,
     "gloss": a_gloss,
+    "glt": a_glt,
     "lpzglist": a_lpzglist,
     "phantomalign": a_phantomalign,
     "altg": a_altg,

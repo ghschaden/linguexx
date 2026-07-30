@@ -1,0 +1,27 @@
+%% \glt (the free translation) and its style hook \GlossTransStyle.
+%% The hook is a DECLARATION, applied after \glt's \par, so it must
+%%   (a) reach the translation,
+%%   (b) leave the gloss tiers above it untouched,
+%%   (c) not leak past the end of the example.
+%% Every sentinel below appears TWICE with identical spelling, once in the
+%% unstyled example and once in the styled one, so the two occurrences are
+%% width-comparable: same glyphs, so any width difference is the hook and
+%% nothing else.  A size declaration is used rather than \itshape because
+%% italic vs upright differs by only ~1pt in Latin Modern, too thin to
+%% assert on across three engines; \Large is unmistakable.
+\input{_preamble}
+\begin{document}
+GLTBODY reference line before any example.
+
+%% unstyled reference: the hook is empty by default
+\exg. Der GLTOBJ bellte.\\ the GLTGLOSS bark.PST\\
+\glt GLTTRANS barked here.
+
+\renewcommand\GlossTransStyle{\Large}
+
+%% identical gloss, styled translation
+\exg. Der GLTOBJ bellte.\\ the GLTGLOSS bark.PST\\
+\glt GLTTRANS barked here.
+
+GLTBODY reference line after the styled example.
+\end{document}

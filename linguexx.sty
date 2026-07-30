@@ -111,6 +111,11 @@
 %%          so \c{c} and "ç" errored and a hyperref title silently lost
 %%          the accent.  Fix: \end{exe} closes a sub-level opened by an
 %%          \a. inside the batch instead of leaking its \begingroup.
+%%          \glt gains \GlossTransStyle (a declaration styling the free
+%%          translation) and \GlossTransLang (its language, emitted as a
+%%          Span with /Lang under tagging -- babel's \foreignlanguage
+%%          reaches no structure element on TL2026).  Both opt-in; the
+%%          default output and tag tree are unchanged.
 %% Package options come in two independent groups.
 %%
 %% SYNTAX:
@@ -818,6 +823,7 @@
 % Doubles as the sentinel marking the end of the grabbed body, which is
 % what allows \z. to terminate the example early (see below).
 \def\lx@bodyend{%
+  \lx@glt@langend % while the \glt paragraph is still the current one
   \lx@closesubs
   \lx@closelist
   \lx@example@cleanup\ignorespacesafterend}
@@ -1173,12 +1179,12 @@
   % letters stuck at the sub-level for the rest of the document.  An xlist
   % inside the batch needs nothing here: its own environment group has
   % already undone its depth advance by the time we get here.
-  {\lx@closesubs \lx@closelist}
+  {\lx@glt@langend \lx@closesubs \lx@closelist}
 
 \NewDocumentEnvironment{xlist}{}
   {\lx@subenv@begin
    \lx@inexetrue}
-  {\lx@closelist}
+  {\lx@glt@langend \lx@closelist}
 \fi % iflx@gbfour
 
 \def\lx@subitem@core{%
@@ -1976,7 +1982,85 @@
 \long\def\glll#1\\#2\\#3\\{\lx@gloss@multi{#1\\#2\\#3}}
 \long\def\gl#1\endgl{\lx@gloss@multi{#1}}
 \def\endgl{\PackageError{linguexx}{\string\endgl without \string\gl}{}}
-\newcommand\glt{\par\nobreak\ignorespaces}
+%% \glt starts the free translation on a new line, kept on the same page as
+%% the gloss it belongs to (\nobreak).  Structurally it needs nothing extra:
+%% being its own paragraph it already becomes its own P in the tag tree,
+%% with the translation as its text, which is what a screen reader needs to
+%% read it after the gloss.
+%%
+%% \GlossTransStyle is applied as a DECLARATION rather than as a
+%% one-argument command like \GlossTierFont: the translation is delimited by
+%% the end of the paragraph, not by braces, so there is no argument to wrap
+%% -- and a declaration scopes itself to the rest of the example (the list
+%% environment's group) without \glt having to know where the translation
+%% ends.  Empty by default, so the output is unchanged unless it is set.
+\newcommand\GlossTransStyle{}
+%%
+%% \GlossTransLang{code} marks the LANGUAGE of the free translation, the way
+%% \GlossTierLang does for a gloss tier: under tagging the translation is
+%% wrapped in a Span carrying /Lang, so a screen reader pronounces it with
+%% the right phonetics.  This is not redundant with babel: on TL2026,
+%% \foreignlanguage inside the translation leaves no /Lang in the structure
+%% tree at all (only the document-level one from \DocumentMetadata), so
+%% without this there is no way to mark a translation whose language differs
+%% from the document's -- the normal case in a paper written in one language
+%% and glossing into another.  Opt-in and empty by default: no Span, and the
+%% tag tree is byte-for-byte what it was.
+%%
+%% Where the Span ENDS is the whole difficulty: the translation runs to the
+%% end of its paragraph, so \glt cannot wrap an argument.  It is opened
+%% lazily -- the first paragraph content triggers it via \everypar, by which
+%% time the paragraph's own P and MC are open, so the Span nests inside them
+%% instead of straddling them (opening it directly at \glt, while still in
+%% vertical mode, is the "nested marked content"/"no mc to end" failure that
+%% \lx@hangjudge documents) -- and closed by \lx@glt@langend, which every
+%% example exit runs while the translation paragraph is still open.
+\ExplSyntaxOn
+\tl_new:N   \l_lx_gl_translang_tl
+\bool_new:N \g__lx_gl_transopen_bool
+\NewDocumentCommand \GlossTransLang { m }
+  { \tl_set:Nn \l_lx_gl_translang_tl {#1} }
+\cs_new_protected:Npn \lx@glt@langbegin
+  {
+    \tl_if_empty:NF \l_lx_gl_translang_tl
+      {
+        \cs_if_exist:NT \tag_struct_begin:n
+          {
+            \tag_if_active:T
+              {
+                \tag_mc_end_push:
+                \tag_struct_begin:e
+                  { tag = Span , lang = \l_lx_gl_translang_tl }
+                \tag_mc_begin:n { tag = Span }
+                \bool_gset_true:N \g__lx_gl_transopen_bool
+              }
+          }
+      }
+  }
+%% Closed from every example exit (\lx@bodyend and the exe/xlist ends),
+%% before the list closes -- i.e. while the translation paragraph is still
+%% the current one.  The flag is global because the open and the close
+%% necessarily sit in different groups; it is what makes the close a no-op
+%% for an example with no \glt, with no \GlossTransLang, or without tagging.
+\cs_new_protected:Npn \lx@glt@langend
+  {
+    \bool_if:NT \g__lx_gl_transopen_bool
+      {
+        \tag_mc_end:
+        \tag_struct_end:
+        \tag_mc_begin_pop:n {}
+        \bool_gset_false:N \g__lx_gl_transopen_bool
+      }
+  }
+\ExplSyntaxOff
+%% The \everypar hook fires once, for the translation's first paragraph, and
+%% clears itself: \glt is followed by ordinary text, not by a construct that
+%% starts further paragraphs of its own.
+\newcommand\glt{%
+  \par\nobreak
+  \GlossTransStyle
+  \everypar{\everypar{}\lx@glt@langbegin}%
+  \ignorespaces}
 \let\gln\glt % cgloss4e-compat alias
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -1,5 +1,9 @@
 \input{_preamble-tagged}
 \GlossTierLang{1}{de}
+% the free translation gets its own language, distinct from the object
+% tier (de) and from the document (en), so /Lang (fr) can only come
+% from \GlossTransLang reaching the \glt paragraph
+\GlossTransLang{fr}
 % PDF tagging smoke test: every construct here has, at some point,
 % corrupted the structure tree (mismatched text-unit bookkeeping) under
 % the latex-lab testphase code.  -halt-on-error turns any tagpdf

@@ -870,6 +870,35 @@ tagging is active (section~\ref{sec:tagging}): it changes nothing in the
 printed gloss and nothing in an untagged document. A tier with no declared
 language behaves exactly as before.
 
+The free translation is a tier of its own kind, and usually in a third
+language: neither the object language nor, in a paper written in one
+language and glossing into another, the language of the document.
+\cs{GlossTransLang}\marg{code} marks it, and under tagging the translation
+is wrapped in a span carrying \texttt{/Lang}:
+
+\begin{code}
+\GlossTierLang{1}{de}          % object line is German
+\GlossTransLang{en}            % free translations are English
+\end{code}
+
+\noindent This is worth setting explicitly even in a document that already
+declares its language to \cs{DocumentMetadata}: \pkg{babel}'s
+\cs{foreignlanguage} does \emph{not} reach the structure tree, so without
+\cs{GlossTransLang} a translation in another language carries no
+\texttt{/Lang} of its own and is read out with the document's phonetics.
+
+The translation can also be styled, with the declaration
+\cs{GlossTransStyle} --- many venues want it italic, or a size smaller:
+
+\begin{code}
+\renewcommand\GlossTransStyle{\itshape}
+\end{code}
+
+\noindent It applies only to the translation, not to the gloss tiers above
+it, and reverts at the end of the example. Both hooks are empty by default,
+so a document that sets neither is unaffected in its output and in its
+tagging alike.
+
 
 \subsection{Abbreviations: \cs{exg.}\ and \cs{ag.}}
 
@@ -1532,6 +1561,8 @@ exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package opt
 \textbackslash glt & Free-translation line. (\cs{gln} is a synonym.) \\
 \textbackslash GlossTierFont\allowbreak\marg{n}\marg{cmd} & Font command for tier \meta{n}. \\
 \textbackslash GlossTierLang\allowbreak\marg{n}\marg{code} & Language of tier \meta{n} for tagged PDFs (section~\ref{sec:glosslang}). \\
+\textbackslash GlossTransStyle & Declaration applied to the free translation after \cs{glt}; empty by default. \\
+\textbackslash GlossTransLang\marg{code} & Language of the free translation for tagged PDFs (section~\ref{sec:glosslang}). \\
 \textbackslash lpzg\marg{abbr} & Gloss abbreviation in small caps, with spoken expansion when tagged (section~\ref{sec:leipzig}). \\
 \textbackslash SetLeipzig\allowbreak\marg{abbr}\marg{expansion} & Add or override a Leipzig abbreviation expansion. \\
 \textbackslash lpzglist\oarg{keys} & List of the abbreviations the document uses, each with its full form (section~\ref{sec:lpzglist}). Keys: \opt{style}, \opt{sort}, \opt{include}, \opt{ignore}, \opt{add}, \opt{unexplained}, \opt{title}, \opt{titlestyle}, \opt{sep}, \opt{itemsep}, \opt{format}. \\

@@ -62,6 +62,31 @@ version string.
   batch (`\lx@closesubs`). It previously closed only the main list and
   leaked `\lx@subpush`'s `\begingroup`, leaving `\lx@subdepth` stuck at the
   sub-level for the rest of the document.
+- `\glt` (the free translation) gains two hooks, both opt-in and both
+  leaving the default output and the default tag tree byte-for-byte as they
+  were:
+  - `\GlossTransStyle` styles the translation. It is a *declaration*
+    (`\renewcommand\GlossTransStyle{\itshape}`), not a one-argument command
+    like `\GlossTierFont`, because the translation is delimited by the end of
+    its paragraph rather than by braces; a declaration also scopes itself to
+    the example, so it neither reaches the gloss tiers above the `\glt` nor
+    leaks past the end of the example.
+  - `\GlossTransLang{code}` marks the translation's language, as
+    `\GlossTierLang` does for a gloss tier: under tagging the translation is
+    wrapped in a `Span` carrying `/Lang`, so a screen reader pronounces it
+    correctly. This is not redundant with babel — on TL2026,
+    `\foreignlanguage` inside the translation leaves no `/Lang` in the
+    structure tree at all, so there was previously no way to mark a
+    translation whose language differs from the document's, which is the
+    normal case when writing in one language and glossing into another.
+    Verified with veraPDF on `examples/ua-demo`.
+- The suite gained a structure-*nesting* check (`struct_label_depths`).
+  Every flat structure assertion, and veraPDF itself, accepts an inline
+  element that is opened and never closed: it stays spec-valid while
+  silently reparenting the rest of the document underneath itself. Top-level
+  example numbers are siblings, so they must all sit at one depth in the
+  tree; if anything leaks, the ones after it drop a level and the check
+  fires.
 - Regression coverage for both of the above (`tests/cedilla.tex`,
   `tests/cedilla-gb4e.tex`), including the hyperref-title cases and the
   accent-restoration points after each example syntax; mutation-checked.
