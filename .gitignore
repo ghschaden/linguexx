@@ -25,6 +25,12 @@ tests/cases/
 __pycache__/
 *.pyc
 
+# Emacs (AUCTeX / undo-tree)
+auto/
+*.~undo-tree~
+*~
+.#*
+
 # built example/test PDFs are regenerable; keep only the manual
 examples/*.pdf
 tests/*.pdf
