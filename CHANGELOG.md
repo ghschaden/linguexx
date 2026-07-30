@@ -3,7 +3,7 @@
 All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
-## Unreleased
+## 1.1
 - `\lpzglist`: the list of the abbreviations the document actually uses, each
   with its full form. Every label passed to `\lpzg` is recorded piece by piece
   (`\lpzg{3sg.pst}` contributes `3`, `sg` and `pst`), written to the `.aux`,
@@ -35,6 +35,19 @@ version string.
   (verified with veraPDF on `examples/ua-demo` and on a `\GlossPhantom`
   build). Alignment survives a size change of the gloss tier (e.g.
   `\footnotesize`). `\altg` alternative columns are not covered.
+- Fix: the `\a`-`\f` sub-example letters now only mean "start/continue a
+  sub-example" while an example is open; outside one they are left
+  completely untouched. Previously, under `[lazy]` (the default), they
+  permanently clobbered the kernel accent commands `\b`, `\c`, `\d`
+  everywhere in the document, so `\c{c}`, an inputenc-decomposed "ç", or
+  hyperref's own bookmark-string handling of those letters would break (the
+  hyperref case failed silently, dropping the accent from both the printed
+  title and the PDF outline entry). The redefinition is now scoped to the
+  lifetime of the example itself (`\lx@letters@on`/`\lx@letters@off`,
+  invoked from `\lx@run@ex`/`\lx@example@cleanup`), so accented text works
+  again everywhere outside example bodies, including inside a
+  hyperref-linked `\section` title. Verified with veraPDF on
+  `examples/ua-demo`.
 
 ## 1.0
 - `\alt`/`\lxAlt` renamed to `\altn`/`\lxAltn`. `\alt` is claimed by

@@ -5,7 +5,7 @@
 %%%% This program can be redistributed and/or modified under the terms
 %%%% of the LaTeX Project Public License
 \NeedsTeXFormat{LaTeX2e}[2020/10/01]% expl3 in kernel required
-\ProvidesPackage{linguexx}[2026/07/20 Standalone linguistic examples, linguex-compatible interface v. 1.0]
+\ProvidesPackage{linguexx}[2026/07/30 Standalone linguistic examples, linguex-compatible interface v. 1.1]
 %% v. 0.1: [legacy] option; empty \firstrefdash by default.
 %% v. 0.2: tagging-safe under \DocumentMetadata (PDF tagging testphase):
 %%         lists opened/closed through the environment interface; no TeX
@@ -92,6 +92,21 @@
 %% v. 1.0: \alt/\lxAlt renamed to \altn/\lxAltn -- \alt collides with
 %%          beamer, glossaries-extra, revtex/revsymb, tex4ht, and others;
 %%          \altn is unclaimed.  \altg/\lxAltg unaffected (no collisions).
+%% v. 1.1: \lpzglist -- the list of abbreviations the document actually
+%%          uses, with full forms, sourced from every \lpzg/\lpzgadd call
+%%          and customisable per list or document-wide; a real tagged
+%%          list under tagging.  Phantom bracket alignment for interlinear
+%%          glosses (opt-in via [phantomalign] or \GlossPhantomAlign):
+%%          pads a gloss word by a \phantom the width of the object word's
+%%          leading brackets/judgment marks, so real glyphs line up;
+%%          \GlossPhantom{...} is the manual override.  Fix: \a-\f (the
+%%          sub-example letters) now only mean "start/continue a
+%%          sub-example" while an example is open; outside one they are
+%%          left untouched, so \b{}/\c{}/\d{} accents, an
+%%          inputenc-decomposed "ç", and hyperref's own bookmark-string
+%%          handling of them all keep working in running text and
+%%          section titles again (previously always clobbered under
+%%          [lazy], the default).
 %% Package options come in two independent groups.
 %%
 %% SYNTAX:
@@ -792,6 +807,7 @@
     \let\lx@saved@currentHref\@currentHref
   \fi
   \lx@inexampletrue
+  \lx@letters@on
   \lx@exstart#1\lx@bodyend}
 
 % closes the example: all open sublists, the main list, the group.
@@ -820,6 +836,7 @@
 \ExplSyntaxOff
 \def\lx@example@cleanup{%
   \lx@inexamplefalse
+  \lx@letters@off
   % The list's \end arms the "continue the paragraph" dance (@endpe +
   % an \everypar that clears it).  Our semantics is the opposite: a
   % blank line after an example starts a NEW, indented paragraph
@@ -868,17 +885,45 @@
 
 %% sub-examples ------------------------------------------------------------
 %% \a. pushes a level; the depth advance happens INSIDE the new group.
-%% hyperref's PU encoding redefines \b, \c, \d at load time (bookmark
-%% accents), so the letter commands are (re-)asserted \AtBeginDocument;
-%% this makes the package robust against either load order.  Price: the
-%% \b/\c/\d accents are unavailable in bookmarks, as under linguex.
+%%
+%% \a \b \c \d \e \f mean "start/continue a sub-example" (via a literal
+%% "." right after) ONLY while an example is open (\iflx@inexample);
+%% outside one they are left COMPLETELY untouched, so \c{c}, an
+%% inputenc-decomposed "ç", or hyperref's own PU-encoding redefinition of
+%% \b/\c/\d for its bookmark strings all keep working in a \section
+%% title or anywhere else in running text, exactly as if linguexx were
+%% not loaded there.  This is a plain \let swap at the example's own
+%% start/end (\lx@run@ex / \lx@example@cleanup, see \lx@letters@on/@off
+%% below), not a permanent global redefinition with a runtime fallback:
+%% an earlier version peeked at the next token via \@ifnextchar to
+%% decide whether to dispatch or fall back to the original accent, and
+%% that broke under hyperref, which rebuilds bookmark strings by fully
+%% \edef-expanding the title -- \futurelet-based lookahead is not
+%% edef-safe. Scoping the redefinition itself to the example's lifetime
+%% sidesteps the problem instead of working around it: outside an
+%% example \c is never anything but whatever it would otherwise be, so
+%% no edef-unsafe code ever runs on it.
+\def\lx@dot@a.{\lx@subpush}
+\def\lx@dot@b.{\lx@subnext}
+\def\lx@dot@c.{\lx@subnext}
+\def\lx@dot@d.{\lx@subnext}
+\def\lx@dot@e.{\lx@subnext}
+\def\lx@dot@f.{\lx@subnext}
+%% Saves whatever \a-\f mean RIGHT BEFORE the example starts (not a
+%% fixed original captured once at package load) and restores exactly
+%% that afterward: correct regardless of load order relative to
+%% hyperref, and safe even if something else redefines these letters
+%% between two examples in the same document.  Examples do not nest
+%% (see \lx@collectbody above), so one save slot per letter is enough.
+\def\lx@letters@on{%
+  \let\lx@saved@a\a \let\lx@saved@b\b \let\lx@saved@c\c
+  \let\lx@saved@d\d \let\lx@saved@e\e \let\lx@saved@f\f
+  \let\a\lx@dot@a \let\b\lx@dot@b \let\c\lx@dot@c
+  \let\d\lx@dot@d \let\e\lx@dot@e \let\f\lx@dot@f}
+\def\lx@letters@off{%
+  \let\a\lx@saved@a \let\b\lx@saved@b \let\c\lx@saved@c
+  \let\d\lx@saved@d \let\e\lx@saved@e \let\f\lx@saved@f}
 \def\lx@assert@letters{%
-  \def\a.{\lx@subpush}%
-  \def\b.{\lx@subnext}%
-  \def\c.{\lx@subnext}%
-  \def\d.{\lx@subnext}%
-  \def\e.{\lx@subnext}%
-  \def\f.{\lx@subnext}%
   \def\z.{\lx@zpop}%
   \def\exg.{\ex.\lx@glosshead}%
   \def\ag.{\a.\lx@glosshead}%
@@ -891,10 +936,12 @@
   \lx@assert@letters
   \AtBeginDocument{\lx@assert@letters}
 \fi
-% Under [gb4e] alone, \lx@assert@letters is never called: the letter
-% commands \a.-\f., \z. and the glossed shorthands do not exist, and
-% the kernel accents \b, \c, \d (and hyperref's use of them) are
-% untouched.
+% Under [gb4e] alone, \lx@assert@letters is never called and
+% \lx@letters@on/@off (only ever invoked from \lx@run@ex, itself only
+% reachable through the dot syntax) never run: \z., the glossed
+% shorthands, and \a.-\f. do not exist, and the kernel accents \b, \c,
+% \d (and hyperref's use of them) stay untouched everywhere, exactly as
+% before.
 
 %% \z. pops exactly ONE level, counting the surrounding prose as the
 %% outermost level: from the roman level it returns to the letters (a
