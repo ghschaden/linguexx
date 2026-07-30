@@ -1,6 +1,35 @@
 # Work order: fixes from the 2026-07-30 code review
 
-Status: PLANNED — not yet executed.
+Status: PHASE A EXECUTED (branch `review-fixes`). Phases B, C and D are
+NOT EXECUTED — deferred by the user, who narrowed the scope to Phase A
+while it was in progress. The descriptions below are unchanged and remain
+the work order for a future run; each deferred item is marked in place.
+
+Executed, one commit each, every one gated on the full three-engine suite:
+
+| Item | Status | Commit |
+|------|--------|--------|
+| A1 `\z.` inside `exe` | done | `c48a6a1` |
+| A2 hyperref anchor collision | done | `47097d8` |
+| A3 stray `\a.` leaks a list | done | `eaf1d2f` |
+| A4 `\lpzg` empty key | done | `21f7d4b` |
+
+No item was blocked. Final gate on the branch tip: `python3 tests/runtests.py`
+912/912 assertions on pdflatex, xelatex and lualatex; `verapdf
+examples/ua-demo.pdf` compliant on all three profiles (PDF/UA-2 + Tagged
+PDF, WTPDF 1.0 Accessibility, WTPDF 1.0 Reuse).
+
+Two notes for whoever picks up B/C/D:
+
+- The suite harness now attaches the case's `.aux` to the page object
+  (`page.aux`), alongside the existing `page.log`. A2 needed it because a
+  hyperref anchor is invisible in the rendering and only two of the three
+  engines report a duplicate destination at all.
+- A1's DELIBERATE NON-CHANGE (inside `exe`, `\ex` continues at the current
+  level) is now implemented and tested but still undocumented — D1 is the
+  place for it, and it is the one piece of user-visible behaviour Phase A
+  established without a matching line in the manual.
+
 Scope: `linguexx.sty` v1.1, test suite, manual.
 Read `CLAUDE.md` first; its verification rules are binding for every phase
 below. In particular: never conclude from exit codes, run
@@ -112,6 +141,8 @@ warn about an empty key and `sg` is still recorded once.
 
 ## Phase B — coverage gaps (no package change)
 
+NOT EXECUTED — deferred by user. Both items below are untouched.
+
 ### B1. `[legacy,gb4e]` test case
 
 The combination COMPILES AND RENDERS CORRECTLY (verified 2026-07-30:
@@ -134,6 +165,11 @@ guard. Note for the manual (D1): `\refrange` remains the compact
 ---
 
 ## Phase C — behavior-neutral refactors (the suite + veraPDF are the proof)
+
+NOT EXECUTED — deferred by user. C1/C2/C3 are untouched; in particular
+`\altn`'s spoken /Alt does NOT yet carry the Leipzig expansion, and the
+`\cs_generate_variant:Nn \tag_struct_begin:n { e }` and
+`\lx@assert@letters` cleanups are still pending.
 
 Run the FULL gate after each item: 3-engine suite, `verapdf` on
 `examples/ua-demo.pdf`, `pdfinfo -struct-text` sanity read.
@@ -191,6 +227,11 @@ Two decided behavior points, both for the changelog:
 ---
 
 ## Phase D — documentation and one deferred decision
+
+NOT EXECUTED — deferred by user. The manual has NOT been extended, so the
+A1 rule that Phase A just established (inside `exe`, `\ex` continues at the
+current level; pop with `\z.`) is implemented and tested but still
+undocumented in `linguexx-doc.tex`. D2 remains deferred on its own terms.
 
 ### D1. Manual additions (`linguexx-doc.tex`; builds with LUALATEX ONLY,
 it errors by design under pdflatex — see CLAUDE.md)
