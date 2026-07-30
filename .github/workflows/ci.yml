@@ -12,10 +12,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install poppler-utils and Python
+      - name: Install poppler-utils, Python and a JRE
         run: |
           apt-get update -qq
-          apt-get install -y -qq --no-install-recommends python3 poppler-utils
+          apt-get install -y -qq --no-install-recommends \
+            python3 poppler-utils default-jre-headless curl unzip
+
+      # The suite's `ua` case validates the tagged output with veraPDF and
+      # fails hard when it is missing, because veraPDF is the only
+      # authoritative oracle for PDF/UA: it is what catches a structure
+      # element opened at the wrong moment, which no geometric or
+      # flat-structure assertion can see.  Taken from the stable release
+      # rather than pinned, deliberately -- a change in the oracle's verdict
+      # is something to find out about here.  If this step or the `ua` case
+      # breaks out of nowhere, check for a new veraPDF release first.
+      - name: Install veraPDF
+        run: |
+          curl -sSL --retry 3 -o /tmp/verapdf.zip \
+            https://software.verapdf.org/releases/verapdf-installer.zip
+          unzip -q /tmp/verapdf.zip -d /tmp/verapdf
+          installer=$(find /tmp/verapdf -name 'verapdf-izpack-installer-*.jar' | head -n1)
+          test -n "$installer" || { echo "veraPDF installer jar not found"; exit 1; }
+          java -jar "$installer" "$GITHUB_WORKSPACE/.github/verapdf-auto-install.xml"
+          ln -s /opt/verapdf/verapdf /usr/local/bin/verapdf
+          verapdf --version
 
       - name: Run the regression suite
         run: |

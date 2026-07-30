@@ -604,17 +604,23 @@ def a_ua(p: Page):
     which veraPDF rejects on all three profiles.
     """
     r = []
-    verdicts = verapdf_verdicts(p.path)
-    if verdicts is None:
+    if not shutil.which("verapdf"):
         return [(False, "verapdf is not on PATH: the PDF/UA gate cannot run "
                         "(install veraPDF; it is the only authoritative "
                         "oracle for PDF/UA)")]
+    verdicts, failures, raw = verapdf_report(p.path)
+    if not verdicts:
+        # veraPDF ran but said nothing: a broken install, not a bad PDF.  Say
+        # so, with its output, rather than reporting an empty verdict list.
+        return [(False, f"veraPDF produced no verdict -- it is on PATH but "
+                        f"could not report (broken install? missing JRE?). "
+                        f"Its output was: {raw[:400]!r}")]
     r.append(check(len(verdicts) >= 3,
-                   f"veraPDF reported on its profiles (got {verdicts})"))
+                   f"veraPDF reported on all its profiles (got {verdicts})"))
     failed = [name for name, ok in verdicts if not ok]
     r.append(check(not failed,
                    f"veraPDF: compliant on every profile; failed {failed} "
-                   f"with {verapdf_failures(p.path)}"
+                   f"with {failures}"
                    if failed else
                    "veraPDF: compliant on every profile"))
     # the document really did typeset, so a compliant-but-empty PDF cannot
@@ -920,34 +926,32 @@ def struct_langs(raw: bytes):
             for m in _re.finditer(rb"/Lang\s*\(([^)]*)\)", raw)]
 
 
-def verapdf_verdicts(pdf: Path):
-    """[(profile name, compliant?)] from veraPDF, or None if it is missing.
+def verapdf_report(pdf: Path):
+    """(verdicts, failures, raw) from one veraPDF run.
 
     veraPDF is the only authoritative oracle for PDF/UA: a structure tree can
     be well-formed to every check in this file and still be invalid, and the
     reverse -- spec-valid but semantically wrong -- also happens (see
     struct_label_depths).  The two are complementary, not redundant.
+
+    `verdicts` is [(profile name, compliant?)] and is EMPTY when veraPDF could
+    not report at all.  That case needs the raw output to be diagnosable: the
+    launcher is a shell script that exits 0 even when it cannot start the JVM
+    ("Error: JAVA_HOME is not defined correctly"), so a broken install is not
+    an error status but a silent empty report.
     """
-    if not shutil.which("verapdf"):
-        return None
-    out = subprocess.run(["verapdf", str(pdf)],
-                         capture_output=True, text=True).stdout
-    return [(m.group(1), m.group(2) == "true") for m in re.finditer(
-        r'profileName="([^"]*)"[^>]*isCompliant="(true|false)"', out)]
-
-
-def verapdf_failures(pdf: Path):
-    """Failed rule clauses and their messages, for a readable diagnostic."""
-    out = subprocess.run(["verapdf", str(pdf)],
-                         capture_output=True, text=True).stdout
-    seen = []
+    proc = subprocess.run(["verapdf", str(pdf)], capture_output=True, text=True)
+    raw = (proc.stdout + proc.stderr).strip()
+    verdicts = [(m.group(1), m.group(2) == "true") for m in re.finditer(
+        r'profileName="([^"]*)"[^>]*isCompliant="(true|false)"', raw)]
+    failures = []
     for m in re.finditer(
             r'clause="([^"]*)"[^>]*status="failed".*?<errorMessage>([^<]*)',
-            out, re.S):
+            raw, re.S):
         item = (m.group(1), m.group(2))
-        if item not in seen:
-            seen.append(item)
-    return seen
+        if item not in failures:
+            failures.append(item)
+    return verdicts, failures, raw
 
 
 def struct_label_depths(pdf: Path):
