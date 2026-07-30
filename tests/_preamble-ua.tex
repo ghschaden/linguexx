@@ -1,0 +1,20 @@
+%% PDF/UA-2 preamble, mirroring examples/ua-demo.tex: this is the only
+%% configuration whose output veraPDF is asked to validate, so it has to be
+%% a realistic accessible build rather than a bare tagging switch.
+%% pdfstandard=ua-2 requires PDF 2.0.  A dc:title is mandatory under
+%% ISO 14289-2 clause 8.11.1, hence the pdftitle.
+\DocumentMetadata{lang=en,pdfversion=2.0,pdfstandard=ua-2,tagging=on}
+\documentclass{article}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else
+  \usepackage{fontspec}
+\fi
+\usepackage[lazy,gb4e]{linguexx}
+\usepackage{hyperref}
+\hypersetup{pdftitle={linguexx PDF/UA regression case},
+            pdfdisplaydoctitle=true}
+\pagestyle{empty}
+\begin{document}

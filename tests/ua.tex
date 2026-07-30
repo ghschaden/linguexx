@@ -1,0 +1,54 @@
+%% PDF/UA-2 validation case: roughly the construct surface of tagged.tex,
+%% but built as a real accessible document so the suite can run veraPDF on
+%% the result instead of leaving it to a manual step before release.
+%%
+%% What this catches that no other case can: a structure element opened at
+%% the wrong moment.  Opening the \glt language Span while still in vertical
+%% mode -- rather than deferring it to \everypar, so the paragraph's own P
+%% and MC are already open -- produces marked content that straddles its
+%% parent.  Every geometric and flat-structure assertion in this suite
+%% accepts that happily; veraPDF rejects it on all three profiles.
+%%
+%% Deliberately NO footnote here, although examples in footnotes are a
+%% supported (and delicate) construct.  On this TeX Live a footnote in a
+%% tagged UA-2 article emits content that is "neither marked as Artifact nor
+%% tagged as real content" under pdflatex and xelatex -- reproducible with a
+%% plain \documentclass{article} and no linguexx loaded at all, so it is a
+%% kernel/latex-lab matter and not ours to assert on.  Footnote examples stay
+%% covered structurally by tagged.tex and, end-to-end, by examples/ua-demo.
+\input{_preamble-ua}
+\section{UASECT accessible constructs}
+
+UAINTRO ordinary running text precedes the first example.
+
+\ex.\label{ua:one} UAMAIN a numbered example.
+\a. UAALPHA a sub-example.
+\b. *UABETA a judged sub-example.
+\a. UAROMAN a sub-sub-example.
+\z.\z.
+
+%% gloss: object-language tier, a Leipzig abbreviation with its expansion,
+%% and a free translation in a third language -- the \glt Span under test
+\GlossTierLang{1}{de}
+\GlossTransLang{en}
+\exg. UAOBJ Der Hund bellte.\\ the dog bark.\lpzg{3sg.pst}\\
+\glt `UATRANS The dog barked.'
+
+%% stacked alternatives, text-mode: no Formula element may appear (that is
+%% the PDF/UA-2 failure which forced the 0.12 removal of \altg)
+\ex. UAALTN I saw \altn{the cat}{a dog} here.
+
+\exg. UAALTG \altg{Socke}{Tonne} bellte.\\
+      altg \altg{sock.\lpzg{sg}}{ton.\lpzg{sg}} bark.\lpzg{pst}\\
+\glt `UAALTGT The sock or the ton barked.'
+
+Reference to \ref{ua:one} resolves.
+
+\begin{exe}
+\ex[??]{UAEXE an item in a batch.}
+\end{exe}
+
+%% the abbreviation list is itself a tagged list
+UALIST follows.
+\lpzglist
+\end{document}

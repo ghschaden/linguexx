@@ -80,6 +80,17 @@ version string.
     translation whose language differs from the document's, which is the
     normal case when writing in one language and glossing into another.
     Verified with veraPDF on `examples/ua-demo`.
+- The suite now runs veraPDF itself, on a new PDF/UA-2 case (`tests/ua.tex`),
+  so the release gate that used to be a manual step before delivering is
+  enforced on every run and under all three engines. This is what catches a
+  structure element opened at the *wrong moment* — marked content straddling
+  its parent, which veraPDF rejects (`<Span> contains <P>`) and which no
+  geometric or flat-structure assertion can see. Two supporting changes:
+  cases can now declare how many LaTeX passes they need (`PASSES`), because
+  PDF/UA validity does not converge until the third run under pdflatex and
+  xelatex, and an unconverged file fails veraPDF exactly like a real
+  regression would; and the integrity check also rejects a stale `PASSES`
+  key. veraPDF is now a hard requirement of the suite.
 - The suite gained a structure-*nesting* check (`struct_label_depths`).
   Every flat structure assertion, and veraPDF itself, accepts an inline
   element that is opened and never closed: it stays spec-valid while

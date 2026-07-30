@@ -20,10 +20,12 @@ Usage:
     python3 runtests.py -k gloss         # cases matching a substring
     python3 runtests.py -v               # show every assertion, not just failures
 
-Requires: pdflatex / xelatex / lualatex, and pdftotext (poppler-utils).
+Requires: pdflatex / xelatex / lualatex, pdftotext and pdfinfo
+(poppler-utils), and veraPDF on PATH as `verapdf` -- the only authoritative
+oracle for PDF/UA, used by the `ua` case.
 Exit status: 0 iff every assertion passed, 1 on a failing assertion,
 2 on a suite-integrity problem (an unwired case file, a missing case file,
-a stale KNOWN_XFAIL key) or when no case matches -k.
+a stale KNOWN_XFAIL or PASSES key) or when no case matches -k.
 """
 
 import argparse
@@ -39,6 +41,13 @@ ENGINES = ["pdflatex", "xelatex", "lualatex"]
 # label and the two judgment marks into a single token; the geometry is
 # correct (the case passes on xe/lua).  Known pdftotext artifact, not a bug.
 KNOWN_XFAIL = {"pdflatex/judgment-align"}
+# LaTeX passes per case; two is enough for cross-references, which is all
+# most cases need.  The `ua` case needs three: its PDF/UA validity does not
+# converge until the third run under pdflatex and xelatex (lualatex gets
+# there in two), and a not-yet-converged file fails veraPDF on all three
+# profiles -- which would look exactly like a tagging regression.
+DEFAULT_PASSES = 2
+PASSES = {"ua": 3}
 CASES = Path(__file__).parent / "cases"
 if not CASES.is_dir():                       # flat layout: cases beside the script
     CASES = Path(__file__).parent
@@ -573,6 +582,36 @@ def a_cedilla(p: Page):
     return r
 
 
+def a_ua(p: Page):
+    """The PDF/UA gate: veraPDF must pass the accessible build outright.
+
+    This is the assertion that catches a structure element opened at the
+    wrong moment -- marked content straddling its parent -- which is
+    invisible to every geometric and flat-structure check in this file but
+    which veraPDF rejects on all three profiles.
+    """
+    r = []
+    verdicts = verapdf_verdicts(p.path)
+    if verdicts is None:
+        return [(False, "verapdf is not on PATH: the PDF/UA gate cannot run "
+                        "(install veraPDF; it is the only authoritative "
+                        "oracle for PDF/UA)")]
+    r.append(check(len(verdicts) >= 3,
+                   f"veraPDF reported on its profiles (got {verdicts})"))
+    failed = [name for name, ok in verdicts if not ok]
+    r.append(check(not failed,
+                   f"veraPDF: compliant on every profile; failed {failed} "
+                   f"with {verapdf_failures(p.path)}"
+                   if failed else
+                   "veraPDF: compliant on every profile"))
+    # the document really did typeset, so a compliant-but-empty PDF cannot
+    # pass this case by accident
+    for tok in ("UAMAIN", "UAALPHA", "UAOBJ", "UATRANS", "UAALTN", "UAALTG",
+                "UAEXE", "UALIST"):
+        r.append(check(p.find(tok) is not None, f"typeset: {tok}"))
+    return r
+
+
 def a_cedilla_internal(p: Page):
     r"""The accents must work INSIDE an example body, where the sub-example
     letters are live, and on the same line as a letter command.
@@ -868,6 +907,36 @@ def struct_langs(raw: bytes):
             for m in _re.finditer(rb"/Lang\s*\(([^)]*)\)", raw)]
 
 
+def verapdf_verdicts(pdf: Path):
+    """[(profile name, compliant?)] from veraPDF, or None if it is missing.
+
+    veraPDF is the only authoritative oracle for PDF/UA: a structure tree can
+    be well-formed to every check in this file and still be invalid, and the
+    reverse -- spec-valid but semantically wrong -- also happens (see
+    struct_label_depths).  The two are complementary, not redundant.
+    """
+    if not shutil.which("verapdf"):
+        return None
+    out = subprocess.run(["verapdf", str(pdf)],
+                         capture_output=True, text=True).stdout
+    return [(m.group(1), m.group(2) == "true") for m in re.finditer(
+        r'profileName="([^"]*)"[^>]*isCompliant="(true|false)"', out)]
+
+
+def verapdf_failures(pdf: Path):
+    """Failed rule clauses and their messages, for a readable diagnostic."""
+    out = subprocess.run(["verapdf", str(pdf)],
+                         capture_output=True, text=True).stdout
+    seen = []
+    for m in re.finditer(
+            r'clause="([^"]*)"[^>]*status="failed".*?<errorMessage>([^<]*)',
+            out, re.S):
+        item = (m.group(1), m.group(2))
+        if item not in seen:
+            seen.append(item)
+    return seen
+
+
 def struct_label_depths(pdf: Path):
     """(label, nesting depth) for every top-level example number in the tree.
 
@@ -988,6 +1057,7 @@ ASSERTIONS = {
     "cedilla-internal": a_cedilla_internal,
     "legacy": a_legacy,
     "tagged": a_tagged,
+    "ua": a_ua,
     "gbfour": a_gbfour,
     "numbering": a_numbering,
     "judgment-align": a_judgment_align,
@@ -1031,6 +1101,8 @@ def suite_integrity():
         )
     for name in sorted(set(ASSERTIONS) - on_disk):
         problems.append(f"ASSERTIONS['{name}'] has no {name}.tex in {CASES}.")
+    for name in sorted(set(PASSES) - set(ASSERTIONS)):
+        problems.append(f"PASSES['{name}'] names no known case.")
     for key in sorted(KNOWN_XFAIL):
         engine, _, name = key.partition("/")
         if engine not in ENGINES:
@@ -1051,7 +1123,7 @@ def run_case(name: str, engine: str, verbose: bool):
         for pre in CASES.glob("_preamble*.tex"):
             shutil.copy(pre, tmp)
         shutil.copy(STY, tmp)
-        for _ in range(2):  # two passes: cross-references
+        for _ in range(PASSES.get(name, DEFAULT_PASSES)):
             proc = subprocess.run(
                 [engine, "-interaction=nonstopmode", "-halt-on-error", src.name],
                 cwd=tmp, capture_output=True, text=True,
