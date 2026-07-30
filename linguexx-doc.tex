@@ -1065,6 +1065,21 @@ The examples in \refrange{r:a}{r:c} all show ...
 The examples in \refrange{r:a}{r:c} all show \dots
 
 \afterex
+\paragraph{\pkg{cleveref}.} If \pkg{cleveref} is loaded, \cs{cref} works on
+examples and sub-examples. It prints the number alone --- ``(1)'', ``(1a)''
+--- rather than putting a word in front of it, since that is how examples
+are referred to in running prose; what it adds over \cs{ref} is its handling
+of several references at once, \cs{cref}\texttt{\{a,b\}} giving ``(1) and
+(2)''. Should you want a word after all, say so in the preamble and it is
+left alone:
+
+\begin{code}
+\crefname{ExNo}{example}{examples}
+\end{code}
+
+\noindent The counters are \texttt{ExNo}, \texttt{SubExNo},
+\texttt{SubSubExNo} and \texttt{FnExNo}.
+
 \cs{prefrange} is the parenthesis-free variant; \cs{Refrange} sets a range
 over two whole examples, as (10)--(12). The range dash is the macro
 \cs{rangedash} (default an en-dash). The dash between number and letter is

@@ -2738,6 +2738,28 @@
 \newcommand\refrange[2]{(\prefrange{#1}{#2})}
 \newcommand\Refrange[2]{\ref{#1}\rangedash\ref{#2}}
 
+%% cleveref knows nothing about the example counters, so \cref{ex:one} comes
+%% out as "?? (1)" -- its marker for a type it has no name for.  The names
+%% are declared EMPTY rather than "example": linguistics prose refers to an
+%% example by its number alone ("as in (1a)"), and \theExNo already supplies
+%% the parentheses.  \cref then prints exactly what \ref does, and what it
+%% adds here is its list and range handling -- \cref{a,b} giving "(1) and
+%% (2)" -- rather than a word in front.
+%%
+%% Guarded twice over.  Only if cleveref is actually loaded, in either order,
+%% which is why this waits for \AtBeginDocument; and only for a counter the
+%% document has not named itself, because \AtBeginDocument runs after the
+%% preamble and would otherwise silently overwrite a \crefname the author
+%% wrote deliberately.  \Crefname sets cref@<counter>@name as well as the
+%% capitalised one, so testing the lower-case name catches either.
+\def\lx@crefname#1{%
+  \@ifundefined{cref@#1@name}{\crefname{#1}{}{}\Crefname{#1}{}{}}{}}
+\AtBeginDocument{%
+  \@ifpackageloaded{cleveref}{%
+    \lx@crefname{ExNo}\lx@crefname{SubExNo}%
+    \lx@crefname{SubSubExNo}\lx@crefname{FnExNo}%
+  }{}}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%  Right-aligned in-line source: \exsource                            %%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

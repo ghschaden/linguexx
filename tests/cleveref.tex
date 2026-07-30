@@ -1,0 +1,25 @@
+%% \cref on an example.  Without the declarations linguexx makes, cleveref
+%% has no name for the example counters and prints its unknown-type marker:
+%% "?? (1)".  The names are declared EMPTY on purpose -- linguistics prose
+%% refers to an example by its number alone, and \theExNo already brings the
+%% parentheses -- so \cref prints what \ref prints, and what it contributes
+%% is its list and range handling.
+\input{_preamble}
+\usepackage{cleveref}
+\begin{document}
+\ex.\label{cv:one} CVONE first.
+\a.\label{cv:a} CVA letter a.
+\b.\label{cv:b} CVB letter b.
+\a.\label{cv:r} CVR roman i.
+\z.\z.
+
+\ex.\label{cv:two} CVTWO second.
+
+CVFN host.\footnote{\ex.\label{cv:fn} CVFNEX in a footnote.
+
+}
+
+CVSINGLE \cref{cv:one} CVSUB \cref{cv:a} CVROMAN \cref{cv:r}
+CVMULTI \cref{cv:one,cv:two} CVRANGE \cref{cv:a,cv:b}
+CVCAP \Cref{cv:one} CVFNREF \cref{cv:fn} CVPLAIN \ref{cv:a}
+\end{document}

@@ -829,6 +829,56 @@ def a_utf8_unicode(p: Page):
     return r
 
 
+def a_cleveref(p: Page):
+    r"""\cref on an example: bare numbers, and cleveref's list/range handling.
+
+    Without linguexx's declarations cleveref has no name for the example
+    counters and prints "?? (1)".
+    """
+    r = []
+    txt = " ".join(w.text for w in p.words)
+    r.append(check("??" not in txt, f"no unknown-type marker; got {txt[-90:]!r}"))
+    for sent, want in (("CVSINGLE", "(1)"), ("CVSUB", "(1a)"),
+                       ("CVROMAN", "(1b-i)"), ("CVCAP", "(1)"),
+                       ("CVFNREF", "(i)"), ("CVPLAIN", "(1a)")):
+        r.append(check(f"{sent} {want}" in txt,
+                       f"{sent} is {want}; got {txt[txt.find(sent):][:18]!r}"))
+    # what \cref adds over \ref: lists and ranges
+    r.append(check("CVMULTI (1) and (2)" in txt,
+                   f"\\cref over two labels; got "
+                   f"{txt[txt.find('CVMULTI'):][:26]!r}"))
+    r.append(check("CVRANGE (1a) and (1b)" in txt,
+                   f"\\cref over two sub-examples; got "
+                   f"{txt[txt.find('CVRANGE'):][:28]!r}"))
+    return r
+
+
+def a_cleveref_named(p: Page):
+    r"""A \crefname the document sets itself must win.
+
+    linguexx declares its defaults \AtBeginDocument, which runs after the
+    preamble, so without the guard it would silently overwrite the author's
+    choice -- and the failure would be invisible except to someone who knew
+    what they had asked for.
+    """
+    r = []
+    txt = " ".join(w.text for w in p.words)
+    r.append(check("CVSINGLE example (1)" in txt,
+                   f"the document's \\crefname survives; got "
+                   f"{txt[txt.find('CVSINGLE'):][:26]!r}"))
+    r.append(check("CVMULTI examples (1) and (2)" in txt,
+                   f"...including its plural; got "
+                   f"{txt[txt.find('CVMULTI'):][:34]!r}"))
+    r.append(check("CVCAP Example (1)" in txt,
+                   f"...and its capitalised form; got "
+                   f"{txt[txt.find('CVCAP'):][:22]!r}"))
+    # a counter it did NOT name keeps the bare linguexx default
+    r.append(check("CVSUB (1a)" in txt,
+                   f"a counter it did not name stays bare; got "
+                   f"{txt[txt.find('CVSUB'):][:16]!r}"))
+    return r
+
+
 def a_babel_fr(p: Page):
     r"""French babel: active ? as a judgment mark, and \og...\fg.
 
@@ -1444,6 +1494,8 @@ SMOKE_ONLY = {"linguexx-test", "linguexx-test-gb4e"}
 
 ASSERTIONS = {
     "customise": a_customise,
+    "cleveref": a_cleveref,
+    "cleveref-named": a_cleveref_named,
     "cedilla": a_cedilla,
     "cedilla-gb4e": a_cedilla_gb4e,
     "cedilla-internal": a_cedilla_internal,

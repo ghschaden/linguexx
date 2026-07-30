@@ -134,6 +134,14 @@ version string.
 - The suite caps each engine run (`CASE_TIMEOUT`). A TeX loop ignores
   `-interaction=nonstopmode` and spins with an empty log, so one bad case
   hung the whole suite rather than failing it.
+- `\cref` works on examples when `cleveref` is loaded. It used to print
+  `?? (1)` — cleveref's marker for a counter it has no name for. The names
+  are declared *empty*, so `\cref` prints the number alone, `(1)` and
+  `(1a)`, which is how examples are referred to in prose; what it adds over
+  `\ref` is cleveref's list and range handling, `\cref{a,b}` giving
+  `(1) and (2)`. A `\crefname` the document sets itself is left alone —
+  linguexx declares its defaults at `\begin{document}`, after the preamble,
+  so without that guard it would silently overwrite the author's choice.
 - The manual documents the transliteration extraction trap (§9.3) and is now
   built with **lualatex**, refusing to build under pdflatex. It contains the
   affected characters in the table that explains them, so built with pdflatex
