@@ -1,0 +1,41 @@
+%% French babel makes ? ! : ; ACTIVE (catcode 13) to insert the thin spaces
+%% French typography wants.  "?" is also one of linguexx's judgment marks, so
+%% the judgment scanner peeks at a character whose catcode is not the one it
+%% was written with -- and French, Italian and Spanish are exactly the
+%% languages this package is most used for.
+%%
+%% It works, but for a reason that is easy to destroy: the scanner uses
+%% \peek_charcode, which compares the character code and IGNORES the
+%% catcode.  Switching it to \peek_catcode or \peek_meaning would look like
+%% a tidy-up and would silently stop judgments working in French documents,
+%% while every other case in the suite still passed.  That is what this case
+%% exists to prevent.
+%%
+%% One language per file on purpose: with [ngerman,french] loaded together,
+%% \selectlanguage{ngerman} does not make " a shorthand again, so a combined
+%% file tests babel's own quirks rather than linguexx.
+%% The other half of this case is \og...\fg, the French guillemets.  babel
+%% defines \fg for the closing one and linguexx wanted \fg. for its sixth
+%% glossed sub-example, and the two used to be fatal in either order: loaded
+%% before babel, linguexx made babel's own \newcommand\fg fail outright, so
+%% the document did not build; loaded after, linguexx silently overwrote it
+%% and every closing guillemet in the document vanished without an error.
+%% linguexx now claims its dot shorthands only \AtBeginDocument and only if
+%% the name is free, so babel keeps \fg and \fg. is simply unavailable here.
+\input{_preamble}
+\usepackage[french]{babel}
+\begin{document}
+FRGUIL Il a dit \og bonjour \fg{} hier.
+
+\ex. FRMAIN une phrase correcte.
+\a. FRPLAIN sous-exemple correct.
+\b. ?FRQ un point d'interrogation.
+\c. ??FRQQ deux points, collectes ensemble.
+\d. ?*FRQS un point et une etoile.
+\e. *FRST une etoile.
+\z.
+
+%% a sentence-final ? must still be French punctuation, not a judgment:
+%% the scanner only looks at the START of an example
+\ex. FRFINAL Est-ce que cette phrase est correcte ?
+\end{document}

@@ -1,0 +1,19 @@
+%% babel BEFORE linguexx.  The order matters and both must be covered:
+%% \AtBeginDocument hooks run in registration order, so whichever package
+%% loads last gets the final word on a shared name.  With linguexx first
+%% (tests/babel-fr.tex) babel re-establishes \fg after linguexx's hook and
+%% masks a clobber; with babel first, as here, linguexx's hook runs last and
+%% a clobber sticks -- which is how a French document used to lose every
+%% closing guillemet with no error at all.
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=25mm]{geometry}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else
+  \usepackage{fontspec}
+\fi
+\usepackage[french]{babel}
+\usepackage{linguexx}
+\pagestyle{empty}

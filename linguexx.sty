@@ -1007,19 +1007,42 @@
 \def\lx@letters@off{%
   \let\a\lx@saved@a \let\b\lx@saved@b \let\c\lx@saved@c
   \let\d\lx@saved@d \let\e\lx@saved@e \let\f\lx@saved@f}
-\def\lx@assert@letters{%
-  \lx@install@letters
-  \def\z.{\lx@zpop}%
-  \def\exg.{\ex.\lx@glosshead}%
-  \def\ag.{\a.\lx@glosshead}%
-  \def\bg.{\b.\lx@glosshead}%
-  \def\cg.{\c.\lx@glosshead}%
-  \def\dg.{\d.\lx@glosshead}%
-  \def\eg.{\e.\lx@glosshead}%
-  \def\fg.{\f.\lx@glosshead}}
+\def\lx@assert@letters{\lx@install@letters}
+%% The dot shorthands (\z. and the glossed \exg. \ag.-\fg.) are claimed
+%% \AtBeginDocument, and only if the name is still free.  Both halves matter,
+%% and each fixes a different failure:
+%%
+%%  - Claiming them AT LOAD TIME is what broke French.  babel-french defines
+%%    \fg, the closing guillemet of \og...\fg; with linguexx loaded first,
+%%    babel's own \newcommand\fg hit "Command \fg already defined" and the
+%%    document did not build at all.  Deferring lets babel get there first.
+%%  - Claiming them UNCONDITIONALLY is the other half.  With babel loaded
+%%    first, the plain \def silently overwrote babel's \fg, and every
+%%    \og...\fg in the document lost its closing guillemet -- no error, just
+%%    a missing character.
+%%
+%% So a name someone else already owns is left alone, and the fact is put in
+%% the log.  The cost is that \fg. is unavailable in a French document: write
+%% \f. and then \gll instead.  This is not only about babel -- \eg is a very
+%% common user-defined abbreviation for "e.g.", and the same guard hands it
+%% back to whoever defined it.
+\def\lx@claim@shorthand#1#2{%
+  \@ifundefined{#1}%
+    {\expandafter\def\csname #1\endcsname.{#2}}%
+    {\PackageInfo{linguexx}{\@backslashchar#1\space is already defined;
+       \@backslashchar#1.\space is therefore not available}}}
+\def\lx@claim@shorthands{%
+  \lx@claim@shorthand{z}{\lx@zpop}%
+  \lx@claim@shorthand{exg}{\ex.\lx@glosshead}%
+  \lx@claim@shorthand{ag}{\a.\lx@glosshead}%
+  \lx@claim@shorthand{bg}{\b.\lx@glosshead}%
+  \lx@claim@shorthand{cg}{\c.\lx@glosshead}%
+  \lx@claim@shorthand{dg}{\d.\lx@glosshead}%
+  \lx@claim@shorthand{eg}{\e.\lx@glosshead}%
+  \lx@claim@shorthand{fg}{\f.\lx@glosshead}}
 \iflx@lazy
   \lx@assert@letters
-  \AtBeginDocument{\lx@assert@letters}
+  \AtBeginDocument{\lx@assert@letters\lx@claim@shorthands}
 \fi
 % Under [gb4e] alone, \lx@assert@letters is never called, so \a is not
 % hooked either: \z., the glossed shorthands and \a.-\f. do not exist,

@@ -829,6 +829,103 @@ def a_utf8_unicode(p: Page):
     return r
 
 
+def a_babel_fr(p: Page):
+    r"""French babel: active ? as a judgment mark, and \og...\fg.
+
+    Two independent hazards in one language.  babel makes ? ! : ; ACTIVE for
+    French spacing, and ? is one of linguexx's judgment marks -- that works
+    only because the scanner uses \peek_charcode, which ignores catcode, so
+    switching it to \peek_catcode or \peek_meaning would look like a tidy-up
+    and silently stop judgments working in French.  And \fg is babel's
+    closing guillemet, which linguexx used to destroy in either load order.
+    """
+    r = []
+    txt = " ".join(w.text for w in p.words)
+    # the guillemets survive: BOTH marks, the closing one being the casualty
+    r.append(check("«" in txt and "»" in txt,
+                   f"\\og...\\fg keeps both guillemets; got "
+                   f"{txt[txt.find('FRGUIL'):][:34]!r}"))
+    # judgments hang and do not displace the text, exactly as elsewhere --
+    # but here every ? in the source is an active character
+    base = p.find("FRPLAIN").x0
+    for sent in ("FRQ", "FRQQ", "FRQS", "FRST"):
+        w = p.find(sent)
+        r.append(check(abs(w.x0 - base) < TOL,
+                       f"{sent}: active-? judgment does not displace the text "
+                       f"({w.x0:.2f} vs {base:.2f})"))
+
+    def mark_x(sent):
+        """Leftmost non-label token on the sentinel's line: the hung mark."""
+        w = p.find(sent)
+        lab = re.compile(r"^([a-f]\.|\(\d+\))$")
+        toks = [t for t in p.line_of(w)
+                if not lab.match(t.text) and not t.text.startswith(sent)]
+        return min((t.x0 for t in toks), default=None)
+
+    for sent in ("FRQ", "FRQQ", "FRQS", "FRST"):
+        x = mark_x(sent)
+        r.append(check(x is not None and x < base - 0.5,
+                       f"{sent}: the mark hangs left of the text ({x})"))
+    # a two-character mark is collected across TWO active tokens, so it is
+    # wider and hangs further out than a one-character one
+    r.append(check(mark_x("FRQQ") < mark_x("FRQ") - 0.5,
+                   f"?? is collected whole and hangs further left than ? "
+                   f"({mark_x('FRQQ')} vs {mark_x('FRQ')})"))
+    # a sentence-final ? is French punctuation, not a judgment: the scanner
+    # only looks at the start of an example
+    r.append(check("FRFINAL" in txt and txt.rstrip().endswith("?")
+                   or "correcte ?" in txt,
+                   f"a sentence-final ? stays punctuation; got "
+                   f"{txt[txt.find('FRFINAL'):][:44]!r}"))
+    return r
+
+
+def a_babel_fr_order(p: Page):
+    r"""babel BEFORE linguexx: the order in which a clobber sticks.
+
+    \AtBeginDocument hooks run in registration order, so with linguexx
+    loaded second its hook has the last word on \fg -- and claiming the dot
+    shorthands unconditionally then overwrote babel's closing guillemet with
+    no error at all.  With linguexx first, babel re-establishes \fg
+    afterwards and hides the whole problem, which is why both orders are
+    here.
+    """
+    r = []
+    txt = " ".join(w.text for w in p.words)
+    r.append(check("«" in txt and "»" in txt,
+                   f"\\og...\\fg keeps both guillemets with babel loaded "
+                   f"first; got {txt[txt.find('FRQGUIL'):][:36]!r}"))
+    base = p.find("FRQPLAIN").x0
+    w = p.find("FRQMARK")
+    r.append(check(abs(w.x0 - base) < TOL,
+                   f"judgments still work in this order "
+                   f"({w.x0:.2f} vs {base:.2f})"))
+    return r
+
+
+def a_babel_de(p: Page):
+    r"""German babel: the active " shorthand inside linguexx constructs.
+
+    linguexx never peeks for ", but an example body is COLLECTED token by
+    token before being typeset, and the collector appends with an expanding
+    variant -- so an active character could have been expanded away from the
+    context babel expects, in the body, a gloss tier or an \altn stack, each
+    of which walks its input separately.
+    """
+    r = []
+    txt = _nfc(" ".join(w.text for w in p.words))
+    for tok, where in (("Höhle", 'main example ("o)'),
+                       ("Zuckerguss", 'sub-example ("-)'),
+                       ("süß", 'sub-example ("u and "s)'),
+                       ("groß", "gloss tier"),
+                       ("Fußball", "\\altn alternative")):
+        r.append(check(tok in txt, f'babel " shorthand survives in the '
+                                   f'{where}: {tok}'))
+    for sent in ("DEMAIN", "DESUB", "DEOBJ", "DEGLOSS", "DEALT"):
+        r.append(check(p.find(sent) is not None, f"typeset: {sent}"))
+    return r
+
+
 def a_lpzgsetup(p: Page):
     r"""\lpzglistsetup, \lpzglisttitle and \lpzglistentry.
 
@@ -1368,6 +1465,9 @@ ASSERTIONS = {
     "lpzgsetup": a_lpzgsetup,
     "phantomalign": a_phantomalign,
     "altg": a_altg,
+    "babel-de": a_babel_de,
+    "babel-fr": a_babel_fr,
+    "babel-fr-order": a_babel_fr_order,
     "termination": a_termination,
     "refs": a_refs,
 }

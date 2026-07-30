@@ -1,0 +1,17 @@
+%% babel loaded BEFORE linguexx -- the order in which a clobber sticks.
+%%
+%% linguexx registers its \AtBeginDocument hook when it loads, so here that
+%% hook runs AFTER babel's and has the last word on \fg.  Claiming the dot
+%% shorthands unconditionally therefore overwrote babel's closing guillemet
+%% for good, and \og...\fg lost its "»" with no error whatsoever -- the PDF
+%% simply came out wrong.  tests/babel-fr.tex cannot see this: with linguexx
+%% first, babel re-establishes \fg afterwards and masks it.
+\input{_preamble-babel-fr}
+\begin{document}
+FRQGUIL Il a dit \og bonjour \fg{} hier.
+
+\ex. FRQMAIN une phrase correcte.
+\a. FRQPLAIN sous-exemple correct.
+\b. ?FRQMARK sous-exemple douteux.
+\z.
+\end{document}

@@ -1521,7 +1521,7 @@ label & meaning & label & meaning \\
 \end{center}
 
 % ===========================================================================
-\section{Notes and limitations}
+\section{Notes and limitations}\label{sec:notes}
 % ===========================================================================
 
 \begin{itemize}[itemsep=4pt]
@@ -1539,13 +1539,24 @@ label & meaning & label & meaning \\
   (\cs{sout} inside \cs{altn}), load \pkg{ulem} yourself; the usual choice
   is \cs{usepackage[normalem]\{ulem\}}, which keeps \cs{emph} italic.
 
-\item \textbf{\pkg{hyperref} and \cs{b}, \cs{c}, \cs{d}.} Under the
-  default \opt{lazy} mode, \pkg{linguexx} defines \cs{b.}, \cs{c.},
-  \cs{d.}\ and re-asserts them at \cs{begin\{document\}}, since
-  \pkg{hyperref} redefines these names (they are accent commands used in
-  bookmarks); either load order works, but the bar-under, cedilla and
-  dot-under accents are then unavailable. Under \opt{[gb4e]} alone the
-  letter commands are never defined and the accents work normally.
+\item \textbf{The accents \cs{b}, \cs{c}, \cs{d} keep working.} These are
+  accent commands as well as sub-example letters, and both meanings are
+  available everywhere, including in the same example: each letter
+  dispatches on what follows it, so a period gives the sub-example command
+  and anything else the accent. \cs{c}\marg{c} and a literal
+  ``\c c'' --- which \pkg{inputenc} turns into exactly that pair of tokens
+  under pdf\LaTeX{} --- both work in running text, in a section title and
+  inside an example body. The same holds under \pkg{hyperref}, in either
+  load order.
+
+\item \textbf{Shorthand names another package owns.} The glossed
+  shorthands \cs{ag.}--\cs{fg.}\ are claimed at \cs{begin\{document\}}
+  and only if the name is still free. \pkg{babel}'s French option defines
+  \cs{fg}, the closing guillemet of \cs{og}\,\dots\,\cs{fg}, so in a French
+  document \cs{fg.}\ is simply not available and the guillemet keeps its
+  meaning; write \cs{f.}\ followed by \cs{gll} instead. The same applies to
+  any name you have defined yourself --- \cs{eg} is a common one --- and
+  the fact is recorded in the \texttt{.log}.
 
 \item \textbf{Footnote examples.} End an example inside a footnote with a
   blank line or \cs{z.}\ rather than letting it run into the footnote's own
@@ -1608,6 +1619,7 @@ exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package opt
 \textbackslash lpzglist\oarg{keys} & List of the abbreviations the document uses, each with its full form (section~\ref{sec:lpzglist}). Keys: \opt{style}, \opt{sort}, \opt{include}, \opt{ignore}, \opt{add}, \opt{unexplained}, \opt{title}, \opt{titlestyle}, \opt{sep}, \opt{itemsep}, \opt{format}. \\
 \textbackslash lpzglistsetup\marg{keys} & The same keys, for every list. \\
 \textbackslash lpzgcheck\marg{keys} & Consistency checks on the abbreviations: \opt{unknown} (on by default), \opt{unused}, \opt{ignore} (section~\ref{sec:lpzgcheck}). \\
+\textbackslash ag. \dots\ \textbackslash fg. & Glossed sub-example: \cs{a.}\,\dots\,\cs{f.} followed by \cs{gll}. A shorthand whose name another package already owns is left to it (section~\ref{sec:notes}). \\
 \textbackslash lpzgadd\marg{abbrs} & Register abbreviations used outside \cs{lpzg} so that they reach the list. \\
 \textbackslash lpzglistentry\allowbreak\marg{abbr}\marg{full form} & One entry of the list; redefine to restyle every list. \\
 \textbackslash eachwordone/two/three & Font commands for tiers 1--3. \\

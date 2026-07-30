@@ -134,6 +134,35 @@ version string.
 - The suite caps each engine run (`CASE_TIMEOUT`). A TeX loop ignores
   `-interaction=nonstopmode` and spins with an empty log, so one bad case
   hung the whole suite rather than failing it.
+- Fix: **linguexx could not be used with French `babel` at all.** `babel`'s
+  French option defines `\fg`, the closing guillemet of `\og … \fg`, and
+  linguexx claimed the same name for its glossed shorthand `\fg.` — fatally,
+  in both load orders. With linguexx first, `babel`'s own `\newcommand\fg`
+  raised "Command `\fg` already defined" and the document did not build.
+  With `babel` first, linguexx silently overwrote it and **every closing
+  guillemet in the document disappeared**, with no error at all.
+  The dot shorthands (`\z.`, `\exg.`, `\ag.`–`\fg.`) are now claimed at
+  `\begin{document}` and only if the name is still free. Both halves are
+  needed and fix different orders: deferring lets `babel` define `\fg`
+  first, and the guard stops linguexx overwriting it afterwards. In a French
+  document `\fg.` is therefore unavailable — write `\f.` then `\gll` — and
+  the `.log` records why. `\f.` itself is unaffected; `\fg` and `\f` are
+  different control sequences. The same guard hands back any shorthand name
+  you have defined yourself, `\eg` being the common case.
+- The manual's "Notes and limitations" no longer claims the `\b`, `\c`, `\d`
+  accents are unavailable — that stopped being true when the letters were
+  made to dispatch on a following period, and the note was left promising
+  the old broken behaviour.
+- Regression coverage for the two `babel` hazards, in both load orders
+  (`tests/babel-fr.tex`, `tests/babel-fr-order.tex`, `tests/babel-de.tex`):
+  French makes `?` `!` `:` `;` **active**, and `?` is a judgment mark — that
+  works only because the scanner uses `\peek_charcode`, which ignores
+  catcode, so switching it to `\peek_meaning` would look like a tidy-up and
+  silently stop judgments working in French. German's active `"` shorthand
+  is checked through the body collector, the gloss tiers and `\altn`. Both
+  orders are needed: `\AtBeginDocument` hooks run in registration order, so
+  with linguexx loaded first `babel` re-establishes `\fg` afterwards and
+  masks a clobber that sticks in the other order.
 - Regression coverage for literal UTF-8 input, which is how the `ç` bug
   escaped: every case wrote its accents the way the manual does (`\c c`,
   `\"a`), and none typed what a user types. `tests/utf8.tex` puts raw UTF-8

@@ -1,0 +1,23 @@
+%% German babel makes " ACTIVE, as a shorthand: "o is ö, "s is ß, "- is a
+%% discretionary hyphen.  linguexx does not peek for ", but that is not the
+%% whole question: an example body is COLLECTED token by token before it is
+%% typeset, and the collector appends what it sees with an expanding
+%% variant.  An active character expanded away from the context babel
+%% expects could reasonably have come out wrong, in the body, in a gloss
+%% tier, or inside an \altn stack -- each of which walks its input
+%% separately.
+%%
+%% German rather than another shorthand language because the manual's own
+%% examples are German, so this is the combination most likely to be used.
+\input{_preamble}
+\usepackage[ngerman]{babel}
+\begin{document}
+\ex. DEMAIN Das ist eine H"ohle.
+\a. DESUB Der Zucker"-guss ist s"u"s.
+\z.
+
+\exg. DEOBJ Die H"ohle ist gro"s.\\ DEGLOSS the cave is big\\
+\glt `DETRANS Die H"ohle ist gro"s.'
+
+\ex. DEALT Ich sah \altn{die H"ohle}{den Fu"sball} dort.
+\end{document}
