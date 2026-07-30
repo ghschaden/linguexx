@@ -73,6 +73,17 @@ version string.
   `xlist` documents, and `\z.` is now the escape.) Only the branch that ends
   the example stays dot-syntax-only; a `\z.` at the main level of a batch is
   a package error saying to end the batch with `\end{exe}`.
+- Fix: hyperref anchors for sub-examples in footnotes no longer collide with
+  main-text ones. `\theSubExNo` (the printed label) branches on
+  `\if@noftnote`, but `\theHSubExNo`/`\theHSubSubExNo` (the anchors) built
+  their name from `ExNo` unconditionally, so a sub-example "a" in a footnote
+  and one under main example 1 both claimed `lxex.1.a`. hyperref keeps the
+  first destination of a name and drops the rest, so a `\ref` to the
+  footnote sub-example linked to the main-text one -- a wrong *link*, never
+  a wrong number, which is why it stayed invisible. Footnote sub-examples
+  now anchor on the footnote series, `lxfnex.<FnExNo>.<letter>` and
+  `lxfnex.<FnExNo>.<letter>.<n>`, matching `\theHFnExNo`. Main-text anchors
+  are unchanged.
 - `\glt` (the free translation) gains two hooks, both opt-in and both
   leaving the default output and the default tag tree byte-for-byte as they
   were:

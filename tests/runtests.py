@@ -829,6 +829,68 @@ def a_utf8_unicode(p: Page):
     return r
 
 
+def a_hypanchors(p: Page):
+    r"""hyperref anchors for footnote sub-examples must not collide with
+    main-text ones.
+
+    \theSubExNo branches on \if@noftnote and \theHSubExNo did not, so a
+    sub-example "a" in a footnote and one under main example 1 both claimed
+    the anchor "lxex.1.a".  hyperref keeps the FIRST destination of a name
+    and drops the rest, so \ref to the footnote sub-example linked to the
+    main-text one.  The printed numbers stayed correct throughout -- which
+    is why the whole suite passed over it -- so the anchors themselves are
+    the subject here, read off the .aux.
+    """
+    r = []
+    aux = getattr(p, "aux", "")
+    txt = " ".join(w.text for w in p.words)
+
+    def anchor(label):
+        m = re.search(r"\\newlabel\{" + re.escape(label)
+                      + r"\}\{.*?\}\{[^{}]*\}\{[^{}]*\}\{([^{}]*)\}",
+                      aux, re.S)
+        return m.group(1) if m else None
+
+    got = {k: anchor(k) for k in
+           ("h:mainsub", "h:fnsub", "h:mainrom", "h:fnrom")}
+    r.append(check(all(got.values()),
+                   f"every \\label recorded an anchor in the .aux (got {got})"))
+    # the letter level, and the roman level under it
+    r.append(check(got["h:mainsub"] != got["h:fnsub"],
+                   f"footnote and main-text sub-example have distinct anchors "
+                   f"({got['h:fnsub']} vs {got['h:mainsub']})"))
+    r.append(check(got["h:mainrom"] != got["h:fnrom"],
+                   f"footnote and main-text roman sub-sub-example have "
+                   f"distinct anchors ({got['h:fnrom']} vs {got['h:mainrom']})"))
+    # and the footnote ones are on the footnote series, like \theHFnExNo --
+    # merely being distinct could still be an anchor built from the wrong
+    # counter
+    r.append(check((got["h:fnsub"] or "").startswith("SubExNo.lxfnex."),
+                   f"footnote sub-example anchors use the footnote series "
+                   f"({got['h:fnsub']})"))
+    r.append(check((got["h:fnrom"] or "").startswith("SubSubExNo.lxfnex."),
+                   f"footnote roman anchors use the footnote series "
+                   f"({got['h:fnrom']})"))
+    r.append(check((got["h:mainsub"] or "").startswith("SubExNo.lxex."),
+                   f"main-text sub-example anchors are unchanged "
+                   f"({got['h:mainsub']})"))
+    # the engines that DO report a duplicate destination must not report one
+    # (pdflatex: "destination with the same identifier"; lualatex:
+    # "ignoring duplicate destination with the name").  Vacuous under
+    # xelatex, where the collision is resolved downstream by xdvipdfmx.
+    log = getattr(p, "log", "")
+    for phrase in ("same identifier", "duplicate destination"):
+        r.append(check(phrase not in log,
+                       f"no duplicate-destination warning ({phrase!r})"))
+    # the printed numbers were always right and must stay right
+    for sent, want in (("HAREFSUB", "(1a)"), ("HAREFFNSUB", "(ia)"),
+                       ("HAREFROM", "(1a-i)"), ("HAREFFNROM", "(ia-i)")):
+        r.append(check(f"{sent} {want}" in txt,
+                       f"{sent} still prints {want}; got "
+                       f"{txt[txt.find(sent):][:20]!r}"))
+    return r
+
+
 def a_cleveref(p: Page):
     r"""\cref on an example: bare numbers, and cleveref's list/range handling.
 
@@ -1510,6 +1572,7 @@ ASSERTIONS = {
     "customise": a_customise,
     "cleveref": a_cleveref,
     "cleveref-named": a_cleveref_named,
+    "hypanchors": a_hypanchors,
     "cedilla": a_cedilla,
     "cedilla-gb4e": a_cedilla_gb4e,
     "cedilla-internal": a_cedilla_internal,
@@ -1639,6 +1702,15 @@ def run_case(name: str, engine: str, verbose: bool):
         # Warnings never reach the PDF, so a case that is about what the
         # package REPORTS needs the log as well as the rendering.
         page.log = (tmp / f"{name}.log").read_text(errors="replace")
+        # ... and a case about hyperref ANCHORS needs the .aux: the anchor a
+        # \label stores is invisible in the rendering (the printed number is
+        # right even when the anchor is wrong), and the engines disagree on
+        # whether a duplicate destination is even reported -- pdflatex and
+        # lualatex warn, xelatex says nothing at all, because the collision
+        # is resolved by xdvipdfmx and not by the format.  The .aux is the
+        # one record all three write identically.
+        aux = tmp / f"{name}.aux"
+        page.aux = aux.read_text(errors="replace") if aux.exists() else ""
         try:
             return ASSERTIONS[name](page)
         except AssertionError as e:

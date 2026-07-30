@@ -119,6 +119,15 @@
 %%          sub-level itself; only the branch that ENDS the example
 %%          stays dot-syntax-only, and a \z. at the main level of a
 %%          batch is a package error naming \end{exe}.
+%%          Fix: hyperref anchors for footnote sub-examples.
+%%          \theHSubExNo/\theHSubSubExNo built their name from ExNo
+%%          unconditionally, unlike the printed \theSubExNo, so a
+%%          sub-example "a" in a footnote and one under main example 1
+%%          both claimed "lxex.1.a"; hyperref keeps the first
+%%          destination and drops the rest, so \ref to the footnote
+%%          one linked to the main-text one.  Both now branch on
+%%          \if@noftnote and anchor footnote sub-examples on the
+%%          footnote series (lxfnex.<FnExNo>....).
 %%          \glt gains \GlossTransStyle (a declaration styling the free
 %%          translation) and \GlossTransLang (its language, emitted as a
 %%          Span with /Lang under tagging -- babel's \foreignlanguage
@@ -245,10 +254,21 @@
     \else\protect\theFnExLBr\Exroman{FnExNo}\firstrefdash
               \Exalph{SubExNo}\secondrefdash\Exroman{SubSubExNo}\protect\theFnExRBr\fi}}
 
-% hyperref anchor names (avoid the \protect-laden \the... expansions)
+% hyperref anchor names (avoid the \protect-laden \the... expansions).
+%
+% The sub-levels must branch on \if@noftnote exactly as the PRINTED
+% labels (\theSubExNo, \theSubSubExNo) do.  Building them from ExNo
+% unconditionally made a footnote sub-example and a main-text one collide
+% whenever the footnote sat under the same ExNo: both claimed
+% "lxex.<n>.a", hyperref kept the first destination and dropped the
+% second, and a \ref to the footnote sub-example jumped to the main-text
+% one.  The number printed was right either way, so only the anchor gave
+% it away.  \if@noftnote is a plain \newif, hence fully expandable and
+% safe in the \edef that hyperref runs over \theH... .
 \def\theHExNo{lxex.\arabic{ExNo}}
-\def\theHSubExNo{lxex.\arabic{ExNo}.\alph{SubExNo}}
-\def\theHSubSubExNo{lxex.\arabic{ExNo}.\alph{SubExNo}.\arabic{SubSubExNo}}
+\def\lx@Hexstem{\if@noftnote lxex.\arabic{ExNo}\else lxfnex.\arabic{FnExNo}\fi}
+\def\theHSubExNo{\lx@Hexstem.\alph{SubExNo}}
+\def\theHSubSubExNo{\lx@Hexstem.\alph{SubExNo}.\arabic{SubSubExNo}}
 \def\theHFnExNo{lxfnex.\arabic{FnExNo}}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -1,0 +1,31 @@
+%% hyperref anchor names for footnote sub-examples.
+%%
+%% \theSubExNo (the PRINTED label) branches on \if@noftnote, so a
+%% sub-example in a footnote prints "(ia)" while one in the main text
+%% prints "(1a)".  \theHSubExNo (the hyperref ANCHOR) did not branch: both
+%% built their anchor from ExNo, so with ExNo=1 the two collided on
+%% "lxex.1.a".  hyperref keeps the first destination and drops the second,
+%% so \ref to the footnote sub-example silently jumped to the main-text
+%% one -- a wrong link, never a wrong number, which is why nothing in the
+%% suite saw it.  The roman level had the same defect.
+%%
+%% ExNo must be 1 while the footnote's sub-examples are set, or the two
+%% anchors differ for the wrong reason and the case proves nothing.
+\input{_preamble}
+\usepackage{hyperref}
+\begin{document}
+HAINTRO before any example.
+
+\ex.\label{h:main} HAEXMAIN main example one.
+\a.\label{h:mainsub} HASUBA main sub-example a.
+\a.\label{h:mainrom} HAMROM main roman i.
+
+HAHOST host.\footnote{\ex. HAFNEX footnote example one.
+\a.\label{h:fnsub} HAFNSUB footnote sub-example a.
+\a.\label{h:fnrom} HAFNROM footnote roman i.
+
+}
+
+HAREFSUB \ref{h:mainsub} HAREFFNSUB \ref{h:fnsub}
+HAREFROM \ref{h:mainrom} HAREFFNROM \ref{h:fnrom}
+\end{document}
