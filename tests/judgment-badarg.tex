@@ -1,0 +1,16 @@
+%% \DeclareJudgment{<cmd>}{<mark>}: the first mandatory argument is the
+%% command being DEFINED, the second is what it prints -- an order that is
+%% easy to read the wrong way round.  Getting it wrong used to HANG the run
+%% instead of complaining: \DeclareRobustCommand takes the first token of
+%% whatever it is handed, so this line quietly redefined \%, which the
+%% judgment scanner peeks for, and the compile spun forever with nothing in
+%% the log to say why.
+%%
+%% This case must fail to compile; runtests.py checks the message via
+%% EXPECT_ERROR.  A regression here does not look like a failing assertion,
+%% it looks like the suite never finishing.
+\input{_preamble}
+\DeclareJudgment[spoken={marginal}]{\%\%}{\%\%}
+\begin{document}
+unreachable
+\end{document}

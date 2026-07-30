@@ -112,6 +112,25 @@ version string.
   by default) reports the reverse — declared with `\SetLeipzig` and never
   used — and considers only your own declarations, not the ~100 built-ins.
   A key a `\lpzglist` has already reported is not reported twice.
+- Fix: `\DeclareJudgment` rejects a first mandatory argument that is not a
+  single command, instead of hanging. That argument is the command being
+  *defined* and the second is the mark it prints — an order easy to read the
+  wrong way round, and `\DeclareRobustCommand` takes the first token of
+  whatever it is handed, so `\DeclareJudgment{\%\%}{\%\%}` quietly
+  redefined `\%`, which the judgment scanner peeks for, and the run then
+  spun forever with nothing in the log to say why.
+- Test coverage for the previously untested public surface: judgment
+  customisation including the `/Alt` it produces under tagging
+  (`tests/judgments.tex`), its misuse error (`tests/judgment-badarg.tex`),
+  and the numbering parameters at non-default values together with every
+  relative-reference command no other case called — `\NNext`, `\TextNext`,
+  `\Refrange` and the four `\p*` twins (`tests/customise.tex`). All were
+  correct; this is regression insurance, not repair. Still uncovered:
+  `\lpzglistsetup`/`\lpzglisttitle`/`\lpzglistentry` and the `\AltBrace*`,
+  `\AltgColSep`, `\AltgTransFont` visual tunables.
+- The suite caps each engine run (`CASE_TIMEOUT`). A TeX loop ignores
+  `-interaction=nonstopmode` and spins with an empty log, so one bad case
+  hung the whole suite rather than failing it.
 - The suite now runs veraPDF itself, on a new PDF/UA-2 case (`tests/ua.tex`),
   so the release gate that used to be a manual step before delivering is
   enforced on every run and under all three engines. This is what catches a

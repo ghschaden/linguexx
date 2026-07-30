@@ -46,6 +46,10 @@ KNOWN_XFAIL = {"pdflatex/judgment-align"}
 # converge until the third run under pdflatex and xelatex (lualatex gets
 # there in two), and a not-yet-converged file fails veraPDF on all three
 # profiles -- which would look exactly like a tagging regression.
+#: Per-pass wall clock for one engine run.  A TeX loop ignores
+#: -interaction=nonstopmode and spins forever, so without a cap one bad case
+#: hangs the whole suite rather than failing it.
+CASE_TIMEOUT = 120
 DEFAULT_PASSES = 2
 PASSES = {"ua": 3}
 #: Cases that must FAIL to compile, mapped to a substring their .log has to
@@ -56,6 +60,7 @@ PASSES = {"ua": 3}
 #: assertion.
 EXPECT_ERROR = {
     "altg-unpaired": "has no partner",
+    "judgment-badarg": "needs one command here",
 }
 CASES = Path(__file__).parent / "cases"
 if not CASES.is_dir():                       # flat layout: cases beside the script
@@ -640,6 +645,87 @@ def a_ua(p: Page):
     return r
 
 
+def a_customise(p: Page):
+    r"""The numbering parameters at NON-default values, and the relative
+    reference commands no other case calls.
+
+    [legacy] exercises some of these, but only at linguex's values; nothing
+    checked that setting them yourself works, so a change that broke
+    customisation while leaving both shipped modes intact would have passed
+    the whole suite.
+    """
+    r = []
+    txt = " ".join(w.text for w in p.words)
+    # \SubExLBr/RBr and \SubSubExLBr/RBr drive the printed sub-labels
+    labels = [w.text for w in p.words
+              if w.text in ("(a)", "(b)", "[i]", "[ii]")]
+    r.append(check(labels == ["(a)", "(b)", "[i]", "[ii]"],
+                   f"\\SubEx*Br and \\SubSubEx*Br drive the labels; "
+                   f"got {labels}"))
+    # \firstrefdash between number and letter, \secondrefdash before the roman
+    r.append(check("CREF (1:b)" in txt,
+                   f"\\firstrefdash in a reference; got "
+                   f"{txt[txt.find('CREF'):][:12]!r}"))
+    r.append(check("CROMAN (1:b/ii)" in txt,
+                   f"\\secondrefdash in a reference; got "
+                   f"{txt[txt.find('CROMAN '):][:16]!r}"))
+    r.append(check("CPREF 1:b" in txt, "\\pref drops the parentheses"))
+    # \rangedash, and \sublabel recording the right level in a custom setup
+    r.append(check("CRANGE (1:atob)" in txt,
+                   f"\\rangedash closes a letter range; got "
+                   f"{txt[txt.find('CRANGE'):][:18]!r}"))
+    r.append(check("CROMANRANGE (1:b/itoii)" in txt,
+                   f"a roman range ends in the roman numeral; got "
+                   f"{txt[txt.find('CROMANRANGE'):][:26]!r}"))
+    r.append(check("CREFRANGE (1)to(1)" in txt,
+                   f"\\Refrange spans two whole examples; got "
+                   f"{txt[txt.find('CREFRANGE'):][:20]!r}"))
+    # the relative references, parenthesised and not
+    for sent, want in (("CNEXT", "(3)"), ("CNNEXT", "(4)"),
+                       ("CLAST", "(2)"), ("CLLAST", "(1)"),
+                       ("CPNEXT", "3"), ("CPNNEXT", "4"),
+                       ("CPLAST", "2"), ("CPLLAST", "1")):
+        r.append(check(f"{sent} {want}" in txt,
+                       f"{sent} gives {want}; got "
+                       f"{txt[txt.find(sent + ' '):][:14]!r}"))
+    # \TextNext escapes a footnote to the main series
+    r.append(check("CTEXTNEXT (4)" in txt and "CPTEXTNEXT 4" in txt,
+                   "\\TextNext/\\pTextNext reach the main series from a "
+                   "footnote"))
+    return r
+
+
+def a_judgments(p: Page):
+    r"""\DeclareJudgment and \SetJudgmentSpoken, including their tagging.
+
+    The spoken phrase becomes the /Alt of the Span wrapping the mark, which
+    is invisible in the rendering, so the /Alt strings are the real subject
+    here; the geometry checks only confirm a declared mark behaves like a
+    built-in one.
+    """
+    r = []
+    alts = struct_alts(getattr(p, "raw", b""))
+    r.append(check("marginal for me" in alts,
+                   f"\\DeclareJudgment[spoken=] reaches the /Alt "
+                   f"(got {sorted(set(alts))})"))
+    r.append(check("starred and ungrammatical" in alts,
+                   f"\\SetJudgmentSpoken overrides a built-in spoken form "
+                   f"(got {sorted(set(alts))})"))
+    # the override replaced the default rather than sitting beside it
+    r.append(check("ungrammatical" not in alts,
+                   f"the overridden default is gone (got {sorted(set(alts))})"))
+    # a declared mark hangs like any other: it must not displace the text
+    for tok in ("JDGCUSTOM", "JDGSTAR", "JDGPLAIN"):
+        r.append(check(p.find(tok) is not None, f"typeset: {tok}"))
+    plain = p.find("JDGPLAIN")
+    for tok in ("JDGCUSTOM", "JDGSTAR"):
+        w = p.find(tok)
+        r.append(check(abs(w.x0 - plain.x0) < TOL,
+                       f"{tok}: a declared mark hangs and does not displace "
+                       f"the text ({w.x0:.2f} vs {plain.x0:.2f})"))
+    return r
+
+
 def a_lpzgcheck(p: Page):
     r"""\lpzgcheck reports on abbreviations in a document with no \lpzglist.
 
@@ -1107,6 +1193,7 @@ def a_lpzglist(p: Page):
 SMOKE_ONLY = {"linguexx-test", "linguexx-test-gb4e"}
 
 ASSERTIONS = {
+    "customise": a_customise,
     "cedilla": a_cedilla,
     "cedilla-gb4e": a_cedilla_gb4e,
     "cedilla-internal": a_cedilla_internal,
@@ -1116,6 +1203,7 @@ ASSERTIONS = {
     "gbfour": a_gbfour,
     "numbering": a_numbering,
     "judgment-align": a_judgment_align,
+    "judgments": a_judgments,
     "exsource": a_exsource,
     "zpop": a_zpop,
     "gloss": a_gloss,
@@ -1185,10 +1273,22 @@ def run_case(name: str, engine: str, verbose: bool):
             shutil.copy(pre, tmp)
         shutil.copy(STY, tmp)
         for _ in range(PASSES.get(name, DEFAULT_PASSES)):
-            proc = subprocess.run(
-                [engine, "-interaction=nonstopmode", "-halt-on-error", src.name],
-                cwd=tmp, capture_output=True, text=True,
-            )
+            try:
+                proc = subprocess.run(
+                    [engine, "-interaction=nonstopmode", "-halt-on-error",
+                     src.name],
+                    cwd=tmp, capture_output=True, text=True,
+                    timeout=CASE_TIMEOUT,
+                )
+            except subprocess.TimeoutExpired:
+                # A TeX loop does not stop for -interaction=nonstopmode: it
+                # spins with nothing in the log, and without this the whole
+                # suite hangs instead of reporting.  This is a real failure
+                # mode, not a hypothetical -- an unguarded \DeclareJudgment
+                # argument redefines \% and loops forever.
+                return [(False, f"TIMED OUT after {CASE_TIMEOUT}s: the engine "
+                                f"did not stop (a TeX loop ignores "
+                                f"nonstopmode)")]
         # Cases whose point IS the error: the compile is meant to stop, so
         # check the message before treating a non-zero status as a failure.
         if name in EXPECT_ERROR:

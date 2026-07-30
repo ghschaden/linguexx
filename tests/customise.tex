@@ -1,0 +1,41 @@
+%% The user-facing numbering parameters, at values that are NOT their
+%% defaults, plus the relative-reference commands that no other case calls.
+%%
+%% [legacy] exercises some of these, but only at linguex's values; nothing
+%% checked that setting them yourself works.  A change that broke
+%% customisation while leaving both shipped modes intact would have passed
+%% the whole suite.
+\input{_preamble}
+%% sub-labels: parenthesised letters, bracketed romans
+\renewcommand\SubExLBr{(}\renewcommand\SubExRBr{)}
+\renewcommand\SubSubExLBr{[}\renewcommand\SubSubExRBr{]}
+%% reference dashes: a colon between number and letter, a slash before the
+%% roman, and "to" as the range dash
+\renewcommand\firstrefdash{:}
+\renewcommand\secondrefdash{/}
+\renewcommand\rangedash{to}
+\begin{document}
+\ex.\label{c:one} CUSTMAIN main example.
+\a.\sublabel{c:a} CUSTA first letter.
+\b.\sublabel{c:b} CUSTB second letter.
+\a.\sublabel{c:i} CUSTI first roman.
+\b.\sublabel{c:ii} CUSTII second roman.
+\z.\z.
+
+CREF \ref{c:b} CROMAN \ref{c:ii} CPREF \pref{c:b}
+
+CRANGE \refrange{c:a}{c:b} CROMANRANGE \refrange{c:i}{c:ii}
+
+\ex. CUSTSECOND second example.
+
+CNEXT \Next{} CNNEXT \NNext{} CLAST \Last{} CLLAST \LLast{}
+CPNEXT \pNext{} CPNNEXT \pNNext{} CPLAST \pLast{} CPLLAST \pLLast{}
+
+CREFRANGE \Refrange{c:one}{c:one}
+
+\ex. CUSTTHIRD third example.
+
+CFOOT\footnote{CTEXTNEXT \TextNext{} CPTEXTNEXT \pTextNext{}}
+
+\ex. CUSTFOURTH the target of TextNext.
+\end{document}

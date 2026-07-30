@@ -1,0 +1,15 @@
+%% \DeclareJudgment and \SetJudgmentSpoken: naming a mark of one's own and
+%% overriding the spoken form of a built-in one.  Both were entirely
+%% untested, and both reach the tagging layer -- the spoken phrase becomes
+%% the /Alt of the Span wrapping the mark -- which is the part that cannot
+%% be seen in the rendering at all.
+%%
+%% Tagged preamble, so the /Alt strings are in the PDF and uncompressed.
+\input{_preamble-tagged}
+\DeclareJudgment[spoken={marginal for me}]{\marginal}{\%\%}
+\SetJudgmentSpoken{*}{starred and ungrammatical}
+
+\ex. \marginal JDGCUSTOM an example with a declared mark.
+\ex. *JDGSTAR an example whose star has an overridden spoken form.
+\ex. JDGPLAIN an example with no mark at all.
+\end{document}

@@ -2630,7 +2630,23 @@
 %% <mark> so a leading scanned <mark> is announced the same way.
 \keys_define:nn { lx / judge }
   { spoken .tl_set:N = \l__lx_judge_decl_tl }
-\NewDocumentCommand \DeclareJudgment { O{} m m }
+%% The first mandatory argument is the command being DEFINED, the second is
+%% what it prints -- an order easy to read the wrong way round.  Getting it
+%% wrong used to HANG the run rather than complain: \DeclareRobustCommand
+%% takes the first token of whatever it is handed, so
+%% \DeclareJudgment{\%\%}{\%\%} quietly redefined \%, which the judgment
+%% scanner peeks for, and the compile then spun forever with nothing in the
+%% log to say why.  A hang is the worst failure to debug, so check that the
+%% argument is a single control sequence and, if it is not, say what the two
+%% arguments actually mean.
+\msg_new:nnnn { linguexx } { judgment-not-a-command }
+  { \iow_char:N \\DeclareJudgment~needs~one~command~here,~not~'#1'. }
+  {
+    Write~\iow_char:N \\DeclareJudgment[spoken=...]{\iow_char:N \\mymark}
+    {<mark>}:~the~first~mandatory~argument~is~the~command~being~defined,~
+    the~second~is~the~mark~it~prints.
+  }
+\cs_new_protected:Npn \lx@judge@declare #1#2#3
   {
     \tl_clear:N \l__lx_judge_decl_tl
     \keys_set:nn { lx / judge } {#1}
@@ -2638,6 +2654,18 @@
       { \exp_args:Nne \lx@judge@setalt {#3} { \l__lx_judge_decl_tl } }
     \exp_args:Nne \DeclareRobustCommand #2
       { \exp_not:N \jdg [ \l__lx_judge_decl_tl ] { \exp_not:n {#3} } }
+  }
+\cs_new_protected:Npn \lx@judge@declare@cs #1#2#3
+  {
+    \token_if_cs:NTF #2
+      { \lx@judge@declare {#1} {#2} {#3} }
+      { \msg_error:nnn { linguexx } { judgment-not-a-command } {#2} }
+  }
+\NewDocumentCommand \DeclareJudgment { O{} m m }
+  {
+    \tl_if_single_token:nTF {#2}
+      { \lx@judge@declare@cs {#1} {#2} {#3} }
+      { \msg_error:nnn { linguexx } { judgment-not-a-command } {#2} }
   }
 \cs_set_eq:NN \DeclareJudgement \DeclareJudgment
 %% \SetJudgmentSpoken{<mark>}{<phrase>} overrides or adds a spoken form.
