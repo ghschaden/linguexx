@@ -90,6 +90,13 @@ version string.
   "`\begin{list} ended by \end{document}`" -- a message naming neither `\a.`
   nor the line it stood on. `\a.` inside an `exe` batch is unaffected: it
   reaches the same code path legitimately, and stays legal.
+- Fix: a trailing or doubled period in a `\lpzg` label no longer records an
+  empty abbreviation. `\lpzg{sg.}` splits into `sg` and an empty piece, and
+  the empty piece was recorded as a used key like any other, so `\lpzgcheck`
+  reported "No expansion known for" nothing at all -- a warning naming a key
+  the author could not find in the source -- and the `/E` expansion carried
+  a trailing space. Blank segments are now skipped; the real pieces beside
+  them are recorded exactly as before.
 - `\glt` (the free translation) gains two hooks, both opt-in and both
   leaving the default output and the default tag tree byte-for-byte as they
   were:

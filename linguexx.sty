@@ -134,6 +134,13 @@
 %%          surfaced as "\begin{list} ended by \end{document}"
 %%          arbitrarily far away.  \a. inside an exe batch reaches the
 %%          same path legitimately and stays legal.
+%%          Fix: a trailing or doubled period in a \lpzg label no
+%%          longer records an EMPTY abbreviation.  \lpzg{sg.} splits
+%%          into sg and an empty piece, and the empty piece was
+%%          recorded like any other key, so \lpzgcheck reported "No
+%%          expansion known for" nothing at all and the /E carried a
+%%          trailing space.  Blank segments are skipped; the real
+%%          pieces beside them are recorded exactly as before.
 %%          \glt gains \GlossTransStyle (a declaration styling the free
 %%          translation) and \GlossTransLang (its language, emitted as a
 %%          Span with /Lang under tagging -- babel's \foreignlanguage
@@ -1604,7 +1611,14 @@
     \tl_clear:N \l__lx_lpzg_exp_tl
     \bool_set_false:N \l__lx_lpzg_any_bool
     \seq_set_split:Nnn \l__lx_lpzg_seg_seq { . } {#1}
-    \seq_map_inline:Nn \l__lx_lpzg_seg_seq { \lx@lpzg@seg {##1} }
+    %% Blank segments are dropped rather than looked up.  A trailing or
+    %% doubled period ("\lpzg{sg.}") splits into {sg} and an EMPTY piece,
+    %% and the empty piece was recorded as a used key like any other, so
+    %% \lpzgcheck later reported "No expansion known for" nothing at all
+    %% -- and the /E carried a trailing space.  Harmless, but the warning
+    %% named a key the author could not find in the source.
+    \seq_map_inline:Nn \l__lx_lpzg_seg_seq
+      { \tl_if_blank:nF {##1} { \lx@lpzg@seg {##1} } }
   }
 \NewDocumentCommand \lpzg { m }
   {

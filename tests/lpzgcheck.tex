@@ -15,6 +15,11 @@
 \begin{document}
 LPZGBODY text.
 
-\exg. Er ging gestern.\\ he go.\lpzg{pres} yesterday.\lpzg{proj}\\
+%% \lpzg{sg.} -- a trailing period, which is easy to type and easy to mean
+%% (a compound label IS period-separated).  It splits into {sg} and an
+%% EMPTY piece, and the empty piece used to be recorded as a used key like
+%% any other, so the check below reported "No expansion known for" nothing
+%% at all: a warning naming a key that appears nowhere in the source.
+\exg. Er ging gestern.\\ he go.\lpzg{pres} yesterday.\lpzg{proj}\lpzg{sg.}\\
 \glt `LPZGTRANS pres is a typo for prs; proj is exempted'
 \end{document}

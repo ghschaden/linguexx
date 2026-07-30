@@ -1112,6 +1112,25 @@ def a_lpzgcheck(p: Page):
     # NOT ask for the check, so it must stay quiet
     r.append(check("never used" not in log,
                    "declared-but-unused is opt-in and stays quiet by default"))
+    # a trailing period (\lpzg{sg.}) splits off an EMPTY segment, which was
+    # recorded as a used key and then reported -- "No expansion known for ."
+    # -- naming a key the author cannot find in the source.  Blank segments
+    # are now skipped, so the ONLY key reported here is the real typo.
+    # The check names all its keys in ONE message ("... for pres and ."), so
+    # the whole clause has to be read, not the first word of it: an empty
+    # key shows up as a dangling "and ." at the end.
+    m = re.search(r"No expansion known for ([^\n]*)", log)
+    reported = m.group(1).strip().rstrip(".").strip() if m else None
+    r.append(check(reported == "pres",
+                   f"only the real typo is reported, no empty key; the check "
+                   f"named {reported!r}"))
+    # ... and skipping the blank segment must not lose the real one beside
+    # it: sg is still recorded, exactly once, in the .aux
+    used = re.findall(r"\\lx@lpzg@used\{([^{}]*)\}", getattr(p, "aux", ""))
+    r.append(check(used.count("sg") == 1,
+                   f"sg is still recorded once from \\lpzg{{sg.}}; got {used}"))
+    r.append(check("" not in used,
+                   f"no empty key is written to the .aux; got {used}"))
     # the document still typeset
     for tok in ("LPZGBODY", "LPZGTRANS"):
         r.append(check(p.find(tok) is not None, f"typeset: {tok}"))
