@@ -35,20 +35,29 @@ version string.
   (verified with veraPDF on `examples/ua-demo` and on a `\GlossPhantom`
   build). Alignment survives a size change of the gloss tier (e.g.
   `\footnotesize`). `\altg` alternative columns are not covered.
-- Fix: the sub-example letters no longer clobber the kernel accent commands
-  `\b`, `\c`, `\d`. Previously, under `[lazy]` (the default), all six of
-  `\a`-`\f` were redefined globally and permanently, so `\c{c}` or an
-  inputenc-decomposed "ç" anywhere in the document raised "Use of `\c`
-  doesn't match its definition", and in a hyperref `\section` title the
-  accent was dropped *silently* from both the printed heading and the PDF
-  outline entry. Now `\b`-`\f` are activated only where a sub-level is
-  actually reachable — inside the `\begingroup` that `\lx@subpush` opens
-  for a level, and in `xlist` — and restored on the way out; `\a` alone
-  stays global (it has to be able to *open* a level), is `\protected` so
-  hyperref's `\edef` over a title cannot trip its lookahead, and falls back
-  to the ambient `\a` when not followed by a period. Under `[gb4e]` alone
-  nothing is redefined at all, as documented. Both dot and environment
-  syntaxes keep mixing as before (`\a.` inside `exe`, `xlist` inside `\a.`).
+- Fix: the sub-example letters and the kernel accent commands `\b`, `\c`,
+  `\d` now coexist, **everywhere, including inside the same example**:
+
+  ```latex
+  \ex. \a. Fran\c cois est fatigu\'ee.   % \c = cedilla
+       \b. \c Ca c'est chiant.           % \b = sub-example, \c = cedilla
+  ```
+
+  Each letter dispatches on what follows it: a period is the sub-example
+  command, anything else (`{`, a letter, a space) is the accent, i.e.
+  whatever the letter meant before linguexx touched it. `\c{c}` and an
+  inputenc-decomposed "ç" (literally `\c c`) both take the accent branch.
+  Previously, under `[lazy]` (the default), all six of `\a`-`\f` were
+  redefined globally and permanently, so `\c{c}` or "ç" anywhere in the
+  document raised "Use of `\c` doesn't match its definition", and in a
+  hyperref `\section` title the accent was dropped *silently* from both the
+  printed heading and the PDF outline entry. The hooks are `\protected`, so
+  hyperref's `\edef` over a title leaves them alone instead of running their
+  lookahead; only `\a` is held globally (it must be able to *open* a level,
+  and it is no accent at all), while `\b`-`\f` are hooked just where a
+  sub-level is reachable. Under `[gb4e]` alone nothing is redefined, as
+  documented. `\e`/`\f` without a period, which the kernel does not define,
+  now give a named package error instead of "undefined control sequence".
 - Fix: `\end{exe}` now closes any sub-level opened by an `\a.` inside the
   batch (`\lx@closesubs`). It previously closed only the main list and
   leaked `\lx@subpush`'s `\begingroup`, leaving `\lx@subdepth` stuck at the

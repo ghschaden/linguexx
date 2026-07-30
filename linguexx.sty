@@ -100,17 +100,17 @@
 %%          pads a gloss word by a \phantom the width of the object word's
 %%          leading brackets/judgment marks, so real glyphs line up;
 %%          \GlossPhantom{...} is the manual override.  Fix: the
-%%          sub-example letters no longer clobber the kernel accents
-%%          \b, \c, \d.  \b-\f are activated only where a sub-level is
-%%          reachable and restored on the way out; \a stays global (it
-%%          must be able to OPEN a level) but is \protected and falls
-%%          back to the ambient \a without a following period.  So
-%%          \c{c}, "ç" and hyperref bookmark accents work in running
-%%          text and section titles again -- previously clobbered
-%%          document-wide under [lazy], the default, and silently
-%%          dropped in a hyperref title.  Fix: \end{exe} closes a
-%%          sub-level opened by an \a. inside the batch instead of
-%%          leaking its \begingroup.
+%%          sub-example letters and the kernel accents \b, \c, \d now
+%%          coexist everywhere, including inside one example: each
+%%          letter dispatches on what follows, a period giving the
+%%          sub-example command and anything else the accent, so
+%%          "\b. \c Ca c'est chiant." works.  The hooks are \protected
+%%          (hyperref \edef-expands titles); only \a is held globally,
+%%          \b-\f just where a sub-level is reachable.  Previously all
+%%          six were redefined document-wide under [lazy], the default,
+%%          so \c{c} and "ç" errored and a hyperref title silently lost
+%%          the accent.  Fix: \end{exe} closes a sub-level opened by an
+%%          \a. inside the batch instead of leaking its \begingroup.
 %% Package options come in two independent groups.
 %%
 %% SYNTAX:
@@ -890,34 +890,72 @@
 %% sub-examples ------------------------------------------------------------
 %% \a. pushes a level; the depth advance happens INSIDE the new group.
 %%
-%% \b \c \d \e \f mean "continue a sub-example" (via a literal "." right
-%% after) only WHILE A SUB-LEVEL IS REACHABLE; outside that they are left
-%% COMPLETELY untouched, so \c{c}, an inputenc-decomposed "ç", and
-%% hyperref's own PU-encoding redefinition of \b/\c/\d for its bookmark
-%% strings all keep working in a \section title or anywhere else in
-%% running text, exactly as if linguexx were not loaded there.  Earlier
-%% versions redefined all six letters globally and permanently, which
-%% clobbered those accents document-wide: \c{c} and "ç" raised "Use of \c
-%% doesn't match its definition" under pdflatex, and in a hyperref title
-%% the accent was silently DROPPED from both the printed heading and the
-%% PDF outline entry.
+%% The letters \a-\f collide head-on with the kernel accent commands \b, \c
+%% and \d, and BOTH meanings have to work, including in the same example:
 %%
-%% \a is the exception: it is hooked GLOBALLY (see \lx@hook@a below),
-%% because "\a." must be able to OPEN a sub-level, i.e. at a point where
-%% no sub-level is active yet -- including with no enclosing \ex. or exe
-%% at all, which linguex allows and which produced a bare letter list
-%% before.  \a is safe to hold globally in a way \b/\c/\d are not: it is
-%% not one of hyperref's PU bookmark accents, and in the kernel it is
-%% only meaningful inside tabbing.  It is \protected so that an \edef
-%% over it (hyperref's bookmark-string pass) leaves it untouched rather
-%% than running its \futurelet peek, which is not edef-safe -- the
-%% mistake that made a first attempt at this fix break \section titles.
+%%     \ex. \a. Fran\c cois est fatigue\'e.     % \c = cedilla
+%%          \b. \Ca c'est chiant.               % \b = sub-example
+%%
+%% so they cannot simply be switched over wholesale.  Each letter therefore
+%% DISPATCHES ON WHAT FOLLOWS IT: a period means the sub-example command,
+%% anything else -- "{", a letter, a space -- hands over to the accent, i.e.
+%% to whatever the letter meant before linguexx touched it.  "\c{c}" and an
+%% inputenc-decomposed "ç" (which is literally "\c c") both take the accent
+%% branch and work anywhere, inside an example as well as outside.
+%%
+%% Two things make this safe that an earlier attempt got wrong:
+%%
+%%  - The hooks are \protected.  hyperref rebuilds its bookmark strings by
+%%    \edef-expanding the title; an unprotected \futurelet peek runs during
+%%    that expansion and dies ("Use of \lx@dot@c doesn't match its
+%%    definition"), or, in the very first version of this code, silently
+%%    dropped the accent from heading and outline alike.  \protected leaves
+%%    the token untouched in an \edef, so hyperref sees the accent command
+%%    it expects.
+%%  - Only \a is hooked GLOBALLY, for the whole document; \b-\f are hooked
+%%    just where a sub-level is reachable (\lx@letters@local below).  \a has
+%%    to be global because "\a." must be able to OPEN a level, before any
+%%    sub-level exists -- and it is the one letter that is safe to hold
+%%    globally, being no accent at all (in the kernel it is only meaningful
+%%    inside tabbing) and not one of hyperref's PU bookmark accents.
+%%    Holding \b/\c/\d globally is what clobbered them document-wide.
 \def\lx@dot@a.{\lx@subpush}
 \def\lx@dot@b.{\lx@subnext}
 \def\lx@dot@c.{\lx@subnext}
 \def\lx@dot@d.{\lx@subnext}
 \def\lx@dot@e.{\lx@subnext}
 \def\lx@dot@f.{\lx@subnext}
+%% \@ifnextchar skips spaces before peeking, so "\c c" (the inputenc
+%% expansion of "ç") and "\c{c}" both reach \lx@kernel@c with their argument
+%% intact, while "\c." and even "\c ." reach \lx@dot@c.
+\protected\def\lx@hook@a{\@ifnextchar.\lx@dot@a\lx@kernel@a}
+\protected\def\lx@hook@b{\@ifnextchar.\lx@dot@b\lx@kernel@b}
+\protected\def\lx@hook@c{\@ifnextchar.\lx@dot@c\lx@kernel@c}
+\protected\def\lx@hook@d{\@ifnextchar.\lx@dot@d\lx@kernel@d}
+\protected\def\lx@hook@e{\@ifnextchar.\lx@dot@e\lx@kernel@e}
+\protected\def\lx@hook@f{\@ifnextchar.\lx@dot@f\lx@kernel@f}
+%% Capture the accent meanings the hooks fall back to.  Called at load time
+%% AND \AtBeginDocument, so a package loaded after us that rebinds one of
+%% these letters is still picked up; idempotent, because re-capturing a hook
+%% as its own fallback would loop forever.  \e and \f are undefined in the
+%% kernel, so they fall back to a package error rather than to \relax, which
+%% would silently swallow "\e something".
+\def\lx@nokernel#1{%
+  \PackageError{linguexx}{\string#1\space is not an accent command}%
+    {\string#1\space only means something in this package as
+     \string#1. (with a period), continuing a sub-example.}}
+\def\lx@install@letters{%
+  \ifx\a\lx@hook@a\else \let\lx@kernel@a\a \fi
+  \ifx\b\lx@hook@b\else \let\lx@kernel@b\b \fi
+  \ifx\c\lx@hook@c\else \let\lx@kernel@c\c \fi
+  \ifx\d\lx@hook@d\else \let\lx@kernel@d\d \fi
+  \ifx\e\lx@hook@e\else
+    \ifdefined\e \let\lx@kernel@e\e \else \def\lx@kernel@e{\lx@nokernel\e}\fi
+  \fi
+  \ifx\f\lx@hook@f\else
+    \ifdefined\f \let\lx@kernel@f\f \else \def\lx@kernel@f{\lx@nokernel\f}\fi
+  \fi
+  \let\a\lx@hook@a}
 %% Two activation flavours, because the two syntaxes differ in grouping:
 %%
 %% \lx@letters@local -- plain \let, NO save.  For use where a TeX group
@@ -941,8 +979,8 @@
 %% \b/\c/\d inside a gb4e batch.
 \iflx@lazy
   \def\lx@letters@local{%
-    \let\a\lx@dot@a \let\b\lx@dot@b \let\c\lx@dot@c
-    \let\d\lx@dot@d \let\e\lx@dot@e \let\f\lx@dot@f}
+    \let\a\lx@hook@a \let\b\lx@hook@b \let\c\lx@hook@c
+    \let\d\lx@hook@d \let\e\lx@hook@e \let\f\lx@hook@f}
 \else
   \let\lx@letters@local\relax
 \fi
@@ -953,17 +991,8 @@
 \def\lx@letters@off{%
   \let\a\lx@saved@a \let\b\lx@saved@b \let\c\lx@saved@c
   \let\d\lx@saved@d \let\e\lx@saved@e \let\f\lx@saved@f}
-%% The global \a hook: dispatch on a following period, otherwise hand over
-%% to whatever \a meant when the hook was installed.
-\protected\def\lx@hook@a{\@ifnextchar.\lx@dot@a\lx@kernel@a}
-% Idempotent: re-running it (it is called both now and \AtBeginDocument,
-% so that a package loaded later which rebinds \a is still picked up)
-% must not capture the hook as its own fallback, which would loop.
-\def\lx@install@a{%
-  \ifx\a\lx@hook@a\else \let\lx@kernel@a\a \fi
-  \let\a\lx@hook@a}
 \def\lx@assert@letters{%
-  \lx@install@a
+  \lx@install@letters
   \def\z.{\lx@zpop}%
   \def\exg.{\ex.\lx@glosshead}%
   \def\ag.{\a.\lx@glosshead}%

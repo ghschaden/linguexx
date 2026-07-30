@@ -1,0 +1,25 @@
+%% The accents \b \c \d must work INSIDE an example body too, where the
+%% sub-example letters are active -- including on the very same line as the
+%% letter command that shares their name:
+%%
+%%     \b. \Ca c'est chiant.
+%%      ^ sub-example        ^ \c C, the cedilla
+%%
+%% Each letter dispatches on what follows it: a period is the sub-example
+%% command, anything else is the accent.  Loaded with hyperref, so the
+%% \section title also exercises the \edef path that must not run the peek.
+\input{_preamble}
+\usepackage{hyperref}
+\begin{document}
+
+\section{Fa\c cade CIsection}
+\label{sec:facade}
+
+\ex. \a. CIalpha Fran\c cois est fatigu\'ee.
+\b. CIbeta \c Ca c'est chiant.
+\c. CIgamma \c{c}edille bra\c{c}ed.
+\d. CIdelta \d{d}ot-under and \b{b}ar-under.
+\z.
+
+CIafter ç and \c{c} and \b{b} and \d{d}.
+\end{document}

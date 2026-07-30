@@ -535,6 +535,45 @@ def a_cedilla(p: Page):
     return r
 
 
+def a_cedilla_internal(p: Page):
+    r"""The accents must work INSIDE an example body, where the sub-example
+    letters are live, and on the same line as a letter command.
+
+    A clobbered \c makes "\c c" (and so the utf8 "ç") raise "Use of \c
+    doesn't match its definition", which halts the compile -- so a
+    regression normally shows up as COMPILE FAILED.  The checks below pin
+    that the two meanings really do coexist rather than one winning.
+    """
+    r = []
+    txt = " ".join(w.text for w in p.words)
+    # accent in a hyperref \section title (the \edef path)
+    r.append(check("Façade" in txt,
+                   rf"\c survives in a hyperref section title; got {txt[:30]!r}"))
+    # accents inside the example body, in every form
+    for tok, what in (("François", r"\c c inside an example (utf8 ç)"),
+                      ("Ça", r"\c C on the same line as \b."),
+                      ("çedille", r"\c{c} braced, inside an example"),
+                      ("braçed", r"\c{c} mid-word, inside an example")):
+        r.append(check(tok in txt, f"{what}: expected {tok!r} in the output"))
+    # \d{d} and \b{b} in the body: matched on the base letter only, because
+    # the engines extract the combining mark differently (see a_cedilla)
+    r.append(check(any(w.text.startswith("CIdelta") for w in p.words),
+                   r"\d and \b accents inside an example do not error"))
+    # ... and still after it
+    r.append(check("CIafter" in txt, "accents after the example still work"))
+    # the letters kept their OTHER meaning: four sub-examples were opened by
+    # \a. \b. \c. \d., so all four labels are present
+    letters = [w.text for w in p.words if w.text in ("a.", "b.", "c.", "d.")]
+    r.append(check(letters == ["a.", "b.", "c.", "d."],
+                   rf"\a.-\d. still open sub-examples; got {letters}"))
+    for tok in ("CIalpha", "CIbeta", "CIgamma", "CIdelta"):
+        r.append(check(p.find(tok) is not None, f"sub-example typeset: {tok}"))
+    # one example, so exactly one number
+    nums = [w.text for w in p.words if re.fullmatch(r"\(\d+\)", w.text)]
+    r.append(check(nums == ["(1)"], f"one example number; got {nums}"))
+    return r
+
+
 def a_cedilla_gb4e(p: Page):
     r"""[gb4e] alone: \a.-\f. do not exist, so \b \c \d must stay accent
     commands EVERYWHERE, including inside exe/xlist whose sub-level openers
@@ -868,6 +907,7 @@ SMOKE_ONLY = {"linguexx-test", "linguexx-test-gb4e"}
 ASSERTIONS = {
     "cedilla": a_cedilla,
     "cedilla-gb4e": a_cedilla_gb4e,
+    "cedilla-internal": a_cedilla_internal,
     "legacy": a_legacy,
     "tagged": a_tagged,
     "gbfour": a_gbfour,
