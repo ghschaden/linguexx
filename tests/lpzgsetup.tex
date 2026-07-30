@@ -1,0 +1,33 @@
+%% \lpzglistsetup, \lpzglisttitle and \lpzglistentry: the document-wide half
+%% of the abbreviation-list interface.  tests/lpzglist.tex drives everything
+%% through per-list \lpzglist[...] keys; none of it exercised the settings
+%% that apply to EVERY list, nor the two commands the manual says to
+%% redefine with \renewcommand.
+%%
+%% The three lists below are one document-wide default, one list that
+%% overrides a single key of it, and one that overrides the style as well --
+%% so what is pinned is not just "the key works" but that a per-list key
+%% beats the document-wide one and leaves the rest of it standing.
+\input{_preamble}
+\lpzglistsetup{style=inline, sort=true, title={LSSETUPTITLE}}
+%% both redefined wholesale, which must reach every list
+\renewcommand\lpzglisttitle[1]{\par\noindent LSTITLEMARK #1\par}
+\renewcommand\lpzglistentry[2]{LSENTRY #1=#2;}
+\begin{document}
+%% used in this order -- pst first -- so that sort=true, which puts prs
+%% first, is distinguishable from the order of first use
+\ex. \gll Der Hund bellte.\\ the dog bark.\lpzg{pst}\\
+\glt `LSONE'
+
+\ex. \gll Die Frau schl\"aft.\\ the woman sleep.\lpzg{prs}\\
+\glt `LSTWO'
+
+LSPLAIN \lpzglist
+
+LSOVER \lpzglist[title={LSOVERTITLE}]
+
+%% style=list needs an \item, which the wholesale \lpzglistentry above does
+%% not emit; format= is the one-shot form and takes precedence for this list
+LSSTYLE \lpzglist[style=list, title={LSSTYLETITLE},
+                  format={\item[\textsc{#1}] LSFMT #2}]
+\end{document}

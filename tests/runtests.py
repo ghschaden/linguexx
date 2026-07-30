@@ -726,6 +726,56 @@ def a_judgments(p: Page):
     return r
 
 
+def a_lpzgsetup(p: Page):
+    r"""\lpzglistsetup, \lpzglisttitle and \lpzglistentry.
+
+    tests/lpzglist.tex drives everything through per-list \lpzglist[...]
+    keys; this pins the document-wide half -- the settings that apply to
+    every list, and the two commands the manual says to redefine wholesale
+    -- and that a per-list key beats them without disturbing the rest.
+    """
+    r = []
+    txt = " ".join(w.text for w in p.words)
+
+    def n(tok):
+        return len(p.find_all(tok))
+
+    # \lpzglisttitle, redefined wholesale, heads all three lists
+    r.append(check(n("LSTITLEMARK") == 3,
+                   f"redefined \\lpzglisttitle heads every list "
+                   f"(got {n('LSTITLEMARK')} of 3)"))
+    # the document-wide title reaches the plain list; a per-list title beats
+    # it; and the third list has its own again
+    for tok, what in (("LSSETUPTITLE", "\\lpzglistsetup sets the title"),
+                      ("LSOVERTITLE", "a per-list title overrides the setup"),
+                      ("LSSTYLETITLE", "and again for the third list")):
+        r.append(check(tok in txt, f"{what} ({tok})"))
+    # \lpzglistentry, redefined wholesale, formats the entries of both lists
+    # that do not override it: two abbreviations x two lists
+    r.append(check(n("LSENTRY") == 4,
+                   f"redefined \\lpzglistentry formats every non-overriding "
+                   f"list (got {n('LSENTRY')} of 4)"))
+    # format= is the one-shot form and takes precedence for its own list only
+    r.append(check(n("LSFMT") == 2,
+                   f"format= overrides the wholesale \\lpzglistentry for one "
+                   f"list (got {n('LSFMT')} of 2)"))
+    # sort=true from the setup: alphabetical, not the order of first use
+    # (pst is used first, prs second)
+    r.append(check(txt.find("prs=present") < txt.find("pst=past"),
+                   "sort=true from \\lpzglistsetup orders the entries"))
+    # style=inline from the setup: the two entries of the plain list sit on
+    # one line ...
+    e = p.find_all("LSENTRY")
+    r.append(check(len(e) >= 2 and e[1] in p.line_of(e[0]),
+                   "style=inline from \\lpzglistsetup keeps entries on one "
+                   "line"))
+    # ... while the list that overrides style=list puts them on their own
+    f = p.find_all("LSFMT")
+    r.append(check(len(f) == 2 and f[1] not in p.line_of(f[0]),
+                   "a per-list style=list overrides the inline setup"))
+    return r
+
+
 def a_lpzgcheck(p: Page):
     r"""\lpzgcheck reports on abbreviations in a document with no \lpzglist.
 
@@ -1210,6 +1260,7 @@ ASSERTIONS = {
     "glt": a_glt,
     "lpzgcheck": a_lpzgcheck,
     "lpzglist": a_lpzglist,
+    "lpzgsetup": a_lpzgsetup,
     "phantomalign": a_phantomalign,
     "altg": a_altg,
     "termination": a_termination,

@@ -125,9 +125,12 @@ version string.
   and the numbering parameters at non-default values together with every
   relative-reference command no other case called — `\NNext`, `\TextNext`,
   `\Refrange` and the four `\p*` twins (`tests/customise.tex`). All were
-  correct; this is regression insurance, not repair. Still uncovered:
-  `\lpzglistsetup`/`\lpzglisttitle`/`\lpzglistentry` and the `\AltBrace*`,
-  `\AltgColSep`, `\AltgTransFont` visual tunables.
+  correct; this is regression insurance, not repair. `tests/lpzgsetup.tex`
+  adds the document-wide half of the abbreviation-list interface —
+  `\lpzglistsetup`, and `\lpzglisttitle`/`\lpzglistentry` redefined
+  wholesale — including that a per-list key beats a document-wide one
+  without disturbing the rest of it. Still uncovered: the `\AltBrace*`,
+  `\AltgColSep` and `\AltgTransFont` visual tunables.
 - The suite caps each engine run (`CASE_TIMEOUT`). A TeX loop ignores
   `-interaction=nonstopmode` and spins with an empty log, so one bad case
   hung the whole suite rather than failing it.
