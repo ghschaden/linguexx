@@ -102,6 +102,16 @@ version string.
   error is guarded like any rendering: `tests/altg-unpaired.tex` fails if the
   check stops firing, and the valid `altg` case fails if it starts firing
   when it should not.
+- `\lpzgcheck{...}`: consistency checks on the gloss abbreviations
+  themselves. Until now the only report was a side effect of building a
+  list, so a document that never called `\lpzglist` could mistype
+  `\lpzg{pres}` for `\lpzg{prs}` and get PRES in small caps in complete
+  silence. `unknown` (**on by default**) reports every abbreviation used
+  with no known expansion, at the end of the document, list or no list;
+  `ignore={...}` exempts ones deliberately left unexplained. `unused` (off
+  by default) reports the reverse — declared with `\SetLeipzig` and never
+  used — and considers only your own declarations, not the ~100 built-ins.
+  A key a `\lpzglist` has already reported is not reported twice.
 - The suite now runs veraPDF itself, on a new PDF/UA-2 case (`tests/ua.tex`),
   so the release gate that used to be a manual step before delivering is
   enforced on every run and under all three engines. This is what catches a

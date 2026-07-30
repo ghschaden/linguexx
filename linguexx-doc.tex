@@ -705,6 +705,37 @@ which the \texttt{list} style calls with an \cs{item} and the
 change every list at once. The label column of the \texttt{list} style is
 as wide as the widest abbreviation in it.
 
+\subsection{Checking the abbreviations: \cs{lpzgcheck}}
+\label{sec:lpzgcheck}
+
+A mistyped abbreviation is invisible: \cs{lpzg}\marg{pres} for
+\cs{lpzg}\marg{prs} simply sets \textsc{pres} in small capitals and says
+nothing. \cs{lpzgcheck} turns that into a warning at the end of the
+document, whether or not the document builds a list:
+
+\begin{code}
+\lpzgcheck{unknown=true,      % on by default
+           unused=true,       % off by default
+           ignore={proj,adhoc}}
+\end{code}
+
+\noindent \texttt{unknown} reports every abbreviation used with no known
+expansion --- not in the Leipzig table and not declared with
+\cs{SetLeipzig}. It is \emph{on by default}, since such a key is nearly
+always a typo or a forgotten declaration. Abbreviations you mean to leave
+unexplained go in \texttt{ignore}.
+
+\texttt{unused} reports the reverse: an abbreviation declared with
+\cs{SetLeipzig} and never used, which is what a stale declaration looks
+like. It is \emph{off} by default, because keeping a standing set of
+declarations in a shared preamble and using only some of them in any one
+paper is a perfectly reasonable way to work. Only your own declarations are
+considered; the built-in table is not.
+
+The two are independent of \cs{lpzglist}: it reports the keys it cannot
+explain in a list it builds, whereas these check the document. A key that
+a list has already reported is not reported twice.
+
 \subsection{Any number of tiers: \cs{gl} \dots\ \cs{endgl}}
 
 Heavily annotated data --- transliteration, segmentation, gloss, category
@@ -1576,6 +1607,7 @@ exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package opt
 \textbackslash SetLeipzig\allowbreak\marg{abbr}\marg{expansion} & Add or override a Leipzig abbreviation expansion. \\
 \textbackslash lpzglist\oarg{keys} & List of the abbreviations the document uses, each with its full form (section~\ref{sec:lpzglist}). Keys: \opt{style}, \opt{sort}, \opt{include}, \opt{ignore}, \opt{add}, \opt{unexplained}, \opt{title}, \opt{titlestyle}, \opt{sep}, \opt{itemsep}, \opt{format}. \\
 \textbackslash lpzglistsetup\marg{keys} & The same keys, for every list. \\
+\textbackslash lpzgcheck\marg{keys} & Consistency checks on the abbreviations: \opt{unknown} (on by default), \opt{unused}, \opt{ignore} (section~\ref{sec:lpzgcheck}). \\
 \textbackslash lpzgadd\marg{abbrs} & Register abbreviations used outside \cs{lpzg} so that they reach the list. \\
 \textbackslash lpzglistentry\allowbreak\marg{abbr}\marg{full form} & One entry of the list; redefine to restyle every list. \\
 \textbackslash eachwordone/two/three & Font commands for tiers 1--3. \\

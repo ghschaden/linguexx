@@ -1,0 +1,20 @@
+%% \lpzgcheck: the consistency checks on the abbreviations themselves.
+%%
+%% Before these existed, the only report was a side effect of building a
+%% list, so a document with no \lpzglist -- like this one -- could mistype
+%% \lpzg{pres} for \lpzg{prs} and get PRES in small caps and total silence.
+%%
+%% This case deliberately does NOT call \lpzglist, so what it checks is the
+%% end-of-document check itself and not \lpzglist's own reporting.  The
+%% assertions read the .log: warnings do not reach the PDF.
+\input{_preamble}
+%% zzz is declared and never used, but `unused' is opt-in, so it must NOT
+%% be reported here.  proj is used and unexplained on purpose, and exempted.
+\SetLeipzig{zzz}{zed, declared but never used}
+\lpzgcheck{ignore={proj}}
+\begin{document}
+LPZGBODY text.
+
+\exg. Er ging gestern.\\ he go.\lpzg{pres} yesterday.\lpzg{proj}\\
+\glt `LPZGTRANS pres is a typo for prs; proj is exempted'
+\end{document}

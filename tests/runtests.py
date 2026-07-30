@@ -640,6 +640,35 @@ def a_ua(p: Page):
     return r
 
 
+def a_lpzgcheck(p: Page):
+    r"""\lpzgcheck reports on abbreviations in a document with no \lpzglist.
+
+    Asserted on the .log, because a warning is the whole output here.  Note
+    this case has no \lpzglist at all: before \lpzgcheck existed, an
+    unexplained key in such a document was reported nowhere.
+    """
+    r = []
+    log = getattr(p, "log", "")
+    # the typo IS reported, by default, with no \lpzglist anywhere
+    r.append(check("No expansion known for pres" in log,
+                   "an unexplained key is reported without \\lpzglist"))
+    # ... and reported once, not once per use
+    r.append(check(log.count("No expansion known for pres") == 1,
+                   f"reported once, not per use (got "
+                   f"{log.count('No expansion known for pres')})"))
+    # an exempted key is not reported
+    r.append(check("proj" not in log.split("No expansion known for")[-1][:80],
+                   "an ignore={} key is not reported"))
+    # `unused' is opt-in: this file declares zzz and never uses it, and does
+    # NOT ask for the check, so it must stay quiet
+    r.append(check("never used" not in log,
+                   "declared-but-unused is opt-in and stays quiet by default"))
+    # the document still typeset
+    for tok in ("LPZGBODY", "LPZGTRANS"):
+        r.append(check(p.find(tok) is not None, f"typeset: {tok}"))
+    return r
+
+
 def a_cedilla_internal(p: Page):
     r"""The accents must work INSIDE an example body, where the sub-example
     letters are live, and on the same line as a letter command.
@@ -1091,6 +1120,7 @@ ASSERTIONS = {
     "zpop": a_zpop,
     "gloss": a_gloss,
     "glt": a_glt,
+    "lpzgcheck": a_lpzgcheck,
     "lpzglist": a_lpzglist,
     "phantomalign": a_phantomalign,
     "altg": a_altg,
@@ -1177,6 +1207,9 @@ def run_case(name: str, engine: str, verbose: bool):
         if not pdf.exists():
             return [(False, "COMPILE produced no PDF")]
         page = parse_pdf(pdf)
+        # Warnings never reach the PDF, so a case that is about what the
+        # package REPORTS needs the log as well as the rendering.
+        page.log = (tmp / f"{name}.log").read_text(errors="replace")
         try:
             return ASSERTIONS[name](page)
         except AssertionError as e:

@@ -121,7 +121,11 @@
 %%          sub-sub-examples closed with the enclosing letter
 %%          ("(1b-i--b)") instead of the numeral.  Fix: an \altg in a gloss
 %%          column with no partner is an error instead of silently
-%%          taking the wrong shape and overlapping its neighbours.
+%%          taking the wrong shape and overlapping its neighbours.  \lpzgcheck{...}: an abbreviation used
+%%          with no known expansion is reported at the end of any
+%%          document (on by default), which a mistyped \lpzg key used
+%%          to survive in silence unless a \lpzglist happened to catch
+%%          it; unused=true also reports a \SetLeipzig never used.
 %% Package options come in two independent groups.
 %%
 %% SYNTAX:
@@ -1439,8 +1443,17 @@
     tr = transitive ,
     voc = vocative ,
   }
+%% Declarations are recorded as well as stored, so that \lpzgcheck can
+%% report one that is never used.  Only what the DOCUMENT declares is
+%% recorded: the built-in table below has ~100 entries, and reporting the
+%% ninety-odd a paper does not happen to need would be pure noise.
+\seq_new:N \g__lx_lpzg_declared_seq
 \NewDocumentCommand \SetLeipzig { m m }
-  { \prop_gput:Nnn \g_lx_lpzg_prop {#1} {#2} }
+  {
+    \prop_gput:Nnn \g_lx_lpzg_prop {#1} {#2}
+    \seq_if_in:NeF \g__lx_lpzg_declared_seq { \tl_to_str:n {#1} }
+      { \seq_gput_right:Ne \g__lx_lpzg_declared_seq { \tl_to_str:n {#1} } }
+  }
 %% \lpzg accepts a compound gloss label as a single argument, following the
 %% Leipzig convention: a leading person digit is written flush against the
 %% number (3sg), and further categories are separated by a period
@@ -1807,6 +1820,9 @@
         {
           \msg_warning:nnx { linguexx } { lpzglist-unknown }
             { \seq_use:Nnnn \l__lx_lpzglist_unknown_seq { ~and~ } { ,~ } { ,~and~ } }
+          %% so \lpzgcheck does not report the same keys a second time
+          \seq_map_inline:Nn \l__lx_lpzglist_unknown_seq
+            { \seq_gput_right:Nn \g__lx_lpzg_warned_seq {##1} }
         }
     \group_end:
   }
@@ -1826,7 +1842,98 @@
           { \msg_warning:nn { linguexx } { lpzglist-rerun } }
       }
   }
-\AtEndDocument { \lx@lpzglist@checkrerun }
+
+%%%% \lpzgcheck: consistency of the abbreviations themselves --------------
+%%
+%% Until now the only report on abbreviations was a side effect of building
+%% a list: \lpzglist warns about the keys it cannot explain.  A document
+%% that never calls \lpzglist got nothing at all, so a mistyped
+%% \lpzg{pres} for \lpzg{prs} printed PRES in small caps and passed in
+%% silence.  These checks run at the end of every document instead, whether
+%% or not a list was asked for.
+%%
+%%   unknown  (default TRUE)  a key used but with no known expansion.
+%%            Almost always a typo or a forgotten \SetLeipzig.
+%%   unused   (default FALSE) a key declared with \SetLeipzig and never
+%%            used.  Off by default because a standing set of declarations
+%%            in a shared preamble, only partly used in any one paper, is a
+%%            perfectly reasonable way to work and would warn on every run.
+%%   ignore   keys to exempt from `unknown': abbreviations deliberately
+%%            left unexplained.
+\bool_new:N  \g__lx_lpzgcheck_unknown_bool
+\bool_new:N  \g__lx_lpzgcheck_unused_bool
+\clist_new:N \g__lx_lpzgcheck_ignore_clist
+\bool_gset_true:N \g__lx_lpzgcheck_unknown_bool
+\seq_new:N \g__lx_lpzg_warned_seq  % unknowns a \lpzglist already reported
+\keys_define:nn { lx / lpzgcheck }
+  {
+    unknown .bool_gset:N  = \g__lx_lpzgcheck_unknown_bool ,
+    unknown .default:n    = { true } ,
+    unused  .bool_gset:N  = \g__lx_lpzgcheck_unused_bool ,
+    unused  .default:n    = { true } ,
+    ignore  .clist_gset:N = \g__lx_lpzgcheck_ignore_clist ,
+  }
+\NewDocumentCommand \lpzgcheck { m }
+  { \keys_set:nn { lx / lpzgcheck } {#1} }
+\msg_new:nnn { linguexx } { lpzg-unknown }
+  {
+    No~expansion~known~for~#1.\\
+    Check~the~spelling,~declare~it~with~\iow_char:N \\SetLeipzig,~or~
+    exempt~it~with~\iow_char:N \\lpzgcheck{ignore={...}}.
+  }
+\msg_new:nnn { linguexx } { lpzg-unused }
+  {
+    Declared~with~\iow_char:N \\SetLeipzig~but~never~used:~#1.
+  }
+\seq_new:N \l__lx_lpzgcheck_tmp_seq
+\seq_new:N \l__lx_lpzgcheck_ign_seq
+\cs_new_protected:Npn \lx@lpzgcheck@run
+  {
+    %% used but unexplained.  Keys a \lpzglist already reported are skipped:
+    %% the two checks are independent, but saying it twice is not a service.
+    \bool_if:NT \g__lx_lpzgcheck_unknown_bool
+      {
+        %% The recorded keys are STRINGS (catcode 12); the ignore list
+        %% arrives as letters, and comparing the two spellings would never
+        %% match -- the same normalisation \lpzglist's own ignore= needs.
+        \seq_clear:N \l__lx_lpzgcheck_ign_seq
+        \clist_map_inline:Nn \g__lx_lpzgcheck_ignore_clist
+          { \seq_put_right:Ne \l__lx_lpzgcheck_ign_seq { \tl_to_str:n {##1} } }
+        \seq_clear:N \l__lx_lpzgcheck_tmp_seq
+        \seq_map_inline:Nn \g__lx_lpzg_used_seq
+          {
+            \prop_if_in:NnF \g_lx_lpzg_prop {##1}
+              {
+                \seq_if_in:NnF \l__lx_lpzgcheck_ign_seq {##1}
+                  { \seq_if_in:NnF \g__lx_lpzg_warned_seq {##1}
+                      { \seq_put_right:Nn \l__lx_lpzgcheck_tmp_seq {##1} } }
+              }
+          }
+        \seq_if_empty:NF \l__lx_lpzgcheck_tmp_seq
+          {
+            \msg_warning:nne { linguexx } { lpzg-unknown }
+              { \seq_use:Nnnn \l__lx_lpzgcheck_tmp_seq
+                  { ~and~ } { ,~ } { ,~and~ } }
+          }
+      }
+    %% declared and never used
+    \bool_if:NT \g__lx_lpzgcheck_unused_bool
+      {
+        \seq_clear:N \l__lx_lpzgcheck_tmp_seq
+        \seq_map_inline:Nn \g__lx_lpzg_declared_seq
+          {
+            \seq_if_in:NnF \g__lx_lpzg_used_seq {##1}
+              { \seq_put_right:Nn \l__lx_lpzgcheck_tmp_seq {##1} }
+          }
+        \seq_if_empty:NF \l__lx_lpzgcheck_tmp_seq
+          {
+            \msg_warning:nne { linguexx } { lpzg-unused }
+              { \seq_use:Nnnn \l__lx_lpzgcheck_tmp_seq
+                  { ~and~ } { ,~ } { ,~and~ } }
+          }
+      }
+  }
+\AtEndDocument { \lx@lpzglist@checkrerun \lx@lpzgcheck@run }
 
 \cs_new_protected:Npn \lx@gl@colbegin
   { \cs_if_exist:NT \tag_struct_begin:n
