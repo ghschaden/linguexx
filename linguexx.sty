@@ -111,6 +111,14 @@
 %%          so \c{c} and "ç" errored and a hyperref title silently lost
 %%          the accent.  Fix: \end{exe} closes a sub-level opened by an
 %%          \a. inside the batch instead of leaking its \begingroup.
+%%          Fix: \z. is usable inside an exe batch.  Mixing the
+%%          syntaxes is documented, so an \a. inside exe opens a
+%%          sub-level -- but \z., the only thing that could close it,
+%%          raised "\z. outside an example", being gated on a flag
+%%          only the dot syntax sets.  It is now gated on the open
+%%          sub-level itself; only the branch that ENDS the example
+%%          stays dot-syntax-only, and a \z. at the main level of a
+%%          batch is a package error naming \end{exe}.
 %%          \glt gains \GlossTransStyle (a declaration styling the free
 %%          translation) and \GlossTransLang (its language, emitted as a
 %%          Span with /Lang under tagging -- babel's \foreignlanguage
@@ -1062,19 +1070,32 @@
 %% flush-left continuation, after a blank line an ordinary indented
 %% paragraph.  \z. is interpreted at typesetting time and must stand at
 %% brace depth 0 of the body; outside an example it is a package error.
+%%
+%% What the pop is gated on is \lx@subdepth, NOT \iflx@inexample: the
+%% latter is set by the dot-syntax path alone, so gating the whole
+%% command on it made \z. unusable inside an exe batch -- where "\a."
+%% legitimately opens a sub-level through the global \a hook, and
+%% nothing but \z. could close it again.  (Without the pop, the next
+%% \ex in the batch was silently demoted to a sub-item, because
+%% \lx@gbex@plain dispatches on \lx@subdepth.)  Only the branch that
+%% ENDS the example stays gated on \iflx@inexample: an exe batch is
+%% ended by \end{exe}, and \lx@zexit's \lx@bodyend sentinel does not
+%% exist there at all.
 \newif\iflx@inexample
 \def\lx@zpop{%
-  \iflx@inexample
-    \expandafter\lx@zpop@i
-  \else
-    \expandafter\lx@zpop@err
-  \fi}
-\def\lx@zpop@i{%
   \ifnum\lx@subdepth>\@ne
-    \lx@closelist\endgroup
+    \let\lx@donext\lx@zpop@one   % roman level: back to the letters
+  \else\iflx@inexample
+    \let\lx@donext\lx@zexit      % dot syntax: the letter level ends it
+  \else\ifnum\lx@subdepth>\z@
+    \let\lx@donext\lx@zpop@one   % exe batch: letter level -> main level
+  \else\iflx@inexe
+    \let\lx@donext\lx@zpop@exeerr
   \else
-    \expandafter\lx@zexit
-  \fi}
+    \let\lx@donext\lx@zpop@err
+  \fi\fi\fi\fi
+  \lx@donext}
+\def\lx@zpop@one{\lx@closelist\endgroup}
 % Text on the same line as a main-level \z. is a CONTINUATION: it is set
 % flush left under the example (no \parindent), separated from it by the
 % example's normal bottom space, and closed with \par (the source's own
@@ -1093,6 +1114,12 @@
   \PackageError{linguexx}{\string\z. outside an example}%
     {\string\z. closes one sub-example level, or ends the example when
      at its main level.}}
+\def\lx@zpop@exeerr{%
+  \PackageError{linguexx}{\string\z. at the main level of an exe batch}%
+    {Inside \string\begin{exe} ... \string\end{exe}, \string\z. closes an
+     open sub-example level (one opened by \string\a.). At the main level
+     of the batch there is nothing to close: end the batch with
+     \string\end{exe}.}}
 
 %% \exg. / \ag. ... \fg. : glossed shorthands, expanding to
 %% \ex. \gll resp. \a. \gll etc., with judgment detection re-run in

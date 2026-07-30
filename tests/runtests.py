@@ -1117,11 +1117,25 @@ def a_gbfour(p: Page):
     labw = [w for w in p.words if re.fullmatch(r"\(\d+\)", w.text)]
     margin = min(w.x0 for w in labw)
     got = [w.text for w in labw if abs(w.x0 - margin) < TOL]
-    r.append(check(got == ["(1)", "(2)", "(3)", "(4)", "(5)"],
+    r.append(check(got == ["(1)", "(2)", "(3)", "(4)", "(5)", "(6)", "(7)"],
                    f"exe batch numbers each \\ex; dot syntax continues; got {got}"))
     letters = [w.text for w in p.words if w.text in ("a.", "b.", "c.", "d.", "i.")]
-    r.append(check(letters == ["a.", "b.", "c.", "i.", "d."],
+    r.append(check(letters == ["a.", "b.", "c.", "i.", "d.", "a."],
                    f"xlist letters and nested roman; got {letters}"))
+    # \z. inside an exe batch pops the sub-level that "\a." opened, so the
+    # following \ex is a MAIN-level example again.  Both halves matter: the
+    # \z. used to be a hard package error ("\z. outside an example", because
+    # only the dot syntax sets \lx@inexample), and with it omitted the next
+    # \ex was silently demoted to sub-item "b." -- so the number sequence
+    # above and the x-position here are each the assertion for one half.
+    five, six, zsub = p.find("GBFIVE"), p.find("GBSIX"), p.find("GBZSUB")
+    r.append(check(zsub.x0 > five.x0 + 2,
+                   f"\\a. inside exe opens a sub-level ({zsub.x0:.2f} vs "
+                   f"{five.x0:.2f})"))
+    r.append(check(abs(six.x0 - five.x0) < TOL,
+                   f"\\ex after \\z. is back at the exe main level "
+                   f"({six.x0:.2f} vs {five.x0:.2f}, sub-level was "
+                   f"{zsub.x0:.2f})"))
     # bracket judgments must not displace text: judged and plain items align
     for judged, plain, where in [("GBTWO", "GBONE", "main level"),
                                  ("GBSUBB", "GBSUBA", "sub level")]:

@@ -19,4 +19,15 @@
 Refs: \ref{g:one} and \Last.
 
 \ex. GBDOT dot syntax continues the counter.
+
+%% \z. inside an exe batch: it closes the sub-level that "\a." opened
+%% through the global \a hook, so the NEXT \ex is a main-level example
+%% again.  Without the pop \lx@gbex@plain still sees \lx@subdepth=1 and
+%% silently demotes GBSIX to sub-item "b." -- no error, wrong output.
+\begin{exe}
+\ex GBFIVE main level before the pop.
+\a. GBZSUB sub-level opened by the dot syntax inside exe.
+\z.
+\ex GBSIX back at the main level after the pop.
+\end{exe}
 \end{document}

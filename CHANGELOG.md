@@ -62,6 +62,17 @@ version string.
   batch (`\lx@closesubs`). It previously closed only the main list and
   leaked `\lx@subpush`'s `\begingroup`, leaving `\lx@subdepth` stuck at the
   sub-level for the rest of the document.
+- Fix: `\z.` is now usable inside an `exe` batch. Mixing the syntaxes is
+  documented, so an `\a.` inside `exe` legitimately opens a sub-level -- but
+  `\z.`, the only thing that could close it again, raised "`\z.` outside an
+  example": the command was gated on a flag only the dot syntax sets. It is
+  now gated on the open sub-level itself, so `\a. ... \z.` inside a batch
+  returns to the main level and the next `\ex` is a main-level example
+  again. (With the `\z.` omitted that `\ex` is still silently demoted to a
+  sub-item: `\ex` continues at the *current* level, which is the rule
+  `xlist` documents, and `\z.` is now the escape.) Only the branch that ends
+  the example stays dot-syntax-only; a `\z.` at the main level of a batch is
+  a package error saying to end the batch with `\end{exe}`.
 - `\glt` (the free translation) gains two hooks, both opt-in and both
   leaving the default output and the default tag tree byte-for-byte as they
   were:
