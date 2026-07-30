@@ -9,6 +9,17 @@
 \DocumentMetadata{lang=en,pdfversion=2.0,pdfstandard=ua-2,tagging=on}
 % \DocumentMetadata{lang=en,pdfversion=2.0,pdfstandard=ua-2,testphase={phase-III}}
 \documentclass{article}
+% T1 under pdfLaTeX: the standard encoding once a document contains
+% non-ASCII text, giving single glyphs instead of accents composed onto
+% letters.  Recorded so nobody has to re-derive it: on this TeX Live the
+% text layer is correct WITHOUT this line too -- the tagging machinery
+% supplies the ToUnicode mapping, so copy-paste and screen readers get
+% "Mädchen" either way, and veraPDF passes either way.  It is here as
+% correct practice for accented input, not as a fix for a demonstrated
+% accessibility defect.  The Unicode engines need nothing: they take UTF-8
+% natively.
+\usepackage{iftex}
+\ifPDFTeX \usepackage[T1]{fontenc} \fi
 \usepackage[lazy]{linguexx}
 \usepackage{hyperref}
 \hypersetup{pdftitle={An accessible linguistics document},
@@ -52,6 +63,19 @@ Ordinary running text precedes the first example.
 
 \exg. Der Hund bellte.\\ the dog bark.\lpzg{pst}\\
 \glt `The dog barked.'
+
+% Accented characters in an example, so the T1 line above is exercised and
+% not merely present.  With T1 these are single glyphs and the text layer is
+% correct; under the OT1 default they would be composed from an accent and a
+% letter, look identical on the page, and extract wrongly -- which is what a
+% screen reader would then read out.
+% Written as literal UTF-8, not as \"a and \ss, because that is what an
+% author types -- and under pdfLaTeX it is a different input: inputenc turns
+% "ä" into the two tokens \" a, which is how the accents came to collide
+% with the sub-example letters in the first place.
+\exg. Die Mädchen schliefen draußen.\\
+      the girl.\lpzg{pl} sleep.\lpzg{pst} outside\\
+\glt `The girls slept outside.'
 
 % Phantom bracket alignment: the gloss word under a bracketed constituent
 % lines up with the constituent, not with the bracket.  The \phantom ships

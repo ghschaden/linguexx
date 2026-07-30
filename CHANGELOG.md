@@ -134,6 +134,14 @@ version string.
 - The suite caps each engine run (`CASE_TIMEOUT`). A TeX loop ignores
   `-interaction=nonstopmode` and spins with an empty log, so one bad case
   hung the whole suite rather than failing it.
+- `examples/ua-demo.tex` loads `fontenc` (T1 under pdfLaTeX only) and now
+  contains an accented example written as literal UTF-8, so the
+  accessibility demo exercises the input path the `ç` bug lived on — it
+  previously had no non-ASCII character in it at all. Recorded in the file
+  itself, because it is easy to assume otherwise: the text layer is correct
+  *without* `fontenc` too, since the tagging machinery supplies the
+  `ToUnicode` mapping, and veraPDF passes either way. T1 is there as correct
+  practice for accented input, not as a fix for a demonstrated defect.
 - Fix: **linguexx could not be used with French `babel` at all.** `babel`'s
   French option defines `\fg`, the closing guillemet of `\og … \fg`, and
   linguexx claimed the same name for its glossed shorthand `\fg.` — fatally,
