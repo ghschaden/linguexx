@@ -1,8 +1,29 @@
+%% BUILD THIS WITH LUALATEX (or XeLaTeX), not pdfLaTeX.
+%%
+%% Not a preference: section 9.3 documents that characters with a diacritic
+%% BELOW the letter -- Indic and Semitic transliteration, Latvian, Romanian
+%% -- are composed from two glyphs under pdfLaTeX, so the PDF's text layer
+%% records something other than what was written and a screen reader reads
+%% it wrongly.  This manual contains exactly those characters, in the table
+%% that explains the problem.  Built with pdfLaTeX it therefore exhibited
+%% the defect it warns about, which is not a good look for the manual of a
+%% package whose selling point is accessible output.
+%%
+%% fontspec keeps Latin Modern, so the result looks as it always did.
 \documentclass[11pt,a4paper]{article}
-\usepackage[T1]{fontenc}
-\usepackage[utf8]{inputenc}
+\usepackage{iftex}
+\ifPDFTeX
+  \PackageError{linguexx-doc}{Build this manual with lualatex or xelatex}
+    {Under pdfLaTeX the transliteration examples in section 9.3 come out
+     with a broken text layer -- which is the very thing that section
+     documents.  Run: lualatex linguexx-doc}
+\fi
+%% No fontspec and no lmodern here on purpose.  Under LuaLaTeX the kernel
+%% already uses Latin Modern in TU encoding with every shape this manual
+%% needs; naming the families explicitly with \setmainfont loses the
+%% small-caps and bold-monospace shapes (the Leipzig table is entirely
+%% small caps), which shows up only as a font-shape warning in the log.
 \usepackage[margin=30mm]{geometry}
-\usepackage{lmodern}
 \usepackage{microtype}
 \usepackage{xcolor}
 \usepackage{hologo}
@@ -1519,6 +1540,51 @@ label & meaning & label & meaning \\
 \bottomrule
 \end{longtable}
 \end{center}
+
+\subsection{Transliteration and the engine you compile with}
+\label{sec:translitengine}
+
+One trap is worth knowing about, because nothing warns you and the page
+looks perfect. Under pdf\LaTeX{}, characters whose diacritic sits
+\emph{below} the letter are not single glyphs: \TeX{} composes them by
+placing a period-like glyph under the base letter. The result prints
+correctly, but the PDF's text layer records the two pieces, so what
+copy-paste and a screen reader receive is not what you wrote:
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+you write & pdf\LaTeX{} extracts & Xe\LaTeX/Lua\LaTeX{} extract \\
+\midrule
+\texttt{kṛṣṇaḥ} (Indic)   & \texttt{kr.s.n.ah.} & \texttt{kṛṣṇaḥ} \\
+\texttt{ḍāṇṭaḥ} (Indic)   & \texttt{d . ān.t.ah.} & \texttt{ḍāṇṭaḥ} \\
+\texttt{ģimeņu} (Latvian) & \texttt{gimen ,u}   & \texttt{ģimeņu} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent This manual is itself built with Lua\LaTeX{}, for exactly this
+reason: it contains those characters in the table above, and under
+pdf\LaTeX{} it would exhibit the defect it is describing --- copying the
+first column out of the PDF would give you the second. Built as it is, the
+first and third columns copy out as written.
+
+This affects dot-below (Indic and Semitic transliteration:
+\texttt{ḍ ṇ ṭ ṣ ḥ ṛ ṃ}) and comma-below (Latvian \texttt{ģ ķ ļ ņ}, and the
+same command produces Romanian \texttt{ș ț}). Two things make it easy to
+miss. Tagging does \emph{not} repair it --- the mapping is supplied per
+glyph, and here there are two glyphs where you meant one --- so it is
+present in a fully tagged \opt{ua-2} document as much as in a plain one.
+And veraPDF \emph{passes} such a file on all three profiles: the structure
+tree is valid, so the only authoritative check for PDF/UA gives it a clean
+bill while the text a screen reader reads is wrong.
+
+If your data uses those scripts, compile with Xe\LaTeX{} or Lua\LaTeX{},
+where the characters stay single glyphs and extract correctly. For those
+languages this is an accessibility requirement, not a preference. Accents
+\emph{above} the letter --- the whole European Latin repertoire, \texttt{ä
+é č ő ł ø þ} and the rest --- are unaffected and extract correctly under
+all three engines.
 
 % ===========================================================================
 \section{Notes and limitations}\label{sec:notes}

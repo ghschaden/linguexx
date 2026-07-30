@@ -134,6 +134,15 @@ version string.
 - The suite caps each engine run (`CASE_TIMEOUT`). A TeX loop ignores
   `-interaction=nonstopmode` and spins with an empty log, so one bad case
   hung the whole suite rather than failing it.
+- The manual documents the transliteration extraction trap (§9.3) and is now
+  built with **lualatex**, refusing to build under pdflatex. It contains the
+  affected characters in the table that explains them, so built with pdflatex
+  it exhibited the defect it was describing — copying the first column out of
+  the PDF gave you the second. Verified while writing it: tagging does *not*
+  repair this (the mapping is per glyph, and there are two glyphs where one
+  was meant), and veraPDF passes such a file on all three profiles — so the
+  only authoritative PDF/UA check gives a clean bill to a document a screen
+  reader misreads.
 - `examples/ua-demo.tex` loads `fontenc` (T1 under pdfLaTeX only) and now
   contains an accented example written as literal UTF-8, so the
   accessibility demo exercises the input path the `ç` bug lived on — it

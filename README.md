@@ -54,7 +54,11 @@ the simplest current form is
 \DocumentMetadata{lang=en, tagging=on}
 ```
 
-The full manual is `linguexx-doc.pdf`.
+The full manual is `linguexx-doc.pdf`. Rebuild it with **lualatex**, not
+pdflatex: it documents (§9.3) that characters with a diacritic below the
+letter — Indic and Semitic transliteration, Latvian, Romanian — get a broken
+text layer under pdflatex, and it contains those characters in the table that
+explains it. The manual refuses to build with pdflatex for that reason.
 
 ## Installation
 
