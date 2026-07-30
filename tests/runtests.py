@@ -478,6 +478,72 @@ def a_refs(p: Page):
 
 
 
+def a_cedilla(p: Page):
+    r""" \a.-\f. must not clobber the accents \b \c \d outside an example,
+    and must still drive sub-examples inside one -- including inside an exe
+    batch.  Under pdflatex a clobbered \c makes the utf8 "ç" fail too, so a
+    regression here usually shows up as COMPILE FAILED rather than as a
+    failing assertion; the positive checks below pin the rest."""
+    r = []
+    txt = " ".join(w.text for w in p.words)
+    # accents survive in a hyperref \section title: this is the case that
+    # used to lose the cedilla silently, in the heading AND the bookmark
+    r.append(check("TITLEfaçade" in txt,
+                   rf"\c in a hyperref section title keeps its accent; "
+                   rf"got {txt[:40]!r}"))
+    # \a is held globally and must be \protected, or hyperref's \edef over
+    # the title runs its peek and the compile dies
+    r.append(check("TITLEcafé" in txt,
+                   rf"\a' in a hyperref section title survives; got {txt[:60]!r}"))
+    # ... and in running text, in all four positions relative to examples:
+    # before any example, and after each of the three example syntaxes.
+    # "after exe" is the one that breaks if \end{exe} leaks the \begingroup
+    # that a "\a." inside the batch opened.
+    for tok in ("BEFOREaçb", "BEFOREdirç", "AFTERDOTç", "AFTEREXEç",
+                "AFTERXLç"):
+        r.append(check(tok in txt, rf"accent intact: {tok} (got {tok[:-1]!r}?)"))
+    # The two non-cedilla kernel accents are restored as themselves, not as
+    # the letter commands (\b{b} = bar-under, \d{d} = dot-under).  Matched on
+    # the base letter only: the engines disagree on how the accent extracts
+    # (pdflatex drops the combining mark, xe/lua give U+0332 resp. the
+    # precomposed U+1E0D), so the full token is not portable.  A regression
+    # here does not reach this check anyway -- a clobbered \b/\d makes
+    # \b{b} raise "Use of \b doesn't match its definition" and the compile
+    # fails outright.
+    r.append(check(any(w.text.startswith("BEFOREbarb") for w in p.words)
+                   and any(w.text.startswith("BEFOREdot") for w in p.words),
+                   r"\b and \d remain accent commands outside an example"))
+    # and the dot letters still work, in BOTH syntaxes.  Two "a."/"b." pairs
+    # are expected: one from the \ex. example, one from inside the exe batch.
+    letters = [w.text for w in p.words if w.text in ("a.", "b.")]
+    r.append(check(letters == ["a.", "b.", "a.", "b.", "a."],
+                   rf"\a./\b. label both the dot example and the exe batch, "
+                   rf"plus the xlist item; got {letters}"))
+    for tok in ("DOTALPHA", "DOTBETA", "EXEALPHA", "EXEBETA", "XLSUB"):
+        r.append(check(p.find(tok) is not None, f"sub-example typeset: {tok}"))
+    # the exe batch numbered as a batch and the counter kept running
+    nums = [w.text for w in p.words if re.fullmatch(r"\(\d+\)", w.text)]
+    r.append(check(nums == ["(1)", "(2)", "(3)"],
+                   f"one number per top-level example across syntaxes; got {nums}"))
+    return r
+
+
+def a_cedilla_gb4e(p: Page):
+    r"""[gb4e] alone: \a.-\f. do not exist, so \b \c \d must stay accent
+    commands EVERYWHERE, including inside exe/xlist whose sub-level openers
+    are shared with the [lazy] dot syntax."""
+    r = []
+    txt = " ".join(w.text for w in p.words)
+    for tok in ("GBTITLEfaçade", "GBBEFOREç", "GBINEXEç", "GBINXLç",
+                "GBAFTERç"):
+        r.append(check(tok in txt, f"accent intact under [gb4e] alone: {tok}"))
+    # the environment syntax itself still works in this mode
+    r.append(check(p.find("GBEXEMAIN") is not None, "exe item typeset"))
+    nums = [w.text for w in p.words if re.fullmatch(r"\(\d+\)", w.text)]
+    r.append(check(nums == ["(1)"], f"exe numbers its item; got {nums}"))
+    return r
+
+
 def a_gbfour(p: Page):
     r = []
     # example labels sit at the left margin; the "(1)" inside the Refs
@@ -787,6 +853,8 @@ def a_lpzglist(p: Page):
 
 
 ASSERTIONS = {
+    "cedilla": a_cedilla,
+    "cedilla-gb4e": a_cedilla_gb4e,
     "legacy": a_legacy,
     "tagged": a_tagged,
     "gbfour": a_gbfour,

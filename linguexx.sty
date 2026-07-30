@@ -99,14 +99,18 @@
 %%          glosses (opt-in via [phantomalign] or \GlossPhantomAlign):
 %%          pads a gloss word by a \phantom the width of the object word's
 %%          leading brackets/judgment marks, so real glyphs line up;
-%%          \GlossPhantom{...} is the manual override.  Fix: \a-\f (the
-%%          sub-example letters) now only mean "start/continue a
-%%          sub-example" while an example is open; outside one they are
-%%          left untouched, so \b{}/\c{}/\d{} accents, an
-%%          inputenc-decomposed "ç", and hyperref's own bookmark-string
-%%          handling of them all keep working in running text and
-%%          section titles again (previously always clobbered under
-%%          [lazy], the default).
+%%          \GlossPhantom{...} is the manual override.  Fix: the
+%%          sub-example letters no longer clobber the kernel accents
+%%          \b, \c, \d.  \b-\f are activated only where a sub-level is
+%%          reachable and restored on the way out; \a stays global (it
+%%          must be able to OPEN a level) but is \protected and falls
+%%          back to the ambient \a without a following period.  So
+%%          \c{c}, "ç" and hyperref bookmark accents work in running
+%%          text and section titles again -- previously clobbered
+%%          document-wide under [lazy], the default, and silently
+%%          dropped in a hyperref title.  Fix: \end{exe} closes a
+%%          sub-level opened by an \a. inside the batch instead of
+%%          leaking its \begingroup.
 %% Package options come in two independent groups.
 %%
 %% SYNTAX:
@@ -886,44 +890,80 @@
 %% sub-examples ------------------------------------------------------------
 %% \a. pushes a level; the depth advance happens INSIDE the new group.
 %%
-%% \a \b \c \d \e \f mean "start/continue a sub-example" (via a literal
-%% "." right after) ONLY while an example is open (\iflx@inexample);
-%% outside one they are left COMPLETELY untouched, so \c{c}, an
-%% inputenc-decomposed "ç", or hyperref's own PU-encoding redefinition of
-%% \b/\c/\d for its bookmark strings all keep working in a \section
-%% title or anywhere else in running text, exactly as if linguexx were
-%% not loaded there.  This is a plain \let swap at the example's own
-%% start/end (\lx@run@ex / \lx@example@cleanup, see \lx@letters@on/@off
-%% below), not a permanent global redefinition with a runtime fallback:
-%% an earlier version peeked at the next token via \@ifnextchar to
-%% decide whether to dispatch or fall back to the original accent, and
-%% that broke under hyperref, which rebuilds bookmark strings by fully
-%% \edef-expanding the title -- \futurelet-based lookahead is not
-%% edef-safe. Scoping the redefinition itself to the example's lifetime
-%% sidesteps the problem instead of working around it: outside an
-%% example \c is never anything but whatever it would otherwise be, so
-%% no edef-unsafe code ever runs on it.
+%% \b \c \d \e \f mean "continue a sub-example" (via a literal "." right
+%% after) only WHILE A SUB-LEVEL IS REACHABLE; outside that they are left
+%% COMPLETELY untouched, so \c{c}, an inputenc-decomposed "ç", and
+%% hyperref's own PU-encoding redefinition of \b/\c/\d for its bookmark
+%% strings all keep working in a \section title or anywhere else in
+%% running text, exactly as if linguexx were not loaded there.  Earlier
+%% versions redefined all six letters globally and permanently, which
+%% clobbered those accents document-wide: \c{c} and "ç" raised "Use of \c
+%% doesn't match its definition" under pdflatex, and in a hyperref title
+%% the accent was silently DROPPED from both the printed heading and the
+%% PDF outline entry.
+%%
+%% \a is the exception: it is hooked GLOBALLY (see \lx@hook@a below),
+%% because "\a." must be able to OPEN a sub-level, i.e. at a point where
+%% no sub-level is active yet -- including with no enclosing \ex. or exe
+%% at all, which linguex allows and which produced a bare letter list
+%% before.  \a is safe to hold globally in a way \b/\c/\d are not: it is
+%% not one of hyperref's PU bookmark accents, and in the kernel it is
+%% only meaningful inside tabbing.  It is \protected so that an \edef
+%% over it (hyperref's bookmark-string pass) leaves it untouched rather
+%% than running its \futurelet peek, which is not edef-safe -- the
+%% mistake that made a first attempt at this fix break \section titles.
 \def\lx@dot@a.{\lx@subpush}
 \def\lx@dot@b.{\lx@subnext}
 \def\lx@dot@c.{\lx@subnext}
 \def\lx@dot@d.{\lx@subnext}
 \def\lx@dot@e.{\lx@subnext}
 \def\lx@dot@f.{\lx@subnext}
-%% Saves whatever \a-\f mean RIGHT BEFORE the example starts (not a
-%% fixed original captured once at package load) and restores exactly
-%% that afterward: correct regardless of load order relative to
-%% hyperref, and safe even if something else redefines these letters
-%% between two examples in the same document.  Examples do not nest
-%% (see \lx@collectbody above), so one save slot per letter is enough.
+%% Two activation flavours, because the two syntaxes differ in grouping:
+%%
+%% \lx@letters@local -- plain \let, NO save.  For use where a TeX group
+%%   already scopes the change and will undo it: the exe/xlist
+%%   environments, and the \begingroup that \lx@subpush opens for a new
+%%   sub-level.  Nests correctly by construction (each group unwinds to
+%%   whatever the enclosing one had), which a single set of save slots
+%%   could not do -- exe > xlist > ... does nest, even though examples
+%%   themselves do not.
+%% \lx@letters@on / @off -- explicit save and restore.  For the dot-syntax
+%%   example path ONLY, which deliberately runs without a group of its own
+%%   (see \lx@run@ex: an enclosing group breaks the tagged text-unit
+%%   accounting for examples in footnotes).  Saves whatever the letters
+%%   mean right before this example, so it is correct regardless of load
+%%   order relative to hyperref and of anything that rebinds them between
+%%   two examples.  Examples do not nest, so one slot per letter suffices.
+%% Only [lazy] has the dot letters at all: under [gb4e] alone \a.-\f. are
+%% documented not to exist, and the accents must stay untouched even inside
+%% exe/xlist, so the activation has to be a no-op there -- the sub-level
+%% openers below are shared by both syntaxes and would otherwise clobber
+%% \b/\c/\d inside a gb4e batch.
+\iflx@lazy
+  \def\lx@letters@local{%
+    \let\a\lx@dot@a \let\b\lx@dot@b \let\c\lx@dot@c
+    \let\d\lx@dot@d \let\e\lx@dot@e \let\f\lx@dot@f}
+\else
+  \let\lx@letters@local\relax
+\fi
 \def\lx@letters@on{%
   \let\lx@saved@a\a \let\lx@saved@b\b \let\lx@saved@c\c
   \let\lx@saved@d\d \let\lx@saved@e\e \let\lx@saved@f\f
-  \let\a\lx@dot@a \let\b\lx@dot@b \let\c\lx@dot@c
-  \let\d\lx@dot@d \let\e\lx@dot@e \let\f\lx@dot@f}
+  \lx@letters@local}
 \def\lx@letters@off{%
   \let\a\lx@saved@a \let\b\lx@saved@b \let\c\lx@saved@c
   \let\d\lx@saved@d \let\e\lx@saved@e \let\f\lx@saved@f}
+%% The global \a hook: dispatch on a following period, otherwise hand over
+%% to whatever \a meant when the hook was installed.
+\protected\def\lx@hook@a{\@ifnextchar.\lx@dot@a\lx@kernel@a}
+% Idempotent: re-running it (it is called both now and \AtBeginDocument,
+% so that a package loaded later which rebinds \a is still picked up)
+% must not capture the hook as its own fallback, which would loop.
+\def\lx@install@a{%
+  \ifx\a\lx@hook@a\else \let\lx@kernel@a\a \fi
+  \let\a\lx@hook@a}
 \def\lx@assert@letters{%
+  \lx@install@a
   \def\z.{\lx@zpop}%
   \def\exg.{\ex.\lx@glosshead}%
   \def\ag.{\a.\lx@glosshead}%
@@ -936,12 +976,13 @@
   \lx@assert@letters
   \AtBeginDocument{\lx@assert@letters}
 \fi
-% Under [gb4e] alone, \lx@assert@letters is never called and
-% \lx@letters@on/@off (only ever invoked from \lx@run@ex, itself only
-% reachable through the dot syntax) never run: \z., the glossed
-% shorthands, and \a.-\f. do not exist, and the kernel accents \b, \c,
-% \d (and hyperref's use of them) stay untouched everywhere, exactly as
-% before.
+% Under [gb4e] alone, \lx@assert@letters is never called, so \a is not
+% hooked either: \z., the glossed shorthands and \a.-\f. do not exist,
+% and \a plus the kernel accents \b, \c, \d (and hyperref's use of them)
+% stay untouched everywhere, exactly as before.  \lx@letters@local is
+% still reached from exe/xlist under [gb4e], but only INSIDE those
+% environments' own groups, where the dot letters are what the gb4e
+% syntax documents as mixable.
 
 %% \z. pops exactly ONE level, counting the surrounding prose as the
 %% outermost level: from the roman level it returns to the letters (a
@@ -1016,15 +1057,21 @@
      \partopsep\z@ \parskip\z@
      \let\makelabel\lx@flushlabel}}
 
-% depth 0 -> open letter level
+% depth 0 -> open letter level.  \lx@letters@local goes right after the
+% \begingroup, so \b.-\f. are live for the rest of this level (and are
+% undone by the matching \endgroup in \lx@closesubs / \z.).  It matters
+% here and not only in \lx@run@ex: "\a." can open a level with no
+% enclosing \ex. or exe at all, reached through the global \a hook.
 \def\lx@subpush@i{%
   \begingroup\advance\lx@subdepth\@ne
+  \lx@letters@local
   \lx@sublist@i
   \lx@subitem}
 
 % depth 1 -> open roman level
 \def\lx@subpush@ii{%
   \begingroup\advance\lx@subdepth\@ne
+  \lx@letters@local
   \lx@sublist@ii
   \lx@subsubitem}
 
@@ -1055,6 +1102,7 @@
 % advance is undone at the matching \end
 \def\lx@subenv@begin{%
    \advance\lx@subdepth\@ne
+   \lx@letters@local
    \ifcase\lx@subdepth
      \let\lx@donext\relax % unreachable
    \or
@@ -1082,12 +1130,21 @@
    \lx@subdepth\z@
    \setcounter{SubExNo}{0}\setcounter{SubSubExNo}{0}%
    \lx@inexetrue
+   % No letter activation here: "\a. inside exe" (documented as mixable)
+   % reaches the dot syntax through the global \a hook, and \lx@subpush
+   % then activates \b.-\f. inside the \begingroup it opens for the level.
    \lx@guesslabel
    \lx@mainlist
    % consecutive examples in a batch get the same vertical rhythm as
    % consecutive \ex. examples (net \Extopsep between them)
    \itemsep\Extopsep}
-  {\lx@closelist}
+  % A "\a." inside the batch opened a sub-level through \lx@subpush, i.e.
+  % a \begingroup that only \lx@closesubs closes; \end{exe} used to close
+  % the main list alone and leak it, which left \lx@subdepth and the dot
+  % letters stuck at the sub-level for the rest of the document.  An xlist
+  % inside the batch needs nothing here: its own environment group has
+  % already undone its depth advance by the time we get here.
+  {\lx@closesubs \lx@closelist}
 
 \NewDocumentEnvironment{xlist}{}
   {\lx@subenv@begin

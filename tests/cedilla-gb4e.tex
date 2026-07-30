@@ -1,0 +1,21 @@
+%% Under [gb4e] ALONE the dot letters \a.-\f. are documented not to exist,
+%% and the kernel accents \b, \c, \d must therefore stay untouched
+%% everywhere -- including inside an exe/xlist body, whose sub-level
+%% openers are shared with the [lazy] dot syntax.  Activating the letters
+%% there unconditionally is the mistake this case pins.
+\input{_preamble-gb4eonly}
+\usepackage{hyperref}
+\begin{document}
+\section{GBTITLEfa\c cade}
+
+GBBEFORE\c{c} and GBBEFOREdir ç.
+
+\begin{exe}
+\ex GBEXEMAIN accents in a batch: GBINEXE\c{c} and GBINEXEdir ç.
+ \begin{xlist}
+ \ex GBINXL\c{c} and GBINXLdir ç.
+ \end{xlist}
+\end{exe}
+
+GBAFTER\c{c} and GBAFTERdir ç.
+\end{document}

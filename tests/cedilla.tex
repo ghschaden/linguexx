@@ -1,5 +1,43 @@
-\documentclass{article}
-\usepackage{linguexx}
+%% The sub-example letters \a.-\f. must not clobber the kernel accent
+%% commands \b, \c, \d outside an example, and must still work inside one
+%% -- including inside an exe batch, where mixing the dot syntax in is
+%% documented.  Loaded with hyperref, because a \section title is
+%% \edef-expanded to build the PDF bookmark and that is where an
+%% \@ifnextchar-based dispatch on \c silently dropped the accent.
+\input{_preamble-gb4e}
+\usepackage{hyperref}
 \begin{document}
-ç
+\section{TITLEfa\c cade}
+%% \a is the one letter held globally (it must be able to OPEN a level), so
+%% it is the one that has to be \protected against hyperref's \edef over
+%% the title -- unprotected, its \futurelet peek runs during that expansion
+%% and dies with "Use of \lx@dot@a doesn't match its definition".
+\subsection{TITLEcaf\a'e}
+
+BEFOREa\c cb and BEFOREdir\c{c} and BEFOREbar\b{b} and BEFOREdot\d{d}.
+
+\ex. DOTMAIN main example
+\a. DOTALPHA first
+\b. DOTBETA second
+\z.
+
+AFTERDOT\c{c} and AFTERDOTdir ç.
+
+\begin{exe}
+\ex EXEMAIN in a batch.
+\a. EXEALPHA letter inside exe
+\b. EXEBETA second letter inside exe
+\end{exe}
+
+AFTEREXE\c{c} and AFTEREXEdir ç.
+
+\ex. XLMAIN main
+\begin{xlist}
+\ex XLSUB sub via xlist
+\end{xlist}
+
+AFTERXL\c{c} and AFTERXLdir ç.
+%% [gb4e] alone -- where \a.-\f. are documented not to exist at all and the
+%% accents must stay untouched even inside exe -- is a separate build:
+%% cedilla-gb4e.tex.
 \end{document}

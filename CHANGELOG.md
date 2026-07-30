@@ -35,19 +35,28 @@ version string.
   (verified with veraPDF on `examples/ua-demo` and on a `\GlossPhantom`
   build). Alignment survives a size change of the gloss tier (e.g.
   `\footnotesize`). `\altg` alternative columns are not covered.
-- Fix: the `\a`-`\f` sub-example letters now only mean "start/continue a
-  sub-example" while an example is open; outside one they are left
-  completely untouched. Previously, under `[lazy]` (the default), they
-  permanently clobbered the kernel accent commands `\b`, `\c`, `\d`
-  everywhere in the document, so `\c{c}`, an inputenc-decomposed "ç", or
-  hyperref's own bookmark-string handling of those letters would break (the
-  hyperref case failed silently, dropping the accent from both the printed
-  title and the PDF outline entry). The redefinition is now scoped to the
-  lifetime of the example itself (`\lx@letters@on`/`\lx@letters@off`,
-  invoked from `\lx@run@ex`/`\lx@example@cleanup`), so accented text works
-  again everywhere outside example bodies, including inside a
-  hyperref-linked `\section` title. Verified with veraPDF on
-  `examples/ua-demo`.
+- Fix: the sub-example letters no longer clobber the kernel accent commands
+  `\b`, `\c`, `\d`. Previously, under `[lazy]` (the default), all six of
+  `\a`-`\f` were redefined globally and permanently, so `\c{c}` or an
+  inputenc-decomposed "ç" anywhere in the document raised "Use of `\c`
+  doesn't match its definition", and in a hyperref `\section` title the
+  accent was dropped *silently* from both the printed heading and the PDF
+  outline entry. Now `\b`-`\f` are activated only where a sub-level is
+  actually reachable — inside the `\begingroup` that `\lx@subpush` opens
+  for a level, and in `xlist` — and restored on the way out; `\a` alone
+  stays global (it has to be able to *open* a level), is `\protected` so
+  hyperref's `\edef` over a title cannot trip its lookahead, and falls back
+  to the ambient `\a` when not followed by a period. Under `[gb4e]` alone
+  nothing is redefined at all, as documented. Both dot and environment
+  syntaxes keep mixing as before (`\a.` inside `exe`, `xlist` inside `\a.`).
+- Fix: `\end{exe}` now closes any sub-level opened by an `\a.` inside the
+  batch (`\lx@closesubs`). It previously closed only the main list and
+  leaked `\lx@subpush`'s `\begingroup`, leaving `\lx@subdepth` stuck at the
+  sub-level for the rest of the document.
+- Regression coverage for both of the above (`tests/cedilla.tex`,
+  `tests/cedilla-gb4e.tex`), including the hyperref-title cases and the
+  accent-restoration points after each example syntax; mutation-checked.
+  Verified with veraPDF on `examples/ua-demo`.
 
 ## 1.0
 - `\alt`/`\lxAlt` renamed to `\altn`/`\lxAltn`. `\alt` is claimed by
