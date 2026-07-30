@@ -9,6 +9,11 @@ package compiled with zero errors and was visible only in the coordinates
 (a judgment mark that failed to hang left, a source that fell flush left
 instead of flush right, a \z. that popped the wrong number of levels).
 
+Adding a case: drop <name>.tex in this directory AND add a <name> entry to
+ASSERTIONS.  Only what ASSERTIONS lists is ever run, so a case file without
+an entry is dead weight; the suite refuses to run until every case file is
+either wired up or declared SMOKE_ONLY (see suite_integrity).
+
 Usage:
     python3 runtests.py                  # all cases, all engines
     python3 runtests.py -e pdflatex      # one engine
@@ -16,7 +21,9 @@ Usage:
     python3 runtests.py -v               # show every assertion, not just failures
 
 Requires: pdflatex / xelatex / lualatex, and pdftotext (poppler-utils).
-Exit status 0 iff every assertion passed.
+Exit status: 0 iff every assertion passed, 1 on a failing assertion,
+2 on a suite-integrity problem (an unwired case file, a missing case file,
+a stale KNOWN_XFAIL key) or when no case matches -k.
 """
 
 import argparse
@@ -852,6 +859,12 @@ def a_lpzglist(p: Page):
     return r
 
 
+#: Case files that are deliberately NOT assertion-driven: the two smoke
+#: tests the Makefile builds under all three engines, whose only assertion
+#: is that they compile.  Listed here so that the integrity check below can
+#: tell them apart from a case file whose assertions were forgotten.
+SMOKE_ONLY = {"linguexx-test", "linguexx-test-gb4e"}
+
 ASSERTIONS = {
     "cedilla": a_cedilla,
     "cedilla-gb4e": a_cedilla_gb4e,
@@ -872,6 +885,41 @@ ASSERTIONS = {
 
 
 # ---------------------------------------------------------------------------
+
+def discover_cases():
+    """Case-file stems present on disk (anything but the _preamble* helpers)."""
+    return {p.stem for p in CASES.glob("*.tex") if not p.name.startswith("_")}
+
+
+def suite_integrity():
+    """Cross-check the case files on disk against ASSERTIONS.
+
+    The suite only ever runs what ASSERTIONS lists, so a case file that is
+    not listed is silently dead code -- it looks like coverage in the
+    directory listing and provides none.  That is not hypothetical: the
+    first cedilla.tex was committed without an ASSERTIONS entry and was
+    never executed, which is how a silent regression in the sub-example
+    letters reached a release.  Report both directions, and the reverse
+    problem of a stale KNOWN_XFAIL key, as hard errors.
+    """
+    problems = []
+    on_disk = discover_cases()
+    for name in sorted(on_disk - set(ASSERTIONS) - SMOKE_ONLY):
+        problems.append(
+            f"{name}.tex has no ASSERTIONS entry, so it is never run. "
+            f"Add an assertion function, or list it in SMOKE_ONLY if it is "
+            f"only meant to compile."
+        )
+    for name in sorted(set(ASSERTIONS) - on_disk):
+        problems.append(f"ASSERTIONS['{name}'] has no {name}.tex in {CASES}.")
+    for key in sorted(KNOWN_XFAIL):
+        engine, _, name = key.partition("/")
+        if engine not in ENGINES:
+            problems.append(f"KNOWN_XFAIL key {key!r} names no known engine.")
+        elif name not in ASSERTIONS:
+            problems.append(f"KNOWN_XFAIL key {key!r} names no known case.")
+    return problems
+
 
 def run_case(name: str, engine: str, verbose: bool):
     """Compile one case under one engine and run its assertions."""
@@ -911,6 +959,15 @@ def main():
     ap.add_argument("-v", "--verbose", action="store_true",
                     help="print passing assertions too")
     args = ap.parse_args()
+
+    # Deliberately before -k filtering: a filtered run must still notice a
+    # case file that nothing runs.
+    problems = suite_integrity()
+    if problems:
+        print("SUITE INTEGRITY:", file=sys.stderr)
+        for p in problems:
+            print(f"  X {p}", file=sys.stderr)
+        return 2
 
     engines = args.engine or ENGINES
     names = sorted(ASSERTIONS)
