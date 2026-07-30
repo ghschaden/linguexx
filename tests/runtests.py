@@ -913,6 +913,27 @@ def a_cleveref(p: Page):
     r.append(check("CVRANGE (1a) and (1b)" in txt,
                    f"\\cref over two sub-examples; got "
                    f"{txt[txt.find('CVRANGE'):][:28]!r}"))
+    # \crefrange is the other combining form and reaches the empty
+    # \crefname declarations by the range route rather than the list one,
+    # so the \cref lists above did not cover it: a name leaking through
+    # would print "example (1a) to example (1b)".
+    r.append(check("CVCREFRANGE (1a) to (1b)" in txt,
+                   f"\\crefrange over two sub-examples; got "
+                   f"{txt[txt.find('CVCREFRANGE'):][:31]!r}"))
+    r.append(check("CVCREFRANGEMAIN (1) to (2)" in txt,
+                   f"\\crefrange over two whole examples; got "
+                   f"{txt[txt.find('CVCREFRANGEMAIN'):][:33]!r}"))
+    # ... and why linguexx's own \refrange is not redundant with it:
+    # cleveref spells both endpoints out, \refrange compresses the shared
+    # "(1" prefix to "(1a--b)".  pdftotext maps the T1 en-dash to a control
+    # byte, so normalise as a_refs does.
+    norm = re.sub(r"[^\x20-\x7e]", "-", txt)
+    r.append(check(re.search(r"CVREFRANGE \(1a-+b\)", norm),
+                   f"\\refrange compresses the shared prefix; got "
+                   f"{norm[norm.find('CVREFRANGE'):][:24]!r}"))
+    r.append(check("CVREFRANGE (1a) to (1b)" not in txt,
+                   "\\refrange is not cleveref's spelling of the same range: "
+                   "the two forms are distinct and neither replaces the other"))
     return r
 
 

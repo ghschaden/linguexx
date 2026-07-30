@@ -8,8 +8,8 @@
 \usepackage{cleveref}
 \begin{document}
 \ex.\label{cv:one} CVONE first.
-\a.\label{cv:a} CVA letter a.
-\b.\label{cv:b} CVB letter b.
+\a.\label{cv:a}\sublabel{cv:sa} CVA letter a.
+\b.\label{cv:b}\sublabel{cv:sb} CVB letter b.
 \a.\label{cv:r} CVR roman i.
 \z.\z.
 
@@ -22,4 +22,22 @@ CVFN host.\footnote{\ex.\label{cv:fn} CVFNEX in a footnote.
 CVSINGLE \cref{cv:one} CVSUB \cref{cv:a} CVROMAN \cref{cv:r}
 CVMULTI \cref{cv:one,cv:two} CVRANGE \cref{cv:a,cv:b}
 CVCAP \Cref{cv:one} CVFNREF \cref{cv:fn} CVPLAIN \ref{cv:a}
+
+%% \crefrange is cleveref's OTHER combining form, and it goes through the
+%% empty \crefname declarations by a different route than \cref does (the
+%% range conjunction, not the list one), so \cref lists alone did not cover
+%% it: a \crefname guard that let a name through would show up here as
+%% "example (1) to example (2)".
+%% Each of the two lines below is its own paragraph, short enough not to
+%% reach the right margin: a sentinel hyphenated across a line break would
+%% make these assertions fail for a reason that has nothing to do with
+%% cleveref.
+CVCREFRANGE \crefrange{cv:a}{cv:b} CVCREFRANGEMAIN \crefrange{cv:one}{cv:two}
+
+%% ... and the reason linguexx's own \refrange is NOT redundant with it:
+%% cleveref spells both endpoints out in full, while \refrange compresses a
+%% shared prefix to "(1a--b)".  The two must therefore print DIFFERENTLY
+%% over the same pair; nothing asserted that before, so "cleveref already
+%% does ranges" looked like grounds for deleting \refrange.
+CVREFRANGE \refrange{cv:sa}{cv:sb}
 \end{document}
