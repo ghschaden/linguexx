@@ -1,9 +1,9 @@
 # Work order: fixes from the 2026-07-30 code review
 
-Status: PHASE A EXECUTED (branch `review-fixes`). Phases B, C and D are
-NOT EXECUTED — deferred by the user, who narrowed the scope to Phase A
-while it was in progress. The descriptions below are unchanged and remain
-the work order for a future run; each deferred item is marked in place.
+Status: PHASES A AND B EXECUTED (A on branch `review-fixes`, B on branch
+`phase-b-coverage`). Phases C and D are NOT EXECUTED — deferred by the
+user. The descriptions below are unchanged and remain the work order for
+a future run; each deferred item is marked in place.
 
 Executed, one commit each, every one gated on the full three-engine suite:
 
@@ -13,13 +13,20 @@ Executed, one commit each, every one gated on the full three-engine suite:
 | A2 hyperref anchor collision | done | `47097d8` |
 | A3 stray `\a.` leaks a list | done | `eaf1d2f` |
 | A4 `\lpzg` empty key | done | `21f7d4b` |
+| B1 `[legacy,gb4e]` test case | done | `87bcb92` |
+| B2 `\crefrange` assertions | done | `ffcdb1b` |
 
-No item was blocked. Final gate on the branch tip: `python3 tests/runtests.py`
-912/912 assertions on pdflatex, xelatex and lualatex; `verapdf
-examples/ua-demo.pdf` compliant on all three profiles (PDF/UA-2 + Tagged
-PDF, WTPDF 1.0 Accessibility, WTPDF 1.0 Reuse).
+No item was blocked. Final gate on the Phase A branch tip:
+`python3 tests/runtests.py` 912/912 assertions on pdflatex, xelatex and
+lualatex; `verapdf examples/ua-demo.pdf` compliant on all three profiles
+(PDF/UA-2 + Tagged PDF, WTPDF 1.0 Accessibility, WTPDF 1.0 Reuse). Final
+gate on the Phase B branch tip: 963/963 assertions on the three engines
+(B added 13 assertions per engine in a new `legacy-gb4e` case and 4 in
+`cleveref`). Phase B did not touch tagging and changed no package code:
+`linguexx.sty` is byte-identical to its state on `main`, so the veraPDF
+gate is inherited from Phase A unchanged.
 
-Two notes for whoever picks up B/C/D:
+Two notes for whoever picks up C/D:
 
 - The suite harness now attaches the case's `.aux` to the page object
   (`page.aux`), alongside the existing `page.log`. A2 needed it because a
@@ -141,7 +148,10 @@ warn about an empty key and `sg` is still recorded once.
 
 ## Phase B — coverage gaps (no package change)
 
-NOT EXECUTED — deferred by user. Both items below are untouched.
+EXECUTED (`87bcb92`, `ffcdb1b`), and it did stay a no-package-change
+phase: both items pin behaviour that was already correct, and neither
+needed a line of `linguexx.sty`. What each landed is recorded under the
+item.
 
 ### B1. `[legacy,gb4e]` test case
 
@@ -153,6 +163,16 @@ pins it. New case `tests/legacy-gb4e.tex` + assertions: legacy sub-indent
 `exe`, judgment not displacing text, xlist letters, `\Last` resolving
 across the batch.
 
+DONE (`87bcb92`): `tests/legacy-gb4e.tex` + `tests/_preamble-legacy-gb4e.tex`
+(the combination needed its own preamble; `_preamble-gb4e.tex` is
+`[lazy,gb4e]`) + `a_legacy_gb4e`, 13 assertions. Beyond the four asked
+for: the sub labels sit flush at the parent's text margin (legacy's
+`\labelsep\z@`), the roman label likewise and prints `(i)`, the mark
+actually protrudes left of the text block, and two marks still clear the
+letter in legacy's tighter sub label box. Mutation-checked — `\labelsep`
+non-zero, `\SubExleftmargin` 2.2em, `\SubSubExLBr/RBr` dropped, and
+`\llap`→`\mbox` in `\lx@hangjudge` each kill assertions here.
+
 ### B2. `\crefrange` assertions
 
 `tests/cleveref.tex` only exercises `\cref` lists. Add `\crefrange`
@@ -161,6 +181,16 @@ over two sub-examples and assert it prints "(1a) to (1b)" with the empty
 guard. Note for the manual (D1): `\refrange` remains the compact
 "(1a–c)" form; cleveref cannot compress shared-prefix ranges, so the
 `\sublabel` machinery is NOT redundant and must not be removed.
+
+DONE (`ffcdb1b`): four assertions in `a_cleveref`. `\crefrange` prints
+"(1a) to (1b)" over two sub-examples and "(1) to (2)" over two whole
+ones; `\refrange` over the SAME pair prints "(1a–b)" and is not
+cleveref's spelling of it — the non-redundancy above is now
+machine-checked, not just written down. The two sub-examples carry a
+`\sublabel` beside their `\label` so both commands can address them.
+Mutation-checked: `\rangedash`→"~to~" kills the compression assertion, a
+non-empty `\lx@crefname` kills both `\crefrange` assertions. The manual
+note is still D1's, and still unwritten.
 
 ---
 
