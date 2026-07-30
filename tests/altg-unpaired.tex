@@ -1,0 +1,21 @@
+%% An \altg paradigm is TWO calls in ONE gloss column: the object tier
+%% announces it, the gloss tier completes it.  The protocol is a single
+%% global toggle, so a column that announces without completing does not
+%% just lose its own brace -- it leaves the toggle set, and every later
+%% \altg in the gloss takes the opposite role, so object stacks get the
+%% gloss shape (raised half a baseline, indented) and are typeset on top of
+%% their neighbours.  This used to compile silently into overlapping text.
+%%
+%% Below, the object tier has TWO stacks and the gloss tier only one, so the
+%% first column to go wrong is the "Frau/Maus" one.  This case must fail to
+%% compile; runtests.py checks the message via EXPECT_ERROR.
+%%
+%% The same error covers a \glll whose third tier also carries an \altg:
+%% the toggle reads that third call as a fresh object call.  Supporting
+%% alternatives in three tiers would be a feature, not a bug fix.
+\input{_preamble}
+\begin{document}
+\exg. Die \altg{Frau}{Maus} sah den \altg{Hund}{Kater} an.\\
+      the woman saw the \altg{dog}{tom} PRT\\
+\glt `unpaired'
+\end{document}

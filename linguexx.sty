@@ -119,7 +119,9 @@
 %%          records the label of the LEVEL it is used at; it always
 %%          recorded the letter counter, so a \refrange over roman
 %%          sub-sub-examples closed with the enclosing letter
-%%          ("(1b-i--b)") instead of the numeral.
+%%          ("(1b-i--b)") instead of the numeral.  Fix: an \altg in a gloss
+%%          column with no partner is an error instead of silently
+%%          taking the wrong shape and overlapping its neighbours.
 %% Package options come in two independent groups.
 %%
 %% SYNTAX:
@@ -1971,6 +1973,28 @@
               }
           }%
         \lx@gl@colend
+        %% An \altg paradigm is TWO calls in ONE column: the object tier
+        %% announces it (role 0 -> 1) and the gloss tier completes it
+        %% (1 -> 0).  The protocol rides on that toggle alone, so a column
+        %% that announces without completing does not merely lose its own
+        %% brace -- it leaves the toggle set, and every later \altg in the
+        %% gloss takes the opposite role: object stacks get the gloss shape
+        %% (raised half a baseline, indented) and land on top of their
+        %% neighbours.  Same for a third tier carrying an \altg, which the
+        %% toggle reads as a fresh object call.  Both used to typeset
+        %% happily as overlapping text; catch them here, where the column
+        %% that broke it is still known, and reset so the rest of the gloss
+        %% is unaffected.
+        \int_compare:nNnT { \g__lxp_altg_role_int } = { 1 }
+          {
+            \int_gset:Nn \g__lxp_altg_role_int { 0 }
+            \PackageError { linguexx }
+              { \string\altg\space in~gloss~column~##1~has~no~partner }
+              { An~\string\altg\space in~a~gloss~must~be~written~TWICE~in~
+                the~SAME~column:~once~among~the~object~words,~once~among~
+                their~glosses.~A~column~with~only~one,~or~a~third~tier~
+                carrying~one~as~well,~cannot~be~paired~up. }
+          }
         \hskip \GlossSep \relax
       }
     \unskip

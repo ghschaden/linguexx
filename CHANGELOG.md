@@ -88,6 +88,20 @@ version string.
   nothing and the range closes with a full `\pref` (it used to expand
   `\alph{0}`, i.e. "Counter too large"). `\ref` to a sub-sub-example went
   through a different path and was always correct.
+- Fix: an `\altg` in a gloss column with no partner is now a package error
+  instead of overlapping text. The two calls of a paradigm are paired by a
+  single global toggle (object call sets it, gloss call clears it), so a
+  column that announced a stack without completing it left the toggle set
+  and gave *every later* `\altg` in that gloss the opposite role — object
+  stacks were typeset with the gloss shape, raised half a baseline and
+  indented, on top of their neighbours. A `\glll` carrying an `\altg` in a
+  third tier hit the same thing, the third call being read as a fresh object
+  call. Both compiled silently. Alternatives in three tiers remain
+  unsupported; that would be a feature, not a fix.
+- The suite can now assert that a case *fails* (`EXPECT_ERROR`), so a package
+  error is guarded like any rendering: `tests/altg-unpaired.tex` fails if the
+  check stops firing, and the valid `altg` case fails if it starts firing
+  when it should not.
 - The suite now runs veraPDF itself, on a new PDF/UA-2 case (`tests/ua.tex`),
   so the release gate that used to be a manual step before delivering is
   enforced on every run and under all three engines. This is what catches a

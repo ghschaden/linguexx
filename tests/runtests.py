@@ -48,6 +48,15 @@ KNOWN_XFAIL = {"pdflatex/judgment-align"}
 # profiles -- which would look exactly like a tagging regression.
 DEFAULT_PASSES = 2
 PASSES = {"ua": 3}
+#: Cases that must FAIL to compile, mapped to a substring their .log has to
+#: contain.  A package error is as much a feature as a rendering is -- it is
+#: what a silently wrong construct was turned into -- and without this it
+#: would have no guard: delete the check in the .sty and every other case
+#: stays green.  These have no assertion function; the raised error is the
+#: assertion.
+EXPECT_ERROR = {
+    "altg-unpaired": "has no partner",
+}
 CASES = Path(__file__).parent / "cases"
 if not CASES.is_dir():                       # flat layout: cases beside the script
     CASES = Path(__file__).parent
@@ -1110,21 +1119,26 @@ def suite_integrity():
     """
     problems = []
     on_disk = discover_cases()
-    for name in sorted(on_disk - set(ASSERTIONS) - SMOKE_ONLY):
+    known = set(ASSERTIONS) | set(EXPECT_ERROR)
+    for name in sorted(set(ASSERTIONS) & set(EXPECT_ERROR)):
+        problems.append(
+            f"{name} is in both ASSERTIONS and EXPECT_ERROR; a case either "
+            f"compiles and is asserted on, or fails with a known error.")
+    for name in sorted(on_disk - known - SMOKE_ONLY):
         problems.append(
             f"{name}.tex has no ASSERTIONS entry, so it is never run. "
             f"Add an assertion function, or list it in SMOKE_ONLY if it is "
             f"only meant to compile."
         )
-    for name in sorted(set(ASSERTIONS) - on_disk):
-        problems.append(f"ASSERTIONS['{name}'] has no {name}.tex in {CASES}.")
-    for name in sorted(set(PASSES) - set(ASSERTIONS)):
+    for name in sorted(known - on_disk):
+        problems.append(f"'{name}' is registered but has no {name}.tex in {CASES}.")
+    for name in sorted(set(PASSES) - known):
         problems.append(f"PASSES['{name}'] names no known case.")
     for key in sorted(KNOWN_XFAIL):
         engine, _, name = key.partition("/")
         if engine not in ENGINES:
             problems.append(f"KNOWN_XFAIL key {key!r} names no known engine.")
-        elif name not in ASSERTIONS:
+        elif name not in known:
             problems.append(f"KNOWN_XFAIL key {key!r} names no known case.")
     return problems
 
@@ -1145,6 +1159,16 @@ def run_case(name: str, engine: str, verbose: bool):
                 [engine, "-interaction=nonstopmode", "-halt-on-error", src.name],
                 cwd=tmp, capture_output=True, text=True,
             )
+        # Cases whose point IS the error: the compile is meant to stop, so
+        # check the message before treating a non-zero status as a failure.
+        if name in EXPECT_ERROR:
+            want = EXPECT_ERROR[name]
+            log = (tmp / f"{name}.log").read_text(errors="replace")
+            if want not in log:
+                errs = [l for l in log.splitlines() if l.startswith("!")][:3]
+                return [(False, f"expected the error {want!r}; got "
+                                f"{'; '.join(errs) or 'a clean compile'}")]
+            return [(True, f"raises its error: {want!r}")]
         if proc.returncode != 0:
             log = (tmp / f"{name}.log").read_text(errors="replace")
             errs = [l for l in log.splitlines() if l.startswith("!")][:3]
@@ -1178,7 +1202,7 @@ def main():
         return 2
 
     engines = args.engine or ENGINES
-    names = sorted(ASSERTIONS)
+    names = sorted(set(ASSERTIONS) | set(EXPECT_ERROR))
     if args.filter:
         names = [n for n in names if args.filter in n]
     if not names:
