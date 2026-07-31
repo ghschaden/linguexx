@@ -5,7 +5,7 @@
 %%%% This program can be redistributed and/or modified under the terms
 %%%% of the LaTeX Project Public License
 \NeedsTeXFormat{LaTeX2e}[2020/10/01]% expl3 in kernel required
-\ProvidesPackage{linguexx}[2026/07/30 Standalone linguistic examples, linguex-compatible interface v. 1.1]
+\ProvidesPackage{linguexx}[2026/07/31 Standalone linguistic examples, linguex-compatible interface v. 1.2]
 %% v. 0.1: [legacy] option; empty \firstrefdash by default.
 %% v. 0.2: tagging-safe under \DocumentMetadata (PDF tagging testphase):
 %%         lists opened/closed through the environment interface; no TeX
@@ -111,6 +111,29 @@
 %%          so \c{c} and "ç" errored and a hyperref title silently lost
 %%          the accent.  Fix: \end{exe} closes a sub-level opened by an
 %%          \a. inside the batch instead of leaking its \begingroup.
+%%          \glt gains \GlossTransStyle (a declaration styling the free
+%%          translation) and \GlossTransLang (its language, emitted as a
+%%          Span with /Lang under tagging -- babel's \foreignlanguage
+%%          reaches no structure element on TL2026).  Both opt-in; the
+%%          default output and tag tree are unchanged.  Fix: \sublabel
+%%          records the label of the LEVEL it is used at; it always
+%%          recorded the letter counter, so a \refrange over roman
+%%          sub-sub-examples closed with the enclosing letter
+%%          ("(1b-i--b)") instead of the numeral.  Fix: an \altg in a gloss
+%%          column with no partner is an error instead of silently
+%%          taking the wrong shape and overlapping its neighbours.  \lpzgcheck{...}: an abbreviation used
+%%          with no known expansion is reported at the end of any
+%%          document (on by default), which a mistyped \lpzg key used
+%%          to survive in silence unless a \lpzglist happened to catch
+%%          it; unused=true also reports a \SetLeipzig never used.
+%% v. 1.2: \altn's spoken /Alt expands a Leipzig abbreviation, as
+%%          \altg's already did: \altn{a \lpzg{pl} of cats}{a dog} is
+%%          announced as "a plural of cats or a dog" rather than "a pl
+%%          of cats or a dog".  Only the spoken form changes -- the
+%%          stack still prints the small-cap abbreviation, which still
+%%          carries its own /E inside the stack (unlike in an \altg
+%%          stack, which sets \lpzg plain).  Simple keys only, as in
+%%          \altg: a compound or unknown key is spoken as printed.
 %%          Fix: \z. is usable inside an exe batch.  Mixing the
 %%          syntaxes is documented, so an \a. inside exe opens a
 %%          sub-level -- but \z., the only thing that could close it,
@@ -141,21 +164,6 @@
 %%          expansion known for" nothing at all and the /E carried a
 %%          trailing space.  Blank segments are skipped; the real
 %%          pieces beside them are recorded exactly as before.
-%%          \glt gains \GlossTransStyle (a declaration styling the free
-%%          translation) and \GlossTransLang (its language, emitted as a
-%%          Span with /Lang under tagging -- babel's \foreignlanguage
-%%          reaches no structure element on TL2026).  Both opt-in; the
-%%          default output and tag tree are unchanged.  Fix: \sublabel
-%%          records the label of the LEVEL it is used at; it always
-%%          recorded the letter counter, so a \refrange over roman
-%%          sub-sub-examples closed with the enclosing letter
-%%          ("(1b-i--b)") instead of the numeral.  Fix: an \altg in a gloss
-%%          column with no partner is an error instead of silently
-%%          taking the wrong shape and overlapping its neighbours.  \lpzgcheck{...}: an abbreviation used
-%%          with no known expansion is reported at the end of any
-%%          document (on by default), which a mistyped \lpzg key used
-%%          to survive in silence unless a \lpzglist happened to catch
-%%          it; unused=true also reports a \SetLeipzig never used.
 %% Package options come in two independent groups.
 %%
 %% SYNTAX:

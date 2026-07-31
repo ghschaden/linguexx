@@ -3,38 +3,7 @@
 All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
-## 1.1
-- `\lpzglist`: the list of the abbreviations the document actually uses, each
-  with its full form. Every label passed to `\lpzg` is recorded piece by piece
-  (`\lpzg{3sg.pst}` contributes `3`, `sg` and `pst`), written to the `.aux`,
-  and reported by `\lpzglist` wherever it stands -- in the front matter as
-  readily as at the end; when the list is a run behind, a rerun is requested.
-  `\lpzgadd{erg,abs}` registers abbreviations used outside `\lpzg`.
-  Abbreviations with no known expansion are omitted with a warning naming them
-  (`unexplained=keep` lists them unexplained instead). Customisation, per list
-  via `\lpzglist[...]` or document-wide via `\lpzglistsetup{...}`: `style`
-  (`list`/`inline`), `sort`, `include` (`used`/`all`), `ignore`, `add`,
-  `unexplained`, `title`, `titlestyle`, `sep`, `itemsep`, and `format` (the
-  one-shot form of `\lpzglistentry`, `#1` the abbreviation, `#2` its full
-  form). Under tagging the default style is a real tagged list (`L → LI → Lbl
-  → LBody`) whose labels keep their `/E` expansion and stay flush left;
-  verified with veraPDF on `examples/ua-demo`. `\lpzg` inside an `\altg` stack,
-  which prints plain, now counts as used as well.
-- Phantom bracket alignment for interlinear glosses (opt-in, off by default).
-  When an object word opens with a run of brackets, parentheses or judgment
-  marks, the gloss word below it can be padded by a `\phantom` of that run --
-  set in the object-line font -- so its first real glyph sits under the object
-  word's first real glyph rather than under the mark. Enable with the package
-  option `phantomalign` or `\GlossPhantomAlign` (`\GlossPhantomAlignOff` to
-  scope it); `\GlossPhantomChars{...}` sets the leading characters that count
-  (default `*?#%([<`). For material the automatic scan cannot see (a
-  macro-wrapped bracket) or a hand-picked target, `\GlossPhantom{material}`
-  is a manual override: placed at the front of a gloss word it pads it by an
-  invisible box the width of `material`, set in the object-line font. The
-  phantom ships no ink and no marked content, so PDF/UA tagging is unchanged
-  (verified with veraPDF on `examples/ua-demo` and on a `\GlossPhantom`
-  build). Alignment survives a size change of the gloss tier (e.g.
-  `\footnotesize`). `\altg` alternative columns are not covered.
+## 1.2
 - `\altn`'s spoken `/Alt` now expands a Leipzig abbreviation, as `\altg`'s
   already did: `\altn{a \lpzg{pl} of cats}{a dog}` is announced as "a plural
   of cats or a dog" rather than "a pl of cats or a dog". Only the spoken form
@@ -42,33 +11,6 @@ version string.
   abbreviation still carries its own `/E` expansion inside the stack (unlike
   in an `\altg` stack, which sets `\lpzg` plain). Simple keys only, as in
   `\altg`: a compound or unknown key is spoken as printed.
-- Fix: the sub-example letters and the kernel accent commands `\b`, `\c`,
-  `\d` now coexist, **everywhere, including inside the same example**:
-
-  ```latex
-  \ex. \a. Fran\c cois est fatigu\'ee.   % \c = cedilla
-       \b. \c Ca c'est chiant.           % \b = sub-example, \c = cedilla
-  ```
-
-  Each letter dispatches on what follows it: a period is the sub-example
-  command, anything else (`{`, a letter, a space) is the accent, i.e.
-  whatever the letter meant before linguexx touched it. `\c{c}` and an
-  inputenc-decomposed "ç" (literally `\c c`) both take the accent branch.
-  Previously, under `[lazy]` (the default), all six of `\a`-`\f` were
-  redefined globally and permanently, so `\c{c}` or "ç" anywhere in the
-  document raised "Use of `\c` doesn't match its definition", and in a
-  hyperref `\section` title the accent was dropped *silently* from both the
-  printed heading and the PDF outline entry. The hooks are `\protected`, so
-  hyperref's `\edef` over a title leaves them alone instead of running their
-  lookahead; only `\a` is held globally (it must be able to *open* a level,
-  and it is no accent at all), while `\b`-`\f` are hooked just where a
-  sub-level is reachable. Under `[gb4e]` alone nothing is redefined, as
-  documented. `\e`/`\f` without a period, which the kernel does not define,
-  now give a named package error instead of "undefined control sequence".
-- Fix: `\end{exe}` now closes any sub-level opened by an `\a.` inside the
-  batch (`\lx@closesubs`). It previously closed only the main list and
-  leaked `\lx@subpush`'s `\begingroup`, leaving `\lx@subdepth` stuck at the
-  sub-level for the rest of the document.
 - Fix: `\z.` is now usable inside an `exe` batch. Mixing the syntaxes is
   documented, so an `\a.` inside `exe` legitimately opens a sub-level -- but
   `\z.`, the only thing that could close it again, raised "`\z.` outside an
@@ -104,6 +46,66 @@ version string.
   the author could not find in the source -- and the `/E` expansion carried
   a trailing space. Blank segments are now skipped; the real pieces beside
   them are recorded exactly as before.
+
+## 1.1
+- `\lpzglist`: the list of the abbreviations the document actually uses, each
+  with its full form. Every label passed to `\lpzg` is recorded piece by piece
+  (`\lpzg{3sg.pst}` contributes `3`, `sg` and `pst`), written to the `.aux`,
+  and reported by `\lpzglist` wherever it stands -- in the front matter as
+  readily as at the end; when the list is a run behind, a rerun is requested.
+  `\lpzgadd{erg,abs}` registers abbreviations used outside `\lpzg`.
+  Abbreviations with no known expansion are omitted with a warning naming them
+  (`unexplained=keep` lists them unexplained instead). Customisation, per list
+  via `\lpzglist[...]` or document-wide via `\lpzglistsetup{...}`: `style`
+  (`list`/`inline`), `sort`, `include` (`used`/`all`), `ignore`, `add`,
+  `unexplained`, `title`, `titlestyle`, `sep`, `itemsep`, and `format` (the
+  one-shot form of `\lpzglistentry`, `#1` the abbreviation, `#2` its full
+  form). Under tagging the default style is a real tagged list (`L → LI → Lbl
+  → LBody`) whose labels keep their `/E` expansion and stay flush left;
+  verified with veraPDF on `examples/ua-demo`. `\lpzg` inside an `\altg` stack,
+  which prints plain, now counts as used as well.
+- Phantom bracket alignment for interlinear glosses (opt-in, off by default).
+  When an object word opens with a run of brackets, parentheses or judgment
+  marks, the gloss word below it can be padded by a `\phantom` of that run --
+  set in the object-line font -- so its first real glyph sits under the object
+  word's first real glyph rather than under the mark. Enable with the package
+  option `phantomalign` or `\GlossPhantomAlign` (`\GlossPhantomAlignOff` to
+  scope it); `\GlossPhantomChars{...}` sets the leading characters that count
+  (default `*?#%([<`). For material the automatic scan cannot see (a
+  macro-wrapped bracket) or a hand-picked target, `\GlossPhantom{material}`
+  is a manual override: placed at the front of a gloss word it pads it by an
+  invisible box the width of `material`, set in the object-line font. The
+  phantom ships no ink and no marked content, so PDF/UA tagging is unchanged
+  (verified with veraPDF on `examples/ua-demo` and on a `\GlossPhantom`
+  build). Alignment survives a size change of the gloss tier (e.g.
+  `\footnotesize`). `\altg` alternative columns are not covered.
+- Fix: the sub-example letters and the kernel accent commands `\b`, `\c`,
+  `\d` now coexist, **everywhere, including inside the same example**:
+
+  ```latex
+  \ex. \a. Fran\c cois est fatigu\'ee.   % \c = cedilla
+       \b. \c Ca c'est chiant.           % \b = sub-example, \c = cedilla
+  ```
+
+  Each letter dispatches on what follows it: a period is the sub-example
+  command, anything else (`{`, a letter, a space) is the accent, i.e.
+  whatever the letter meant before linguexx touched it. `\c{c}` and an
+  inputenc-decomposed "ç" (literally `\c c`) both take the accent branch.
+  Previously, under `[lazy]` (the default), all six of `\a`-`\f` were
+  redefined globally and permanently, so `\c{c}` or "ç" anywhere in the
+  document raised "Use of `\c` doesn't match its definition", and in a
+  hyperref `\section` title the accent was dropped *silently* from both the
+  printed heading and the PDF outline entry. The hooks are `\protected`, so
+  hyperref's `\edef` over a title leaves them alone instead of running their
+  lookahead; only `\a` is held globally (it must be able to *open* a level,
+  and it is no accent at all), while `\b`-`\f` are hooked just where a
+  sub-level is reachable. Under `[gb4e]` alone nothing is redefined, as
+  documented. `\e`/`\f` without a period, which the kernel does not define,
+  now give a named package error instead of "undefined control sequence".
+- Fix: `\end{exe}` now closes any sub-level opened by an `\a.` inside the
+  batch (`\lx@closesubs`). It previously closed only the main list and
+  leaked `\lx@subpush`'s `\begingroup`, leaving `\lx@subdepth` stuck at the
+  sub-level for the rest of the document.
 - `\glt` (the free translation) gains two hooks, both opt-in and both
   leaving the default output and the default tag tree byte-for-byte as they
   were:
