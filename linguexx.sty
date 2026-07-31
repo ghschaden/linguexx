@@ -450,6 +450,92 @@
 \fi
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  The tagged-Span idiom, in one place                                %%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Everything this package adds to the structure tree is a Span: the
+%% judgment mark with its spoken /Alt, the Leipzig abbreviation with its
+%% /E, the gloss column, the object-language word with its /Lang, the free
+%% translation with its own, and the two kinds of stacked alternatives.
+%% All of them need the SAME four moves in the SAME order, and getting the
+%% order wrong is exactly how v0.10 broke PDF/UA:
+%%
+%%   \tag_mc_end_push:      suspend whatever marked content is open --
+%%                          typically the ambient paragraph's, since the
+%%                          kernel may already have opened an MC for a P
+%%                          that has not been shown yet.  Opening our BDC
+%%                          inside that one without suspending it is
+%%                          "nested marked content found" / "no mc to end",
+%%                          and a veraPDF untagged-content failure once the
+%%                          P's real MC never gets closed.
+%%   \tag_struct_begin:n    the Span itself, carrying alt/E/lang.
+%%   \tag_mc_begin:n        its own marked content, for LEAF content.
+%%   ... content ...
+%%   \tag_mc_end: \tag_struct_end: \tag_mc_begin_pop:n {}   -- unwound in
+%%                          the mirror order, resuming the suspended MC.
+%%
+%% The split into an outer (open/close) and an inner (begin/end) pair is
+%% not decoration: a Span whose content carries marked content of its OWN
+%% -- the gloss column, whose words each open one -- must take the outer
+%% pair only, or it would nest an MC inside its own MC.
+%%
+%% \lx@tag@if@active: is the one guard, and it is not only for Spans: every
+%% tagging use site in the package needs the same two conditions (a kernel
+%% that has the \tag_... commands at all, and tagging actually switched on).
+%% They were hand-copied in five spellings, two of which tested
+%% \cs_if_exist:N on \tag_if_active:T -- a conditional VARIANT rather than
+%% the base name, which happens to work but tests the wrong thing.
+\ExplSyntaxOn
+\prg_new_conditional:Npnn \lx@tag@if@active: { TF , T , F }
+  {
+    \bool_lazy_all:nTF
+      {
+        { \cs_if_exist_p:N \tag_struct_begin:n }
+        { \cs_if_exist_p:N \tag_if_active_p: }
+        { \tag_if_active_p: }
+      }
+      { \prg_return_true: } { \prg_return_false: }
+  }
+%% outer half: suspend the ambient MC, open the Span
+\cs_new_protected:Npn \lx@tag@span@open:n #1
+  { \tag_mc_end_push: \tag_struct_begin:n {#1} }
+\cs_generate_variant:Nn \lx@tag@span@open:n { e }
+\cs_new_protected:Npn \lx@tag@span@close:
+  { \tag_struct_end: \tag_mc_begin_pop:n {} }
+%% ... plus the inner half, for a Span holding leaf content
+\cs_new_protected:Npn \lx@tag@span@begin:n #1
+  { \lx@tag@span@open:n {#1} \tag_mc_begin:n { tag = Span } }
+\cs_generate_variant:Nn \lx@tag@span@begin:n { e }
+\cs_new_protected:Npn \lx@tag@span@end:
+  { \tag_mc_end: \lx@tag@span@close: }
+%% the whole thing, guarded: #1 = keyvals, #2 = content.  Without active
+%% tagging the content is typeset bare, so untagged output and engines
+%% with no tagging support are byte-for-byte unaffected.
+\cs_new_protected:Npn \lx@tag@span:nn #1#2
+  {
+    \lx@tag@if@active:TF
+      { \lx@tag@span@begin:n {#1} #2 \lx@tag@span@end: }
+      { #2 }
+  }
+%% ... and the same with the keyvals expanded first (a /E or /Alt built in
+%% a token list).  Deliberately not \cs_generate_variant: the expansion has
+%% to happen INSIDE the guard.  The values are author-supplied strings, and
+%% expanding one on a run with no tagging to consume it would make an
+%% untagged compile fail where the tagged one is what carries the risk.
+\cs_new_protected:Npn \lx@tag@span@exp:nn #1#2
+  {
+    \lx@tag@if@active:TF
+      { \lx@tag@span@begin:e {#1} #2 \lx@tag@span@end: }
+      { #2 }
+  }
+%% The e-variants above are generated for OUR OWN commands, which always
+%% exist.  Generating one for \tag_struct_begin:n (as v1.1 did) contradicts
+%% its own use sites: they all guard for a kernel that does not have the
+%% \tag_... commands, on which the variant generation would already have
+%% failed at load time.
+\ExplSyntaxOff
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%  Judgment auto-detection (* ? \# \%) -- replaces linguex's          %%%%
 %%%%  hardcoded catcode tokenizer                                        %%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -522,14 +608,10 @@
 %% is read aloud as #1.  Otherwise typeset the mark exactly as before, so
 %% untagged output and non-tagging engines are unaffected.
 %% \lx@makeitem calls \lx@emitjudge (hence this) as the very FIRST thing
-%% after \item, i.e. at the start of a fresh list-item paragraph.  At that
-%% point the kernel's own paragraph-tagging may already have an MC span
-%% open for the not-yet-shown P; opening our Span's struct/MC directly, as
-%% earlier versions did, nested our BDC inside that still-open one without
-%% suspending it ("nested marked content found" / "no mc to end", and a
-%% veraPDF untagged-content failure once that P's real MC never got
-%% closed).  \tag_mc_end_push:/\tag_mc_begin_pop:n{} -- the same idiom
-%% \lpzg and the gloss column code use -- suspends the ambient MC first.
+%% after \item, i.e. at the start of a fresh list-item paragraph, which is
+%% precisely the moment the \lx@tag@span: helper exists for: the kernel's
+%% own paragraph-tagging may already have an MC open for the not-yet-shown
+%% P, and the helper suspends it.  See its comment.
 \cs_new_protected:Npn \lx@hangjudge #1#2
   {
     \leavevmode
@@ -537,23 +619,7 @@
       {
         \tl_if_blank:nTF {#1}
           { #2 }
-          {
-            \cs_if_exist:NTF \tag_struct_begin:n
-              {
-                \tag_if_active:TF
-                  {
-                    \tag_mc_end_push:
-                    \tag_struct_begin:n { tag = Span , alt = {#1} }
-                    \tag_mc_begin:n { tag = Span }
-                    #2
-                    \tag_mc_end:
-                    \tag_struct_end:
-                    \tag_mc_begin_pop:n {}
-                  }
-                  { #2 }
-              }
-              { #2 }
-          }
+          { \lx@tag@span:nn { tag = Span , alt = {#1} } {#2} }
         \hskip \JdgSep
       }
   }
@@ -889,10 +955,9 @@
 \ExplSyntaxOn
 \cs_new_protected:Npn \lx@tag@close@textunit
   {
-    \cs_if_exist:NT \tag_if_active:T
-      { \tag_if_active:T
-          { \cs_if_exist:NT \__tag_gincr_para_main_end_int:
-              { \__tag_gincr_para_main_end_int: \tag_struct_end: } } }
+    \lx@tag@if@active:T
+      { \cs_if_exist:NT \__tag_gincr_para_main_end_int:
+          { \__tag_gincr_para_main_end_int: \tag_struct_end: } }
   }
 \ExplSyntaxOff
 \def\lx@example@cleanup{%
@@ -1451,7 +1516,6 @@
 \tl_new:N  \l__lx_gl_lang_tl
 \NewDocumentCommand \GlossTierLang { m m }
   { \prop_put:Nnn \l_lx_gl_lang_prop {#1} {#2} }
-\cs_generate_variant:Nn \tag_struct_begin:n { e }
 
 %% Objective 6: Leipzig glossing abbreviations with spoken expansions.
 %% \lpzg{sg} typesets the abbreviation in small caps and, under tagging,
@@ -1623,22 +1687,9 @@
 \NewDocumentCommand \lpzg { m }
   {
     \lx@lpzg@build {#1}
-    \bool_lazy_and:nnTF
-      { \cs_if_exist_p:N \tag_struct_begin:n }
-      { \l__lx_lpzg_any_bool }
-      {
-        \tag_if_active:TF
-          {
-            \tag_mc_end_push:
-            \tag_struct_begin:e { tag = Span , E = { \l__lx_lpzg_exp_tl } }
-            \tag_mc_begin:n { tag = Span }
-            \textsc {#1}
-            \tag_mc_end:
-            \tag_struct_end:
-            \tag_mc_begin_pop:n {}
-          }
-          { \textsc {#1} }
-      }
+    \bool_if:NTF \l__lx_lpzg_any_bool
+      { \lx@tag@span@exp:nn { tag = Span , E = { \l__lx_lpzg_exp_tl } }
+          { \textsc {#1} } }
       { \textsc {#1} }
   }
 
@@ -2050,33 +2101,32 @@
   }
 \AtEndDocument { \lx@lpzglist@checkrerun \lx@lpzgcheck@run }
 
+%% The column Span takes the OUTER half of the idiom only: its content is
+%% the tier words, and each of those opens marked content of its own.
 \cs_new_protected:Npn \lx@gl@colbegin
-  { \cs_if_exist:NT \tag_struct_begin:n
-      { \tag_if_active:T
-          { \tag_mc_end_push: \tag_struct_begin:n { tag = Span } } } }
+  { \lx@tag@if@active:T { \lx@tag@span@open:n { tag = Span } } }
 \cs_new_protected:Npn \lx@gl@colend
-  { \cs_if_exist:NT \tag_struct_end:
-      { \tag_if_active:T
-          { \tag_struct_end: \tag_mc_begin_pop:n {} } } }
+  { \lx@tag@if@active:T { \lx@tag@span@close: } }
 %% #1 = tier number.  If the tier has a declared language, wrap the word
 %% in its own Span with /Lang (nested in the column Span); otherwise emit
-%% plain marked content as before.
+%% plain marked content as before.  Neither half of the helper fits: the
+%% struct is conditional but the marked content is not, and there is no
+%% ambient MC to suspend -- the column Span already suspended it.
 \cs_new_protected:Npn \lx@gl@wordbegin #1
-  { \cs_if_exist:NT \tag_mc_begin:n
-      { \tag_if_active:T
-          {
-            \prop_get:NnNTF \l_lx_gl_lang_prop {#1} \l__lx_gl_lang_tl
-              { \tag_struct_begin:e { tag = Span , lang = \l__lx_gl_lang_tl } }
-              { }
-            \tag_mc_begin:n { tag = Span }
-          } } }
+  { \lx@tag@if@active:T
+      {
+        \prop_get:NnNTF \l_lx_gl_lang_prop {#1} \l__lx_gl_lang_tl
+          { \exp_args:Ne \tag_struct_begin:n
+              { tag = Span , lang = \l__lx_gl_lang_tl } }
+          { }
+        \tag_mc_begin:n { tag = Span }
+      } }
 \cs_new_protected:Npn \lx@gl@wordend #1
-  { \cs_if_exist:NT \tag_mc_end:
-      { \tag_if_active:T
-          {
-            \tag_mc_end:
-            \prop_if_in:NnT \l_lx_gl_lang_prop {#1} { \tag_struct_end: }
-          } } }
+  { \lx@tag@if@active:T
+      {
+        \tag_mc_end:
+        \prop_if_in:NnT \l_lx_gl_lang_prop {#1} { \tag_struct_end: }
+      } }
 \ExplSyntaxOff
 \ExplSyntaxOn
 %% Phantom bracket alignment (opt-in, off by default).  When a word in the
@@ -2274,16 +2324,11 @@
   {
     \tl_if_empty:NF \l_lx_gl_translang_tl
       {
-        \cs_if_exist:NT \tag_struct_begin:n
+        \lx@tag@if@active:T
           {
-            \tag_if_active:T
-              {
-                \tag_mc_end_push:
-                \tag_struct_begin:e
-                  { tag = Span , lang = \l_lx_gl_translang_tl }
-                \tag_mc_begin:n { tag = Span }
-                \bool_gset_true:N \g__lx_gl_transopen_bool
-              }
+            \lx@tag@span@begin:e
+              { tag = Span , lang = \l_lx_gl_translang_tl }
+            \bool_gset_true:N \g__lx_gl_transopen_bool
           }
       }
   }
@@ -2296,9 +2341,7 @@
   {
     \bool_if:NT \g__lx_gl_transopen_bool
       {
-        \tag_mc_end:
-        \tag_struct_end:
-        \tag_mc_begin_pop:n {}
+        \lx@tag@span@end:
         \bool_gset_false:N \g__lx_gl_transopen_bool
       }
   }
@@ -2446,23 +2489,17 @@
     \__lxp_alt_buildalt:
     \leavevmode
     \hspace{\AltBraceOuterSep}
-    \tag_mc_end_push:
-    \exp_args:Ne \tag_struct_begin:n { tag = Span , alt = { \l__lxp_alt_alt_tl } }
-    \tag_mc_begin:n { tag = Span }
+    \lx@tag@span@begin:e { tag = Span , alt = { \l__lxp_alt_alt_tl } }
     \__lxp_alt_brace:n { L } \hspace{\AltBraceSep}
     \box_use:N \l__lxp_alt_box
     \hspace{\AltBraceSep} \__lxp_alt_brace:n { R }
-    \tag_mc_end:
-    \tag_struct_end:
-    \tag_mc_begin_pop:n {}
+    \lx@tag@span@end:
     \hspace{\AltBraceOuterSep}
   }
 \cs_new_protected:Npn \__lxp_alt_print:
   {
     \__lxp_alt_setstack:
-    \cs_if_exist:NTF \tag_if_active:T
-      { \tag_if_active:TF { \__lxp_alt_emit_tagged: } { \__lxp_alt_emit: } }
-      { \__lxp_alt_emit: }
+    \lx@tag@if@active:TF { \__lxp_alt_emit_tagged: } { \__lxp_alt_emit: }
   }
 \ExplSyntaxOff
 
@@ -2663,19 +2700,12 @@
 \cs_new_protected:Npn \__lxp_altg_emit:n #1
   {
     \leavevmode
-    \bool_lazy_and:nnTF
-      { \cs_if_exist_p:N \tag_if_active:T }
-      { \tag_if_active_p: }
+    \lx@tag@if@active:TF
       {
         \__lxp_altg_buildalt:
-        \tag_mc_end_push:
-        \exp_args:Ne \tag_struct_begin:n
-          { tag = Span , alt = { \l__lxp_altg_alt_tl } }
-        \tag_mc_begin:n { tag = Span }
+        \lx@tag@span@begin:e { tag = Span , alt = { \l__lxp_altg_alt_tl } }
         #1
-        \tag_mc_end:
-        \tag_struct_end:
-        \tag_mc_begin_pop:n {}
+        \lx@tag@span@end:
       }
       { #1 }
   }
