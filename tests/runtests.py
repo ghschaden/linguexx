@@ -76,6 +76,13 @@ EXPECT_ERROR = {
     # The manual documents that limitation; this pins it, and verb.tex
     # pins the environment syntax where \verb does work.
     "verb-dot": "Missing $ inserted",
+    # The third cell of the same matrix, and the same error from the same
+    # payload by a different route: \ex[j]{text} reads its body as a macro
+    # argument, so the catcodes are fixed before the body is used exactly as
+    # a collected one's are.  Separate from verb-dot because the route is:
+    # this one sits under exe, where verb.tex shows an unbraced \ex handling
+    # \verb fine, so the braced form is the only thing on trial.
+    "verb-braced": "Missing $ inserted",
 }
 CASES = Path(__file__).parent / "cases"
 if not CASES.is_dir():                       # flat layout: cases beside the script

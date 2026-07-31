@@ -1,0 +1,26 @@
+%% The third cell of the \verb matrix: the braced judgment form.
+%%
+%% \ex[j]{text} takes its body as a MACRO ARGUMENT, so the tokens are read
+%% -- with the catcodes in force at the \ex -- before the body is ever
+%% used.  That is the same predicament as the collected dot-syntax body of
+%% verb-dot.tex, reached by a different route, and it produces the same
+%% error from the same payload: the "_" arrives at the typesetter as a
+%% subscript, "Missing $ inserted", on all three engines.
+%%
+%% It is worth pinning separately BECAUSE the route differs.  This case
+%% lives under exe, where verb.tex proves \verb does work with an unbraced
+%% \ex on the very same line of the very same environment -- so what fails
+%% here is the braced form alone, not the environment, and a change that
+%% made the argument form verbatim-safe would show up as this case going
+%% green rather than as nothing at all.  The control that says so: with the
+%% \verb removed, this exact file compiles clean on every engine.
+%%
+%% The manual (§ Notes and limitations) states the whole matrix and calls
+%% this cell "the one exception"; verb.tex pins the working half and
+%% verb-dot.tex the collected half.
+\input{_preamble-gb4e}
+\begin{document}
+\begin{exe}
+\ex[*]{VBBRACED a macro argument with \verb|x_y| in it.}
+\end{exe}
+\end{document}
