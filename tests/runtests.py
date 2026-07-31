@@ -49,11 +49,13 @@ ENGINES = ["pdflatex", "xelatex", "lualatex"]
 # engines and the entry masked a green result instead of guarding anything.
 #
 # Removed rather than kept as insurance: an entry that never fires cannot be
-# told apart from one that still protects something, and the harness does
-# not report an unnecessary XFAIL.  Should judgment-align ever fail on
-# pdflatex ALONE with that message, this is the reason, and the answer is to
-# measure the marks from ink (cf. brace_bulge) rather than to re-add a line
-# that hides the assertion.
+# told apart from one that still protects something, which is how this one
+# outlived its reason by a whole rewrite of the suite around it.  main() now
+# reports that state -- an entry whose case ran and passed is a hard error,
+# not a quiet XFAIL -- so the next one cannot rot the same way.  Should
+# judgment-align ever fail on pdflatex ALONE with that message, this is the
+# reason, and the answer is to measure the marks from ink (cf. brace_bulge)
+# rather than to re-add a line that hides the assertion.
 KNOWN_XFAIL = set()
 # LaTeX passes per case; two is enough for cross-references, which is all
 # most cases need.  The `ua` case needs three: its PDF/UA validity does not
@@ -2023,8 +2025,12 @@ def suite_integrity():
     directory listing and provides none.  That is not hypothetical: the
     first cedilla.tex was committed without an ASSERTIONS entry and was
     never executed, which is how a silent regression in the sub-example
-    letters reached a release.  Report both directions, and the reverse
-    problem of a stale KNOWN_XFAIL key, as hard errors.
+    letters reached a release.  Report both directions, and a KNOWN_XFAIL
+    key that names no such engine or case, as hard errors.
+
+    The OTHER way a KNOWN_XFAIL key goes stale -- naming a real case that
+    now passes -- cannot be checked here, because nothing has run yet.
+    main() checks it after the run.
     """
     problems = []
     on_disk = discover_cases()
@@ -2151,6 +2157,15 @@ def main():
 
     total = passed = 0
     failed_cases = []
+    # A KNOWN_XFAIL entry is a claim that a pair still fails.  Track which
+    # pairs this run actually observed and which of them bore the claim out,
+    # so an entry that has quietly started passing can be reported instead of
+    # silently swallowing a green result (see the KNOWN_XFAIL comment).
+    # `exercised` is what makes that safe under -k, -e, ENGINES_FOR and a
+    # missing engine: without it, every entry a filtered run never reached
+    # would be indistinguishable from one that no longer fires.
+    exercised = set()
+    fired = set()
     for engine in engines:
         if not shutil.which(engine):
             print(f"SKIP {engine}: not installed")
@@ -2165,8 +2180,10 @@ def main():
             passed += ok
             bad = [d for good, d in results if not good]
             key = f"{engine}/{name}"
+            exercised.add(key)
             if bad and key in KNOWN_XFAIL:
                 status = "XFAIL"
+                fired.add(key)
             else:
                 status = "PASS" if not bad else "FAIL"
             print(f"  [{status}] {name:16s} {ok}/{len(results)} assertions")
@@ -2180,9 +2197,20 @@ def main():
                 failed_cases.append(key)
 
     print(f"\n{passed}/{total} assertions passed across {len(engines)} engine(s).")
+    stale = sorted((KNOWN_XFAIL & exercised) - fired)
+    if stale:
+        print("STALE KNOWN_XFAIL: these ran and PASSED, so the entry no "
+              "longer excuses anything and hides the assertion instead:",
+              file=sys.stderr)
+        for key in stale:
+            print(f"  X {key}", file=sys.stderr)
     if failed_cases:
+        # A real failure outranks a stale entry: it is the thing to look at
+        # first, and the stale list is printed above either way.
         print("FAILED: " + ", ".join(failed_cases))
         return 1
+    if stale:
+        return 2
     print("All green.")
     return 0
 
