@@ -70,6 +70,12 @@ EXPECT_ERROR = {
     "altg-unpaired": "has no partner",
     "judgment-badarg": "needs one command here",
     "straysub": "no example to attach it to",
+    # Not a package error but TeX's own, and deliberately so: a dot-syntax
+    # body is collected before it is typeset, so \verb cannot protect
+    # anything in it and the "_" of the payload arrives as a subscript.
+    # The manual documents that limitation; this pins it, and verb.tex
+    # pins the environment syntax where \verb does work.
+    "verb-dot": "Missing $ inserted",
 }
 CASES = Path(__file__).parent / "cases"
 if not CASES.is_dir():                       # flat layout: cases beside the script
@@ -570,6 +576,68 @@ def a_termination(p: Page):
     r.append(check(iii.x0 < hhh.x0 - 2,
                    f"nested \\ex. is treated as a boundary: III at top level "
                    f"({iii.x0:.1f} < sub-item {hhh.x0:.1f})"))
+    return r
+
+
+def a_verb(p: Page):
+    r"""\verb in an example body: the half of the matrix that works.
+
+    The manual documents that \verb cannot work in the dot syntax, whose
+    body is COLLECTED before it is typeset, nor in the braced \ex[j]{text}
+    form, whose body is a macro argument read the same way -- verb-dot.tex
+    pins the first -- but that it works normally under exe/xlist with an
+    unbraced \ex, including inside an "\a." written within the batch.  Only
+    the environment syntax hands its body straight to TeX, and nothing
+    pinned that, so a change routing it through the collector too would
+    have made the manual wrong with the whole suite still green.
+    """
+    r = []
+    rows = [("VBEXE", "exe_%$#{}", "unbraced \\ex in exe"),
+            ("VBSUB", "sub_%$#{}", "\\a. inside the exe batch"),
+            ("VBXL", "xlist_%$#{}", "\\ex inside xlist"),
+            ("VBESC", "esc~^\\", "\\verb over ~, ^ and a backslash")]
+    # The verbatim text survives character for character, ON the line of its
+    # own example: a payload that reached the page from anywhere else --
+    # flushed after the batch, say -- would not be on this line.
+    for sent, payload, where in rows:
+        line = [w.text for w in p.line_of(p.find(sent))]
+        r.append(check(line.count(payload) == 1,
+                       f"{where}: {payload!r} is set intact in the body "
+                       f"(line reads {line})"))
+    # ... and it is body text, right of the sentinel rather than in the
+    # label; the sub-example one is indented to the letter level, which is
+    # what makes it the "\a. inside the batch" case and not a second main one
+    for sent, payload, where in rows:
+        s = p.find(sent)
+        v = [w for w in p.line_of(s) if w.text == payload]
+        r.append(check(bool(v) and v[0].x0 > s.x1,
+                       f"{where}: the verbatim sits in the body after "
+                       f"{sent} ({v[0].x0:.2f} vs {s.x1:.2f})" if v else
+                       f"{where}: no verbatim token on the {sent} line"))
+    r.append(check(p.find("VBSUB").x0 > p.find("VBEXE").x0 + 2,
+                   f"the \\a. body is indented one level deeper "
+                   f"({p.find('VBSUB').x0:.2f} vs {p.find('VBEXE').x0:.2f})"))
+    # the batch numbers straight through: a \verb body neither swallows the
+    # example that follows it nor stops \z. from popping the \a.
+    r.append(check(p.labels() == ["(1)", "(2)", "(3)", "(4)", "(5)"],
+                   f"the batch numbers through the verbatim bodies; got "
+                   f"{p.labels()}"))
+    # Set in the monospaced font, proven without naming one: a fixed-advance
+    # font makes six i's exactly as wide as six W's.  The \textrm pair is the
+    # control -- in the body font the same two strings differ by ~50pt, so
+    # the probe is measuring something.
+    def width(tok):
+        w = p.find(tok)
+        return w.x1 - w.x0
+
+    mi, mw = width("MONOiiiiii"), width("MONOWWWWWW")
+    ri, rw = width("ROMNiiiiii"), width("ROMNWWWWWW")
+    r.append(check(abs(mi - mw) < TOL,
+                   f"\\verb sets its text in a fixed-advance font "
+                   f"(iiiiii {mi:.2f}pt vs WWWWWW {mw:.2f}pt)"))
+    r.append(check(rw - ri > 20.0,
+                   f"control: the body font is not fixed-advance, so the "
+                   f"check above is not vacuous ({ri:.2f}pt vs {rw:.2f}pt)"))
     return r
 
 
@@ -1914,6 +1982,7 @@ ASSERTIONS = {
     "babel-fr": a_babel_fr,
     "babel-fr-order": a_babel_fr_order,
     "termination": a_termination,
+    "verb": a_verb,
     "refs": a_refs,
 }
 

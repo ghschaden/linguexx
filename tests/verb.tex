@@ -1,0 +1,35 @@
+%% \verb in an example body -- the half of the documented matrix that WORKS.
+%%
+%% The manual states a matrix (§ Notes and limitations): \verb cannot work
+%% in the dot syntax, whose body is COLLECTED before it is typeset, so the
+%% catcodes are long fixed by the time \verb would change them (that half is
+%% pinned by verb-dot.tex), nor in the braced \ex[j]{text} form, whose body
+%% is a macro argument and is read the same way -- but it works normally
+%% under exe/xlist with an unbraced \ex, including inside an "\a." written
+%% within the batch.  Nothing pinned the working half, so a change that
+%% routed the environment syntax through the collector too would silently
+%% make the manual wrong while every other case stayed green.
+%%
+%% The payloads carry catcode-active characters, each behind a sentinel of
+%% its own so that the extracted token is unique.  "&" is deliberately not
+%% among them: pdftotext's -bbox output is XML and escapes it to "&amp;",
+%% which would put the escaping, not the verbatim, on trial.
+\input{_preamble-gb4e}
+\begin{document}
+\begin{exe}
+\ex VBEXE \verb|exe_%$#{}| tail.
+\a. VBSUB \verb|sub_%$#{}| tail.
+\z.
+\ex VBTWO plain body.
+ \begin{xlist}
+ \ex VBXL \verb|xlist_%$#{}| tail.
+ \end{xlist}
+\ex VBESC \verb|esc~^\| tail.
+%% Monospace probe: in a fixed-advance font six i's are exactly as wide as
+%% six W's; in the body font they are nowhere near.  The \textrm pair below
+%% is the sensitivity control for that -- same two strings, so a probe that
+%% measured nothing could not pass.
+\ex VBMONO \verb|MONOiiiiii| \verb|MONOWWWWWW| tail.
+\ex VBROMAN \textrm{ROMNiiiiii} \textrm{ROMNWWWWWW} tail.
+\end{exe}
+\end{document}

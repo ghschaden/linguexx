@@ -1,0 +1,21 @@
+%% The other half of the \verb matrix: in the DOT syntax it cannot work.
+%%
+%% A dot-syntax body is collected token by token before it is typeset --
+%% which is exactly what lets a blank line end it and \z. pop a level -- so
+%% by the time the body is set, its characters have been read with the
+%% catcodes in force at the \ex., and \verb, which has to change those
+%% catcodes WHILE reading, finds nothing left to protect.  The failure is
+%% TeX's, not the package's: the "_" of the payload reaches the typesetter
+%% as a subscript, which is "Missing $ inserted" on all three engines.
+%%
+%% This is documented as inherent to a blank-line-delimited body rather
+%% than a defect (linguex grabs at \par and has it too), so the error is
+%% the specification.  Pinning it means a change that made \verb work here
+%% would have to be a decision -- the case turns green-by-accident into a
+%% visible failure ("expected the error ...; got a clean compile").
+%% The working half is verb.tex.
+\input{_preamble}
+\begin{document}
+\ex. VBDOT a collected body with \verb|x_y| in it.
+
+\end{document}
