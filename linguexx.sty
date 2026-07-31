@@ -897,12 +897,19 @@
 \ExplSyntaxOff
 \def\lx@openlist#1{\begin{list}{}{#1}}
 \def\lx@closelist{\end{list}}
+%% What every example list wants, at all three levels: no glue anywhere
+%% the surrounding text could see, and the label set flush left in its own
+%% box (\lx@flushlabel, not the list default, which right-aligns a label
+%% narrower than \labelwidth).  Only \topsep and the level geometry differ
+%% between the three, so only those are set beside this.
+\def\lx@listdefaults{%
+  \itemindent\z@ \listparindent\z@ \parsep\z@ \itemsep\z@
+  \partopsep\z@ \parskip\z@
+  \let\makelabel\lx@flushlabel}
 \def\lx@mainlist{%
   \lx@openlist{\topsep\Extopsep
      \lx@geom@main
-     \itemindent\z@ \listparindent\z@ \parsep\z@ \itemsep\z@
-     \partopsep\z@ \parskip\z@
-     \let\makelabel\lx@flushlabel}}
+     \lx@listdefaults}}
 
 %% In the exe environment the list opens before any item exists, so the
 %% label the width is derived from is the one the NEXT \ex will print.
@@ -1113,7 +1120,6 @@
 \def\lx@letters@off{%
   \let\a\lx@saved@a \let\b\lx@saved@b \let\c\lx@saved@c
   \let\d\lx@saved@d \let\e\lx@saved@e \let\f\lx@saved@f}
-\def\lx@assert@letters{\lx@install@letters}
 %% The dot shorthands (\z. and the glossed \exg. \ag.-\fg.) are claimed
 %% \AtBeginDocument, and only if the name is still free.  Both halves matter,
 %% and each fixes a different failure:
@@ -1147,10 +1153,10 @@
   \lx@claim@shorthand{eg}{\e.\lx@glosshead}%
   \lx@claim@shorthand{fg}{\f.\lx@glosshead}}
 \iflx@lazy
-  \lx@assert@letters
-  \AtBeginDocument{\lx@assert@letters\lx@claim@shorthands}
+  \lx@install@letters
+  \AtBeginDocument{\lx@install@letters\lx@claim@shorthands}
 \fi
-% Under [gb4e] alone, \lx@assert@letters is never called, so \a is not
+% Under [gb4e] alone, \lx@install@letters is never called, so \a is not
 % hooked either: \z., the glossed shorthands and \a.-\f. do not exist,
 % and \a plus the kernel accents \b, \c, \d (and hyperref's use of them)
 % stay untouched everywhere, exactly as before.  \lx@letters@local is
@@ -1239,16 +1245,10 @@
 % (\a.) and the environment path (xlist)
 \def\lx@sublist@i{%
   \setcounter{SubExNo}{0}%
-  \lx@openlist{\lx@geom@sub
-     \itemindent\z@ \listparindent\z@ \parsep\z@ \itemsep\z@
-     \partopsep\z@ \parskip\z@
-     \let\makelabel\lx@flushlabel}}
+  \lx@openlist{\lx@geom@sub \lx@listdefaults}}
 \def\lx@sublist@ii{%
   \setcounter{SubSubExNo}{0}%
-  \lx@openlist{\lx@geom@subsub
-     \itemindent\z@ \listparindent\z@ \parsep\z@ \itemsep\z@
-     \partopsep\z@ \parskip\z@
-     \let\makelabel\lx@flushlabel}}
+  \lx@openlist{\lx@geom@subsub \lx@listdefaults}}
 
 % depth 0 -> open letter level.  \lx@letters@local goes right after the
 % \begingroup, so \b.-\f. are live for the rest of this level (and are
