@@ -37,10 +37,24 @@ import tempfile
 from pathlib import Path
 
 ENGINES = ["pdflatex", "xelatex", "lualatex"]
-# pdflatex/judgment-align fails one assertion because pdftotext merges the
-# label and the two judgment marks into a single token; the geometry is
-# correct (the case passes on xe/lua).  Known pdftotext artifact, not a bug.
-KNOWN_XFAIL = {"pdflatex/judgment-align"}
+# engine/case pairs whose failure is an artifact of the TOOLING rather than
+# a defect in the package.  Empty, and worth keeping so.
+#
+# It held "pdflatex/judgment-align" from the initial commit: pdftotext used
+# to merge the sub-example label with the judgment marks that follow it into
+# a single token, and a_judgment_align cannot take such a token apart -- it
+# reports "label and marks merged" -- although the geometry was right all
+# along, which is why xelatex and lualatex always passed.  Poppler 26.07
+# emits the label as its own token, so the case now passes on all three
+# engines and the entry masked a green result instead of guarding anything.
+#
+# Removed rather than kept as insurance: an entry that never fires cannot be
+# told apart from one that still protects something, and the harness does
+# not report an unnecessary XFAIL.  Should judgment-align ever fail on
+# pdflatex ALONE with that message, this is the reason, and the answer is to
+# measure the marks from ink (cf. brace_bulge) rather than to re-add a line
+# that hides the assertion.
+KNOWN_XFAIL = set()
 # LaTeX passes per case; two is enough for cross-references, which is all
 # most cases need.  The `ua` case needs three: its PDF/UA validity does not
 # converge until the third run under pdflatex and xelatex (lualatex gets
