@@ -445,10 +445,42 @@ after a plain \cs{ex}, as everywhere else:
 \afterex
 Two differences follow from the syntax itself: the environments end at
 their \cs{end} and nothing else, so blank lines inside them are ordinary
-paragraph breaks; and \cs{z.}\ has no role to play, since an environment
+paragraph breaks; and \cs{z.}\ does not end a batch, since an environment
 names its own end. An \texttt{xlist} may also sit inside a dot-command
 example, and \cs{a.}\ works inside \texttt{exe}. Use whichever form
 suits the document --- or the editor.
+
+Mixing the two syntaxes brings one rule with it, and it is the rule of
+the \texttt{xlist} environment rather than of the dot syntax:
+\emph{inside a batch, \cs{ex} continues at the level currently open}. So
+once an \cs{a.}\ has opened a sub-level, a following \cs{ex} is the next
+\emph{sub}-example, not the next top-level one. \cs{z.}\ is what closes
+the sub-level again --- the one job it does have inside \texttt{exe}:
+
+\begin{code}
+\begin{exe}
+\ex One.
+\a. A sub-example.
+\z.
+\ex Two, back at the top level.
+\end{exe}
+\end{code}
+
+\rendered
+\begin{exe}
+\ex One.
+\a. A sub-example.
+\z.
+\ex Two, back at the top level.
+\end{exe}
+
+\afterex
+Without the \cs{z.}, ``Two'' would come out as sub-example~b. Nothing
+warns about it, because that is what \cs{ex} means at the letter level:
+the same thing \cs{item} means inside an \texttt{xlist}. A \cs{z.}\ at
+the \emph{top} level of a batch, where there is no sub-level left to
+close, is a package error naming \cs{end\{exe\}} --- ending the batch is
+the environment's own job.
 
 \subsection{Examples in footnotes}
 
@@ -1035,6 +1067,15 @@ To refer to a neighbouring example without labelling it:
 \noindent Inside a footnote these refer to the footnote's own series, which
 is nearly always what is meant; \cs{TextNext} escapes to the main series.
 
+These commands are part of the \pkg{linguex} compatibility surface and are
+kept for it, but they are worth using sparingly. What they resolve to
+depends on where they stand, so inserting an example between a reference
+and its target silently changes what the reference means --- and nothing
+in the document records that anything was meant at all. In a document you
+expect to revise, prefer \cs{label} with \cs{ref} or, better,
+\pkg{cleveref}'s \cs{cref} (below): a label survives being moved, and a
+label that has lost its target is an error rather than a wrong number.
+
 \subsection{Ranges}
 
 \cs{refrange}\marg{first}\marg{last} sets a compact range over
@@ -1079,6 +1120,14 @@ left alone:
 
 \noindent The counters are \texttt{ExNo}, \texttt{SubExNo},
 \texttt{SubSubExNo} and \texttt{FnExNo}.
+
+\cs{crefrange} works too, but it is not a replacement for \cs{refrange}:
+over the first and last sub-example of an example it prints ``(3a) to
+(3c)'', where \cs{refrange} prints ``(3a--c)''. \pkg{cleveref} has no way
+to compress a range whose members share a prefix, which is the compact
+form a linguistics text wants, so \cs{refrange} and \cs{sublabel} are
+still the way to get it --- and a label may carry both, since
+\cs{sublabel} does everything \cs{label} does.
 
 \cs{prefrange} is the parenthesis-free variant; \cs{Refrange} sets a range
 over two whole examples, as (10)--(12). The range dash is the macro
@@ -1615,6 +1664,43 @@ all three engines.
 
 \item \textbf{\cs{z.}\ at brace depth 0.} \cs{z.}\ is recognized in the
   body of an example, not inside a brace group within it.
+
+\item \textbf{\cs{verb} in an example body.} It cannot work in the dot
+  syntax. A dot-syntax body is \emph{collected} before it is typeset ---
+  that is exactly what lets a blank line end it and \cs{z.}\ pop a level
+  --- and by then its tokens have long since been read, with the catcodes
+  in force where the \cs{ex.}\ stood. \cs{verb} has to change those
+  catcodes \emph{while} reading, so it finds nothing left to protect and
+  fails, usually as ``Missing \$ inserted''. The same goes for
+  \texttt{verbatim}, \pkg{listings} and \pkg{fancyvrb}'s environments, and
+  for anything else that reads its own argument specially. This is
+  inherent to a blank-line-delimited body rather than a defect to be fixed
+  someday --- \pkg{linguex} grabs its bodies at \cs{par} and has it too.
+
+  The environment syntax does \emph{not} collect, so there \cs{verb} works
+  normally, including inside an \cs{a.}\ or an \texttt{xlist} written
+  within the batch:
+
+\begin{code}
+\begin{exe}
+\ex A body with \verb|x_y| in it.
+\end{exe}
+\end{code}
+
+  The one exception is the braced judgment form
+  \cs{ex}\oarg{judgment}\marg{text}, whose body is a macro argument and is
+  therefore read before it is used, exactly like a collected one. So: for
+  verbatim material in an example, use \texttt{exe} with an unbraced
+  \cs{ex}.
+
+\item \textbf{Examples in a \texttt{minipage} footnote.} They are numbered
+  on the main series, not on the footnote series: \cs{footnote} inside a
+  \texttt{minipage} is a different command from the ordinary one, and only
+  the ordinary one is hooked. Whether such examples ought to share the
+  footnote series, keep the main one, or get a series per minipage is a
+  question \pkg{linguex} never answered either, so nothing is claimed here
+  and nothing is patched; if the numbering matters in your document, put
+  the examples outside the minipage.
 
 \item \textbf{\pkg{ulem} is not loaded.} For struck-through alternatives
   (\cs{sout} inside \cs{altn}), load \pkg{ulem} yourself; the usual choice
