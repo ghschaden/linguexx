@@ -25,6 +25,13 @@ AAA start.
 
 \ex. I saw \altn{the cat}{a dog} here.
 
+% \altn's spoken /Alt expands a \lpzg key from the Leipzig table,
+% as \altg's already did -- ALTNLPZG must speak "plural", not "PL".  The
+% printed stack is unaffected (it still shows PL in small caps) and the
+% abbreviation keeps its own /E Span inside the stack, so the two are
+% checked separately below.
+\ex. ALTNLPZG \altn{a \lpzg{pl} of cats}{a dog} here.
+
 \exg. ALTGHOST \altg{Socke}{Tonne} ALTGVERB.\\
       altghost \altg{sock.\lpzg{sg}}{ton.\lpzg{sg}} altgverb.\\
 

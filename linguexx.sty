@@ -2357,6 +2357,129 @@
 \let\gln\glt % cgloss4e-compat alias
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  Stacked alternatives: what \altn and \altg share                   %%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% \altn (a braced stack in running text) and \altg (a braced stack that
+%% occupies one column of an interlinear gloss, written once per tier) are
+%% different constructs with the same four internals: collect the brace
+%% groups, build the spoken /Alt from them, set them as a tabular, draw a
+%% TikZ brace to the result's extents.  Those four live here, once; what
+%% remains in each section is only what genuinely differs -- how the stack
+%% is anchored vertically, and \altg's two-call cross-tier protocol.
+\ExplSyntaxOn
+%% Collection.  #1 = the seq to fill, #2 = what to run when the groups run
+%% out.  Both commands take one leading mandatory argument and then any
+%% number of further brace groups, so the loop peeks rather than counts;
+%% a space ends collection (in a gloss it also splits columns, hence the
+%% documented "no spaces between the brace groups, break lines with %").
+\cs_new_protected:Npn \__lxp_grab:NN #1#2
+  { \peek_catcode:NTF \c_group_begin_token
+      { \__lxp_grab_arg:NNn #1#2 } {#2} }
+\cs_new_protected:Npn \__lxp_grab_arg:NNn #1#2#3
+  {
+    \seq_put_right:Nn #1 {#3}
+    \__lxp_grab:NN #1#2
+  }
+%% Spoken /Alt: "A", "A or B", "A, B, or C".  #1 = the seq, #2 = the tl to
+%% receive it.  \text_purify:n strips formatting (\sout, \textbf, ...) for
+%% speech, and \lpzg is reduced to its Leipzig expansion, so
+%% \altn{\lpzg{sg}}{\lpzg{pl}} speaks "singular or plural" rather than
+%% "SG or PL".  Only SIMPLE keys are expanded here: a compound
+%% ("3sg.pst") or unknown key speaks as printed.
+%%
+%% The pieces are collected in a GLOBAL scratch and copied out at the end.
+%% The \lpzg redefinition has to be scoped by a group, the result has to
+%% survive it, and the destination is a local (l_-named) token list: the
+%% previous code wrote to it with \tl_gput_right: from inside the group,
+%% which straddled the scope and broke the expl3 naming contract at once.
+\tl_new:N \g__lxp_alt_build_tl
+\int_new:N \l__lxp_alt_n_int
+\cs_new_protected:Npn \__lxp_buildalt:NN #1#2
+  {
+    \tl_gclear:N \g__lxp_alt_build_tl
+    \int_set:Nn \l__lxp_alt_n_int { \seq_count:N #1 }
+    \group_begin:
+      \cs_set:Npn \lpzg ##1
+        { \prop_if_in:NnTF \g_lx_lpzg_prop {##1}
+            { \prop_item:Nn \g_lx_lpzg_prop {##1} } {##1} }
+      \int_step_inline:nn { \l__lxp_alt_n_int }
+        {
+          \int_compare:nNnT { ##1 } > { 1 }
+            {
+              \int_compare:nNnTF { ##1 } = { \l__lxp_alt_n_int }
+                { \int_compare:nNnTF { \l__lxp_alt_n_int } = { 2 }
+                    { \tl_gput_right:Nn \g__lxp_alt_build_tl { ~or~ } }
+                    { \tl_gput_right:Nn \g__lxp_alt_build_tl { ,~or~ } } }
+                { \tl_gput_right:Nn \g__lxp_alt_build_tl { ,~ } }
+            }
+          \tl_gput_right:Ne \g__lxp_alt_build_tl
+            { \text_purify:n { \seq_item:Nn #1 {##1} } }
+        }
+    \group_end:
+    \tl_set_eq:NN #2 \g__lxp_alt_build_tl
+  }
+%% The stack, as a tabular.  #1 = box to set, #2 = seq, #3 = column spec,
+%% #4 = a hook run inside the box before the tabular (a font, a local
+%% redefinition).
+%%
+%% Under active tagging, plain LaTeX auto-tags every tabular as a real
+%% /Table (with /TR, /TD ...); this stack is presentational, not data, and
+%% the auto Table would be built (wrongly) as a child of whatever structure
+%% element is open at THIS point -- typically the ambient paragraph, since
+%% the surrounding Span is not opened until the emit, around \box_use:N.
+%% That produced both an invalid Table-under-P/LI nesting and, whenever
+%% more than one stack occurred in a paragraph, corrupted paragraph-tagging
+%% bookkeeping (veraPDF/tagpdf: "Parent-Child ... Relation is not
+%% allowed").  Building the box with table auto-tagging suspended avoids
+%% this: the box then carries no struct/MC of its own, so its content is
+%% correctly attributed to the Span when \box_use:N later places it inside
+%% one.  \hbox_gset:Nn (not \hbox_set:Nn) is required because the group
+%% that scopes the \tagpdfsetup change would otherwise also discard the box.
+\cs_new_protected:Npn \__lxp_setstack:NNnn #1#2#3#4
+  {
+    \group_begin:
+      \cs_if_exist:NT \tagpdfsetup { \tagpdfsetup { table/tagging = false } }
+      \hbox_gset:Nn #1
+        {
+          #4
+          \use:x
+            {
+              \exp_not:N \begin { tabular } [c] { @{} #3 @{} }
+              \seq_use:Nn #2 { \\ }
+            }
+          \end { tabular }
+        }
+    \group_end:
+  }
+%% One brace, side #1 (L or R), drawn between the ordinates #2 (bottom)
+%% and #3 (top).  The decoration bulges to the side determined by the path
+%% direction: an upward path gives an opening brace, a downward path a
+%% closing one (the v0.13 downward path drew the left brace mirrored), so
+%% the two sides are not the same path with a different anchor.
+%%
+%% baseline=0pt is what lets the same drawer serve both callers.  \altn
+%% hands it 0pt..height and raises the whole picture itself, so its
+%% baseline sits at the bounding box's bottom edge -- which is where a
+%% tikzpicture puts it by default anyway, hence no change there.  \altg
+%% hands it -depth..height and needs the baseline on y=0, in the middle.
+\cs_new_protected:Npn \__lxp_brace:nnn #1#2#3
+  {
+    \begin { tikzpicture } [ baseline = 0pt ]
+      \useasboundingbox ( 0pt , #2 ) rectangle ( \AltBraceWidth , #3 ) ;
+      \str_if_eq:nnTF {#1} { L }
+        { \draw [ decorate ,
+                  decoration = { brace , amplitude = \AltBraceAmplitude } ]
+            ( \dim_eval:n { \AltBraceWidth - 1pt } , #2 )
+            -- ( \dim_eval:n { \AltBraceWidth - 1pt } , #3 ) ; }
+        { \draw [ decorate ,
+                  decoration = { brace , amplitude = \AltBraceAmplitude } ]
+            ( 1pt , #3 ) -- ( 1pt , #2 ) ; }
+    \end { tikzpicture }
+  }
+\ExplSyntaxOff
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%  Stacked alternatives: \altn / \lxAltn                              %%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -2367,7 +2490,6 @@
 \box_new:N  \l__lxp_alt_box
 \dim_new:N  \l__lxp_alt_ht_dim
 \dim_new:N  \l__lxp_alt_dp_dim
-\int_new:N  \l__lxp_alt_n_int
 
 %% \lxAltn collects its brace-delimited alternatives (one leading mandatory
 %% argument, then any number of further brace groups) and sets them as a
@@ -2381,99 +2503,30 @@
     \tl_set:Nn   \l__lxp_alt_align_tl {#1}
     \seq_clear:N \l__lxp_alt_seq
     \seq_put_right:Nn \l__lxp_alt_seq {#2}
-    \__lxp_alt_grab:
+    \__lxp_grab:NN \l__lxp_alt_seq \__lxp_alt_print:
   }
-\cs_new_protected:Npn \__lxp_alt_grab:
-  {
-    \peek_catcode:NTF \c_group_begin_token
-      { \__lxp_alt_grab_arg:n }
-      { \__lxp_alt_print: }
-  }
-\cs_new_protected:Npn \__lxp_alt_grab_arg:n #1
-  {
-    \seq_put_right:Nn \l__lxp_alt_seq {#1}
-    \__lxp_alt_grab:
-  }
-%% spoken alternate text: "A", "A or B", "A, B, or C"
-\cs_new_protected:Npn \__lxp_alt_buildalt:
-  {
-    \tl_clear:N \l__lxp_alt_alt_tl
-    \int_set:Nn \l__lxp_alt_n_int { \seq_count:N \l__lxp_alt_seq }
-    \int_step_inline:nn { \l__lxp_alt_n_int }
-      {
-        \int_compare:nNnT { ##1 } > { 1 }
-          {
-            \int_compare:nNnTF { ##1 } = { \l__lxp_alt_n_int }
-              {
-                \int_compare:nNnTF { \l__lxp_alt_n_int } = { 2 }
-                  { \tl_put_right:Nn \l__lxp_alt_alt_tl { ~or~ } }
-                  { \tl_put_right:Nn \l__lxp_alt_alt_tl { ,~or~ } }
-              }
-              { \tl_put_right:Nn \l__lxp_alt_alt_tl { ,~ } }
-          }
-        \tl_put_right:Ne \l__lxp_alt_alt_tl
-          { \text_purify:n { \seq_item:Nn \l__lxp_alt_seq {##1} } }
-      }
-  }
-%% the stacked alternatives, as a tabular; also records total height.
-%% Under active tagging, plain LaTeX auto-tags every tabular as a real
-%% /Table (with /TR, /TD ...); this stack is presentational, not data, and
-%% the auto Table is built (wrongly) as a child of whatever structure
-%% element is open at THIS point -- typically the ambient paragraph, since
-%% the surrounding Span for \altn has not been opened yet (that happens
-%% later, in \__lxp_alt_emit_tagged:, around \box_use:N).  That produced
-%% both an invalid Table-under-P/LI nesting and, whenever more than one
-%% \altn occurred in a paragraph, corrupted paragraph-tagging bookkeeping
-%% (veraPDF/tagpdf: "Parent-Child ... Relation is not allowed").  Building
-%% the box with table auto-tagging suspended avoids this: the box then
-%% carries no struct/MC of its own, so its content is correctly attributed
-%% to the Span when \box_use:N later places it inside one.  \hbox_gset:Nn
-%% (not \hbox_set:Nn) is required because the group that scopes the
-%% \tagpdfsetup change would otherwise also discard the box.
+%% the stacked alternatives, as a tabular; also records total height.  The
+%% optional argument picks the column spec; nothing else is needed inside
+%% the box, so the hook is empty.
 \cs_new_protected:Npn \__lxp_alt_setstack:
   {
-    \group_begin:
-      \cs_if_exist:NT \tagpdfsetup { \tagpdfsetup { table/tagging = false } }
-      \hbox_gset:Nn \l__lxp_alt_box
-        {
-          \use:x
-            {
-              \exp_not:N \begin { tabular } [c]
-                { @{} \str_case:VnF \l__lxp_alt_align_tl { {l}{l} {r}{r} } {c} @{} }
-            }
-            \seq_use:Nn \l__lxp_alt_seq { \\ }
-          \end { tabular }
-        }
-    \group_end:
+    \__lxp_setstack:NNnn \l__lxp_alt_box \l__lxp_alt_seq
+      { \str_case:VnF \l__lxp_alt_align_tl { {l}{l} {r}{r} } {c} } { }
     \dim_set:Nn \l__lxp_alt_dp_dim { \box_dp:N \l__lxp_alt_box }
     \dim_set:Nn \l__lxp_alt_ht_dim
       { \box_ht:N \l__lxp_alt_box + \l__lxp_alt_dp_dim }
   }
-%% one brace, side L or R, drawn with TikZ to the stack height.  The
-%% decoration bulges to the side determined by the path direction: an
-%% upward path gives an opening brace, a downward path a closing one
-%% (the v0.13 downward path drew the left brace mirrored).  The raise is
-%% pinned to the stack's own depth, not half the total height: a stack is
-%% seldom split evenly around its baseline (an all-caps or struck-through
-%% row above pulls height, ordinary rows below add less depth), so using
-%% the true box_dp keeps the brace's centre level with the stack's actual
-%% midpoint instead of drifting toward whichever side is taller.
+%% one brace, side L or R, sized to the stack's total height and raised as
+%% a whole.  The raise is pinned to the stack's own depth, not half the
+%% total height: a stack is seldom split evenly around its baseline (an
+%% all-caps or struck-through row above pulls height, ordinary rows below
+%% add less depth), so using the true box_dp keeps the brace's centre level
+%% with the stack's actual midpoint instead of drifting toward whichever
+%% side is taller.
 \cs_new_protected:Npn \__lxp_alt_brace:n #1
   {
     \raisebox { \dim_eval:n { \AltBraceRaise - \l__lxp_alt_dp_dim } }
-      {
-        \begin { tikzpicture }
-          \useasboundingbox (0,0) rectangle ( \AltBraceWidth , \l__lxp_alt_ht_dim ) ;
-          \str_if_eq:nnTF {#1} { L }
-            { \draw [ decorate ,
-                      decoration = { brace , amplitude = \AltBraceAmplitude } ]
-                ( \dim_eval:n { \AltBraceWidth - 1pt } , 0pt )
-                -- ( \dim_eval:n { \AltBraceWidth - 1pt } , \l__lxp_alt_ht_dim ) ; }
-            { \draw [ decorate ,
-                      decoration = { brace , amplitude = \AltBraceAmplitude } ]
-                ( 1pt , \l__lxp_alt_ht_dim ) -- ( 1pt , 0pt ) ; }
-        \end { tikzpicture }
-      }
+      { \__lxp_brace:nnn {#1} { 0pt } { \l__lxp_alt_ht_dim } }
   }
 %% the printed object (brace + stack + brace), no tagging.  The outer
 %% gap (\AltBraceOuterSep) clears the decoration's outward bulge from
@@ -2486,7 +2539,7 @@
 %% the printed object wrapped in a Span carrying the spoken /Alt
 \cs_new_protected:Npn \__lxp_alt_emit_tagged:
   {
-    \__lxp_alt_buildalt:
+    \__lxp_buildalt:NN \l__lxp_alt_seq \l__lxp_alt_alt_tl
     \leavevmode
     \hspace{\AltBraceOuterSep}
     \lx@tag@span@begin:e { tag = Span , alt = { \l__lxp_alt_alt_tl } }
@@ -2537,7 +2590,6 @@
 \dim_new:N \l__lxp_altg_bxht_dim
 \dim_new:N \l__lxp_altg_bxdp_dim
 \tl_new:N  \l__lxp_altg_alt_tl
-\int_new:N \l__lxp_altg_n_int
 %% cross-cell protocol state (the gloss grid typesets column by column,
 %% object cell first, so the two calls of one paradigm are adjacent)
 \int_new:N \g__lxp_altg_role_int   % 0 = the next in-gloss \altg is the object call
@@ -2579,83 +2631,30 @@
   {
     \seq_clear:N \l__lxp_altg_seq
     \seq_put_right:Nn \l__lxp_altg_seq {#1}
-    \__lxp_altg_grab:
+    \__lxp_grab:NN \l__lxp_altg_seq \__lxp_altg_print:
   }
-\cs_new_protected:Npn \__lxp_altg_grab:
-  { \peek_catcode:NTF \c_group_begin_token
-      { \__lxp_altg_grab_arg:n } { \__lxp_altg_print: } }
-\cs_new_protected:Npn \__lxp_altg_grab_arg:n #1
-  {
-    \seq_put_right:Nn \l__lxp_altg_seq {#1}
-    \__lxp_altg_grab:
-  }
-%% spoken alternate text: "A", "A or B", "A, B, or C"; \lpzg keys found
-%% in the Leipzig table speak as their expansion, others as printed.
-\cs_new_protected:Npn \__lxp_altg_buildalt:
-  {
-    \tl_clear:N \l__lxp_altg_alt_tl
-    \int_set:Nn \l__lxp_altg_n_int { \seq_count:N \l__lxp_altg_seq }
-    \group_begin:
-      \cs_set:Npn \lpzg ##1
-        { \prop_if_in:NnTF \g_lx_lpzg_prop {##1}
-            { \prop_item:Nn \g_lx_lpzg_prop {##1} } {##1} }
-      \int_step_inline:nn { \l__lxp_altg_n_int }
-        {
-          \int_compare:nNnT { ##1 } > { 1 }
-            {
-              \int_compare:nNnTF { ##1 } = { \l__lxp_altg_n_int }
-                { \int_compare:nNnTF { \l__lxp_altg_n_int } = { 2 }
-                    { \tl_gput_right:Nn \l__lxp_altg_alt_tl { ~or~ } }
-                    { \tl_gput_right:Nn \l__lxp_altg_alt_tl { ,~or~ } } }
-                { \tl_gput_right:Nn \l__lxp_altg_alt_tl { ,~ } }
-            }
-          \tl_gput_right:Ne \l__lxp_altg_alt_tl
-            { \text_purify:n { \seq_item:Nn \l__lxp_altg_seq {##1} } }
-        }
-    \group_end:
-  }
-%% the stack: one [c]-centred tabular; per-side extents recorded.  Table
-%% auto-tagging is suspended while building it, for the same reason as in
-%% \__lxp_alt_setstack: above (see the comment there): the tabular is
-%% presentational, the enclosing Span is not open yet at this point, and
-%% \hbox_gset:Nn is required so the box survives the group that scopes the
-%% \tagpdfsetup change.
+%% the stack: one [c]-centred tabular; per-side extents recorded.  The hook
+%% carries the tier font (the gloss call sets \AltgTransFont) and the local
+%% \lpzg: \lx@lpzg@build parses the label without printing anything, so the
+%% abbreviation is set plain inside the stack -- each stack is a single
+%% marked-content span, with no room for a nested abbreviation Span -- but
+%% still counts as used and reaches \lpzglist like any other.
 \cs_new_protected:Npn \__lxp_altg_setstack:n #1
   {
-    \group_begin:
-      \cs_if_exist:NT \tagpdfsetup { \tagpdfsetup { table/tagging = false } }
-      \hbox_gset:Nn \l__lxp_altg_stack_box
-        %% \lx@lpzg@build parses the label without printing anything: the
-        %% abbreviation is set plain here, but it still counts as used and
-        %% reaches \lpzglist like any other.
-        { #1 \renewcommand \lpzg [1]
-            { \lx@lpzg@build {##1} \textsc {##1} }
-          \use:x { \exp_not:N \begin { tabular } [c] { @{}l@{} }
-                   \seq_use:Nn \l__lxp_altg_seq { \\ } }
-          \end { tabular } }
-    \group_end:
+    \__lxp_setstack:NNnn \l__lxp_altg_stack_box \l__lxp_altg_seq { l }
+      { #1 \renewcommand \lpzg [1] { \lx@lpzg@build {##1} \textsc {##1} } }
     \dim_set:Nn \l__lxp_altg_bxht_dim { \box_ht:N \l__lxp_altg_stack_box }
     \dim_set:Nn \l__lxp_altg_bxdp_dim { \box_dp:N \l__lxp_altg_stack_box }
     \dim_set:Nn \l__lxp_altg_ht_dim
       { \l__lxp_altg_bxht_dim + \l__lxp_altg_bxdp_dim }
   }
-%% one brace, side L or R, on the baseline, sized to the stack's extents.
-%% Path direction sets the bulge: upward = opening, downward = closing.
+%% one brace, side L or R, on the baseline: unlike \altn's, it is not
+%% raised as a whole, so it is drawn from the stack's depth to its height
+%% and the picture's own baseline (y=0) does the anchoring.
 \cs_new_protected:Npn \__lxp_altg_brace:n #1
   {
-    \begin { tikzpicture } [ baseline = 0pt ]
-      \useasboundingbox
-        ( 0pt , \dim_eval:n { - \l__lxp_altg_bxdp_dim } )
-        rectangle ( \AltBraceWidth , \l__lxp_altg_bxht_dim ) ;
-      \str_if_eq:nnTF {#1} { L }
-        { \draw [ decorate , decoration = { brace , amplitude = \AltBraceAmplitude } ]
-            ( \dim_eval:n { \AltBraceWidth - 1pt } ,
-              \dim_eval:n { - \l__lxp_altg_bxdp_dim } )
-            -- ( \dim_eval:n { \AltBraceWidth - 1pt } , \l__lxp_altg_bxht_dim ) ; }
-        { \draw [ decorate , decoration = { brace , amplitude = \AltBraceAmplitude } ]
-            ( 1pt , \l__lxp_altg_bxht_dim )
-            -- ( 1pt , \dim_eval:n { - \l__lxp_altg_bxdp_dim } ) ; }
-    \end { tikzpicture }
+    \__lxp_brace:nnn {#1}
+      { \dim_eval:n { - \l__lxp_altg_bxdp_dim } } { \l__lxp_altg_bxht_dim }
   }
 %% the three printed shapes.  Object cell: left brace + stack, dropped
 %% half a baseline; natural height kept (reserves the protrusion above),
@@ -2702,7 +2701,7 @@
     \leavevmode
     \lx@tag@if@active:TF
       {
-        \__lxp_altg_buildalt:
+        \__lxp_buildalt:NN \l__lxp_altg_seq \l__lxp_altg_alt_tl
         \lx@tag@span@begin:e { tag = Span , alt = { \l__lxp_altg_alt_tl } }
         #1
         \lx@tag@span@end:

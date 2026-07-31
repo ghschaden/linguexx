@@ -400,6 +400,81 @@ def a_altg(p: Page):
     return r
 
 
+def a_altn(p: Page):
+    r"""\altn: a braced stack in running text, its three column alignments,
+    and -- the part no coordinate proves -- which way the braces curl."""
+    r = []
+
+    def cy(w):
+        return (w.y0 + w.y1) / 2
+
+    rows = {k: [p.find(f"{k}TOPPPP"), p.find(f"{k}M"), p.find(f"{k}BOTTOMMM")]
+            for k in ("C", "L", "R")}
+    # three distinct rows, in source order, in every alignment
+    for k, ws in rows.items():
+        r.append(check(all(cy(a) < cy(b) - 2 for a, b in zip(ws, ws[1:])),
+                       f"[{k}] the alternatives occupy three rows in order"))
+    # the alignment option is what distinguishes the three stacks: [l]
+    # shares left edges, [r] right edges, the default centres the rows.
+    lw = rows["L"]
+    r.append(check(max(w.x0 for w in lw) - min(w.x0 for w in lw) < TOL,
+                   f"[l] rows share a left edge "
+                   f"(spread {max(w.x0 for w in lw) - min(w.x0 for w in lw):.2f}pt)"))
+    rw = rows["R"]
+    r.append(check(max(w.x1 for w in rw) - min(w.x1 for w in rw) < TOL,
+                   f"[r] rows share a right edge "
+                   f"(spread {max(w.x1 for w in rw) - min(w.x1 for w in rw):.2f}pt)"))
+    cw = rows["C"]
+    ctrs = [(w.x0 + w.x1) / 2 for w in cw]
+    r.append(check(max(ctrs) - min(ctrs) < TOL,
+                   f"default rows share a centre line "
+                   f"(spread {max(ctrs) - min(ctrs):.2f}pt)"))
+    # ... and each of the three really is a different shape: a centred and
+    # a right-aligned stack of the SAME rows would both pass their own
+    # check if the option were ignored and one spec used for all three.
+    r.append(check(abs(min(w.x0 for w in cw) - min(w.x0 for w in rw)) > TOL
+                   or abs(max(w.x1 for w in cw) - max(w.x1 for w in rw)) > TOL,
+                   "the [r] stack is not laid out like the default one"))
+    r.append(check(max(w.x0 for w in lw) - min(w.x0 for w in lw)
+                   < max(w.x0 for w in rw) - min(w.x0 for w in rw) - TOL,
+                   "the [l] stack is not laid out like the [r] one"))
+    # the stack is set into the line: the sentinels on either side stay on
+    # the text baseline while the rows straddle it
+    left, right = p.find("CENTREDL"), p.find("CENTREDR")
+    r.append(check(abs(cy(left) - cy(right)) < 2.0,
+                   "the text around the stack stays on one baseline"))
+    r.append(check(cy(cw[0]) < cy(left) and cy(cw[2]) > cy(left),
+                   f"the stack straddles the text line "
+                   f"(rows at {cy(cw[0]):.1f}/{cy(cw[2]):.1f}, text at "
+                   f"{cy(left):.1f})"))
+    r.append(check(right.x0 > max(w.x1 for w in cw),
+                   "the following text clears the stack"))
+    # and it works inside an example, where the label must stay put
+    ex = p.find("(1)")
+    r.append(check(abs(cy(ex) - cy(p.find("EXAMPLEL"))) < 2.0,
+                   "an \\altn in an example leaves the number on its line"))
+
+    # --- the braces themselves ------------------------------------------
+    # Their ink lies in the gaps the stack leaves on either side: left
+    # brace between CENTREDL and the leftmost row, right brace between the
+    # rightmost row and CENTREDR.  Vertically they span the stack.
+    top, bot = min(w.y0 for w in cw), max(w.y1 for w in cw)
+    lgap = (left.x1, min(w.x0 for w in cw))
+    rgap = (max(w.x1 for w in cw), right.x0)
+    r.append(check(lgap[1] - lgap[0] > 4.0 and rgap[1] - rgap[0] > 4.0,
+                   f"both braces have room ({lgap[1]-lgap[0]:.1f}pt left, "
+                   f"{rgap[1]-rgap[0]:.1f}pt right)"))
+    lbulge = brace_bulge(p.path, lgap[0], lgap[1], top, bot)
+    rbulge = brace_bulge(p.path, rgap[0], rgap[1], top, bot)
+    r.append(check(lbulge < -5.0,
+                   f"the left brace is an opening one: its tip points away "
+                   f"from the stack (tip - ends = {lbulge:.1f}px, want < -5)"))
+    r.append(check(rbulge > 5.0,
+                   f"the right brace is a closing one: its tip points away "
+                   f"from the stack (tip - ends = {rbulge:.1f}px, want > +5)"))
+    return r
+
+
 def a_phantomalign(p: Page):
     """Phantom bracket alignment (opt-in).  A gloss word under a bracketed
     object word is padded so its first real glyph sits under the object
@@ -1364,6 +1439,29 @@ def a_tagged(p: Page):
     r.append(check(any("or a dog" in a or "cat, a dog" in a for a in alts),
                    f"text-mode alt carries a spoken /Alt list "
                    f"(got {[a for a in alts if 'dog' in a]})"))
+    # \altn's spoken /Alt expands \lpzg from the Leipzig table, the
+    # behaviour \altg already had.  Before the two builders were unified,
+    # \altn spoke the printed abbreviation ("PL") instead of the word.
+    r.append(check(any("a plural of cats" in a for a in alts),
+                   f"\\altn /Alt expands a Leipzig key (got "
+                   f"{[a for a in alts if 'cats' in a]})"))
+    # ... and only in the SPOKEN form: the printed stack still shows the
+    # small-cap abbreviation, on the row it belongs to, and it keeps its
+    # own /E.  \altn does not flatten \lpzg inside the stack the way
+    # \altg does, and unifying the two /Alt builders must not change that.
+    cats = p.find("cats")
+    pl_row = [w for w in p.words if w.text == "pl" and abs(w.y0 - cats.y0) < 2.0]
+    r.append(check(len(pl_row) == 1,
+                   f"\\altn stack still prints the abbreviation on its own "
+                   f"row (got {pl_row})"))
+    # Two "plural" /E entries, not one: the abbreviation in the stack and
+    # the label of the \lpzglist entry it produced.  Counting is what makes
+    # this a real check -- \lpzglist alone accounts for the first, so
+    # membership would pass even with the stack's Span flattened away.
+    r.append(check(exps.count("plural") == 2,
+                   f"\\lpzg inside an \\altn stack keeps its own /E "
+                   f"(expected 2 'plural' entries, got {exps.count('plural')} "
+                   f"in {sorted(exps)})"))
     # v0.14: \altg embedded in a gloss carries ONE spoken /Alt over the
     # whole paradigm, with simple \lpzg keys expanded from the Leipzig
     # table; and it stays out of math (no Formula element anywhere, which
@@ -1382,12 +1480,15 @@ def a_tagged(p: Page):
     # re-boxed flush RIGHT by the block code -- the same regression that
     # once shifted the sub-example letters -- and the two keys here have
     # different widths, so right-aligning them spreads their origins.
+    # "pl" is there because \lpzg inside an \altn stack counts as used like
+    # any other -- the stack prints it plain but still records it.
     lst = _band_lines(p, p.find("LPZGLIST").y1,
-                      max(w.y1 for w in p.words) + 1)[:2]  # footnote follows
+                      max(w.y1 for w in p.words) + 1)[:3]  # footnote follows
     labels = [l[0].text for l in lst]
-    r.append(check(labels == ["pst", "sg"],
-                   f"abbreviation list under tagging: {labels} != ['pst', 'sg']"))
-    if len(lst) == 2:
+    r.append(check(labels == ["pl", "pst", "sg"],
+                   f"abbreviation list under tagging: {labels} != "
+                   f"['pl', 'pst', 'sg']"))
+    if len(lst) == 3:
         r.append(check(abs(lst[0][0].x0 - lst[1][0].x0) < TOL,
                        f"list labels stay flush left under tagging "
                        f"({lst[0][0].x0:.2f} vs {lst[1][0].x0:.2f})"))
@@ -1518,6 +1619,89 @@ def a_legacy_gb4e(p: Page):
                    f"{txt[txt.find('LGREFS'):][:24]!r}"))
     return r
 
+
+
+# --- Rendered ink (for what has no text layer at all) ----------------------
+
+def _render_gray(pdf: Path, dpi: int):
+    """The first page as (pixels, width, height): one byte per pixel, 0 = black.
+
+    Everything else in this file reads the TEXT layer, which is blind to
+    vector ink -- and a drawn brace is nothing but vector ink.  pdftoppm is
+    already a hard requirement of the suite, and its raw PGM needs no image
+    library to read.
+    """
+    out = subprocess.run(
+        ["pdftoppm", "-gray", "-r", str(dpi), "-f", "1", "-l", "1", str(pdf)],
+        capture_output=True, check=True,
+    ).stdout
+    # P5 header: magic, width, height, maxval, one whitespace byte, then data
+    fields, pos = [], 2
+    while len(fields) < 3:
+        while out[pos:pos + 1].isspace():
+            pos += 1
+        if out[pos:pos + 1] == b"#":                    # comment to end of line
+            pos = out.index(b"\n", pos) + 1
+            continue
+        end = pos
+        while not out[end:end + 1].isspace():
+            end += 1
+        fields.append(int(out[pos:end]))
+        pos = end
+    w, h, _maxval = fields
+    return out[pos + 1:], w, h
+
+
+def brace_bulge(pdf: Path, x0, x1, y0, y1, dpi=300):
+    """Which way the brace inside the given box (PDF points) curls.
+
+    A brace decoration is not symmetric top-to-bottom about a vertical
+    line: its middle tip protrudes to one side and its two ends to the
+    other.  Which side the tip takes is the whole difference between "{"
+    and "}", and it is invisible to any check that only measures where the
+    ink IS -- the mirrored-brace bug of v0.13 sat at the right coordinates.
+
+    Returns tip_x - ends_x in pixels: NEGATIVE for an opening "{" (tip to
+    the left), POSITIVE for a closing "}".  Raises if the box holds no ink,
+    which means the caller's coordinates missed the brace.
+    """
+    px, w, h = _render_gray(pdf, dpi)
+    s = dpi / 72.0
+    cx0, cx1 = max(0, int(x0 * s)), min(w, int(x1 * s) + 1)
+    cy0, cy1 = max(0, int(y0 * s)), min(h, int(y1 * s) + 1)
+
+    def centroid(y):
+        base = y * w
+        # a generous threshold on purpose: the brace is a hairline, thinner
+        # than a pixel at any sane resolution, so most of it survives only
+        # as anti-aliasing and a strict cut-off would drop the curve
+        dark = [x for x in range(cx0, cx1) if px[base + x] < 224]
+        return sum(dark) / len(dark) if dark else None
+
+    rows = {y: c for y in range(cy0, cy1) if (c := centroid(y)) is not None}
+    if not rows:
+        raise AssertionError(
+            f"no ink in the brace box ({x0:.1f},{y0:.1f})-({x1:.1f},{y1:.1f})")
+    # A brace is TALLER than the text it braces -- the callers' band comes
+    # from the row glyphs -- and its ENDS are exactly the part that sticks
+    # out.  Cutting them off leaves the tip measured against the middle of
+    # the curve rather than against the ends, which shrinks the very
+    # difference this is looking for.  So follow the ink out of the band,
+    # which stops by itself in the blank space above and below.
+    for step, limit in ((-1, 0), (1, h - 1)):
+        y = (min(rows) if step < 0 else max(rows)) + step
+        while y != limit and (c := centroid(y)) is not None:
+            rows[y] = c
+            y += step
+    ys = sorted(rows)
+    if len(ys) < 8:
+        raise AssertionError(f"only {len(ys)} inked rows: no brace here")
+    # Measured against the ENDS rather than against the shaft, and by the
+    # extreme rather than by an average over a band: a brace spends most of
+    # its height on the shaft, so any mean is dominated by it and the
+    # curl -- the whole signal -- is averaged away to a couple of pixels.
+    ends = (rows[ys[0]] + rows[ys[1]] + rows[ys[-2]] + rows[ys[-1]]) / 4
+    return max((rows[y] for y in ys), key=lambda c: abs(c - ends)) - ends
 
 
 # --- PDF structure-tree inspection (uncompressed output only) -------------
@@ -1725,6 +1909,7 @@ ASSERTIONS = {
     "lpzgsetup": a_lpzgsetup,
     "phantomalign": a_phantomalign,
     "altg": a_altg,
+    "altn": a_altn,
     "babel-de": a_babel_de,
     "babel-fr": a_babel_fr,
     "babel-fr-order": a_babel_fr_order,

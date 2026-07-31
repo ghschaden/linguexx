@@ -1,0 +1,22 @@
+%% \altn: a braced vertical stack in running text, and the three column
+%% alignments of its optional argument.
+%%
+%% The braces are TikZ ink with NO TEXT LAYER, so pdftotext cannot see
+%% them at all: the sentinels on either side pin their width and position,
+%% and a_altn re-renders the page to check their SHAPE.  That last part is
+%% the reason this case exists.  Before it, a mirrored brace -- the v0.13
+%% bug, where the left brace was drawn by a descending path and came out
+%% as "}" -- passed every assertion in this suite, because a coordinate
+%% says where the ink is and never which way it curls.  Since \altn and
+%% \altg now share one brace drawer, one mutation there would otherwise
+%% have gone unnoticed in both.
+\input{_preamble}
+\begin{document}
+\noindent CENTREDL \lxAltn{CTOPPPP}{CM}{CBOTTOMMM} CENTREDR
+
+\noindent LEFTL \lxAltn[l]{LTOPPPP}{LM}{LBOTTOMMM} LEFTR
+
+\noindent RIGHTL \lxAltn[r]{RTOPPPP}{RM}{RBOTTOMMM} RIGHTR
+
+\ex. EXAMPLEL \lxAltn{ETOP}{EBOT} EXAMPLER
+\end{document}

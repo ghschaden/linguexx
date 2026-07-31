@@ -35,6 +35,13 @@ version string.
   (verified with veraPDF on `examples/ua-demo` and on a `\GlossPhantom`
   build). Alignment survives a size change of the gloss tier (e.g.
   `\footnotesize`). `\altg` alternative columns are not covered.
+- `\altn`'s spoken `/Alt` now expands a Leipzig abbreviation, as `\altg`'s
+  already did: `\altn{a \lpzg{pl} of cats}{a dog}` is announced as "a plural
+  of cats or a dog" rather than "a pl of cats or a dog". Only the spoken form
+  changes -- the stack still prints the small-cap abbreviation, and that
+  abbreviation still carries its own `/E` expansion inside the stack (unlike
+  in an `\altg` stack, which sets `\lpzg` plain). Simple keys only, as in
+  `\altg`: a compound or unknown key is spoken as printed.
 - Fix: the sub-example letters and the kernel accent commands `\b`, `\c`,
   `\d` now coexist, **everywhere, including inside the same example**:
 
