@@ -1,9 +1,9 @@
 # Work order: fixes from the 2026-07-30 code review
 
-Status: PHASES A AND B EXECUTED (A on branch `review-fixes`, B on branch
-`phase-b-coverage`). Phases C and D are NOT EXECUTED — deferred by the
-user. The descriptions below are unchanged and remain the work order for
-a future run; each deferred item is marked in place.
+Status: ALL OF A, B, C AND D1 EXECUTED, all on `main`. D2 remains
+deferred — on its own terms, as the item itself prescribes: its current
+behaviour is now documented and nothing is patched. The descriptions
+below are unchanged; each item records what landed under it.
 
 Executed, one commit each, every one gated on the full three-engine suite:
 
@@ -15,27 +15,43 @@ Executed, one commit each, every one gated on the full three-engine suite:
 | A4 `\lpzg` empty key | done | `21f7d4b` |
 | B1 `[legacy,gb4e]` test case | done | `87bcb92` |
 | B2 `\crefrange` assertions | done | `ffcdb1b` |
+| C1 one tagged-Span helper | done | `6fca2d0` |
+| C2 unify `\altn`/`\altg` | done | `a406394` |
+| C3 small cleanups | done | `3e83767` |
+| D1 manual additions | done | `8cdb80b` |
+| D2 minipage footnotes | deferred by design | — |
 
-No item was blocked. Final gate on the Phase A branch tip:
-`python3 tests/runtests.py` 912/912 assertions on pdflatex, xelatex and
-lualatex; `verapdf examples/ua-demo.pdf` compliant on all three profiles
-(PDF/UA-2 + Tagged PDF, WTPDF 1.0 Accessibility, WTPDF 1.0 Reuse). Final
-gate on the Phase B branch tip: 963/963 assertions on the three engines
-(B added 13 assertions per engine in a new `legacy-gb4e` case and 4 in
-`cleveref`). Phase B did not touch tagging and changed no package code:
-`linguexx.sty` is byte-identical to its state on `main`, so the veraPDF
-gate is inherited from Phase A unchanged.
+No item was blocked. Final gate at `8cdb80b`: `python3 tests/runtests.py`
+1017/1017 assertions on pdflatex, xelatex and lualatex; `verapdf
+examples/ua-demo.pdf` compliant on all three profiles (PDF/UA-2 + Tagged
+PDF, WTPDF 1.0 Accessibility, WTPDF 1.0 Reuse); `linguexx-doc.tex` builds
+clean under lualatex and still errors by design under pdflatex.
 
-Two notes for whoever picks up C/D:
+How the three C refactors were shown to be behaviour-neutral, since the
+suite alone cannot show it: each was compiled against the previous
+commit's `linguexx.sty` over the cases it touches, under pdflatex and
+lualatex, and BOTH the 200dpi rendering and the `pdfinfo -struct-text`
+tree compared byte for byte. C1 and C2: altg, tagged, gloss, glt,
+judgments, lpzgcheck, ua, altg-demo, plus a probe of all three `\altn`
+alignments. C3: the list-geometry cases (tagged, legacy, legacy-gb4e,
+zpop, gbfour, numbering, judgment-align, gloss, ua). All identical.
 
-- The suite harness now attaches the case's `.aux` to the page object
+Three things a later run should know:
+
+- The suite harness attaches the case's `.aux` to the page object
   (`page.aux`), alongside the existing `page.log`. A2 needed it because a
   hyperref anchor is invisible in the rendering and only two of the three
   engines report a duplicate destination at all.
-- A1's DELIBERATE NON-CHANGE (inside `exe`, `\ex` continues at the current
-  level) is now implemented and tested but still undocumented — D1 is the
-  place for it, and it is the one piece of user-visible behaviour Phase A
-  established without a matching line in the manual.
+- It also has `brace_bulge()`, which re-renders a page with `pdftoppm` and
+  measures which way a drawn brace curls. It exists because the suite was
+  BLIND to a mirrored brace — the v0.13 bug — and C2 put both braces on
+  one shared drawer, where a single mutation would have broken `\altn`
+  and `\altg` at once. It is the only assertion in the suite that reads
+  ink rather than the text layer; no new dependency (`pdftoppm` was
+  already required).
+- C2's one user-visible change: `\altn`'s spoken `/Alt` now expands a
+  Leipzig key, as `\altg`'s already did. In `CHANGELOG.md` under 1.1,
+  which is where the A-phase fixes went too; no version bump was made.
 
 Scope: `linguexx.sty` v1.1, test suite, manual.
 Read `CLAUDE.md` first; its verification rules are binding for every phase
@@ -196,10 +212,12 @@ note is still D1's, and still unwritten.
 
 ## Phase C — behavior-neutral refactors (the suite + veraPDF are the proof)
 
-NOT EXECUTED — deferred by user. C1/C2/C3 are untouched; in particular
-`\altn`'s spoken /Alt does NOT yet carry the Leipzig expansion, and the
-`\cs_generate_variant:Nn \tag_struct_begin:n { e }` and
-`\lx@assert@letters` cleanups are still pending.
+EXECUTED (`6fca2d0`, `a406394`, `3e83767`). The heading's premise turned
+out to be half right: the suite and veraPDF caught nothing, because there
+was nothing to catch, but they could not have PROVED neutrality either —
+they pass on plenty of layouts that are not the previous one. The
+byte-comparison of renderings and structure trees described at the top is
+what actually did the proving, and it is the method to reuse.
 
 Run the FULL gate after each item: 3-engine suite, `verapdf` on
 `examples/ua-demo.pdf`, `pdfinfo -struct-text` sanity read.
@@ -227,6 +245,23 @@ MC is exactly where v0.10 broke PDF/UA. The helper must reproduce the
 push/pop order byte-for-byte; the `ua` case, `struct_label_depths`, and
 veraPDF on ua-demo are the oracles, and none alone is sufficient.
 
+DONE (`6fca2d0`). The helper is a PAIR of pairs, which the item did not
+anticipate: `\lx@tag@span@open:n`/`@close:` (suspend the ambient MC, open
+the Span) and `\lx@tag@span@begin:n`/`@end:` (those plus our own MC, for
+leaf content), with `\lx@tag@span:nn` and `\lx@tag@span@exp:nn` as the
+guarded one-shot forms. The split is what the gloss column needs: its
+content is the tier words, each opening marked content of its own, so it
+takes the outer pair only. `\lx@gl@wordbegin/end` fit NEITHER — their
+struct is conditional but their MC is not — and take the shared guard
+alone; the item's count of six sites was one too many.
+
+The guard `\lx@tag@if@active:` is deliberately not named `@span`: the
+text-unit close at `\lx@tag@close@textunit` needs the same two conditions
+and now shares it, so five hand-copied spellings became one. Two of the
+five tested `\cs_if_exist:N` on `\tag_if_active:T`, a conditional variant
+rather than the base name. The unguarded `\cs_generate_variant:Nn
+\tag_struct_begin:n { e }` is gone with them.
+
 ### C2. Unify `\altn` / `\altg` internals
 
 Near-clones to merge: the grab loops (`\__lxp_alt_grab:` /
@@ -246,6 +281,27 @@ Two decided behavior points, both for the changelog:
   naming contract — with a `g_`-named scratch, or restructure so the
   group scoping the `\lpzg` redefinition is not straddled.
 
+DONE (`a406394`). All four merges landed: `\__lxp_grab:NN`,
+`\__lxp_buildalt:NN`, `\__lxp_setstack:NNnn` (column spec + a hook that
+carries both the tier font and the local `\lpzg`), `\__lxp_brace:nnn`
+(the two ordinates; `baseline=0pt` is what lets one drawer serve both,
+since it is where a tikzpicture puts the baseline by default anyway when
+the box bottom is 0). The `g_`-named scratch was taken, not the
+restructuring.
+
+Both decided behaviour points landed as written, and NOTHING ELSE
+changed: `\altn` still prints a nested `\lpzg` as a tagged abbreviation
+with its own `/E`, where `\altg` sets it plain. That asymmetry was left
+alone deliberately — it is UA-valid (checked), the item did not ask for
+it, and `tests/tagged.tex` now pins it so any future change is a decision
+rather than a side effect.
+
+One addition beyond the item, agreed with the user mid-run: `tests/altn.tex`
+and `brace_bulge()`. Merging the two brace drawers put both braces behind
+one mutation, and the suite was demonstrably blind to a mirrored brace —
+verified by mutating the drawer and watching all 329 lualatex assertions
+pass. See the note at the top.
+
 ### C3. Small cleanups
 
 - Delete the `\lx@assert@letters` alias (line ~1010); it is
@@ -254,14 +310,17 @@ Two decided behavior points, both for the changelog:
   shared by `\lx@mainlist` / `\lx@sublist@i` / `\lx@sublist@ii` into one
   setup macro. No new user-facing names.
 
+DONE (`3e83767`). Both, as written; the shared setup is
+`\lx@listdefaults`, and what differs between the three levels (`\topsep`
+and the level geometry) stays at each call site, which is the point.
+
 ---
 
 ## Phase D — documentation and one deferred decision
 
-NOT EXECUTED — deferred by user. The manual has NOT been extended, so the
-A1 rule that Phase A just established (inside `exe`, `\ex` continues at the
-current level; pop with `\z.`) is implemented and tested but still
-undocumented in `linguexx-doc.tex`. D2 remains deferred on its own terms.
+D1 EXECUTED (`8cdb80b`). D2 remains deferred on its own terms — its
+current behaviour is documented, as the item itself prescribes, and
+nothing is patched.
 
 ### D1. Manual additions (`linguexx-doc.tex`; builds with LUALATEX ONLY,
 it errors by design under pdflatex — see CLAUDE.md)
@@ -275,6 +334,21 @@ it errors by design under pdflatex — see CLAUDE.md)
   the compatibility promise.
 - The A1 rule: inside `exe`, `\ex` continues at the current level; pop
   with `\z.`.
+
+DONE (`8cdb80b`), all three, plus the D2 behaviour note under "Notes and
+limitations". The A1 rule went into §3.5 as a LIVE example, so the
+rendering is the package's own answer rather than a claim about it — and
+it replaced a sentence that said the opposite ("`\z.` has no role to
+play" inside `exe`), which was the one place the manual actively misled.
+B2's converse note is in §6.4.
+
+CORRECTION to the first bullet, and the reason to read it before reusing
+this file: the blanket claim is FALSE, as compiling it shows. `\verb`
+fails in the dot syntax (collected body) and in the braced
+`\ex[j]{text}` form (macro argument), but works normally under `exe` and
+`xlist` with an unbraced `\ex`, including inside an `\a.` written within
+the batch. The manual documents that matrix and names the workaround;
+the blanket version would have hidden a construct that works.
 
 ### D2. Minipage footnotes — DEFERRED, decision needed
 
