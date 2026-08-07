@@ -541,6 +541,17 @@
 %% its own use sites: they all guard for a kernel that does not have the
 %% \tag_... commands, on which the variant generation would already have
 %% failed at load time.
+
+%% --- public API (Protocol A: tagging) --------------------------------
+%% Aliases, not redefinitions: \cs_new_eq:NN copies the meaning and with
+%% it the \protected status, so a public name is the private one in every
+%% respect.  See the "For front-end authors" section of the manual.
+\prg_new_eq_conditional:NNn \lx_tag_if_active: \lx@tag@if@active: { TF , T , F }
+\cs_new_eq:NN \lx_tag_span_open:n   \lx@tag@span@open:n
+\cs_new_eq:NN \lx_tag_span_close:   \lx@tag@span@close:
+\cs_new_eq:NN \lx_tag_span_begin:n  \lx@tag@span@begin:n
+\cs_new_eq:NN \lx_tag_span_end:     \lx@tag@span@end:
+\cs_new_eq:NN \lx_tag_span:nn       \lx@tag@span:nn
 \ExplSyntaxOff
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -877,6 +888,12 @@
 \ExplSyntaxOn
 \tl_new:N \lx@ol@class
 \cs_new_protected:Npn \lx@ol@set #1 { \tl_set:Nn \lx@ol@class {#1} }
+%% --- public API (Protocol A: list numbering) --------------------------
+%% Set the /ListNumbering attribute class for the list about to open.
+%% Valid values are the classes declared below (lxOLdecimal, lxOLalpha,
+%% lxOLroman); a front-end that opens a list at a level the core does not
+%% know about declares its own class with \tagpdfsetup{newattribute=...}.
+\cs_new_eq:NN \lx_ol_class:n \lx@ol@set
 \AddToHook{begindocument}
   {
     \cs_if_exist:NT \tagpdfsetup
@@ -905,6 +922,16 @@
 \ExplSyntaxOff
 \def\lx@openlist#1{\begin{list}{}{#1}}
 \def\lx@closelist{\end{list}}
+%% --- public API (Protocol A: the list funnel) -------------------------
+%% EVERY list a front-end opens must go through this pair.  Bypassing it
+%% with \list/\begin{list} loses the /ListNumbering attribute patched in
+%% above, and -- because the patch is keyed to the ENVIRONMENT hooks, which
+%% command-form \list never fires -- corrupts the structure tree for an
+%% example inside a footnote.  See the comment above \lx@ol@class.
+\ExplSyntaxOn
+\cs_new_eq:NN \lx_list_open:n \lx@openlist
+\cs_new_eq:NN \lx_list_close: \lx@closelist
+\ExplSyntaxOff
 %% What every example list wants, at all three levels: no glue anywhere
 %% the surrounding text could see, and the label set flush left in its own
 %% box (\lx@flushlabel, not the list default, which right-aligns a label
