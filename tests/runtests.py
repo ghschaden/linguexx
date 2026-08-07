@@ -791,6 +791,11 @@ def a_ua(p: Page):
     wrong moment -- marked content straddling its parent -- which is
     invisible to every geometric and flat-structure check in this file but
     which veraPDF rejects on all three profiles.
+
+    Not every such defect reaches the verdict, though: some malformed
+    nesting is only a parser WARNING, and a run that warns still reports
+    compliant.  So the report is read twice, once for the verdict and once
+    for the warnings; see nested_mc_warnings.
     """
     r = []
     if not shutil.which("verapdf"):
@@ -812,6 +817,10 @@ def a_ua(p: Page):
                    f"with {failures}"
                    if failed else
                    "veraPDF: compliant on every profile"))
+    nested = nested_mc_warnings(raw)
+    r.append(check(not nested,
+                   f"veraPDF's parser reports no nested marked content; "
+                   f"got {nested[:3]}"))
     # the document really did typeset, so a compliant-but-empty PDF cannot
     # pass this case by accident
     for tok in ("UAMAIN", "UAALPHA", "UAOBJ", "UATRANS", "UAALTN", "UAALTG",
@@ -1541,16 +1550,12 @@ def a_frontend(p: Page):
                            f"{failures}" if failed else
                            "veraPDF: a front-end built on the public API "
                            "produces valid PDF/UA"))
-            # ...and its PARSER must not complain either.  The verdict is
-            # not sufficient here: unwinding the tagged-Span idiom in the
-            # wrong order (\tag_struct_end: before the \tag_mc_end: that
-            # belongs to it) nests one marked-content sequence inside
-            # another, and this veraPDF reports that as a "Nested MCID"
-            # warning while still returning compliant on all three
-            # profiles.  Since the API hands the Span helpers to front-ends
-            # to use, that misuse has to be caught by something, and this
-            # is the cheapest oracle that sees it.
-            nested = [l for l in raw.splitlines() if "Nested MCID" in l]
+            # ...and its PARSER must not complain either (see
+            # nested_mc_warnings for why the verdict is not sufficient).
+            # It matters twice over here: the API hands the Span helpers
+            # out for front-ends to use, so their misuse has to be caught
+            # by something.
+            nested = nested_mc_warnings(raw)
             r.append(check(not nested,
                            f"veraPDF's parser reports no nested marked "
                            f"content; got {nested[:3]}"))
@@ -1994,6 +1999,25 @@ def verapdf_report(pdf: Path):
         if item not in failures:
             failures.append(item)
     return verdicts, failures, raw
+
+
+def nested_mc_warnings(raw: str):
+    """veraPDF parser complaints about nested marked content, from one report.
+
+    The compliance verdict is NOT sufficient to catch this.  Unwinding the
+    tagged-Span idiom in the wrong order -- \\tag_struct_end: before the
+    \\tag_mc_end: that belongs to it -- opens one marked-content sequence
+    inside another, and veraPDF 1.30 reports that as a parser warning
+    ("Nested MCID - 8") while still returning isCompliant="true" on all
+    three profiles.  A malformed content stream that every profile accepts
+    is exactly the kind of defect this suite exists to see, so the warnings
+    are read as well as the verdict.
+
+    Kept as a helper rather than inlined at the two call sites so that the
+    reason is stated once: the next person to see a green veraPDF verdict
+    should be able to find out why it is not on its own the answer.
+    """
+    return [l for l in raw.splitlines() if "Nested MCID" in l]
 
 
 def struct_label_depths(pdf: Path):
