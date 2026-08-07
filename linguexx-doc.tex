@@ -1742,6 +1742,209 @@ all three engines.
 \clearpage
 
 % ===========================================================================
+\section{For front-end authors}\label{sec:api}
+% ===========================================================================
+
+Nothing in this section is needed to write a document. It is for someone
+building a \emph{package} on top of \pkg{linguexx}: a third input syntax,
+or a geometry to sit beside \opt{legacy}.
+
+The two syntaxes this package ships --- the dot commands and the
+\texttt{exe}/\texttt{xlist} environments --- are thin. Between them they
+are a few dozen lines; everything underneath, the numbering, the label
+boxes, the judgment machinery, the glossing and the PDF tagging, is shared
+and knows nothing about which syntax called it. That seam is exposed under
+documented names, so a further syntax can be built without touching
+internals and without a fork.
+
+The names below are the contract. Everything else in \texttt{linguexx.sty}
+--- anything spelled \cs{lx@\dots} or \cs{\_\_lx\_\dots} --- is private and
+may change in any release. Public names are \pkg{expl3} functions, so a
+front-end calls them under \cs{ExplSyntaxOn}; they exist whatever
+combination of \opt{lazy}, \opt{gb4e} and \opt{legacy} the document asked
+for.
+
+\subsection{Protocol A: building a syntax}
+
+\begingroup
+\renewcommand{\arraystretch}{1.2}
+\setlength{\tabcolsep}{4pt}
+\setlength{\LTpre}{\medskipamount}\setlength{\LTpost}{\medskipamount}
+\begin{longtable}{@{}>{\ttfamily\raggedright\arraybackslash}p{0.34\linewidth} p{0.57\linewidth}@{}}
+\toprule
+\normalfont Function & \normalfont Effect \\
+\midrule
+\endhead
+\midrule
+\multicolumn{2}{r@{}}{\normalfont\footnotesize\itshape continued on the next page} \\
+\endfoot
+\bottomrule
+\endlastfoot
+\multicolumn{2}{@{}l}{\itshape Lifecycle} \\
+\textbackslash lx\_example\_begin: & Open an example: reset the sub-level
+  depth and counters, and save the cross-referencing state. \\
+\textbackslash lx\_example\_end: & Close it: every sub-level still open,
+  then the main list, then the paragraph bookkeeping. \\
+\multicolumn{2}{@{}l}{\itshape The body} \\
+\textbackslash lx\_body\_collect:N \meta{function} & Collect the example
+  body under this package's terminator rules --- a blank line, \cs{z.}, or
+  an unmatched \cs{end} --- and hand it to \meta{function}, which must
+  take one argument and be \cs{long}. Optional: a syntax whose body is
+  delimited some other way simply does not call it. \\
+\multicolumn{2}{@{}l}{\itshape Items} \\
+\textbackslash lx\_item\_main: & Step the counter, open the main list, and
+  make the item. For an example that brings its own list. \\
+\textbackslash lx\_item\_main:n \marg{label} & The same with a label of
+  your choosing, and no counter step. \\
+\textbackslash lx\_item\_next: & Step the counter and make the item
+  \emph{without} opening a list: the next example in a batch. \\
+\textbackslash lx\_item\_core: & Step the counter of whatever level is
+  open and set its label; emit nothing. \\
+\textbackslash lx\_item\_emit: & Emit the item for the current label, and
+  hang any judgment collected since the last scan. \\
+\textbackslash lx\_item\_judged:n \marg{mark} & Core, mark and item in one
+  move, at the current level. \\
+\multicolumn{2}{@{}l}{\itshape Sub-levels} \\
+\textbackslash lx\_sub\_push: & Open a new, deeper level and give it its
+  first item. Two levels maximum. \\
+\textbackslash lx\_sub\_next: & The next item at the level now open. \\
+\textbackslash lx\_subenv\_begin: & Open a deeper level \emph{without} an
+  item, for a level bounded by an environment: the environment's own group
+  undoes the depth advance at its \cs{end}. \\
+\multicolumn{2}{@{}l}{\itshape Judgments} \\
+\textbackslash lx\_judgment\_scan: & Peek for judgment marks in the input,
+  then emit the item. This is where the \texttt{lx\_item\_} commands end. \\
+\textbackslash lx\_judgment\_scan:n \marg{code} & Peek for marks, then run
+  \meta{code}. \\
+\textbackslash lx\_judgment\_set:n \marg{mark} & Set the mark explicitly,
+  for a syntax that takes it as an argument. Any mark is allowed, not only
+  the scanned set. \\
+\multicolumn{2}{@{}l}{\itshape Lists} \\
+\textbackslash lx\_list\_main\_open: & Open the main example list by hand,
+  for the batch shape. \\
+\textbackslash lx\_label\_guess: & Stand in the label the \emph{next} item
+  will print. Required before opening a list that has no item yet. \\
+\textbackslash lx\_list\_open:n \marg{decl} \newline \textbackslash lx\_list\_close: & The
+  list funnel (see invariant~4). \\
+\textbackslash lx\_ol\_class:n \marg{class} & The \texttt{/ListNumbering}
+  attribute class for the list about to open. \\
+\multicolumn{2}{@{}l}{\itshape Tagging} \\
+\textbackslash lx\_tag\_if\_active:TF & Whether tagging is switched on
+  \emph{and} the kernel has the commands for it. The one guard. \\
+\textbackslash lx\_tag\_span:nn \marg{keyvals} \marg{content} & Set
+  \meta{content} inside a tagged \texttt{Span}. Without active tagging the
+  content is set bare, so untagged output is unaffected. \\
+\textbackslash lx\_tag\_span\_open:n \newline \textbackslash lx\_tag\_span\_close: & The
+  outer half alone, for content that carries marked content of its own. \\
+\textbackslash lx\_tag\_span\_begin:n \newline \textbackslash lx\_tag\_span\_end: & The
+  inner half as well, for leaf content. \\
+\end{longtable}
+\endgroup
+
+\subsection{A worked front-end}
+
+The whole of a dot-syntax-shaped front-end. It collects a body the way
+\cs{ex.}\ does, and gives it one item:
+
+\begin{code}
+\ExplSyntaxOn
+\NewDocumentCommand \pex { } { \lx_body_collect:N \__fe_run:n }
+\cs_new_protected:Npn \__fe_run:n #1
+  {
+    \lx_example_begin:
+    \lx_item_main:
+    #1
+    \lx_example_end:
+  }
+\NewDocumentCommand \pa { } { \lx_sub_push: }
+\NewDocumentCommand \pb { } { \lx_sub_next: }
+\ExplSyntaxOff
+\end{code}
+
+\noindent
+That is enough for \verb|\pex|, \verb|\pa| and \verb|\pb| to number, to
+nest, to take judgments typed into the text, to be cross-referenced, to
+carry glosses, and to tag themselves. The batch shape --- one list holding
+several examples, as \texttt{exe} does --- is the same parts in a different
+order: \cs{lx\_example\_begin:}, then \cs{lx\_label\_guess:} and
+\cs{lx\_list\_main\_open:} to open the list, then \cs{lx\_item\_next:} per
+example, then \cs{lx\_example\_end:}.
+
+A fuller version of both, exercising every function in the table, is
+\texttt{tests/frontend.tex} in the distribution. It is a regression case:
+it is written against the public names only, so it stops compiling if one
+of them goes away, and \texttt{veraPDF} is run on what it produces.
+
+\subsection{The four invariants}\label{sec:apirules}
+
+These are not style advice. Each of them is a bug that has actually been
+written, in this package or in the test suite for this section.
+
+\begin{enumerate}[itemsep=4pt]
+\item \textbf{The label is fixed before the list opens.} Under \opt{legacy}
+  the width of the label box is measured from the label itself, so a list
+  opened first is sized from whatever the previous example left behind.
+  This renders identically in the default mode, which is what makes it easy
+  to write and hard to see: use \cs{lx\_item\_core:} before
+  \cs{lx\_list\_main\_open:}, never after.
+
+\item \textbf{The grouping structure is the depth stack.} \cs{lx\_sub\_push:}
+  advances the depth inside the group it opens for the new level, so leaving
+  that group pops it and \cs{lx\_example\_end:} can close whatever is left.
+  Never advance or reset the depth yourself. \pkg{linguex} tracked it in a
+  global counter, and the drift that followed --- an example that quietly
+  starts one level deep because an earlier one ended badly --- is the thing
+  this design makes impossible.
+
+\item \textbf{No extra group around a whole example.} It is tempting to
+  wrap the lifecycle in \cs{begingroup}\dots\cs{endgroup} for safety. Do
+  not: the tagged-PDF ``block'' code accounts for text units across the
+  example, and an enclosing group desynchronises that accounting for an
+  example inside a footnote. What the group would have protected is
+  restored explicitly by \cs{lx\_example\_end:}.
+
+\item \textbf{Every list goes through the funnel.} Use
+  \cs{lx\_list\_open:n} and \cs{lx\_list\_close:}, not \cs{list} or
+  \texttt{\{list\}} directly. The funnel uses the environment form, which
+  is the interface the tagging code supports --- part of its state
+  restoration is keyed to hooks that command-form \cs{list} never fires ---
+  and it is where the \texttt{/ListNumbering} attribute is attached. A list
+  opened around it loses both.
+\end{enumerate}
+
+\subsection{Protocol B: a geometry mode}
+
+A mode is a defaults table and three geometry hooks, and nothing else:
+\opt{legacy} differs from the default in exactly those four macros.
+
+\begin{code}
+\ExplSyntaxOn
+\lx_mode_new:nNNNN {name} \defaults \main \sub \subsub
+\lx_mode_select:n {name}
+\ExplSyntaxOff
+\end{code}
+
+\noindent
+The four are passed as macro \emph{names}, not as bodies, so that you may
+define them with plain \cs{newcommand} in ordinary catcodes --- a defaults
+table contains glue whose spaces matter (\texttt{.5em plus .3em}), and
+those would be stripped from a body written as an argument under
+\cs{ExplSyntaxOn}.
+
+\cs{defaults} is what \cs{resetExdefaults} calls. It must set every length
+of \emph{both} parameter sets described in section~\ref{sec:layout}, since
+the document may switch modes afterwards. The three hooks run inside the
+list declaration of their level and may set \cs{labelwidth},
+\cs{labelsep}, \cs{leftmargin} and \cs{topsep}; \cs{main} runs after the
+label is fixed, so it may measure it (which is what \opt{legacy} does).
+A hook that wants its level tagged with a numbering style calls
+\cs{lx\_ol\_class:n}. \cs{lx\_mode\_select:n} assigns locally, so a mode
+selected inside a group is undone at the end of it; the mode in force is
+readable in \cs{l\_lx\_mode\_tl}.
+
+\clearpage
+
+% ===========================================================================
 \section{Command reference}\label{sec:reference}
 % ===========================================================================
 

@@ -4,6 +4,27 @@ All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
 ## 1.2
+- New: a documented API for building a syntax front-end or a geometry mode
+  on this package's machinery, without touching its internals. The seam was
+  already there -- the dot syntax and the `exe`/`xlist` environments are
+  thin layers over one shared engine, and neither the numbering, the label
+  boxes, the judgments, the glossing nor the tagging knows which called it.
+  What is new is that the seam has names: `\lx_example_begin:`,
+  `\lx_body_collect:N`, the `\lx_item_...` family, `\lx_sub_push:`,
+  `\lx_judgment_...`, the list funnel and the tagged-Span helpers
+  (Protocol A), and `\lx_mode_new:nNNNN` / `\lx_mode_select:n` for a
+  geometry beside `[legacy]` (Protocol B). Documented in the manual's new
+  §11, including the four invariants a front-end has to respect, and
+  exercised by `tests/frontend.tex`, which builds a working front-end out
+  of the public names alone and is validated with veraPDF.
+
+  **No behaviour changes.** Everything user-facing is what it was: the
+  public names are aliases of the internals they expose, the `[legacy]`
+  branch became a named mode selected the same way, and the three example
+  documents rebuild to byte-identical pages with an identical structure
+  tree. Nothing in an existing document needs to change, and no internal
+  spelled `\lx@...` was renamed or removed -- but those remain private and
+  unsupported, which is the point of publishing the others.
 - `\altn`'s spoken `/Alt` now expands a Leipzig abbreviation, as `\altg`'s
   already did: `\altn{a \lpzg{pl} of cats}{a dog}` is announced as "a plural
   of cats or a dog" rather than "a pl of cats or a dog". Only the spoken form
