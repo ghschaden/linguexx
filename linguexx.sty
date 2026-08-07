@@ -466,22 +466,29 @@
 %% A mode is a defaults table plus three geometry hooks -- and nothing
 %% else: [legacy] differs from the default in exactly these four macros.
 %%
-%%   \lx_mode_new:nNNNN {name} \defaults \main \sub \subsub
-%%   \lx_mode_select:n  {name}
+%%   \lx_mode_new:nn {name}
+%%     { defaults = \defaults , main = \main , sub = \sub , subsub = \subsub }
+%%   \lx_mode_select:n {name}
 %%
-%% The four are passed as MACRO NAMES, not as bodies, and this is load
-%% bearing: a defaults table contains glue with significant spaces
-%% (".5em plus .3em minus .1em"), and a body written as a braced argument
-%% under \ExplSyntaxOn would have those spaces stripped.  Defining the
-%% four with plain \newcommand, in whatever catcode regime suits, and
-%% handing over the names sidesteps the question entirely.
+%% Keyval rather than an arity-encoded signature (\lx_mode_new:nNNNN) so
+%% that a mode may grow a fifth thing to set without the function that
+%% declares it having to change its name.
 %%
-%% \defaults is called by \resetExdefaults; it must set every length of
-%% BOTH parameter sets, since the user may switch modes afterwards.  The
-%% three hooks are called inside the list declaration of their level, and
-%% may set \labelwidth, \labelsep, \leftmargin and \topsep; \main runs
-%% AFTER \lx@itemlabel is fixed, so it may size the label box from the
-%% label (which is what legacy does).
+%% Every value is a MACRO NAME, not a body, and this is load bearing: a
+%% defaults table contains glue with significant spaces (".5em plus .3em
+%% minus .1em"), and a body written as a braced argument under
+%% \ExplSyntaxOn would have those spaces stripped.  Defining the macros
+%% with plain \newcommand, in whatever catcode regime suits, and handing
+%% over the names sidesteps the question entirely -- so a value that is
+%% not a single control sequence is refused rather than stored.
+%%
+%% "defaults" is required: it is called by \resetExdefaults, and must set
+%% every length of BOTH parameter sets, since the user may switch modes
+%% afterwards.  The three hooks are optional and default to doing nothing;
+%% they are called inside the list declaration of their level, and may set
+%% \labelwidth, \labelsep, \leftmargin and \topsep; "main" runs AFTER
+%% \lx@itemlabel is fixed, so it may size the label box from the label
+%% (which is what legacy does).
 %%
 %% \lx_mode_select:n assigns locally, so a mode chosen inside a group is
 %% undone at the end of it.
@@ -490,18 +497,67 @@
 \tl_new:N \l_lx_mode_tl
 \msg_new:nnnn { linguexx } { unknown-mode }
   { Geometry~mode~'#1'~is~not~declared. }
-  { Declare~it~with~\iow_char:N\\lx_mode_new:nNNNN~before~selecting~it.
-    ~The~modes~this~package~defines~are~'default'~and~'legacy'. }
-\cs_new_protected:Npn \lx_mode_new:nNNNN #1#2#3#4#5
+  { Declare~it~with~\iow_char:N\\lx_mode_new:nn~before~selecting~it.~
+    The~modes~this~package~defines~are~'default'~and~'legacy'. }
+\msg_new:nnnn { linguexx } { mode-no-defaults }
+  { Geometry~mode~'#1'~gives~no~'defaults'~macro. }
+  { A~mode~must~say~what~\iow_char:N\\resetExdefaults~restores:~write~
+    \iow_char:N\\lx_mode_new:nn{#1}{defaults=\iow_char:N\\myDefaults,~...}.~
+    The~mode~was~not~declared. }
+\msg_new:nnnn { linguexx } { mode-needs-cs }
+  { Value~of~'#1'~in~a~geometry~mode~is~not~a~macro~name. }
+  { Pass~the~NAME~of~a~macro~(#1=\iow_char:N\\myHook),~not~its~body:~a~
+    body~written~here~would~lose~the~spaces~of~a~glue~specification.~
+    '#1'~was~ignored. }
+%% The scratch the keys fill, so that a mode is committed only once its
+%% four macros are known and "defaults" among them.
+\cs_new_eq:NN \l__lx_mode_defaults_cs \prg_do_nothing:
+\cs_new_eq:NN \l__lx_mode_main_cs     \prg_do_nothing:
+\cs_new_eq:NN \l__lx_mode_sub_cs      \prg_do_nothing:
+\cs_new_eq:NN \l__lx_mode_subsub_cs   \prg_do_nothing:
+\bool_new:N  \l__lx_mode_given_bool
+\cs_new_protected:Npn \__lx_mode_key:Nnn #1#2#3
   {
-    \cs_set_eq:cN { lx@mode@defaults@#1 } #2
-    \cs_set_eq:cN { lx@mode@main@#1 }     #3
-    \cs_set_eq:cN { lx@mode@sub@#1 }      #4
-    \cs_set_eq:cN { lx@mode@subsub@#1 }   #5
+    \tl_if_single_token:nTF {#3}
+      {
+        \token_if_cs:NTF #3
+          { \cs_set_eq:NN #1 #3 }
+          { \msg_error:nnn { linguexx } { mode-needs-cs } {#2} }
+      }
+      { \msg_error:nnn { linguexx } { mode-needs-cs } {#2} }
   }
+\keys_define:nn { lx / mode }
+  {
+    defaults .code:n =
+      {
+        \__lx_mode_key:Nnn \l__lx_mode_defaults_cs { defaults } {#1}
+        \bool_set_true:N \l__lx_mode_given_bool
+      } ,
+    main     .code:n = { \__lx_mode_key:Nnn \l__lx_mode_main_cs   { main }   {#1} } ,
+    sub      .code:n = { \__lx_mode_key:Nnn \l__lx_mode_sub_cs    { sub }    {#1} } ,
+    subsub   .code:n = { \__lx_mode_key:Nnn \l__lx_mode_subsub_cs { subsub } {#1} } ,
+  }
+\cs_new_protected:Npn \lx_mode_new:nn #1#2
+  {
+    \cs_set_eq:NN \l__lx_mode_defaults_cs \prg_do_nothing:
+    \cs_set_eq:NN \l__lx_mode_main_cs     \prg_do_nothing:
+    \cs_set_eq:NN \l__lx_mode_sub_cs      \prg_do_nothing:
+    \cs_set_eq:NN \l__lx_mode_subsub_cs   \prg_do_nothing:
+    \bool_set_false:N \l__lx_mode_given_bool
+    \keys_set:nn { lx / mode } {#2}
+    \bool_if:NTF \l__lx_mode_given_bool
+      {
+        \cs_set_eq:cN { lx@mode@defaults@#1 } \l__lx_mode_defaults_cs
+        \cs_set_eq:cN { lx@mode@main@#1 }     \l__lx_mode_main_cs
+        \cs_set_eq:cN { lx@mode@sub@#1 }      \l__lx_mode_sub_cs
+        \cs_set_eq:cN { lx@mode@subsub@#1 }   \l__lx_mode_subsub_cs
+      }
+      { \msg_error:nnn { linguexx } { mode-no-defaults } {#1} }
+  }
+%% Tested on the defaults slot, the one a failed declaration never creates.
 \cs_new_protected:Npn \lx_mode_select:n #1
   {
-    \cs_if_exist:cTF { lx@mode@main@#1 }
+    \cs_if_exist:cTF { lx@mode@defaults@#1 }
       {
         \cs_set_eq:Nc \resetExdefaults { lx@mode@defaults@#1 }
         \cs_set_eq:Nc \lx@geom@main    { lx@mode@main@#1 }
@@ -514,13 +570,20 @@
 
 %% The two modes this package defines, and the choice between them.  Both
 %% the declarations and the selection have to happen under \ExplSyntaxOn:
-%% outside it "_" is catcode 8 and \lx_mode_new:nNNNN is not a control
+%% outside it "_" is catcode 8 and \lx_mode_new:nn is not a control
 %% sequence at all.  Passing names rather than bodies is what makes that
-%% harmless -- there is no argument here whose spaces matter.
-\lx_mode_new:nNNNN {default}
-  \lx@defaults@lazy   \lx@geom@main@default \lx@geom@sub@default \lx@geom@subsub@default
-\lx_mode_new:nNNNN {legacy}
-  \lx@defaults@legacy \lx@geom@main@legacy  \lx@geom@sub@legacy  \lx@geom@subsub@legacy
+%% harmless -- no key value here is anything but a control sequence, so
+%% the ignored spaces of expl3 catcodes cost nothing.
+\lx_mode_new:nn {default}
+  {
+    defaults = \lx@defaults@lazy , main = \lx@geom@main@default ,
+    sub = \lx@geom@sub@default   , subsub = \lx@geom@subsub@default ,
+  }
+\lx_mode_new:nn {legacy}
+  {
+    defaults = \lx@defaults@legacy , main = \lx@geom@main@legacy ,
+    sub = \lx@geom@sub@legacy      , subsub = \lx@geom@subsub@legacy ,
+  }
 
 \iflx@legacy
   \lx_mode_select:n {legacy}

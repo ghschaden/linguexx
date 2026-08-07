@@ -1764,6 +1764,12 @@ front-end calls them under \cs{ExplSyntaxOn}; they exist whatever
 combination of \opt{lazy}, \opt{gb4e} and \opt{legacy} the document asked
 for.
 
+The contract runs the other way too. A release may \emph{add} public
+names, and does not otherwise touch them: an existing \cs{lx\_\dots} loses
+its meaning or its name only in a major version, and only after the
+changelog has announced it as deprecated in a release before that. A
+front-end pinned to a major version therefore keeps compiling.
+
 \subsection{Protocol A: building a syntax}
 
 \begingroup
@@ -1875,6 +1881,18 @@ A fuller version of both, exercising every function in the table, is
 it is written against the public names only, so it stops compiling if one
 of them goes away, and \texttt{veraPDF} is run on what it produces.
 
+Glossing is deliberately outside Protocol A, and its absence from the
+table is not an invitation to rebuild it: the interlinear tagging ---
+the column spans, the object-language \texttt{/Lang}, the abbreviation
+\texttt{/E} --- is what makes a gloss PDF/UA-valid, and reassembling it
+from the raw span helpers is work nobody should repeat. A front-end that
+wants a gloss syntax of its own should translate it onto the user-level
+engine, \cs{gl}\ \dots\ \cs{endgl} (section~\ref{sec:glosses}), which
+takes any number of tiers and styles them per tier through
+\cs{GlossTierFont} and \cs{GlossTierLang}; the tagging travels with it. A
+gloss protocol of the same standing as Protocol~A is possible later, once
+there are real front-ends to shape what it should expose.
+
 \subsection{The four invariants}\label{sec:apirules}
 
 These are not style advice. Each of them is a bug that has actually been
@@ -1919,24 +1937,31 @@ A mode is a defaults table and three geometry hooks, and nothing else:
 
 \begin{code}
 \ExplSyntaxOn
-\lx_mode_new:nNNNN {name} \defaults \main \sub \subsub
+\lx_mode_new:nn {name}
+  { defaults = \myDefaults, main = \myMain,
+    sub = \mySub, subsub = \mySubSub }
 \lx_mode_select:n {name}
 \ExplSyntaxOff
 \end{code}
 
 \noindent
-The four are passed as macro \emph{names}, not as bodies, so that you may
-define them with plain \cs{newcommand} in ordinary catcodes --- a defaults
-table contains glue whose spaces matter (\texttt{.5em plus .3em}), and
-those would be stripped from a body written as an argument under
-\cs{ExplSyntaxOn}.
+The values are macro \emph{names}, not bodies, so that you may define them
+with plain \cs{newcommand} in ordinary catcodes --- a defaults table
+contains glue whose spaces matter (\texttt{.5em plus .3em}), and those
+would be stripped from a body written as an argument under
+\cs{ExplSyntaxOn}. Anything else is refused with an error. The interface is
+keyval because a mode may later have more than four things to set: new keys
+may appear in a future release, which is exactly what the arity-encoded
+form this replaced could not do without changing its own name.
 
-\cs{defaults} is what \cs{resetExdefaults} calls. It must set every length
-of \emph{both} parameter sets described in section~\ref{sec:layout}, since
-the document may switch modes afterwards. The three hooks run inside the
-list declaration of their level and may set \cs{labelwidth},
-\cs{labelsep}, \cs{leftmargin} and \cs{topsep}; \cs{main} runs after the
-label is fixed, so it may measure it (which is what \opt{legacy} does).
+\texttt{defaults} is required, and is what \cs{resetExdefaults} calls. It
+must set every length of \emph{both} parameter sets described in
+section~\ref{sec:layout}, since the document may switch modes afterwards.
+The three hooks are optional --- one omitted does nothing, and the level
+keeps the list parameters it was handed. They run inside the list
+declaration of their level and may set \cs{labelwidth}, \cs{labelsep},
+\cs{leftmargin} and \cs{topsep}; \texttt{main} runs after the label is
+fixed, so it may measure it (which is what \opt{legacy} does).
 A hook that wants its level tagged with a numbering style calls
 \cs{lx\_ol\_class:n}. \cs{lx\_mode\_select:n} assigns locally, so a mode
 selected inside a group is undone at the end of it; the mode in force is

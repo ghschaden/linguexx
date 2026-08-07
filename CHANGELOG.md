@@ -12,7 +12,7 @@ version string.
   What is new is that the seam has names: `\lx_example_begin:`,
   `\lx_body_collect:N`, the `\lx_item_...` family, `\lx_sub_push:`,
   `\lx_judgment_...`, the list funnel and the tagged-Span helpers
-  (Protocol A), and `\lx_mode_new:nNNNN` / `\lx_mode_select:n` for a
+  (Protocol A), and `\lx_mode_new:nn` / `\lx_mode_select:n` for a
   geometry beside `[legacy]` (Protocol B). Documented in the manual's new
   §11, including the four invariants a front-end has to respect, and
   exercised by `tests/frontend.tex`, which builds a working front-end out
