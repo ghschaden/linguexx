@@ -38,5 +38,8 @@ examples/*.pdf
 tests/*.pdf
 !linguexx-doc.pdf
 
-# implementation scaffolding: kept locally, not part of the distribution
-doc/CORE-API-PLAN.md
+# implementation scaffolding -- plans and work orders addressed to whoever
+# executes them.  Kept locally, not part of the distribution.  Note the
+# pattern: a plan file put in doc/ will not be picked up by "git add" until
+# this line is narrowed.
+doc/*-PLAN.md
