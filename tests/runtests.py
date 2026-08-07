@@ -793,9 +793,9 @@ def a_ua(p: Page):
     which veraPDF rejects on all three profiles.
 
     Not every such defect reaches the verdict, though: some malformed
-    nesting is only a parser WARNING, and a run that warns still reports
-    compliant.  So the report is read twice, once for the verdict and once
-    for the warnings; see nested_mc_warnings.
+    nesting is only logged, and a run that logs it still reports compliant.
+    So the run is read twice, once for the verdict and once for anything
+    veraPDF said while parsing; see verapdf_log_records.
     """
     r = []
     if not shutil.which("verapdf"):
@@ -817,10 +817,12 @@ def a_ua(p: Page):
                    f"with {failures}"
                    if failed else
                    "veraPDF: compliant on every profile"))
-    nested = nested_mc_warnings(raw)
-    r.append(check(not nested,
-                   f"veraPDF's parser reports no nested marked content; "
-                   f"got {nested[:3]}"))
+    logged = verapdf_log_records(raw)
+    r.append(check(not logged,
+                   f"veraPDF parsed the file without complaint; it logged "
+                   f"{len(logged)} record(s): {logged[:3]}"
+                   if logged else
+                   "veraPDF parsed the file without complaint"))
     # the document really did typeset, so a compliant-but-empty PDF cannot
     # pass this case by accident
     for tok in ("UAMAIN", "UAALPHA", "UAOBJ", "UATRANS", "UAALTN", "UAALTG",
@@ -1550,15 +1552,19 @@ def a_frontend(p: Page):
                            f"{failures}" if failed else
                            "veraPDF: a front-end built on the public API "
                            "produces valid PDF/UA"))
-            # ...and its PARSER must not complain either (see
-            # nested_mc_warnings for why the verdict is not sufficient).
+            # ...and it must not have COMPLAINED either (see
+            # verapdf_log_records for why the verdict is not sufficient).
             # It matters twice over here: the API hands the Span helpers
             # out for front-ends to use, so their misuse has to be caught
             # by something.
-            nested = nested_mc_warnings(raw)
-            r.append(check(not nested,
-                           f"veraPDF's parser reports no nested marked "
-                           f"content; got {nested[:3]}"))
+            logged = verapdf_log_records(raw)
+            r.append(check(not logged,
+                           f"veraPDF parsed the front-end's output without "
+                           f"complaint; it logged {len(logged)} record(s): "
+                           f"{logged[:3]}"
+                           if logged else
+                           "veraPDF parsed the front-end's output without "
+                           "complaint"))
     # Every top-level number must sit at ONE depth: an element the API let a
     # front-end leave open would reparent the rest of the document and show
     # up here as a drop, while remaining spec-valid (see struct_label_depths).
@@ -2001,23 +2007,44 @@ def verapdf_report(pdf: Path):
     return verdicts, failures, raw
 
 
-def nested_mc_warnings(raw: str):
-    """veraPDF parser complaints about nested marked content, from one report.
+def verapdf_log_records(raw: str):
+    """Everything veraPDF LOGGED during one run, as opposed to reported.
 
-    The compliance verdict is NOT sufficient to catch this.  Unwinding the
+    The compliance verdict is not sufficient on its own.  Unwinding the
     tagged-Span idiom in the wrong order -- \\tag_struct_end: before the
     \\tag_mc_end: that belongs to it -- opens one marked-content sequence
-    inside another, and veraPDF 1.30 reports that as a parser warning
-    ("Nested MCID - 8") while still returning isCompliant="true" on all
-    three profiles.  A malformed content stream that every profile accepts
-    is exactly the kind of defect this suite exists to see, so the warnings
-    are read as well as the verdict.
+    inside another, and veraPDF 1.30 logs that ("Nested MCID - 8") while
+    still returning isCompliant="true" on all three profiles.  A malformed
+    content stream that every profile accepts is exactly the kind of defect
+    this suite exists to see, so the log is read as well as the verdict.
 
-    Kept as a helper rather than inlined at the two call sites so that the
-    reason is stated once: the next person to see a green veraPDF verdict
-    should be able to find out why it is not on its own the answer.
+    Why any record rather than that one message: veraPDF is SILENT on a
+    clean run -- measured, not assumed, at zero records for the ua and
+    frontend cases under all three engines -- so "it said something" is a
+    usable signal in itself, and one that survives the message being
+    reworded.  It also catches the neighbours of the defect above (an
+    unmatched EMC, a bad operator), which a fixed substring would not.
+
+    Matching is on the logger's class name, which java.util.logging prints
+    on the first line of every record.  The message line is localised (this
+    machine says WARNUNG) and its text is prose; the class name is neither.
+
+    A benign future warning would fail this.  That is the intended cost:
+    the answer is to look at what veraPDF started saying and narrow this
+    deliberately, not to drop the check.
+
+    Returned as the MESSAGE of each record, which is its second line: the
+    class name is what makes the record findable, but "Nested MCID - 8" is
+    what makes it diagnosable, and a failure report full of the former
+    would say only that something happened.
     """
-    return [l for l in raw.splitlines() if "Nested MCID" in l]
+    lines = raw.splitlines()
+    out = []
+    for i, l in enumerate(lines):
+        if "org.verapdf." in l:
+            msg = lines[i + 1].strip() if i + 1 < len(lines) else ""
+            out.append(msg or l.strip())
+    return out
 
 
 def struct_label_depths(pdf: Path):
