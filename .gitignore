@@ -37,3 +37,6 @@ auto/
 examples/*.pdf
 tests/*.pdf
 !linguexx-doc.pdf
+
+# implementation scaffolding: kept locally, not part of the distribution
+doc/CORE-API-PLAN.md
