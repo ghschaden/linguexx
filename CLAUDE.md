@@ -29,3 +29,4 @@ Standalone and modern reimplementation of `linguex` (numbered linguistic example
 ## Do Not
 - Ship a tagging fix without validating it with veraPDF on TL2026 (lesson from v0.10: Span > Part/P broke compliance).
 - Introduce a new user syntax "by default" without prior explicit validation.
+- Settle anything listed in `doc/DEFERRED-DECISIONS.md` in passing. Those behaviours are undecided on purpose; each entry says what evidence would decide it. Patching one silently picks a semantics, and the accident becomes the promise.
