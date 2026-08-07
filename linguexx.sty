@@ -392,11 +392,9 @@
   \def\SubSubExLBr{(}\def\SubSubExRBr{)}%
   \def\GlossSep{.33em plus .4em minus .2em}}
 
-\iflx@legacy
-  \let\resetExdefaults\lx@defaults@legacy
-\else
-  \let\resetExdefaults\lx@defaults@lazy
-\fi
+% Which of the two is in force is decided by \lx_mode_select:n, at the end
+% of the geometry section below -- the mode is a defaults table AND a set
+% of geometry hooks, and it is chosen once, when both halves exist.
 % \resetExdefaults is CALLED at the end of the package, once every length
 % it touches has been declared; the user may call it again at any point to
 % return to the defaults of the mode in force.
@@ -431,31 +429,105 @@
   \settowidth{\lx@padded}{\theExLBr\hbox to 2\lx@mindigitwd{}\theExRBr}%
   \ifdim\lx@currentlabel<\lx@padded \Exlabelwidth\lx@padded \fi}
 
+%% Both sets are defined unconditionally, under names of their own, and one
+%% of the two is then selected.  Nothing is saved by defining only the set
+%% in force, and having both present is what makes the mode a THING that
+%% can be named, rather than a branch taken once at load time.
+
+% legacy main level: label box recomputed from the number; text margin
+% \Exindent + \Exlabelwidth + \Exlabelsep, as in the default mode
+\def\lx@geom@main@legacy{\lx@calc@Exlabelwidth
+  \labelwidth\Exlabelwidth \labelsep\Exlabelsep
+  \leftmargin\dimexpr\Exindent+\Exlabelwidth+\Exlabelsep\relax
+  \if@noftnote\else\addtolength{\topsep}{-.5\topsep}\fi}
+% legacy sub-levels: the text margin IS the parameter, the label sits
+% flush left inside it
+\def\lx@geom@sub@legacy{\leftmargin\SubExleftmargin
+  \labelwidth\SubExleftmargin \labelsep\z@ \topsep.3\Extopsep}
+\def\lx@geom@subsub@legacy{\leftmargin\SubSubExleftmargin
+  \labelwidth\SubSubExleftmargin \labelsep\z@ \topsep\z@}
+
+% Only the default mode declares a /ListNumbering class per level; the
+% legacy hooks above deliberately do not, so a legacy list keeps the block
+% code's default (/None).  That is valid -- what is NOT valid is /Ordered,
+% which is why neither mode routes through the enumerate class.
+\def\lx@geom@main@default{%
+  \lx@ol@set{lxOLdecimal}%
+  \labelwidth\Exlabelwidth \labelsep\Exlabelsep
+  \leftmargin\dimexpr\Exindent+\Exlabelwidth+\Exlabelsep\relax}
+\def\lx@geom@sub@default{\lx@ol@set{lxOLalpha}%
+  \labelwidth\SubExlabelwidth \labelsep\Exlabelsep
+  \leftmargin\dimexpr\SubExlabelwidth+\Exlabelsep\relax \topsep\z@}
+\def\lx@geom@subsub@default{\lx@ol@set{lxOLroman}%
+  \labelwidth\SubSubExlabelwidth \labelsep\Exlabelsep
+  \leftmargin\dimexpr\SubSubExlabelwidth+\Exlabelsep\relax \topsep\z@}
+
+%%%% --- public API (Protocol B: geometry modes) ------------------------
+%% A mode is a defaults table plus three geometry hooks -- and nothing
+%% else: [legacy] differs from the default in exactly these four macros.
+%%
+%%   \lx_mode_new:nNNNN {name} \defaults \main \sub \subsub
+%%   \lx_mode_select:n  {name}
+%%
+%% The four are passed as MACRO NAMES, not as bodies, and this is load
+%% bearing: a defaults table contains glue with significant spaces
+%% (".5em plus .3em minus .1em"), and a body written as a braced argument
+%% under \ExplSyntaxOn would have those spaces stripped.  Defining the
+%% four with plain \newcommand, in whatever catcode regime suits, and
+%% handing over the names sidesteps the question entirely.
+%%
+%% \defaults is called by \resetExdefaults; it must set every length of
+%% BOTH parameter sets, since the user may switch modes afterwards.  The
+%% three hooks are called inside the list declaration of their level, and
+%% may set \labelwidth, \labelsep, \leftmargin and \topsep; \main runs
+%% AFTER \lx@itemlabel is fixed, so it may size the label box from the
+%% label (which is what legacy does).
+%%
+%% \lx_mode_select:n assigns locally, so a mode chosen inside a group is
+%% undone at the end of it.
+\ExplSyntaxOn
+%% the mode in force, for a front-end that needs to know (read only)
+\tl_new:N \l_lx_mode_tl
+\msg_new:nnnn { linguexx } { unknown-mode }
+  { Geometry~mode~'#1'~is~not~declared. }
+  { Declare~it~with~\iow_char:N\\lx_mode_new:nNNNN~before~selecting~it.
+    ~The~modes~this~package~defines~are~'default'~and~'legacy'. }
+\cs_new_protected:Npn \lx_mode_new:nNNNN #1#2#3#4#5
+  {
+    \cs_set_eq:cN { lx@mode@defaults@#1 } #2
+    \cs_set_eq:cN { lx@mode@main@#1 }     #3
+    \cs_set_eq:cN { lx@mode@sub@#1 }      #4
+    \cs_set_eq:cN { lx@mode@subsub@#1 }   #5
+  }
+\cs_new_protected:Npn \lx_mode_select:n #1
+  {
+    \cs_if_exist:cTF { lx@mode@main@#1 }
+      {
+        \cs_set_eq:Nc \resetExdefaults { lx@mode@defaults@#1 }
+        \cs_set_eq:Nc \lx@geom@main    { lx@mode@main@#1 }
+        \cs_set_eq:Nc \lx@geom@sub     { lx@mode@sub@#1 }
+        \cs_set_eq:Nc \lx@geom@subsub  { lx@mode@subsub@#1 }
+        \tl_set:Nn \l_lx_mode_tl {#1}
+      }
+      { \msg_error:nnn { linguexx } { unknown-mode } {#1} }
+  }
+
+%% The two modes this package defines, and the choice between them.  Both
+%% the declarations and the selection have to happen under \ExplSyntaxOn:
+%% outside it "_" is catcode 8 and \lx_mode_new:nNNNN is not a control
+%% sequence at all.  Passing names rather than bodies is what makes that
+%% harmless -- there is no argument here whose spaces matter.
+\lx_mode_new:nNNNN {default}
+  \lx@defaults@lazy   \lx@geom@main@default \lx@geom@sub@default \lx@geom@subsub@default
+\lx_mode_new:nNNNN {legacy}
+  \lx@defaults@legacy \lx@geom@main@legacy  \lx@geom@sub@legacy  \lx@geom@subsub@legacy
+
 \iflx@legacy
-  % main level: label box recomputed from the number; text margin
-  % \Exindent + \Exlabelwidth + \Exlabelsep, as in the default mode
-  \def\lx@geom@main{\lx@calc@Exlabelwidth
-    \labelwidth\Exlabelwidth \labelsep\Exlabelsep
-    \leftmargin\dimexpr\Exindent+\Exlabelwidth+\Exlabelsep\relax
-    \if@noftnote\else\addtolength{\topsep}{-.5\topsep}\fi}
-  % sub-levels: the text margin IS the parameter, the label sits flush
-  % left inside it
-  \def\lx@geom@sub{\leftmargin\SubExleftmargin
-    \labelwidth\SubExleftmargin \labelsep\z@ \topsep.3\Extopsep}
-  \def\lx@geom@subsub{\leftmargin\SubSubExleftmargin
-    \labelwidth\SubSubExleftmargin \labelsep\z@ \topsep\z@}
+  \lx_mode_select:n {legacy}
 \else
-  \def\lx@geom@main{%
-    \lx@ol@set{lxOLdecimal}%
-    \labelwidth\Exlabelwidth \labelsep\Exlabelsep
-    \leftmargin\dimexpr\Exindent+\Exlabelwidth+\Exlabelsep\relax}
-  \def\lx@geom@sub{\lx@ol@set{lxOLalpha}%
-    \labelwidth\SubExlabelwidth \labelsep\Exlabelsep
-    \leftmargin\dimexpr\SubExlabelwidth+\Exlabelsep\relax \topsep\z@}
-  \def\lx@geom@subsub{\lx@ol@set{lxOLroman}%
-    \labelwidth\SubSubExlabelwidth \labelsep\Exlabelsep
-    \leftmargin\dimexpr\SubSubExlabelwidth+\Exlabelsep\relax \topsep\z@}
+  \lx_mode_select:n {default}
 \fi
+\ExplSyntaxOff
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%  The tagged-Span idiom, in one place                                %%%%
