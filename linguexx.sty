@@ -603,6 +603,20 @@
 \cs_new_protected:Npn \lx@setjudge #1
   { \tl_set:Nn \l__lx_judge_tl {#1} }
 
+%% --- public API (Protocol A: judgments) -------------------------------
+%% \lx_judgment_scan:    peek for judgment marks in the input, then emit
+%%                       the item (i.e. \lx_judgment_scan:n{\lx_item_emit:}).
+%%                       This is where the \lx_item_... commands end.
+%% \lx_judgment_scan:n   peek for marks, then run the given code.
+%% \lx_judgment_set:n    set the mark explicitly, for a front-end that
+%%                       takes it as an argument rather than from the
+%%                       input stream (the gb4e \ex[*]{...} case).  Any
+%%                       mark is allowed here, not just the scanned set.
+%% Either way the mark is hung by the next \lx_item_emit:.
+\cs_new_eq:NN \lx_judgment_scan:  \lx@scanjudge
+\cs_new_eq:NN \lx_judgment_scan:n \lx@scanjudgeto
+\cs_new_eq:NN \lx_judgment_set:n  \lx@setjudge
+
 %% Objective 3: spoken alternatives for judgment marks.  Each mark is a
 %% symbol whose meaning a screen reader cannot infer ("asterisk"); under
 %% PDF tagging we wrap it in a Span carrying /Alt so it is announced
@@ -758,8 +772,25 @@
 \int_new:N \l__lx_body_grp_int
 \int_new:N \l__lx_body_col_int
 
-\cs_new_protected:Npn \lx@collectbody
+%% --- public API (Protocol A: body collection) -------------------------
+%% \lx_body_collect:N \myfunction
+%%   Collect the example body under the terminator rules described above
+%%   and hand it to \myfunction as its single argument.  The function must
+%%   be \long (bodies contain \par).  It is entered with the terminator
+%%   already put back where the rules say it should be, so it may simply
+%%   typeset: the dot syntax's own continuation, \lx@run@ex, is nothing
+%%   but \lx_example_begin: + items + \lx_example_end:.
+%%
+%% The continuation is held in a macro rather than passed down the call
+%% chain because the collection ends in \peek_analysis_map_break:n, which
+%% discards the surrounding expansion context.  The assignment is GLOBAL:
+%% the collector enters a TeX group for every brace group it collects, and
+%% the unmatched-group-end branch below breaks out with an \egroup still
+%% pending, so a local value could be restored away before it is used.
+\cs_new_eq:NN \lx@body@cont \prg_do_nothing:
+\cs_new_protected:Npn \lx_body_collect:N #1
   {
+    \cs_gset_eq:NN \lx@body@cont #1
     \tl_clear:N \l__lx_body_tl
     \seq_clear:N \l__lx_body_stack_seq
     \int_zero:N \l__lx_body_env_int
@@ -767,6 +798,9 @@
     \int_zero:N \l__lx_body_col_int
     \__lx_body_loop:
   }
+%% \lx@run@ex is defined further down; naming it here is safe because the
+%% body is not expanded until the first \ex. of the document.
+\cs_new_protected:Npn \lx@collectbody { \lx_body_collect:N \lx@run@ex }
 \cs_new_protected:Npn \__lx_body_loop:
   {
     \peek_analysis_map_inline:n
@@ -856,7 +890,7 @@
       } } } } } } } }
   }
 \cs_new_protected:Npn \lx@runbody
-  { \exp_args:NV \lx@run@ex \l__lx_body_tl }
+  { \exp_args:NV \lx@body@cont \l__lx_body_tl }
 \ExplSyntaxOff
 
 \def\lx@body@info#1{%
@@ -966,7 +1000,13 @@
 %% the list opens, because [legacy] sizes the label box off the label)
 %% are saved here and restored in \lx@bodyend, so a \label after the
 %% example still refers to whatever preceded it.
-\long\def\lx@run@ex#1{%
+%% The setup half is factored out under its own name because it, and not
+%% \lx@run@ex, is what a front-end needs: \lx@run@ex additionally commits
+%% to the dot syntax's \lx@exstart (which peeks for a "[" custom label)
+%% and to the body arriving as one grabbed argument.  A front-end that
+%% builds its items itself calls \lx@example@begin, then whichever item
+%% commands it likes, then \lx@bodyend.
+\def\lx@example@begin{%
   \ifdim\lastskip=\Extopsep\vspace{\Exredux}\fi
   \lx@subdepth\z@
   \setcounter{SubExNo}{0}\setcounter{SubSubExNo}{0}%
@@ -975,8 +1015,8 @@
     \let\lx@saved@currentHref\@currentHref
   \fi
   \lx@inexampletrue
-  \lx@letters@on
-  \lx@exstart#1\lx@bodyend}
+  \lx@letters@on}
+\long\def\lx@run@ex#1{\lx@example@begin\lx@exstart#1\lx@bodyend}
 
 % closes the example: all open sublists, the main list, the group.
 % Doubles as the sentinel marking the end of the grabbed body, which is
@@ -986,6 +1026,19 @@
   \lx@closesubs
   \lx@closelist
   \lx@example@cleanup\ignorespacesafterend}
+%% --- public API (Protocol A: the example lifecycle) -------------------
+%% One example, start to finish.  \lx_example_end: closes every sublist
+%% still open, so a front-end never has to track depth itself.
+%%
+%% \lx_example_end: is also the SENTINEL that marks the end of a grabbed
+%% body -- \z. terminates an example early by scanning ahead to it (see
+%% \lx@zexit).  A front-end may call it, but must not \let it to
+%% something else, wrap it in a group, or place a copy of it anywhere but
+%% at the very end of the example.
+\ExplSyntaxOn
+\cs_new_eq:NN \lx_example_begin: \lx@example@begin
+\cs_new_eq:NN \lx_example_end:   \lx@bodyend
+\ExplSyntaxOff
 %% Under the tagged-PDF testphase code, the block layer wraps top-level
 %% blocks in a "text-unit" structure element and defers its close to the
 %% @endpe continuation paragraph.  Since the cleanup above cancels that
@@ -1023,7 +1076,12 @@
 %% \lx@mainitem is the same thing minus the list, for an item inside an
 %% exe environment, whose list is already open.
 \def\lx@exstart{\@ifnextchar[{\lx@exstart@opt}{\lx@exstart@normal}}
-\def\lx@exstart@opt[#1]{\def\lx@itemlabel{#1}\lx@mainlist\lx@scanjudge}
+%% The custom-label item, separated from the bracket syntax that reaches
+%% it, so that a front-end can have custom labels without having to spell
+%% them "[...]".  Note the order the label is set in: BEFORE \lx@mainlist,
+%% because [legacy] sizes the label box from the label itself.
+\def\lx@custom@item#1{\def\lx@itemlabel{#1}\lx@mainlist\lx@scanjudge}
+\def\lx@exstart@opt[#1]{\lx@custom@item{#1}}
 \def\lx@main@core{%
   \if@noftnote
     \refstepcounter{ExNo}\def\lx@itemlabel{\theExNo}%
@@ -1032,6 +1090,22 @@
   \fi}
 \def\lx@exstart@normal{\lx@main@core\lx@mainlist\lx@scanjudge}
 \def\lx@mainitem{\lx@main@core\lx@scanjudge}
+%% --- public API (Protocol A: top-level items) -------------------------
+%% \lx_item_main:    step the counter, OPEN the main list, then item.
+%%                   For an example that brings its own list, i.e. the
+%%                   \ex. case.
+%% \lx_item_main:n   the same with the given label, and no counter step
+%%                   (the \ex.[custom] case).
+%% \lx_item_next:    step the counter and item, WITHOUT opening a list:
+%%                   for a second example inside a batch whose list is
+%%                   already open, i.e. the \ex inside exe case.
+%% All three end by scanning for a judgment and emitting the item, so the
+%% example text may follow immediately.
+\ExplSyntaxOn
+\cs_new_eq:NN \lx_item_main:  \lx@exstart@normal
+\cs_new_eq:NN \lx_item_main:n \lx@custom@item
+\cs_new_eq:NN \lx_item_next:  \lx@mainitem
+\ExplSyntaxOff
 
 % the label box: number flush left; an auto-detected judgment is hung
 % into the margin at the text edge via \jdg's zero-width \llap, so
@@ -1050,6 +1124,14 @@
 %% (untagged) output is identical.
 \def\lx@flushlabel#1{\makebox[\labelwidth][l]{#1}}
 \def\lx@makeitem{\lx@kernel@item[\lx@itemlabel]\lx@emitjudge\ignorespaces}
+%% --- public API (Protocol A: emitting the item) -----------------------
+%% Emit the \item for the label currently in \lx@itemlabel and hang any
+%% judgment collected since the last scan.  The \lx_item_... commands
+%% above already end here; this is for a front-end that sets a label and
+%% a judgment by itself.
+\ExplSyntaxOn
+\cs_new_eq:NN \lx_item_emit: \lx@makeitem
+\ExplSyntaxOff
 
 %% sub-examples ------------------------------------------------------------
 %% \a. pushes a level; the depth advance happens INSIDE the new group.
@@ -1346,6 +1428,22 @@
   \PackageError{linguexx}{\string\b. (or \string\c. etc.) without a
     preceding \string\a.}{Start the sublevel with \string\a. first.}}
 
+%% --- public API (Protocol A: sub-levels) ------------------------------
+%% \lx_sub_push:  open a NEW, deeper sub-level (letters, then romans) and
+%%                give it its first item.  Two levels maximum; a third is
+%%                a package error.
+%% \lx_sub_next:  the next item at the level currently open.
+%% The depth is not a parameter and cannot be set: \lx_sub_push: advances
+%% it inside the \begingroup it opens for the new level, so the grouping
+%% structure IS the stack and \lx_example_end: pops whatever is left.  A
+%% front-end must never advance or reset \lx@subdepth itself -- that is
+%% the global-drift bug (linguex's "ExDepth disease") this design exists
+%% to make impossible.
+\ExplSyntaxOn
+\cs_new_eq:NN \lx_sub_push: \lx@subpush
+\cs_new_eq:NN \lx_sub_next: \lx@subnext
+\ExplSyntaxOff
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%  Environment interface: exe and xlist (gb4e-compatible)             %%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1367,6 +1465,15 @@
    \fi
    \lx@donext
    \def\item{\lx@subnext}}
+%% --- public API (Protocol A: sub-levels, environment form) ------------
+%% The \lx_sub_push: of an ENVIRONMENT-shaped front-end: opens the deeper
+%% level without giving it an item, and lets the environment's own group
+%% play the role of the \begingroup that \lx_sub_push: opens, so the depth
+%% advance is undone by the matching \end.  Use this one if and only if
+%% the level is bounded by an environment; \lx_sub_next: gives the items.
+\ExplSyntaxOn
+\cs_new_eq:NN \lx_subenv_begin: \lx@subenv@begin
+\ExplSyntaxOff
 
 %% exe is a BATCH: each \ex inside it is a new top-level example;
 %% xlist embeds a sub-level (letters, then romans), with \ex as the
