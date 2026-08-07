@@ -24,6 +24,8 @@
 tests/cases/
 __pycache__/
 *.pyc
+# rendered baseline of nominal-capture.sh (regenerable, and large)
+tests/.nominal-baseline/
 
 # Emacs (AUCTeX / undo-tree)
 auto/
