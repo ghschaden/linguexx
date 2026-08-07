@@ -827,14 +827,35 @@
   \or \let\lx@donext\lx@subsubitem
   \fi
   \lx@donext}
-\long\def\lx@gbex@opt[#1]#2{%
+%% The level dispatch and the explicit-judgment item, factored out of
+%% \lx@gbex@opt: they are what a front-end needs in order to give an item
+%% a mark it did not read from the input, and there is no way to compose
+%% that out of the scanning commands -- \lx@scanjudge clears the mark
+%% before it peeks, so anything set beforehand is lost.
+%% Neither opens a list: at depth 0 they assume the main list is already
+%% open, which is the batch case (exe).  A front-end whose example brings
+%% its own list calls \lx@mainlist first.
+\def\lx@item@core{%
   \ifcase\lx@subdepth
     \lx@main@core
   \or \lx@subitem@core
   \or \lx@subsubitem@core
-  \fi
-  \lx@setjudge{#1}%
-  \lx@makeitem#2}
+  \fi}
+\def\lx@item@judged#1{\lx@item@core\lx@setjudge{#1}\lx@makeitem}
+\long\def\lx@gbex@opt[#1]#2{\lx@item@judged{#1}#2}
+%% --- public API (Protocol A: items at the current level) --------------
+%% \lx_item_core:      step the counter of whatever level is open and set
+%%                     its label.  Emits nothing, so a front-end may put
+%%                     something between the label and the item.
+%% \lx_item_judged:n   the same, plus the given mark, plus the item: an
+%%                     item carrying a judgment that was NOT read from the
+%%                     input.  Any mark is allowed, not just the scanned
+%%                     set.  Both assume the list of the current level is
+%%                     already open (see \lx_list_main_open:).
+\ExplSyntaxOn
+\cs_new_eq:NN \lx_item_core:    \lx@item@core
+\cs_new_eq:NN \lx_item_judged:n \lx@item@judged
+\ExplSyntaxOff
 
 \ExplSyntaxOn
 \tl_new:N \l__lx_body_tl
@@ -1061,6 +1082,17 @@
     \def\lx@itemlabel{\theFnExLBr
       \romannumeral\numexpr\value{FnExNo}+1\relax\theFnExRBr}%
   \fi}
+%% --- public API (Protocol A: opening the main list by hand) -----------
+%% \lx_item_main: opens the list for you.  These two are for the BATCH
+%% shape, where one list holds several examples: open it once with
+%% \lx_label_guess: + \lx_list_main_open:, then give it items with
+%% \lx_item_next:.  \lx_label_guess: is not optional in that shape --
+%% under [legacy] the list geometry is read off a label that does not
+%% exist yet, so it stands in the label the next item will print.
+\ExplSyntaxOn
+\cs_new_eq:NN \lx_list_main_open: \lx@mainlist
+\cs_new_eq:NN \lx_label_guess:    \lx@guesslabel
+\ExplSyntaxOff
 
 %% No TeX group wraps the example as a whole: the list environment's own
 %% group scopes everything set after the list opens, and wrapping the

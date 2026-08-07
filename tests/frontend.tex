@@ -1,0 +1,161 @@
+% ---------------------------------------------------------------------------
+% Conformance case for the PUBLIC API (Protocol A).
+%
+% The point of this case is not that these particular examples render: it
+% is that a syntax front-end can be built WITHOUT the package's internals.
+% Everything below the \ExplSyntaxOn uses \lx_... names only -- no \lx@...,
+% no \makeatletter, no assumption about how the machinery works.  If a
+% later change breaks the API, this case stops compiling; if a later change
+% breaks the SEMANTICS the API promises, the assertions in runtests.py
+% (a_frontend) catch it.
+%
+% Two front-end shapes are exercised, because they use the API differently:
+%
+%   \pex ... blank line          the self-contained shape: the example
+%                                brings its own list.  This is how \ex.
+%                                is built.
+%   \begin{pexe} \pit ... \end   the batch shape: one list holds several
+%                                examples.  This is how exe is built.
+%
+% The preamble is not shared with the other cases: _preamble-ua.tex already
+% contains \begin{document}, and the front-end has to be defined before
+% that.  It mirrors _preamble-ua otherwise, and for the same reason -- the
+% API hands out the list funnel and the tagged-Span helpers, so the promise
+% worth checking is not merely that the page looks right but that what a
+% front-end builds out of them is VALID PDF/UA.  veraPDF is the only
+% authoritative oracle for that, and a_frontend runs it.
+%
+% "uncompress" is added on top of the UA settings so the structure-tree
+% helpers can read the tree out of the raw bytes; it does not affect
+% validity.  A dc:title is mandatory under ISO 14289-2 clause 8.11.1,
+% hence the pdftitle.  Three LaTeX passes are needed for UA convergence
+% under pdflatex and xelatex -- see PASSES in runtests.py.
+% ---------------------------------------------------------------------------
+\DocumentMetadata{uncompress,lang=en,pdfversion=2.0,pdfstandard=ua-2,tagging=on}
+\documentclass{article}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else
+  \usepackage{fontspec}
+\fi
+\usepackage{linguexx}
+\usepackage{hyperref}
+\hypersetup{pdftitle={linguexx front-end API conformance case},
+            pdfdisplaydoctitle=true}
+\pagestyle{empty}
+
+\ExplSyntaxOn
+
+%% ---- shape 1: the self-contained example -------------------------------
+%% \pex collects its body under the package's own terminator rules (blank
+%% line, \z., unmatched \end) and hands it to a continuation, which is
+%% nothing but: open the example, make an item, typeset, close.
+\NewDocumentCommand \pex { } { \lx_body_collect:N \__fe_run:n }
+\cs_new_protected:Npn \__fe_run:n #1
+  {
+    \lx_example_begin:
+    \lx_item_main:
+    #1
+    \lx_example_end:
+  }
+
+%% the same with a label of the front-end's choosing (no counter step)
+\tl_new:N \l__fe_label_tl
+\NewDocumentCommand \pexc { m }
+  {
+    \tl_set:Nn \l__fe_label_tl {#1}
+    \lx_body_collect:N \__fe_runc:n
+  }
+\cs_new_protected:Npn \__fe_runc:n #1
+  {
+    \lx_example_begin:
+    \exp_args:NV \lx_item_main:n \l__fe_label_tl
+    #1
+    \lx_example_end:
+  }
+
+%% ...and one whose judgment is an ARGUMENT rather than something typed
+%% into the text -- the case that cannot be composed out of the scanning
+%% commands, since \lx_judgment_scan: clears the mark before it peeks.
+%%
+%% Note the ORDER, which is the API's first invariant: \lx_item_core: sets
+%% the label, and only then is the list opened, because under [legacy] the
+%% list geometry is read off the label.  Opening the list first renders
+%% identically in the default mode and mis-sizes the label box in legacy,
+%% which is exactly the kind of bug this case exists to prevent.
+\NewDocumentCommand \pexj { m }
+  {
+    \tl_set:Nn \l__fe_label_tl {#1}
+    \lx_body_collect:N \__fe_runj:n
+  }
+\cs_new_protected:Npn \__fe_runj:n #1
+  {
+    \lx_example_begin:
+    \lx_item_core:
+    \lx_list_main_open:
+    \exp_args:NV \lx_judgment_set:n \l__fe_label_tl
+    \lx_item_emit:
+    #1
+    \lx_example_end:
+  }
+
+%% sub-levels: push opens a new, deeper one; next stays at the current one
+\NewDocumentCommand \pa { } { \lx_sub_push: }
+\NewDocumentCommand \pb { } { \lx_sub_next: }
+
+%% ---- shape 2: the batch ------------------------------------------------
+%% One list, several examples.  The list is opened before any item exists,
+%% so the label it is sized from has to be guessed.
+\NewDocumentEnvironment { pexe } { }
+  {
+    \lx_example_begin:
+    \lx_label_guess:
+    \lx_list_main_open:
+  }
+  { \lx_example_end: }
+\NewDocumentCommand \pit { } { \lx_item_next: }
+%% In the batch the list is already open, so the bundled form applies:
+%% label, mark and item in one move, at whatever level is current.
+\NewDocumentCommand \pitj { m } { \lx_item_judged:n {#1} }
+
+\ExplSyntaxOff
+
+\begin{document}
+\section{FESECT a front-end built on the public API}
+
+FEINTRO ordinary running text precedes the first example.
+
+\pex FEPLAIN one.
+
+\pex *FEJUDGED two.
+
+\pex FESUBHOST three.
+\pa FESUBA alpha.
+\pb FESUBB beta.
+\pa FEROMANA roman.
+
+% A SECOND example with sub-levels: its letters must restart at a., which
+% is the only thing that shows \lx_example_begin: resetting the sub-counters.
+\pex FESUBHOSTB four.
+\pa FESUBC gamma.
+\pb FESUBD delta.
+
+\pexc{(fex)} FECUSTOM five.
+
+\pexj{\#} FEARGJUDGE six.
+
+\begin{pexe}
+\pit FEBATCHONE seven.
+\pit FEBATCHTWO eight.
+\pitj{??} FEBATCHJ nine.
+\end{pexe}
+
+\pex FEAFTER ten.
+
+FEPARA A paragraph after the examples.
+
+\noindent FEMARGIN At the margin.
+
+\end{document}

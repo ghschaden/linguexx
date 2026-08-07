@@ -75,7 +75,7 @@ ENGINES_FOR = {
     "utf8-unicode": ("xelatex", "lualatex"),
 }
 DEFAULT_PASSES = 2
-PASSES = {"ua": 3}
+PASSES = {"ua": 3, "frontend": 3}
 #: Cases that must FAIL to compile, mapped to a substring their .log has to
 #: contain.  A package error is as much a feature as a rendering is -- it is
 #: what a silently wrong construct was turned into -- and without this it
@@ -1428,6 +1428,143 @@ def a_gbfour(p: Page):
     return r
 
 
+def a_frontend(p: Page):
+    r"""The public API is SUFFICIENT: a syntax front-end built out of
+    \lx_... names alone produces the same geometry and the same structure
+    tree as the package's own syntaxes.
+
+    The case compiling at all is the first half of the assertion -- it uses
+    no internal, so a name that stops being public breaks it outright.  The
+    second half is that the API's promises hold, which is what everything
+    below measures.  Both front-end shapes are covered: \pex brings its own
+    list, the pexe environment holds several examples in one.
+    """
+    r = []
+    # --- numbering: one counter across both shapes ----------------------
+    labw = [w for w in p.words if re.fullmatch(r"\(\w+\)", w.text)]
+    margin = min(w.x0 for w in labw)
+    got = [w.text for w in labw if abs(w.x0 - margin) < TOL]
+    r.append(check(
+        got == ["(1)", "(2)", "(3)", "(4)", "(fex)",
+                "(5)", "(6)", "(7)", "(8)", "(9)"],
+        f"self-contained and batch examples share one counter, and the "
+        f"custom label does not step it; got {got}"))
+    # --- judgments hang, whatever supplied them -------------------------
+    plain = p.find("FEPLAIN")
+    for tok, how in [("FEJUDGED", "scanned from the input"),
+                     ("FEARGJUDGE", "set with \\lx_judgment_set:n"),
+                     ("FEBATCHJ", "set with \\lx_item_judged:n")]:
+        w = p.find(tok)
+        r.append(check(abs(w.x0 - plain.x0) < TOL,
+                       f"judgment {how} does not displace the text "
+                       f"({w.x0:.2f} vs {plain.x0:.2f})"))
+    label = re.compile(r"^(\(\w+\)|[a-f]\.|[ivx]+\.)$")
+    for tok in ("FEJUDGED", "FEARGJUDGE", "FEBATCHJ"):
+        w = p.find(tok)
+        marks = [t for t in p.line_of(w)
+                 if not label.match(t.text) and t is not w and t.x1 <= w.x0 + TOL]
+        r.append(check(marks, f"{tok}: the mark hangs left of the text block"))
+    # --- sub-levels: \lx_sub_push: deepens, \lx_sub_next: does not ------
+    host, suba, subb = p.find("FESUBHOST"), p.find("FESUBA"), p.find("FESUBB")
+    roman = p.find("FEROMANA")
+    r.append(check(suba.x0 > host.x0 + 2,
+                   f"\\lx_sub_push: opens a deeper level "
+                   f"({suba.x0:.2f} vs {host.x0:.2f})"))
+    r.append(check(abs(subb.x0 - suba.x0) < TOL,
+                   f"\\lx_sub_next: stays at its level "
+                   f"({subb.x0:.2f} vs {suba.x0:.2f})"))
+    r.append(check(roman.x0 > suba.x0 + 2,
+                   f"a second \\lx_sub_push: opens the roman level "
+                   f"({roman.x0:.2f} vs {suba.x0:.2f})"))
+    # The letters of the SECOND sub-level example must restart at a.  One
+    # such example cannot show this; two can.  Note that the package resets
+    # SubExNo in BOTH \lx@example@begin and the sub-list opener, so removing
+    # either alone changes nothing and only removing both makes this fail --
+    # the redundancy is real, and this assertion is what would catch its
+    # last remaining half going away.
+    letters = [w.text for w in p.words if w.text in ("a.", "b.", "c.", "d.", "i.")]
+    r.append(check(letters == ["a.", "b.", "i.", "a.", "b."],
+                   f"sub-levels are lettered then romanised, and restart at a. "
+                   f"in the next example; got {letters}"))
+    # --- the batch shares one list --------------------------------------
+    one, two = p.find("FEBATCHONE"), p.find("FEBATCHTWO")
+    r.append(check(abs(one.x0 - two.x0) < TOL and abs(one.x0 - plain.x0) < TOL,
+                   f"batch items sit at the ordinary example text margin "
+                   f"({one.x0:.2f}, {two.x0:.2f} vs {plain.x0:.2f})"))
+    # --- \lx_example_end: cancelled the paragraph continuation ----------
+    # The paragraph after an example must be a NEW, indented one.  This is
+    # the half of the lifecycle that is invisible in the numbers: if
+    # \lx_example_end: did not cancel @endpe, FEPARA would start flush at
+    # the margin instead of indented.
+    para, mgn = p.find("FEPARA"), p.find("FEMARGIN")
+    r.append(check(para.x0 > mgn.x0 + 2,
+                   f"the paragraph after an example is indented "
+                   f"({para.x0:.2f} vs margin {mgn.x0:.2f})"))
+    # --- structure tree --------------------------------------------------
+    els = struct_elems(getattr(p, "raw", b""))
+    tags = [s for s, c in els]
+    nlist = tags.count("list") + tags.count("L")
+    r.append(check(nlist >= 2,
+                   f"the front-end's lists reach the structure tree "
+                   f"(>=2 list elements, got {nlist})"))
+    # ...carrying a VALID /ListNumbering class per level.  A front-end gets
+    # these from the list funnel without asking, which is the whole reason
+    # the funnel is the API rather than \begin{list}.  "Ordered" is the
+    # value that must never appear: it is not in PDF's enumeration and is
+    # what routing through the block code's enumerate class would produce.
+    classes = [c for s, c in els if s in ("list", "L")]
+    r.append(check(classes.count("lxOLdecimal") >= 2,
+                   f"main-level lists carry /ListNumbering /Decimal; "
+                   f"got {classes}"))
+    r.append(check(classes.count("lxOLalpha") >= 2 and "lxOLroman" in classes,
+                   f"sub-levels carry /LowerAlpha and /LowerRoman; "
+                   f"got {classes}"))
+    r.append(check("Ordered" not in classes,
+                   f"no list carries the invalid /Ordered; got {classes}"))
+    # --- and the whole thing is valid PDF/UA ----------------------------
+    # The structure checks above and veraPDF are complementary: an element
+    # opened at the wrong moment passes every check in this function and
+    # fails veraPDF, and an element never closed does the reverse.
+    if not shutil.which("verapdf"):
+        r.append((False, "verapdf is not on PATH: the PDF/UA gate for the "
+                         "front-end API cannot run"))
+    else:
+        verdicts, failures, raw = verapdf_report(p.path)
+        if not verdicts:
+            r.append((False, f"veraPDF produced no verdict (broken install?); "
+                             f"its output was {raw[:300]!r}"))
+        else:
+            failed = [name for name, ok in verdicts if not ok]
+            r.append(check(not failed,
+                           f"veraPDF: a front-end built on the public API "
+                           f"produces valid PDF/UA; failed {failed} with "
+                           f"{failures}" if failed else
+                           "veraPDF: a front-end built on the public API "
+                           "produces valid PDF/UA"))
+            # ...and its PARSER must not complain either.  The verdict is
+            # not sufficient here: unwinding the tagged-Span idiom in the
+            # wrong order (\tag_struct_end: before the \tag_mc_end: that
+            # belongs to it) nests one marked-content sequence inside
+            # another, and this veraPDF reports that as a "Nested MCID"
+            # warning while still returning compliant on all three
+            # profiles.  Since the API hands the Span helpers to front-ends
+            # to use, that misuse has to be caught by something, and this
+            # is the cheapest oracle that sees it.
+            nested = [l for l in raw.splitlines() if "Nested MCID" in l]
+            r.append(check(not nested,
+                           f"veraPDF's parser reports no nested marked "
+                           f"content; got {nested[:3]}"))
+    # Every top-level number must sit at ONE depth: an element the API let a
+    # front-end leave open would reparent the rest of the document and show
+    # up here as a drop, while remaining spec-valid (see struct_label_depths).
+    depths = struct_label_depths(p.path)
+    levels = {d for _, d in depths}
+    r.append(check(len(depths) >= 8 and len(levels) == 1,
+                   f"every top-level example number sits at one depth; "
+                   f"got {depths}"))
+    return r
+
+
 def a_tagged(p: Page):
     """Tagged compile (DocumentMetadata) must survive every construct;
     the compile itself is the real assertion (tagpdf errors halt it)."""
@@ -1874,8 +2011,12 @@ def struct_label_depths(pdf: Path):
     Footnote examples are numbered in romans and are legitimately nested
     deeper, so the digit-only pattern skips them.
     """
+    # errors="replace": a PDF/UA build carries UTF-16 strings, and pdfinfo
+    # passes their bytes through, so a strict decode raises here rather than
+    # reporting on the tree.  The pattern below only ever matches ASCII.
     out = subprocess.run(["pdfinfo", "-struct-text", str(pdf)],
-                         capture_output=True, text=True).stdout
+                         capture_output=True, text=True,
+                         errors="replace").stdout
     return [(m.group(2), len(m.group(1)))
             for m in re.finditer(r'(?m)^( *)"\((\d+)\)"', out)]
 
@@ -1984,6 +2125,7 @@ ASSERTIONS = {
     "legacy": a_legacy,
     "legacy-gb4e": a_legacy_gb4e,
     "tagged": a_tagged,
+    "frontend": a_frontend,
     "ua": a_ua,
     "utf8": a_utf8,
     "utf8-unicode": a_utf8_unicode,
