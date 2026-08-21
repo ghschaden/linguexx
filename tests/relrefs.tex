@@ -1,0 +1,32 @@
+\input{_preamble}
+\begin{document}
+%% Relative references with a sub-example part.  \Last[b] is linguex's
+%% \complexExNo: the part belongs INSIDE the parentheses -- "(1b)", never
+%% "(1)[b]" -- joined by \firstrefdash, so that a relative reference and a
+%% \ref to a \sublabel spell the same example the same way.  Before the
+%% commands took an optional argument at all, the bracket group simply fell
+%% through into the text, which compiles perfectly and reads as a typo.
+\ex.\label{rr:one}
+\a.\sublabel{rr:a} First.
+\b. Second.
+\z.
+
+BARE \Last{} SUB \Last[b] REF \ref{rr:a} PSUB \pLast[b]
+NEXTSUB \Next[c] NNEXTSUB \NNext[d]
+
+\ex. Second example.
+
+LLASTSUB \LLast[a] PNEXTSUB \pNext[e] PLLASTSUB \pLLast[f]
+
+%% Inside a footnote the sub part rides on the footnote series (ii a),
+%% while \TextNext keeps pointing at the main one -- the argument must not
+%% disturb either branch.
+FN\footnote{TEXTNEXTSUB \TextNext[a] PTEXTNEXTSUB \pTextNext[b]
+\ex. Footnote one.
+
+\ex. Footnote two.
+
+FNSUB \Last[a] FNPSUB \pLast[a] FNLL \LLast[b] FNNEXT \Next[c]} done.
+
+\ex. Target of TextNext.
+\end{document}

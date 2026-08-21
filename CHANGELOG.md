@@ -32,6 +32,19 @@ version string.
   abbreviation still carries its own `/E` expansion inside the stack (unlike
   in an `\altg` stack, which sets `\lpzg` plain). Simple keys only, as in
   `\altg`: a compound or unknown key is spoken as printed.
+- Fix: the relative references take their sub-example argument again.
+  `\Last[b]` is `linguex` syntax for "letter b of the previous example",
+  but `\Last` was declared without an optional argument, so the brackets
+  were never an argument at all -- they fell through to the page and
+  `\Last[b]` set "(1)[b]" instead of "(1b)", with a clean compile and no
+  warning. `\Next`, `\NNext`, `\LLast`, `\TextNext` and the whole
+  `p`-prefixed family take it too, and the part is joined with
+  `\firstrefdash`, so a relative reference and a `\ref` to a `\sublabel`
+  spell the same example alike in both modes: `(1b)` by default, `(1-b)`
+  under `[legacy]`. Inside a footnote the part rides on the footnote's
+  roman series, except under `\TextNext`, which keeps pointing at the main
+  one. Covered by `tests/relrefs.tex` (which until now was a case file the
+  suite never ran) and, for the dash, by `tests/legacy.tex`.
 - Fix: `\z.` is now usable inside an `exe` batch. Mixing the syntaxes is
   documented, so an `\a.` inside `exe` legitimately opens a sub-level -- but
   `\z.`, the only thing that could close it again, raised "`\z.` outside an

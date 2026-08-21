@@ -1701,10 +1701,26 @@
 %%%%  Relative references: \Next \Last \NNext \LLast \TextNext           %%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\newcommand\lx@fmtEx[1]{\theExLBr#1\theExRBr}
-\newcommand\lx@fmtFnEx[1]{\theFnExLBr#1\theFnExRBr}
+% Every relative reference takes an optional sub-example part, exactly as
+% linguex's did: \Last[a] points at letter a of the example it resolves to.
+% The part is joined with \firstrefdash -- the same hook \theSubExNo uses
+% for a \ref to a \sublabel -- so a relative reference and a labelled one
+% spell the same example the same way in both modes: (1a) by default,
+% (1-a) under [legacy].  Without the argument nothing is inserted and the
+% output is what it always was.
+%
+% \lx@relsub is what carries the part into the formatters, which is why
+% every one of these commands sets it INSIDE the group it already opened
+% around its body: a part given to one reference must not survive into the
+% next.  The p-twins forward their own optional argument rather than set
+% \lx@relsub themselves, so there is one place where the part is built.
+\newcommand\lx@relsub{}
+\newcommand\lx@setrelsub[1]{\IfValueT{#1}{\def\lx@relsub{\firstrefdash#1}}}
+\newcommand\lx@fmtEx[1]{\theExLBr#1\lx@relsub\theExRBr}
+\newcommand\lx@fmtFnEx[1]{\theFnExLBr#1\lx@relsub\theFnExRBr}
 
-\newcommand\Last{{\if@noftnote
+\NewDocumentCommand\Last{o}{{\lx@setrelsub{#1}%
+  \if@noftnote
     \lx@fmtEx{\arabic{ExNo}}%
   \else\ifnum\value{FnExNo}>\z@
     \lx@fmtFnEx{\roman{FnExNo}}%
@@ -1712,19 +1728,22 @@
     \lx@fmtEx{\arabic{ExNo}}%
   \fi\fi}}
 
-\newcommand\Next{{\if@noftnote
+\NewDocumentCommand\Next{o}{{\lx@setrelsub{#1}%
+  \if@noftnote
     \lx@fmtEx{\the\numexpr\value{ExNo}+1\relax}%
   \else
     \lx@fmtFnEx{\romannumeral\numexpr\value{FnExNo}+1\relax}%
   \fi}}
 
-\newcommand\NNext{{\if@noftnote
+\NewDocumentCommand\NNext{o}{{\lx@setrelsub{#1}%
+  \if@noftnote
     \lx@fmtEx{\the\numexpr\value{ExNo}+2\relax}%
   \else
     \lx@fmtFnEx{\romannumeral\numexpr\value{FnExNo}+2\relax}%
   \fi}}
 
-\newcommand\LLast{{\if@noftnote
+\NewDocumentCommand\LLast{o}{{\lx@setrelsub{#1}%
+  \if@noftnote
     \lx@fmtEx{\the\numexpr\value{ExNo}-1\relax}%
   \else\ifnum\value{FnExNo}>\@ne
     \lx@fmtFnEx{\romannumeral\numexpr\value{FnExNo}-1\relax}%
@@ -1732,15 +1751,17 @@
     \lx@fmtEx{\arabic{ExNo}}%
   \fi\fi}}
 
-\newcommand\TextNext{{\lx@fmtEx{\the\numexpr\value{ExNo}+1\relax}}}
+\NewDocumentCommand\TextNext{o}{{\lx@setrelsub{#1}%
+  \lx@fmtEx{\the\numexpr\value{ExNo}+1\relax}}}
 
 % parenthesis-free twins
 \newcommand\pref[1]{{\parenstrue\ref{#1}}}
-\newcommand\pLast{{\parenstrue\Last}}
-\newcommand\pNext{{\parenstrue\Next}}
-\newcommand\pNNext{{\parenstrue\NNext}}
-\newcommand\pLLast{{\parenstrue\LLast}}
-\newcommand\pTextNext{{\parenstrue\TextNext}}
+\NewDocumentCommand\pLast{o}{{\parenstrue\IfValueTF{#1}{\Last[#1]}{\Last}}}
+\NewDocumentCommand\pNext{o}{{\parenstrue\IfValueTF{#1}{\Next[#1]}{\Next}}}
+\NewDocumentCommand\pNNext{o}{{\parenstrue\IfValueTF{#1}{\NNext[#1]}{\NNext}}}
+\NewDocumentCommand\pLLast{o}{{\parenstrue\IfValueTF{#1}{\LLast[#1]}{\LLast}}}
+\NewDocumentCommand\pTextNext{o}%
+  {{\parenstrue\IfValueTF{#1}{\TextNext[#1]}{\TextNext}}}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%  Interlinear glossing: \gll \glll \glt (cgloss4e replacement)       %%%%

@@ -696,6 +696,52 @@ def a_refs(p: Page):
     return r
 
 
+def a_relrefs(p: Page):
+    r"""A relative reference may name a sub-example: \Last[b] -> (1b).
+
+    The part goes inside the parentheses and is joined by \firstrefdash --
+    the hook \theSubExNo uses -- so \Last[b] and \ref to the \sublabel of
+    letter b agree; a_legacy pins the other value of that hook.  The failure
+    this guards against is silent: with no optional argument declared, the
+    bracket group is not an argument at all, it is text, and "(1)[b]" is
+    what reaches the page with a clean exit status.
+    """
+    r = []
+    txt = " ".join(w.text for w in p.words)
+
+    def shows(tok, want):
+        got = txt[txt.find(tok):][:len(tok) + 12]
+        return check(f"{tok} {want}" in txt, f"{tok} prints {want}; got {got!r}")
+
+    # main series: the part lands inside the parentheses, and the bare form
+    # is untouched by the machinery that puts it there
+    r.append(shows("BARE", "(1)"))
+    r.append(shows("SUB", "(1b)"))
+    r.append(shows("REF", "(1a)"))          # same example, spelt by \ref
+    r.append(shows("PSUB", "1b"))           # \pLast forwards the argument
+    r.append(shows("NEXTSUB", "(2c)"))
+    r.append(shows("NNEXTSUB", "(3d)"))
+    r.append(shows("LLASTSUB", "(1a)"))
+    r.append(shows("PNEXTSUB", "3e"))
+    r.append(shows("PLLASTSUB", "1f"))
+
+    # footnote series: the part rides on the roman numeral, except for
+    # \TextNext, which points at the main series from inside the footnote
+    r.append(shows("FNSUB", "(iia)"))
+    r.append(shows("FNPSUB", "iia"))
+    r.append(shows("FNLL", "(ib)"))
+    r.append(shows("FNNEXT", "(iiic)"))
+    r.append(shows("TEXTNEXTSUB", "(3a)"))
+    r.append(shows("PTEXTNEXTSUB", "3b"))
+
+    # nothing leaks: a sub part set for one reference must not survive into
+    # the next, which the bare \Last above would not catch on its own since
+    # it comes first.  \ref sits between two parametrised references.
+    r.append(check("[b]" not in txt and "[a]" not in txt,
+                   "the optional argument is consumed, not typeset as text"))
+    return r
+
+
 
 def a_glt(p: Page):
     r"""\GlossTransStyle reaches the free translation, and nothing else.
@@ -1746,6 +1792,12 @@ def a_legacy(p: Page):
     # \firstrefdash and \secondrefdash are both "-"
     r.append(check(re.search(r"PREF 2-a-i\b", txt),
                    f"reference prints 2-a-i; got {txt[txt.find('PREF'):][:14]!r}"))
+    # a relative reference with a sub part goes through the same hook, so
+    # \Last[a] is "(2-a)" here and "(1b)" in a_relrefs; hard-wiring either
+    # spelling into the formatter breaks one case or the other
+    r.append(check(re.search(r"LEGREL \(2-a\)", txt),
+                   f"\\Last[a] prints (2-a) under [legacy]; got "
+                   f"{txt[txt.find('LEGREL'):][:16]!r}"))
     # sub-levels are indented by \SubExleftmargin (2em) and
     # \SubSubExleftmargin (2.4em); at 11pt, 22pt and 26.4pt.
     em = 11.0
@@ -2200,6 +2252,7 @@ ASSERTIONS = {
     "termination": a_termination,
     "verb": a_verb,
     "refs": a_refs,
+    "relrefs": a_relrefs,
 }
 
 

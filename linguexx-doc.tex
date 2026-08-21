@@ -1067,6 +1067,14 @@ To refer to a neighbouring example without labelling it:
 \noindent Inside a footnote these refer to the footnote's own series, which
 is nearly always what is meant; \cs{TextNext} escapes to the main series.
 
+Each of them, and each \texttt{p}-twin, takes an optional sub-example
+part: \cs{Last}\oarg{letter} refers to that letter of the example
+\cs{Last} resolves to and prints it inside the parentheses, ``(3b)''. The
+separator is \cs{firstrefdash}, the same hook \cs{ref} uses for a
+\cs{sublabel}, so the two spell an example alike --- ``(3b)'' by default
+and ``(3-b)'' under \opt{legacy}. Nothing verifies that the letter exists;
+it is text you supply, as it is in \pkg{linguex}.
+
 These commands are part of the \pkg{linguex} compatibility surface and are
 kept for it, but they are worth using sparingly. What they resolve to
 depends on where they stand, so inserting an example between a reference
@@ -2026,7 +2034,7 @@ exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package opt
 \multicolumn{2}{@{}l}{\itshape References} \\
 \textbackslash label, \textbackslash ref & As usual; references print in parentheses. \\
 \textbackslash sublabel\marg{key} & Label a sub-example for use in a range. \\
-\textbackslash Next, \textbackslash NNext, \textbackslash Last, \textbackslash LLast & Relative references. \\
+\textbackslash Next, \textbackslash NNext, \textbackslash Last, \textbackslash LLast & Relative references; \oarg{letter} adds a sub-example part, as (3b). \\
 \textbackslash TextNext & Next example of the running text (from a footnote). \\
 \textbackslash pref, \textbackslash pNext, \dots & Parenthesis-free twins of all of the above. \\
 \textbackslash refrange\marg{a}\marg{b} & Compact range, as (3a--c). \\
