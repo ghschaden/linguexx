@@ -56,6 +56,22 @@ version string.
   trap for an alternative opening with `[` (`\altn{[+wh]}{[-wh]}`, which
   raised "Illegal unit of measure"). `[0pt]` is a true no-op: it struts the
   row to the depth `\@arstrut` already gives it. Covered by `tests/altn.tex`.
+- New: under `[phantomalign]` (or `\GlossPhantomAlign`), a judgment mark in
+  an `\altn` stack hangs to the left instead of displacing the alternative it
+  marks. Left-aligned, `\altn[l]{est}{*sont}` used to put `est` under the
+  star and `sont` a star-width to its right, so the one pair of words being
+  contrasted was the one pair not aligned. The mark now goes in a
+  right-aligned gutter column of its own -- inside the braces, since it
+  judges its own alternative and not the stack -- separated by `\JdgSep`, the
+  same length a judgment on a whole example uses. Where rows carry marks of
+  different widths the gutter takes the widest and every mark sits flush
+  against the words. The marks recognised are `\GlossPhantomChars`, and a
+  stack in which no alternative carries one is set exactly as before, so the
+  option never moves a stack that has nothing to align. This closes half the
+  gap that section's own comment recorded; `\altg` stacks are still not
+  covered, because its stack is written once per tier and the tiers must
+  keep one width. Documented in the manual's §7.1 and §5.7, covered by
+  `tests/altn-phantomalign.tex`.
 - Fix: the relative references no longer swallow the space that follows
   them. `\Last`, `\Next`, `\NNext`, `\LLast`, `\TextNext` and their
   `p`-twins are control words, so TeX's tokenizer discards the space in

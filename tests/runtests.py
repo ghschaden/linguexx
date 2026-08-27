@@ -764,6 +764,116 @@ def a_relrefs(p: Page):
 
 
 
+def a_altn_phantomalign(p: Page):
+    r"""A judgment in an \altn stack hangs left, and the stems line up.
+
+    Two failures are pinned here and they are independent.  The alignment:
+    without the gutter column, "*sont" over "est" left-aligns on the star,
+    so the two words being contrasted are the only pair NOT aligned.  And
+    the star's survival: an alternative after the first handed the tabular
+    row separator its own starred form \\*, which ate the mark -- clean
+    compile, no warning, and a page that reads as a typo.
+
+    The stars are counted rather than located, because that failure removes
+    a word instead of moving one, and no coordinate assertion sees it.
+    """
+    r = []
+
+    def cy(w):
+        return (w.y0 + w.y1) / 2
+
+    def stems(tok, n):
+        ws = sorted(p.find_all(tok), key=cy)
+        if len(ws) != n:
+            raise AssertionError(f"expected {tok} {n} times, got {len(ws)}: {ws}")
+        return ws
+
+    def aligned(ws, tok):
+        """The stems line up -- measured on the RIGHT edge, deliberately.
+
+        Every probe stack repeats one identical stem, so aligned stems agree
+        on both edges.  But the left edge cannot tell the two layouts apart:
+        with the mark still inside the alternative, pdftotext reports one
+        word "*PSTEM" whose x0 IS the column origin, so a broken layout
+        shares a left edge just as happily.  The right edge is where the
+        star's width lands, which is why phantomalign.tex measures there
+        too.
+        """
+        spread = max(w.x1 for w in ws) - min(w.x1 for w in ws)
+        return check(spread < TOL,
+                     f"{tok} stems line up (right-edge spread {spread:.2f}pt)")
+
+    def mark_on(word):
+        """The mark word sitting on `word`'s row, left of it."""
+        return [w for w in p.line_of(word)
+                if w.x1 <= word.x0 + TOL and w.text in ("*", "??")]
+
+    # the probe: one marked alternative, one bare, same stem
+    probe = stems("PSTEM", 2)
+    r.append(aligned(probe, "PSTEM"))
+    marks = mark_on(probe[1])
+    r.append(check(len(marks) == 1, f"the marked row carries its star; got {marks}"))
+    if marks:
+        gap = probe[1].x0 - marks[0].x1
+        r.append(check(0 < gap < 3.0,
+                       f"the star hangs clear of the stem by \\JdgSep "
+                       f"({gap:.2f}pt)"))
+
+    # two marks of different widths: the gutter takes the widest, and both
+    # marks are flush against the stems rather than left-aligned with each
+    # other -- which is what \lx@hangjudge does at example level
+    wide = stems("WSTEM", 3)
+    r.append(aligned(wide, "WSTEM"))
+    star = mark_on(wide[0])
+    query = mark_on(wide[1])
+    r.append(check(len(star) == 1 and len(query) == 1,
+                   f"both marks reached the page; got {star} / {query}"))
+    if star and query:
+        r.append(check(abs(star[0].x1 - query[0].x1) < TOL,
+                       f"the marks are flush against the stems "
+                       f"({star[0].x1:.2f} vs {query[0].x1:.2f})"))
+        r.append(check(query[0].x0 < star[0].x0 - TOL,
+                       f"the wider mark reaches further left "
+                       f"({query[0].x0:.2f} vs {star[0].x0:.2f})"))
+
+    # no mark anywhere: the split layout must not engage.  Compared against
+    # the same stack with alignment off, so a stray gutter shows up as a
+    # difference between the two rather than as an absolute coordinate.
+    plain = stems("NSTEM", 2)
+    off = stems("OSTEM", 2)
+    r.append(aligned(plain, "NSTEM"))
+    on_gap = plain[0].x0 - p.find("PLAINL").x1
+    off_gap = off[0].x0 - p.find("OFFL").x1
+    r.append(check(abs(on_gap - off_gap) < TOL,
+                   f"an unmarked stack is unmoved by the option "
+                   f"({on_gap:.2f}pt on, {off_gap:.2f}pt off)"))
+
+    # the report this case came from: the contrasted words line up, and the
+    # star is on the row the source put it on -- (a) marks the second
+    # alternative, (b) the first, so a fix that hung the mark on a fixed
+    # row would pass one and fail the other
+    fr = sorted(p.find_all("est") + p.find_all("sont"), key=cy)
+    fr = [w for w in fr if w.text in ("est", "sont")]
+    r.append(check(len(fr) == 4, f"four French alternatives; got {fr}"))
+    if len(fr) == 4:
+        for i, (lo, hi) in enumerate(((0, 1), (2, 3))):
+            spread = abs(fr[lo].x0 - fr[hi].x0)
+            r.append(check(spread < TOL,
+                           f"({'ab'[i]}) est/sont share a left edge "
+                           f"(spread {spread:.2f}pt)"))
+        r.append(check(len(mark_on(fr[1])) == 1 and not mark_on(fr[0]),
+                       "(a) the star is on sont, not on est"))
+        r.append(check(len(mark_on(fr[2])) == 1 and not mark_on(fr[3]),
+                       "(b) the star is on est, not on sont"))
+
+    # the \\* regression, counted: three of the four stars in this document
+    # sit on an alternative that is not the first of its stack
+    r.append(check(len(p.find_all("*")) == 4,
+                   f"every judgment mark survived the row separator; "
+                   f"found {len(p.find_all('*'))} of 4"))
+    return r
+
+
 def a_glt(p: Page):
     r"""\GlossTransStyle reaches the free translation, and nothing else.
 
@@ -2267,6 +2377,7 @@ ASSERTIONS = {
     "phantomalign": a_phantomalign,
     "altg": a_altg,
     "altn": a_altn,
+    "altn-phantomalign": a_altn_phantomalign,
     "babel-de": a_babel_de,
     "babel-fr": a_babel_fr,
     "babel-fr-order": a_babel_fr_order,

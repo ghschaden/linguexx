@@ -1,0 +1,52 @@
+\input{_preamble}
+%% Hanging judgments inside an \altn stack (opt-in, with [phantomalign]).
+%%
+%% The motivating case, from a real document: two alternatives that differ
+%% ONLY in their judgment.  Left-aligned, the stack put "est" under the
+%% star and "sont" a star-width to its right, so the one pair of words the
+%% reader is asked to compare was the one pair not aligned.  With alignment
+%% on, the mark moves into a right-aligned gutter column of its own and the
+%% real glyphs line up; the mark stays INSIDE the braces, because it judges
+%% its own alternative and not the stack.
+%%
+%% Two things are pinned here and they fail independently.  The geometry is
+%% measured on the ASCII probes, whose stems carry the sentinel names; the
+%% French sentences are the original report, kept because they are what the
+%% construction is actually for.  And the STARS THEMSELVES are counted:
+%% before this, an alternative after the first lost its mark outright --
+%% the tabular row separator \\ read it as its own starred form \\* -- so
+%% "*sont" printed "sont", silently, with a clean compile.  That one is not
+%% about alignment at all and is pinned again, unaligned, in altn.tex.
+\GlossPhantomAlign
+\begin{document}
+
+% Probe: same stem either side of the judgment, so "aligned" is exactly
+% "the two x0 coordinates agree" and a merged mark would show up as a
+% shifted stem rather than as a missing word.
+\noindent PROBEL \lxAltn[l]{PSTEM}{*PSTEM} PROBER
+
+% Two marks of different widths: the gutter sizes itself to the widest and
+% every mark sits flush against the words, as \lx@hangjudge does at example
+% level -- so the stems still share one left edge and "??" reaches further
+% left than "*" does.
+\noindent WIDEL \lxAltn[l]{*WSTEM}{??WSTEM}{WSTEM} WIDER
+
+% No mark anywhere: the split layout must NOT engage, or a stack with
+% nothing to align would gain the gutter gap and shift right under an
+% option that is supposed to be about alignment only.  The same stack is
+% set again with alignment OFF, and the two are compared to each other --
+% measuring the gap from the sentinel's right edge to the first stem, which
+% is brace plus both separations and is what a stray gutter would widen.
+\noindent PLAINL \lxAltn[l]{NSTEM}{NSTEM} PLAINR
+
+{\GlossPhantomAlignOff
+\noindent OFFL \lxAltn[l]{OSTEM}{OSTEM} OFFR
+\par}
+
+% The original report.
+\ex. \a. La secrétaire de Jean et collaboratrice de Paul
+         \altn[l]{est}{*sont} à la gare.
+\b. La secrétaire de Jean et la collaboratrice de Paul
+    \altn[l]{*est}{sont} à la gare.
+\z.
+\end{document}

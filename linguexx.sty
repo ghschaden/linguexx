@@ -2484,8 +2484,11 @@
 %% no marked content, so tagging is unaffected.  Enable with the package
 %% option [phantomalign] or \GlossPhantomAlign; \GlossPhantomAlignOff turns
 %% it back off.  \GlossPhantomChars sets the leading characters that count
-%% (default: the judgment marks * ? # % and the openers ( [ < ).  \altg
-%% alternative columns are not covered.
+%% (default: the judgment marks * ? # % and the openers ( [ < ), and the
+%% same set is what an \altn stack peels into its hanging gutter (see
+%% \__lxp_alt_setstack:).  \altg alternative columns are still not covered:
+%% its stack is written once per tier and the tiers have to keep the same
+%% width, which a gutter on one tier alone would break.
 \bool_new:N \l__lx_gl_phantom_bool
 \iflx@phantomalign \bool_set_true:N \l__lx_gl_phantom_bool \fi
 \str_new:N \l__lx_gl_phantomchars_str
@@ -2864,13 +2867,110 @@
     \seq_put_right:Nn \l__lxp_alt_seq {#2}
     \__lxp_grab:NN \l__lxp_alt_seq \__lxp_alt_print:
   }
+%% Hanging judgments inside the stack (opt-in, with [phantomalign]).
+%%
+%% \altn{est}{*sont} left-aligned puts "est" under the star and "sont" one
+%% star-width to its right, so the two words the reader is asked to compare
+%% are the one pair of things NOT aligned.  This is the same defect
+%% [phantomalign] already fixes between gloss tiers -- align on the first
+%% real glyph, not on the leading mark -- and it is fixed here the same
+%% way and under the same switch, closing the gap that section's comment
+%% used to record ("\altg alternative columns are not covered"; \altg's
+%% still are not, see below).
+%%
+%% The mechanism is a second tabular column rather than an \llap: the mark
+%% has to stay INSIDE the braces (it judges its own alternative, not the
+%% stack), and a right-aligned gutter column sizes itself to the widest
+%% mark and sets every mark flush against the words, which is what
+%% \lx@hangjudge does at example level.  \JdgSep is the gap, the same
+%% length used there, so a judgment in a stack and a judgment on an example
+%% sit at the same distance from their text in both modes.
+%%
+%% The split layout is used only when some alternative actually carries a
+%% mark.  Without that test a stack of plain alternatives would still gain
+%% the \JdgSep gutter gap under [phantomalign] and shift right by it, which
+%% would make an opt-in about alignment change the look of stacks that have
+%% nothing to align.
+%%
+%% NOT extended to \altg.  Its stack is written once per tier and the tiers
+%% must keep the same width; a mark on the object tier alone would widen
+%% one box and not the other, and the tiers would part company.  That needs
+%% a cross-tier gutter width, which is a different piece of work.
+\seq_new:N  \l__lxp_alt_split_seq
+\tl_new:N   \l__lxp_alt_pre_tl
+\tl_new:N   \l__lxp_alt_rest_tl
+\str_new:N  \l__lxp_alt_head_str
+\bool_new:N \l__lxp_alt_anyjudge_bool
+\quark_new:N \q__lxp_alt_stop
+
+%% Peel the leading run of \GlossPhantomChars off one alternative:
+%% \l__lxp_alt_pre_tl gets the marks, \l__lxp_alt_rest_tl the remainder.
+%% The head is taken with an undelimited argument, so nothing is expanded
+%% and markup in the alternative (\sout, \textbf, \lpzg) is untouched; a
+%% head that stringifies to more than one character -- any control
+%% sequence, so \# and \% included, exactly as in the gloss scanner -- is
+%% not a mark and ends the peel.
+\cs_new_protected:Npn \__lxp_alt_peel:n #1
+  {
+    \tl_clear:N \l__lxp_alt_pre_tl
+    \tl_set:Nn \l__lxp_alt_rest_tl {#1}
+    \__lxp_alt_peel_loop:
+  }
+\cs_new_protected:Npn \__lxp_alt_peel_loop:
+  {
+    \tl_if_empty:NF \l__lxp_alt_rest_tl
+      {
+        \exp_after:wN \__lxp_alt_peel_test:w
+          \l__lxp_alt_rest_tl \q__lxp_alt_stop
+      }
+  }
+\cs_new_protected:Npn \__lxp_alt_peel_test:w #1#2 \q__lxp_alt_stop
+  {
+    \str_set:Ne \l__lxp_alt_head_str { \tl_to_str:n {#1} }
+    \int_compare:nNnT { \str_count:N \l__lxp_alt_head_str } = { 1 }
+      {
+        \str_if_in:NVT \l__lx_gl_phantomchars_str \l__lxp_alt_head_str
+          {
+            \tl_put_right:Nn \l__lxp_alt_pre_tl {#1}
+            \tl_set:Nn \l__lxp_alt_rest_tl {#2}
+            \__lxp_alt_peel_loop:
+          }
+      }
+  }
+%% Build the two-cell rows, and record whether any mark was found at all.
+\cs_new_protected:Npn \__lxp_alt_split:
+  {
+    \seq_clear:N \l__lxp_alt_split_seq
+    \bool_set_false:N \l__lxp_alt_anyjudge_bool
+    \seq_map_inline:Nn \l__lxp_alt_seq
+      {
+        \__lxp_alt_peel:n {##1}
+        \tl_if_empty:NF \l__lxp_alt_pre_tl
+          { \bool_set_true:N \l__lxp_alt_anyjudge_bool }
+        \seq_put_right:Ne \l__lxp_alt_split_seq
+          { \exp_not:V \l__lxp_alt_pre_tl & \exp_not:V \l__lxp_alt_rest_tl }
+      }
+  }
+%% the column spec the optional argument asks for
+\cs_new:Npn \__lxp_alt_colspec:
+  { \str_case:VnF \l__lxp_alt_align_tl { {l}{l} {r}{r} } {c} }
 %% the stacked alternatives, as a tabular; also records total height.  The
 %% optional argument picks the column spec; nothing else is needed inside
 %% the box, so the hook is empty.
 \cs_new_protected:Npn \__lxp_alt_setstack:
   {
-    \__lxp_setstack:NNnn \l__lxp_alt_box \l__lxp_alt_seq
-      { \str_case:VnF \l__lxp_alt_align_tl { {l}{l} {r}{r} } {c} } { }
+    \bool_if:NTF \l__lx_gl_phantom_bool
+      { \__lxp_alt_split: }
+      { \bool_set_false:N \l__lxp_alt_anyjudge_bool }
+    \bool_if:NTF \l__lxp_alt_anyjudge_bool
+      {
+        \__lxp_setstack:NNnn \l__lxp_alt_box \l__lxp_alt_split_seq
+          { r @{ \hskip \JdgSep } \__lxp_alt_colspec: } { }
+      }
+      {
+        \__lxp_setstack:NNnn \l__lxp_alt_box \l__lxp_alt_seq
+          { \__lxp_alt_colspec: } { }
+      }
     \dim_set:Nn \l__lxp_alt_dp_dim { \box_dp:N \l__lxp_alt_box }
     \dim_set:Nn \l__lxp_alt_ht_dim
       { \box_ht:N \l__lxp_alt_box + \l__lxp_alt_dp_dim }
