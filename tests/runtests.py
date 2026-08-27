@@ -891,10 +891,10 @@ def a_altn_phantomalign(p: Page):
     def offset(stem, sentinel):
         return sorted(p.find_all(stem), key=cy)[0].x0 - p.find(sentinel).x1
 
-    tuck = offset("TZSTEM", "TZEROL") - offset("TSSTEM", "TSIXL")
-    r.append(check(abs(tuck - 6.0) < TOL,
+    tuck = offset("TZSTEM", "TZEROL") - offset("TSSTEM", "TFIVEL")
+    r.append(check(abs(tuck - 5.0) < TOL,
                    f"a marked stack tucks by \\AltJdgTuck ({tuck:.2f}pt for "
-                   f"a 6pt tuck)"))
+                   f"a 5pt tuck)"))
     # the default is in force and is not 0pt: the probe stack, set at the
     # package default, sits nearer its sentinel than the 0pt stack does
     r.append(check(offset("PSTEM", "PROBEL") < offset("TZSTEM", "TZEROL") - TOL,
@@ -917,6 +917,15 @@ def a_altn_phantomalign(p: Page):
     r.append(check(len(p.find_all("*")) == 7,
                    f"every judgment mark survived the row separator; "
                    f"found {len(p.find_all('*'))} of 7"))
+
+    # the default tuck is below the warning threshold.  Asserted here, in
+    # the case that uses the default throughout, because a warning at the
+    # default would be a warning in every document that never touches the
+    # knob -- alttuck.tex pins the warning firing, this pins it not firing.
+    r.append(check("is deeper than the brace"
+                   not in re.sub(r"\n\(linguexx\)\s*", " ",
+                                 getattr(p, "log", "")),
+                   "the default \\AltJdgTuck does not warn"))
     return r
 
 
@@ -1008,6 +1017,47 @@ def a_altg_phantomalign(p: Page):
         r.append(check(splain.x0 - smarked[0].x0 > TOL,
                        f"a solo stack hangs its mark too "
                        f"({splain.x0 - smarked[0].x0:.2f}pt)"))
+    return r
+
+
+def a_alttuck(p: Page):
+    r"""\AltJdgTuck reports a tuck deeper than the brace, once, and obeys it.
+
+    The knob is deliberately unclamped -- it is a tunable like
+    \AltBraceRaise, and one that silently ignores its value would be worse
+    than one that does as it is told.  What is not acceptable is that too
+    deep a value fails SILENTLY, so the package warns.  Three things have
+    to hold at once: the default says nothing, an unmarked stack says
+    nothing however absurd the length, and a deep one is reported exactly
+    once no matter how many stacks are affected.
+    """
+    r = []
+    # TeX wraps a package warning at the line width and indents the
+    # continuations under "(linguexx)", so any phrase long enough to be
+    # worth matching is split across lines in the file.  Flatten first.
+    log = re.sub(r"\n\(linguexx\)\s*", " ", getattr(p, "log", ""))
+    fired = log.count("is deeper than the brace it tucks into")
+
+    r.append(check(fired == 1,
+                   f"a deep tuck is reported exactly once; found {fired}"))
+    # it names the offending value, so the log says which stack to look at
+    r.append(check("18.0pt" in log,
+                   "the warning names the value that triggered it"))
+    # ... and names the threshold it was measured against
+    r.append(check("AltBraceWidth" in log and "AltBraceSep" in log,
+                   "the warning names the lengths that set the threshold"))
+    # the SECOND deep stack does not report again
+    r.append(check("22.0pt" not in log,
+                   "the warning does not repeat for a later stack"))
+    # the value is used, not corrected: the deep stack really is pulled in,
+    # so its stem sits nearer its sentinel than the default stack's does
+    def offset(stem, sentinel):
+        return p.find(stem).x0 - p.find(sentinel).x1
+
+    r.append(check(offset("DSTEM", "DEEPL") < offset("*QSTEM", "QUIETL") - TOL,
+                   f"the value is obeyed, not clamped "
+                   f"({offset('DSTEM', 'DEEPL'):.2f} vs "
+                   f"{offset('*QSTEM', 'QUIETL'):.2f}pt from the sentinel)"))
     return r
 
 
@@ -2516,6 +2566,7 @@ ASSERTIONS = {
     "altn": a_altn,
     "altn-phantomalign": a_altn_phantomalign,
     "altg-phantomalign": a_altg_phantomalign,
+    "alttuck": a_alttuck,
     "babel-de": a_babel_de,
     "babel-fr": a_babel_fr,
     "babel-fr-order": a_babel_fr_order,

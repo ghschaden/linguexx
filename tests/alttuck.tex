@@ -1,0 +1,32 @@
+\input{_preamble}
+%% \AltJdgTuck is not clamped, and a tuck too deep is a SILENT fault: TeX
+%% has no opinion about overlapping ink, so the mark simply prints on top
+%% of the brace with no error and nothing in the log.  The package checks
+%% the value and reports rather than correcting it -- a tunable that
+%% quietly ignores what it is set to would be worse than one that obeys.
+%%
+%% Asserted on the .log, since the warning is the whole point; the geometry
+%% of a well-behaved tuck is pinned in altn-phantomalign.tex instead.
+\GlossPhantomAlign
+\begin{document}
+
+% The default must be silent.  It sits below the threshold and is the
+% value every document that never touches the knob will use, so a warning
+% here would be a warning for everybody.
+\noindent QUIETL \lxAltn[l]{QSTEM}{*QSTEM} QUIETR
+
+% A stack with no mark does not tuck at all, so however absurd the length
+% is it cannot collide -- and must not be reported.
+{\renewcommand\AltJdgTuck{40pt}
+\noindent NOMARKL \lxAltn[l]{NSTEM}{NSTEM} NOMARKR\par}
+
+% Past \AltBraceWidth + \AltBraceSep the stack is pulled beyond the brace's
+% own box.  This one is reported.
+{\renewcommand\AltJdgTuck{18pt}
+\noindent DEEPL \lxAltn[l]{DSTEM}{*DSTEM} DEEPR\par}
+
+% ... and reported ONCE, not once per stack: an inline construction in a
+% long paper would otherwise fill the log with copies of itself.
+{\renewcommand\AltJdgTuck{22pt}
+\noindent AGAINL \lxAltn[l]{ASTEM}{*ASTEM} AGAINR\par}
+\end{document}

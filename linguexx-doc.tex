@@ -1241,7 +1241,16 @@ which is what an unmarked stack has anyway, so adding a judgment stops
 displacing the words. Only the opening gap changes, so the closing brace
 rides along with the stack and the distance from the preceding word is
 untouched; and only a stack that actually carries a mark tucks. Set
-\cs{AltJdgTuck} to \texttt{0pt} for the untucked layout. A stack in which no alternative
+\cs{AltJdgTuck} to \texttt{0pt} for the untucked layout.
+
+Like the other brace lengths, it is not clamped: a large enough value
+pulls the stack straight through the brace, and \TeX{} has no opinion
+about overlapping ink, so nothing would otherwise say so. Past
+\cs{AltBraceWidth}${}+{}$\cs{AltBraceSep} the package therefore writes one
+warning to the log, naming the value and the threshold, and \emph{uses the
+value anyway} --- a setting that silently did something other than what it
+was set to would be worse than one that obeys. The warning is reported
+once per document, and only for a stack that actually carries a mark. A stack in which no alternative
 carries a mark is set exactly as it would be with the option off, so
 turning the option on never moves a stack that has nothing to align.
 

@@ -3051,10 +3051,57 @@
 %% 10/12/14/17/20pt is 2.40/2.52/2.88/3.72/4.20pt, i.e. it widens as the
 %% font grows, because the fixed amplitude pushes the brace's ink further
 %% left in relative terms while the mark grows with the text.
+%% Nothing here is clamped, on purpose: \AltJdgTuck is a tunable like
+%% \AltBraceRaise or \AltBraceWidth, and a knob that silently ignores what
+%% it is set to is worse than one that does as it is told.  But a tuck too
+%% deep is a SILENT fault -- TeX has no opinion about overlapping ink, so
+%% the mark simply prints on top of the brace, with no error and no
+%% warning, and only looking at the page finds it.  So the value is
+%% checked and reported instead of corrected.
+%%
+%% The threshold is the brace's own box: past \AltBraceWidth + \AltBraceSep
+%% the stack has been pulled beyond the far edge of the box the brace is
+%% drawn in, which is where the ink stops being reliably clear of it.  It
+%% is deliberately a little early -- at 10pt the mark still has about
+%% 1.5pt of air there, and does not actually touch until roughly 6.8pt of
+%% tuck -- because the true limit depends on the mark, the font size and
+%% \AltBraceAmplitude together, and a warning that fires slightly early is
+%% worth more than a threshold that pretends to a precision it has not
+%% got.  Reported once per document: a stack is an inline construction and
+%% a long paper could otherwise carry hundreds of copies of it.
+\bool_new:N \g__lxp_alt_tuckwarned_bool
+%% The guidance is in the MESSAGE, not in the more-text: l3msg shows the
+%% fourth argument of \msg_new:nnnn only for errors, where the user can ask
+%% for it, so anything put there for a warning is written and never read.
+\msg_new:nnnn { linguexx } { tuck-too-deep }
+  {
+    \iow_char:N \\AltJdgTuck~(#1)~is~deeper~than~the~brace~it~tucks~
+    into~(\iow_char:N \\AltBraceWidth~+~\iow_char:N \\AltBraceSep~=~#2),~
+    so~a~judgment~mark~may~print~on~top~of~the~opening~brace.~Nothing~has~
+    been~clamped~--~the~value~set~has~been~used.~Look~at~the~page,~and~
+    reduce~it~if~the~two~overlap;~
+    \iow_char:N \\renewcommand\iow_char:N \\AltJdgTuck{0pt}~restores~the~
+    untucked~layout.~Reported~once~per~document.
+  }
+  { This~is~a~layout~warning~only;~nothing~is~wrong~with~the~document. }
+\cs_new_protected:Npn \__lxp_alt_tuckcheck:
+  {
+    \dim_compare:nNnT { \AltJdgTuck } > { \AltBraceWidth + \AltBraceSep }
+      {
+        \bool_if:NF \g__lxp_alt_tuckwarned_bool
+          {
+            \bool_gset_true:N \g__lxp_alt_tuckwarned_bool
+            \msg_warning:nnee { linguexx } { tuck-too-deep }
+              { \dim_eval:n { \AltJdgTuck } }
+              { \dim_eval:n { \AltBraceWidth + \AltBraceSep } }
+          }
+      }
+  }
 \cs_new_protected:Npn \__lxp_alt_opensep:
   {
     \bool_if:NTF \l__lxp_alt_anyjudge_bool
-      { \hspace { \dim_eval:n { \AltBraceSep - \AltJdgTuck } } }
+      { \__lxp_alt_tuckcheck:
+        \hspace { \dim_eval:n { \AltBraceSep - \AltJdgTuck } } }
       { \hspace { \AltBraceSep } }
   }
 %% the printed object (brace + stack + brace), no tagging.  The outer

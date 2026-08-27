@@ -75,7 +75,12 @@ version string.
   stack has, so adding a judgment no longer displaces the words. Only the
   opening gap moves, so the closing brace rides along and the distance to
   the preceding word is unchanged; and only a stack that carries a mark
-  tucks. `0pt` restores the untucked layout. The marks recognised are `\GlossPhantomChars`, and a
+  tucks. `0pt` restores the untucked layout. Not clamped, like the other
+  brace lengths -- but a tuck deeper than `\AltBraceWidth + \AltBraceSep`
+  pulls the stack through the brace, and overlapping ink is silent in TeX,
+  so the package writes one warning naming the value and the threshold and
+  then uses the value anyway. Reported once per document, and only for a
+  stack that carries a mark. Covered by `tests/alttuck.tex`. The marks recognised are `\GlossPhantomChars`, and a
   stack in which no alternative carries one is set exactly as before, so the
   option never moves a stack that has nothing to align. Documented in the
   manual's §7.1 and §5.7, covered by `tests/altn-phantomalign.tex`.

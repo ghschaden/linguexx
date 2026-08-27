@@ -59,12 +59,14 @@
 {\renewcommand\AltJdgTuck{0pt}
 \noindent TZEROL \lxAltn[l]{TZSTEM}{*TZSTEM} TZEROR\par}
 
-{\renewcommand\AltJdgTuck{6pt}
-\noindent TSIXL \lxAltn[l]{TSSTEM}{*TSSTEM} TSIXR\par}
+% 5pt, not 6: past \AltBraceWidth + \AltBraceSep (5.91pt at this size)
+% the package warns, and this case asserts elsewhere that it does not.
+{\renewcommand\AltJdgTuck{5pt}
+\noindent TFIVEL \lxAltn[l]{TSSTEM}{*TSSTEM} TFIVER\par}
 
 % ... and an UNMARKED stack must not tuck at all, whatever the length says:
 % the tuck exists to undo the gutter, and there is no gutter here.
-{\renewcommand\AltJdgTuck{6pt}
+{\renewcommand\AltJdgTuck{5pt}
 \noindent UZEROL \lxAltn[l]{UZSTEM}{UZSTEM} UZEROR\par}
 
 % The original report.
