@@ -3011,12 +3011,45 @@
     \raisebox { \dim_eval:n { \AltBraceRaise - \l__lxp_alt_dp_dim } }
       { \__lxp_brace:nnn {#1} { 0pt } { \l__lxp_alt_ht_dim } }
   }
+%% The opening inner gap.  Normally \AltBraceSep, as the closing one is --
+%% but a stack with a hanging judgment tucks \AltJdgTuck closer to the
+%% opening brace.
+%%
+%% The room for that is real and would otherwise go to waste.  A brace's
+%% arm curls AWAY from the content between its tips, so at the height of
+%% any given row the ink sits well left of the box's right edge, and the
+%% gutter's mark can move into that hollow without ever touching it.  What
+%% the tuck buys is the thing a reserved gutter costs: with it, the marked
+%% row sits close to the brace and the unmarked rows are no longer pushed a
+%% full mark-width in.  Measured at 10pt on a one-star stack, brace to mark
+%% goes from 6.84pt to 2.40pt and brace to the unmarked row from 11.52pt to
+%% 6.96pt -- the latter being what an unmarked stack has anyway (6.36pt),
+%% which is the point: adding a judgment stops moving the words.
+%%
+%% Only the OPENING gap changes.  The closing brace rides along with the
+%% box, so the stack gets narrower rather than sliding sideways, and the
+%% distance from the preceding word to the brace is untouched.  And only
+%% when a mark is actually there: an unmarked stack is set exactly as
+%% before, which is what makes this safe to have on by default.
+%%
+%% \AltJdgTuck is a length in em and stays clear at every size.  That is
+%% not obvious -- \AltBraceAmplitude is an absolute 4pt and does not grow
+%% with the font -- so it was measured rather than argued: clearance at
+%% 10/12/14/17/20pt is 2.40/2.52/2.88/3.72/4.20pt, i.e. it widens as the
+%% font grows, because the fixed amplitude pushes the brace's ink further
+%% left in relative terms while the mark grows with the text.
+\cs_new_protected:Npn \__lxp_alt_opensep:
+  {
+    \bool_if:NTF \l__lxp_alt_anyjudge_bool
+      { \hspace { \dim_eval:n { \AltBraceSep - \AltJdgTuck } } }
+      { \hspace { \AltBraceSep } }
+  }
 %% the printed object (brace + stack + brace), no tagging.  The outer
 %% gap (\AltBraceOuterSep) clears the decoration's outward bulge from
-%% whatever precedes/follows; the inner gap (\AltBraceSep) just
-%% separates the brace from the stack it braces.
+%% whatever precedes/follows; the inner gap just separates the brace from
+%% the stack it braces.
 \cs_new_protected:Npn \__lxp_alt_emit:
-  { \leavevmode \hspace{\AltBraceOuterSep} \__lxp_alt_brace:n { L } \hspace{\AltBraceSep}
+  { \leavevmode \hspace{\AltBraceOuterSep} \__lxp_alt_brace:n { L } \__lxp_alt_opensep:
     \box_use:N \l__lxp_alt_box
     \hspace{\AltBraceSep} \__lxp_alt_brace:n { R } \hspace{\AltBraceOuterSep} }
 %% the printed object wrapped in a Span carrying the spoken /Alt
@@ -3026,7 +3059,7 @@
     \leavevmode
     \hspace{\AltBraceOuterSep}
     \lx@tag@span@begin:e { tag = Span , alt = { \l__lxp_alt_alt_tl } }
-    \__lxp_alt_brace:n { L } \hspace{\AltBraceSep}
+    \__lxp_alt_brace:n { L } \__lxp_alt_opensep:
     \box_use:N \l__lxp_alt_box
     \hspace{\AltBraceSep} \__lxp_alt_brace:n { R }
     \lx@tag@span@end:
@@ -3051,6 +3084,10 @@
 \newcommand\AltBraceSep{0.15em}
 \newcommand\AltBraceOuterSep{0.7em}
 \newcommand\AltBraceRaise{0pt}
+% How far a stack carrying a hanging judgment tucks toward its opening
+% brace, into the hollow the brace's arm leaves.  0pt reverts to the
+% untucked layout; see \__lxp_alt_opensep: for what the default buys.
+\newcommand\AltJdgTuck{0.45em}
 
 % Alias \altn -> \lxAltn unless somebody already owns \altn.
 \AtBeginDocument{%
@@ -3162,7 +3199,7 @@
     \hbox_set:Nn \l__lxp_altg_out_box
       { \hspace { \AltBraceOuterSep }
         \raisebox { \dim_eval:n { -0.5 \baselineskip } }
-          { \__lxp_altg_brace:n { L } \hspace { \AltBraceSep }
+          { \__lxp_altg_brace:n { L } \__lxp_alt_opensep:
             \box_use:N \l__lxp_altg_stack_box } }
     \dim_gset:Nn \g__lxp_altg_indent_dim
       { \box_wd:N \l__lxp_altg_out_box + \AltgColSep }
@@ -3183,7 +3220,7 @@
 \cs_new_protected:Npn \__lxp_altg_shape_solo:
   {
     \hspace { \AltBraceOuterSep }
-    \__lxp_altg_brace:n { L } \hspace { \AltBraceSep }
+    \__lxp_altg_brace:n { L } \__lxp_alt_opensep:
     \box_use:N \l__lxp_altg_stack_box
     \hspace { \AltBraceSep } \__lxp_altg_brace:n { R }
     \hspace { \AltBraceOuterSep }

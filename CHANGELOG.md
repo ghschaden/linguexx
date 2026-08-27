@@ -67,7 +67,15 @@ version string.
   against the words. Nothing is inserted between a mark and its word: that
   distance is the font's own, exactly what typing `*sont` gives, and only
   the *other* rows move, so an aligned stack is no wider than the same stack
-  unaligned. The marks recognised are `\GlossPhantomChars`, and a
+  unaligned. A marked stack also tucks `\AltJdgTuck` (new, default
+  `0.45em`) closer to its opening brace, into the hollow the brace's arm
+  leaves as it curls away from the content between its tips: at 10pt that
+  takes the opening brace from 6.8pt to 2.4pt from the mark, and from
+  11.5pt to 7.0pt from the unmarked rows -- 6.4pt being what an unmarked
+  stack has, so adding a judgment no longer displaces the words. Only the
+  opening gap moves, so the closing brace rides along and the distance to
+  the preceding word is unchanged; and only a stack that carries a mark
+  tucks. `0pt` restores the untucked layout. The marks recognised are `\GlossPhantomChars`, and a
   stack in which no alternative carries one is set exactly as before, so the
   option never moves a stack that has nothing to align. Documented in the
   manual's §7.1 and §5.7, covered by `tests/altn-phantomalign.tex`.

@@ -883,15 +883,40 @@ def a_altn_phantomalign(p: Page):
                            f"({'ab'[i]}) the star hangs left of the column "
                            f"({plain.x0 - marked.x0:.2f}pt)"))
 
+    # \AltJdgTuck: the marked stack moves toward its opening brace by the
+    # length given, and only when a mark is there.  Measured as a
+    # DIFFERENCE between two stacks set at 0pt and 6pt, so the assertion
+    # survives a change of default and still pins the sign: tucking must
+    # move the stack left, not right.
+    def offset(stem, sentinel):
+        return sorted(p.find_all(stem), key=cy)[0].x0 - p.find(sentinel).x1
+
+    tuck = offset("TZSTEM", "TZEROL") - offset("TSSTEM", "TSIXL")
+    r.append(check(abs(tuck - 6.0) < TOL,
+                   f"a marked stack tucks by \\AltJdgTuck ({tuck:.2f}pt for "
+                   f"a 6pt tuck)"))
+    # the default is in force and is not 0pt: the probe stack, set at the
+    # package default, sits nearer its sentinel than the 0pt stack does
+    r.append(check(offset("PSTEM", "PROBEL") < offset("TZSTEM", "TZEROL") - TOL,
+                   f"the default tuck is applied "
+                   f"({offset('PSTEM', 'PROBEL'):.2f} vs "
+                   f"{offset('TZSTEM', 'TZEROL'):.2f}pt from the sentinel)"))
+    # an unmarked stack ignores the tuck entirely -- 6pt set, nothing moved
+    r.append(check(abs(offset("UZSTEM", "UZEROL")
+                       - offset("NSTEM", "PLAINL")) < TOL,
+                   f"an unmarked stack does not tuck "
+                   f"({offset('UZSTEM', 'UZEROL'):.2f} vs "
+                   f"{offset('NSTEM', 'PLAINL'):.2f}pt)"))
+
     # the \\* regression, counted: three of the four stars in this document
     # sit on an alternative that is not the first of its stack
-    # five words carry a mark: three in stacks (two of them not the first
+    # seven words carry a mark: six in stacks (four of them not the first
     # alternative of theirs, which is where the separator ate them) and the
     # typed yardstick.  Counted rather than located, because that failure
     # removes a mark instead of moving one.
-    r.append(check(len(p.find_all("*")) == 5,
+    r.append(check(len(p.find_all("*")) == 7,
                    f"every judgment mark survived the row separator; "
-                   f"found {len(p.find_all('*'))} of 5"))
+                   f"found {len(p.find_all('*'))} of 7"))
     return r
 
 

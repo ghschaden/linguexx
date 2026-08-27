@@ -51,6 +51,22 @@
 \noindent OFFL \lxAltn[l]{OSTEM}{OSTEM} OFFR
 \par}
 
+% \AltJdgTuck: a marked stack tucks toward its opening brace, into the
+% hollow the brace's arm leaves.  Pinned by setting it to two known values
+% and measuring the difference, so the assertion tests the mechanism and
+% its sign rather than a number that moves with the default.  The stems are
+% measured from their own sentinel, so the two stacks need not be adjacent.
+{\renewcommand\AltJdgTuck{0pt}
+\noindent TZEROL \lxAltn[l]{TZSTEM}{*TZSTEM} TZEROR\par}
+
+{\renewcommand\AltJdgTuck{6pt}
+\noindent TSIXL \lxAltn[l]{TSSTEM}{*TSSTEM} TSIXR\par}
+
+% ... and an UNMARKED stack must not tuck at all, whatever the length says:
+% the tuck exists to undo the gutter, and there is no gutter here.
+{\renewcommand\AltJdgTuck{6pt}
+\noindent UZEROL \lxAltn[l]{UZSTEM}{UZSTEM} UZEROR\par}
+
 % The original report.
 \ex. \a. La secrétaire de Jean et collaboratrice de Paul
          \altn[l]{est}{*sont} à la gare.

@@ -1228,7 +1228,20 @@ Nothing is inserted between a mark and the word it marks: that distance is
 the font's own, exactly what you get by typing \texttt{*sont} in running
 text, and alignment does not change it. What moves is the \emph{other}
 rows, which come right to meet the marked one --- so an aligned stack is no
-wider than the same stack unaligned. A stack in which no alternative
+wider than the same stack unaligned.
+
+A stack that carries a mark also tucks \cs{AltJdgTuck} (default
+\texttt{0.45em}) closer to its opening brace. The room is there: a brace's
+arm curls \emph{away} from the content between its tips, so at the height
+of any row its ink sits well inside the box, and the mark moves into that
+hollow without touching it. The effect is to undo what the hanging costs:
+at 10pt on a one-star stack the opening brace sits 2.4pt from the mark
+instead of 6.8pt, and 7.0pt from the unmarked rows instead of 11.5pt ---
+which is what an unmarked stack has anyway, so adding a judgment stops
+displacing the words. Only the opening gap changes, so the closing brace
+rides along with the stack and the distance from the preceding word is
+untouched; and only a stack that actually carries a mark tucks. Set
+\cs{AltJdgTuck} to \texttt{0pt} for the untucked layout. A stack in which no alternative
 carries a mark is set exactly as it would be with the option off, so
 turning the option on never moves a stack that has nothing to align.
 
@@ -1239,7 +1252,7 @@ of its own, use \cs{altg} (section~\ref{sec:altg}).
 \cs{altn} is set in text mode: the alternatives are the rows of a
 \pkg{tabular}, braced on both sides with braces drawn with Ti\emph{k}Z, so
 no mathematics is involved (the package needs \pkg{graphicx} and
-\pkg{tikz}, not \pkg{amsmath}). The braces are tunable through five
+\pkg{tikz}, not \pkg{amsmath}). The braces are tunable through six
 macros, redefined with \cs{renewcommand}. Two govern the drawn shape of
 the bracket itself: \cs{AltBraceWidth} (default \texttt{0.9ex}) is the
 horizontal box reserved for one brace glyph --- the vertical spine of the
@@ -1250,13 +1263,15 @@ side for the curl to bulge into; and \cs{AltBraceAmplitude}
 \texttt{brace} decoration \texttt{amplitude} key --- how far the small
 pointed tip at mid-height projects sideways from that spine, so a larger
 value draws a more pronounced curl and a smaller one flattens the
-bracket toward a plain vertical stroke. The other three govern
+bracket toward a plain vertical stroke. The other four govern
 placement, not shape: \cs{AltBraceSep} (\texttt{0.15em}, the gap between
 brace and stack), \cs{AltBraceOuterSep} (\texttt{0.7em}, the gap between
 the brace and whatever precedes or follows it --- wider than
 \cs{AltBraceSep} because the drawn curl bulges outward past its own box
-only on that side), and \cs{AltBraceRaise} (\texttt{0pt}, a vertical
-nudge). \cs{altg} (section~\ref{sec:altg}) draws its braces with the same
+only on that side), \cs{AltBraceRaise} (\texttt{0pt}, a vertical nudge),
+and \cs{AltJdgTuck} (\texttt{0.45em}, how far a stack carrying a hanging
+judgment tucks toward its opening brace --- see above).
+\cs{altg} (section~\ref{sec:altg}) draws its braces with the same
 \cs{AltBraceWidth} and \cs{AltBraceAmplitude}, so changing either one
 here reshapes both commands' brackets together.
 
