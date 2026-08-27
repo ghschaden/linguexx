@@ -139,3 +139,113 @@ addition, a decided answer for a `\ref` to a non-example label.
 them in `tests/refs.tex` under both modes — the `[legacy]` value of
 `\firstrefdash` is the half a test would otherwise miss. Do not redefine
 `\ref` to get there.
+
+---
+
+## What a nested `\altn` should sound like, and where it belongs in the tree
+
+*Found on 2026-08-27, while checking whether the judgment-gutter work had
+made nested stacks unsafe. It had not — but the check turned this up.*
+
+**Current behaviour.** A stack inside a stack —
+
+```latex
+\altn[l]{aa}{*bb \altn[l]{xx}{*yy} cc}
+```
+
+— prints correctly. Both stacks are drawn, both braced, the inner one set
+inside the outer's second row, and nothing about the printed page is
+wrong. What is wrong is the outer stack's *spoken* form. Under active
+tagging each stack is wrapped in a `Span` carrying an `/Alt` string built
+by `\__lxp_buildalt:NN` (`linguexx.sty:2746`), which runs `\text_purify:n`
+over each alternative so that formatting is stripped for speech. A nested
+`\altn` purifies to its own source text, brackets and all:
+
+```
+outer /Alt:  "aa or *bb [l]xx*yy cc"      <- wrong
+inner /Alt:  "xx or *yy"                  <- right
+```
+
+So a screen reader announces the optional argument (`[l]`) as if it were
+part of the example, and runs the inner alternatives together with no
+"or" between them.
+
+The structure tree makes it worse, and not in the way one would guess.
+The two `Span`s are **siblings, not parent and child** — the inner stack
+is built while the outer's box is being filled, so its marked content is
+closed before the outer `Span` is ever opened (the outer's is opened at
+emit time, around `\box_use:N`). `pdfinfo -struct-text` on the example
+above gives, in reading order:
+
+```
+P
+  "OUT"
+  Span ["xx or *yy"]        <- the INNER stack, announced first
+    "xx*yy"
+  "cc"                      <- inside the outer's second row, but in
+  Span ["aa or *bb [l]xx*yy cc"]   neither Span
+    "aa*bb"
+  "END."
+```
+
+Three things are wrong there and only the first is about wording. The
+reading order is inverted: the inner stack is announced before the outer
+one that visually contains it. `cc`, which belongs to the outer's second
+alternative, is emitted between the two `Span`s and so sits inside
+neither. And because the `Span`s are siblings rather than nested, both
+`/Alt` strings are spoken, so the inner alternatives are announced twice
+— once on their own, correctly, and once mangled inside the parent's
+string.
+
+**Why this survives every check.** veraPDF passes it — `ua2`, `wt1a` and
+`wt1r` all PASS on a document containing the example above. An `/Alt`
+string that is present and well-formed satisfies the specification no
+matter what it says, and two sibling `Span`s in an unhelpful order are
+perfectly valid: nothing in PDF/UA requires reading order to match what
+the eye sees. The suite misses it from the other side — every assertion
+in `tests/` about a stack measures where the ink landed, and the ink is
+right. Nothing currently reads an `/Alt` string or walks the tree of a
+nested stack at all. This is the case the notes in `CLAUDE.md` describe,
+where the validator and the structure checks are complementary and here
+neither is enough, because the defect is in what the tree *says* rather
+than in whether it is well formed.
+
+**Why nothing was patched.** The mechanism is not the hard part —
+`\__lxp_buildalt:NN` could recognise a nested call and recurse. The
+question is what the result should say, and there are at least three
+defensible answers with no evidence to choose between them:
+
+1. **Flatten** into the parent's list: "aa, or bb xx or yy cc". Reads as
+   one list, but silently claims a structure the author did not write, and
+   the nesting — which is the whole point of writing it that way — is lost
+   to a listener.
+2. **Omit** the nested stack from the parent's string and let the inner
+   `Span` speak for itself. Correct in that nothing is said twice, but the
+   parent's alternative then has a hole in the middle of it.
+3. **Announce the nesting**: "aa, or bb, one of xx or yy, cc". Truthful,
+   and the only one that conveys what is on the page, but it invents
+   wording the package would then have to own in every language a document
+   might be in — and `/Alt` has no language machinery behind it here.
+
+There is also a prior question: whether nested stacks should be supported
+at all. `\altg` already documents that alternatives cannot spread over
+three tiers, and a stack inside a stack is a rare enough construction that
+"say it in two examples instead" may be the better advice.
+
+**What would decide it.** A document that nests stacks *and* is meant to
+be read aloud — the two together, since either alone is served by what is
+there now. Failing that, a screen-reader convention for nested inline
+alternatives that the package could follow rather than invent.
+
+**If it is ever patched:** the `/Alt` wording is `\__lxp_buildalt:NN`
+alone, but the reading order is not — that one is about when the outer
+`Span` is opened relative to the box it wraps, which is the same
+open-at-the-wrong-moment hazard the tagging notes describe, and it cannot
+be fixed by changing a string. Decide the wording question first; the
+ordering question may well answer itself by making the inner stack a
+child, at which point only one `/Alt` is spoken and the flatten-or-omit
+choice above changes shape. It needs a test that reads the `/Alt` strings
+out of the PDF rather than asserting on geometry — `tests/` has no such assertion yet, and the one
+written to find this uses `qpdf --qdf --object-streams=disable` to get at
+them, since they are inside compressed object streams. Note also that the
+inner `Span` is not the thing to change: it is already correct.
