@@ -21,9 +21,17 @@
 \begin{document}
 
 % Probe: same stem either side of the judgment, so "aligned" is exactly
-% "the two x0 coordinates agree" and a merged mark would show up as a
-% shifted stem rather than as a missing word.
+% "the two right edges agree" -- the left edge cannot tell the layouts
+% apart, since a mark left inside its alternative starts at the column
+% origin too.
 \noindent PROBEL \lxAltn[l]{PSTEM}{*PSTEM} PROBER
+
+% The yardstick for "no looser than typed".  The gutter butts the mark
+% straight onto its word and adds no separation of its own, so the advance
+% a hung mark occupies must equal the advance the same mark occupies in
+% running text.  Both spellings of one stem are set here, so that advance
+% can be had by subtraction without knowing anything about the font.
+\noindent INLINE *QSTEM QSTEM ENDINLINE
 
 % Two marks of different widths: the gutter sizes itself to the widest and
 % every mark sits flush against the words, as \lx@hangjudge does at example

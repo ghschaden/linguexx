@@ -62,10 +62,12 @@ version string.
   star and `sont` a star-width to its right, so the one pair of words being
   contrasted was the one pair not aligned. The mark now goes in a
   right-aligned gutter column of its own -- inside the braces, since it
-  judges its own alternative and not the stack -- separated by `\JdgSep`, the
-  same length a judgment on a whole example uses. Where rows carry marks of
-  different widths the gutter takes the widest and every mark sits flush
-  against the words. The marks recognised are `\GlossPhantomChars`, and a
+  judges its own alternative and not the stack. Where rows carry marks of
+  different widths the gutter takes the widest, so every mark sits flush
+  against the words. Nothing is inserted between a mark and its word: that
+  distance is the font's own, exactly what typing `*sont` gives, and only
+  the *other* rows move, so an aligned stack is no wider than the same stack
+  unaligned. The marks recognised are `\GlossPhantomChars`, and a
   stack in which no alternative carries one is set exactly as before, so the
   option never moves a stack that has nothing to align. Documented in the
   manual's §7.1 and §5.7, covered by `tests/altn-phantomalign.tex`.

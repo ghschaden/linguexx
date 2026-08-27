@@ -1221,11 +1221,16 @@ the words line up:
 \noindent The mark stays \emph{inside} the braces, because it judges its own
 alternative and not the stack. The marks that count are those of
 \cs{GlossPhantomChars}, and where several rows carry marks of different
-widths the column takes the widest and every mark sits flush against the
-words --- the same rule a judgment on a whole example follows. A stack in
-which no alternative carries a mark is set exactly as it would be with the
-option off, so turning the option on never moves a stack that has nothing
-to align.
+widths the column takes the widest, so every mark sits flush against the
+words.
+
+Nothing is inserted between a mark and the word it marks: that distance is
+the font's own, exactly what you get by typing \texttt{*sont} in running
+text, and alignment does not change it. What moves is the \emph{other}
+rows, which come right to meet the marked one --- so an aligned stack is no
+wider than the same stack unaligned. A stack in which no alternative
+carries a mark is set exactly as it would be with the option off, so
+turning the option on never moves a stack that has nothing to align.
 
 For a light word-level alternation inside a glossed line a slash
 (\texttt{gehe/laufe}) is often enough; when each alternative needs a gloss

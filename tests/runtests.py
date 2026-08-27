@@ -803,38 +803,54 @@ def a_altn_phantomalign(p: Page):
         return check(spread < TOL,
                      f"{tok} stems line up (right-edge spread {spread:.2f}pt)")
 
-    def mark_on(word):
-        """The mark word sitting on `word`'s row, left of it."""
-        return [w for w in p.line_of(word)
-                if w.x1 <= word.x0 + TOL and w.text in ("*", "??")]
+    def hangs(marked, plain, tok):
+        """`marked` carries a mark, `plain` does not, and the stems agree.
+
+        The mark is butted straight onto its word -- the gutter adds no
+        separation, so the distance is the font's own and pdftotext reports
+        "*PSTEM" as ONE word.  So the mark is not located, it is measured:
+        the stems line up (right edges agree, the stems being identical)
+        and the marked word starts further left by exactly the mark it
+        carries.  Both halves are needed.  Right edges alone would pass a
+        stack with no gutter at all if the stems happened to be equal, and
+        the left-edge difference alone would pass a stack that hung the
+        mark but lost the alignment.
+        """
+        out = [check(abs(marked.x1 - plain.x1) < TOL,
+                     f"{tok}: the stems line up "
+                     f"({marked.x1:.2f} vs {plain.x1:.2f})"),
+               check(plain.x0 - marked.x0 > TOL,
+                     f"{tok}: the mark hangs outside the column "
+                     f"({plain.x0 - marked.x0:.2f}pt)")]
+        return out
 
     # the probe: one marked alternative, one bare, same stem
     probe = stems("PSTEM", 2)
     r.append(aligned(probe, "PSTEM"))
-    marks = mark_on(probe[1])
-    r.append(check(len(marks) == 1, f"the marked row carries its star; got {marks}"))
-    if marks:
-        gap = probe[1].x0 - marks[0].x1
-        r.append(check(0 < gap < 3.0,
-                       f"the star hangs clear of the stem by \\JdgSep "
-                       f"({gap:.2f}pt)"))
+    r += hangs(probe[1], probe[0], "PSTEM")
+    # A hung mark takes exactly the room a typed one takes.  The gutter adds
+    # no separation of its own -- the distance between a mark and its word
+    # is the font's, and aligning the OTHER rows to it must not change it.
+    # Had the first version's \JdgSep survived, this is the assertion that
+    # would have caught it: the hung advance would exceed the typed one by
+    # that length.  Measured as a difference of widths, so nothing here
+    # needs to know what an asterisk is worth.
+    typed = p.find("*QSTEM").x1 - p.find("*QSTEM").x0 \
+        - (p.find("QSTEM").x1 - p.find("QSTEM").x0)
+    hung = probe[0].x0 - probe[1].x0
+    r.append(check(abs(typed - hung) < TOL,
+                   f"a hung mark takes the room a typed one takes "
+                   f"({hung:.2f}pt hung, {typed:.2f}pt typed)"))
 
-    # two marks of different widths: the gutter takes the widest, and both
-    # marks are flush against the stems rather than left-aligned with each
-    # other -- which is what \lx@hangjudge does at example level
+    # two marks of different widths: the gutter takes the widest, so the
+    # stems still line up and the wider mark reaches further left
     wide = stems("WSTEM", 3)
     r.append(aligned(wide, "WSTEM"))
-    star = mark_on(wide[0])
-    query = mark_on(wide[1])
-    r.append(check(len(star) == 1 and len(query) == 1,
-                   f"both marks reached the page; got {star} / {query}"))
-    if star and query:
-        r.append(check(abs(star[0].x1 - query[0].x1) < TOL,
-                       f"the marks are flush against the stems "
-                       f"({star[0].x1:.2f} vs {query[0].x1:.2f})"))
-        r.append(check(query[0].x0 < star[0].x0 - TOL,
-                       f"the wider mark reaches further left "
-                       f"({query[0].x0:.2f} vs {star[0].x0:.2f})"))
+    r += hangs(wide[0], wide[2], "*WSTEM")
+    r += hangs(wide[1], wide[2], "??WSTEM")
+    r.append(check(wide[1].x0 < wide[0].x0 - TOL,
+                   f"the wider mark reaches further left "
+                   f"({wide[1].x0:.2f} vs {wide[0].x0:.2f})"))
 
     # no mark anywhere: the split layout must not engage.  Compared against
     # the same stack with alignment off, so a stray gutter shows up as a
@@ -852,25 +868,30 @@ def a_altn_phantomalign(p: Page):
     # star is on the row the source put it on -- (a) marks the second
     # alternative, (b) the first, so a fix that hung the mark on a fixed
     # row would pass one and fail the other
-    fr = sorted(p.find_all("est") + p.find_all("sont"), key=cy)
-    fr = [w for w in fr if w.text in ("est", "sont")]
-    r.append(check(len(fr) == 4, f"four French alternatives; got {fr}"))
+    fr = sorted((w for w in p.words
+                 if w.text in ("est", "sont", "*est", "*sont")), key=cy)
+    r.append(check([w.text for w in fr] == ["est", "*sont", "*est", "sont"],
+                   f"(a) marks sont and (b) marks est; got "
+                   f"{[w.text for w in fr]}"))
     if len(fr) == 4:
-        for i, (lo, hi) in enumerate(((0, 1), (2, 3))):
-            spread = abs(fr[lo].x0 - fr[hi].x0)
-            r.append(check(spread < TOL,
-                           f"({'ab'[i]}) est/sont share a left edge "
-                           f"(spread {spread:.2f}pt)"))
-        r.append(check(len(mark_on(fr[1])) == 1 and not mark_on(fr[0]),
-                       "(a) the star is on sont, not on est"))
-        r.append(check(len(mark_on(fr[2])) == 1 and not mark_on(fr[3]),
-                       "(b) the star is on est, not on sont"))
+        # "est" and "sont" differ in width, so the stems cannot be compared
+        # on either edge.  What separates the two layouts is the mark: hung,
+        # the marked word starts a mark-width LEFT of the unmarked one;
+        # unaligned, the two start at the very same x and this is 0.
+        for i, (marked, plain) in enumerate(((fr[1], fr[0]), (fr[2], fr[3]))):
+            r.append(check(plain.x0 - marked.x0 > TOL,
+                           f"({'ab'[i]}) the star hangs left of the column "
+                           f"({plain.x0 - marked.x0:.2f}pt)"))
 
     # the \\* regression, counted: three of the four stars in this document
     # sit on an alternative that is not the first of its stack
-    r.append(check(len(p.find_all("*")) == 4,
+    # five words carry a mark: three in stacks (two of them not the first
+    # alternative of theirs, which is where the separator ate them) and the
+    # typed yardstick.  Counted rather than located, because that failure
+    # removes a mark instead of moving one.
+    r.append(check(len(p.find_all("*")) == 5,
                    f"every judgment mark survived the row separator; "
-                   f"found {len(p.find_all('*'))} of 4"))
+                   f"found {len(p.find_all('*'))} of 5"))
     return r
 
 
@@ -906,16 +927,21 @@ def a_altg_phantomalign(p: Page):
         return check(spread < TOL,
                      f"{tok} share one {edge} ({spread:.2f}pt spread)")
 
-    # --- object tier marked: the stems line up, the mark leaves the column
+    # --- object tier marked: the stems line up, the mark leaves the column.
+    # The mark is butted onto its word (no separation of the gutter's own,
+    # see \__lxp_alt_setstack:), so pdftotext reports "*OSTEM" as one word
+    # and the mark is measured rather than located: same right edge as the
+    # unmarked rows, left edge further out by the mark it carries.
     obj = stems("OSTEM", 3)
     r.append(lined_up(obj, "OSTEM"))
-    marks = [w for w in p.line_of(obj[1]) if w.text == "*"]
-    r.append(check(len(marks) == 1,
-                   f"the object mark is a word of its own; got {marks}"))
-    if marks:
-        gap = obj[1].x0 - marks[0].x1
-        r.append(check(0 < gap < 3.0,
-                       f"the object mark hangs clear by \\JdgSep ({gap:.2f}pt)"))
+    marked = [w for w in obj if w.text.startswith("*")]
+    r.append(check(len(marked) == 1 and marked[0].text == "*OSTEM",
+                   f"the object row keeps its mark; got {[w.text for w in obj]}"))
+    if len(marked) == 1:
+        plain = [w for w in obj if w is not marked[0]][0]
+        r.append(check(plain.x0 - marked[0].x0 > TOL,
+                       f"the object mark hangs outside the column "
+                       f"({plain.x0 - marked[0].x0:.2f}pt)"))
     # ... and the gloss column follows it rather than parting company
     r.append(lined_up(stems("OGLOSS", 3), "OGLOSS", "x0"))
 
@@ -949,9 +975,14 @@ def a_altg_phantomalign(p: Page):
     # --- a solo \altg is an object stack too
     solo = stems("SSTEM", 2)
     r.append(lined_up(solo, "SSTEM"))
-    smarks = [w for w in p.line_of(solo[1]) if w.text == "*"]
-    r.append(check(len(smarks) == 1 and smarks[0].x1 <= solo[1].x0 + TOL,
-                   f"a solo stack hangs its mark too; got {smarks}"))
+    smarked = [w for w in solo if w.text.startswith("*")]
+    r.append(check(len(smarked) == 1,
+                   f"a solo stack keeps its mark; got {[w.text for w in solo]}"))
+    if len(smarked) == 1:
+        splain = [w for w in solo if w is not smarked[0]][0]
+        r.append(check(splain.x0 - smarked[0].x0 > TOL,
+                       f"a solo stack hangs its mark too "
+                       f"({splain.x0 - smarked[0].x0:.2f}pt)"))
     return r
 
 

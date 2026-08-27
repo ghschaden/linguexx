@@ -2882,10 +2882,21 @@
 %% The mechanism is a second tabular column rather than an \llap: the mark
 %% has to stay INSIDE the braces (it judges its own alternative, not the
 %% stack), and a right-aligned gutter column sizes itself to the widest
-%% mark and sets every mark flush against the words, which is what
-%% \lx@hangjudge does at example level.  \JdgSep is the gap, the same
-%% length used there, so a judgment in a stack and a judgment on an example
-%% sit at the same distance from their text in both modes.
+%% mark and sets every mark flush against the words.
+%%
+%% The two columns are butted together with @{} and NOT separated by
+%% \JdgSep, which is what the first version of this did.  The distance
+%% between a mark and the word it marks is already in the font -- it is
+%% whatever "*sont" gives when typed -- and alignment has no business
+%% changing it: the only thing that may move is the OTHER rows, which come
+%% right to meet this one.  With \JdgSep in between, the aligned stack was
+%% \JdgSep wider than the same stack unaligned and the mark visibly
+%% detached from its word, which reads as a defect rather than as
+%% alignment.  \lx@hangjudge does need \JdgSep, but its situation is not
+%% this one: there the mark is \llap-ed into the label area, a box away
+%% from the text, with no sidebearing to inherit.  A happy side effect is
+%% that stacks are now identical under [lazy] and [legacy], which set
+%% \JdgSep differently.
 %%
 %% The split layout is used only when some alternative actually carries a
 %% mark.  Without that test a stack of plain alternatives would still gain
@@ -2978,7 +2989,7 @@
     \bool_if:NTF \l__lxp_alt_anyjudge_bool
       {
         \__lxp_setstack:NNnn \l__lxp_alt_box \l__lxp_alt_split_seq
-          { r @{ \hskip \JdgSep } \__lxp_alt_colspec: } { }
+          { r @{} \__lxp_alt_colspec: } { }
       }
       {
         \__lxp_setstack:NNnn \l__lxp_alt_box \l__lxp_alt_seq
@@ -3122,7 +3133,7 @@
       { \bool_set_false:N \l__lxp_alt_anyjudge_bool }
     \bool_if:NTF \l__lxp_alt_anyjudge_bool
       { \__lxp_setstack:NNnn \l__lxp_altg_stack_box \l__lxp_alt_split_seq
-          { r @{ \hskip \JdgSep } l }
+          { r @{} l }
           { #1 \renewcommand \lpzg [1] { \lx@lpzg@build {##1} \textsc {##1} } } }
       { \__lxp_setstack:NNnn \l__lxp_altg_stack_box \l__lxp_altg_seq { l }
           { #1 \renewcommand \lpzg [1] { \lx@lpzg@build {##1} \textsc {##1} } } }
