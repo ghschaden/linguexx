@@ -739,6 +739,17 @@ def a_relrefs(p: Page):
     # it comes first.  \ref sits between two parametrised references.
     r.append(check("[b]" not in txt and "[a]" not in txt,
                    "the optional argument is consumed, not typeset as text"))
+
+    # the space TeX's tokenizer ate after the control word is put back
+    # (\xspace, as in linguex), and is NOT put back before punctuation --
+    # which is what makes it \xspace rather than \space.  Both halves are
+    # measured on the joined text, where a missing space shows up as
+    # "(1)after" arriving from pdftotext as a single word.
+    r.append(shows("XSP", "(1) after"))
+    r.append(shows("PXSP", "1 after"))
+    r.append(shows("XSPARG", "(1b) after"))
+    r.append(shows("XSPNEXT", "(2) after"))
+    r.append(shows("XSPCOMMA", "(1), comma"))
     return r
 
 

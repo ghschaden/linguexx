@@ -187,7 +187,7 @@ other \LaTeX{} counter; the parentheses come for free. \cs{Next} and
 \ex.\label{ex:sleep} Ich habe geschlafen.
 \z.
 
-As \ref{ex:sleep} shows, ... The contrast in \Next\ is sharper:
+As \ref{ex:sleep} shows, ... The contrast in \Next is sharper:
 
 \ex. *Ich habe gestorben.
 \z.
@@ -197,7 +197,7 @@ As \ref{ex:sleep} shows, ... The contrast in \Next\ is sharper:
 \ex.\label{ex:sleep} Ich habe geschlafen.
 \z.
 
-As \ref{ex:sleep} shows, \dots The contrast in \Next\ is sharper:
+As \ref{ex:sleep} shows, \dots{} The contrast in \Next is sharper:
 
 \ex. *Ich habe gestorben.
 \z.
@@ -1074,6 +1074,16 @@ separator is \cs{firstrefdash}, the same hook \cs{ref} uses for a
 \cs{sublabel}, so the two spell an example alike --- ``(3b)'' by default
 and ``(3-b)'' under \opt{legacy}. Nothing verifies that the letter exists;
 it is text you supply, as it is in \pkg{linguex}.
+
+\paragraph{The space after the command.} These are control words, so
+\TeX{}'s tokenizer discards the space that follows one before any package
+can see it. Written plainly, \verb|\Last shows| would therefore set as
+``(1)shows''. Each of them ends in \cs{xspace} --- as \pkg{linguex}'s
+references do --- which puts the space back before a word and leaves it
+out before punctuation, so \verb|\Last shows| and \verb|\Last, but| both
+come out right and neither needs guarding. The \verb|\Last\ | and
+\verb|\Last{}| that documents written against the older behaviour contain
+stay correct too: \cs{xspace} recognises both and adds nothing.
 
 These commands are part of the \pkg{linguex} compatibility surface and are
 kept for it, but they are worth using sparingly. What they resolve to

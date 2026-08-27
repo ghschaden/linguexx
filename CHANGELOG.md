@@ -45,6 +45,16 @@ version string.
   roman series, except under `\TextNext`, which keeps pointing at the main
   one. Covered by `tests/relrefs.tex` (which until now was a case file the
   suite never ran) and, for the dash, by `tests/legacy.tex`.
+- Fix: the relative references no longer swallow the space that follows
+  them. `\Last`, `\Next`, `\NNext`, `\LLast`, `\TextNext` and their
+  `p`-twins are control words, so TeX's tokenizer discards the space in
+  `\Last shows that` before any macro can see it, and the reference set
+  solid against the next word: `(1)shows`. They now end in `\xspace`, as
+  `linguex`'s `\printExNo` does, which restores the space before a word
+  and still omits it before punctuation, so `\Last, but` stays `(1), but`.
+  The defensive `\Last\ ` and `\Last{}` that documents written against
+  the old behaviour contain are unaffected -- `\xspace` recognises both.
+  Covered by `tests/relrefs.tex`.
 - Fix: `\z.` is now usable inside an `exe` batch. Mixing the syntaxes is
   documented, so an `\a.` inside `exe` legitimately opens a sub-level -- but
   `\z.`, the only thing that could close it again, raised "`\z.` outside an

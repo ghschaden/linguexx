@@ -202,6 +202,7 @@
 
 \RequirePackage{graphicx}%          \scalebox etc.
 \RequirePackage{tikz}%              drawn brace for \lxAltn (no math mode)
+\RequirePackage{xspace}%            space after \Last & co. (see below)
 \usetikzlibrary{decorations.pathreplacing}
 % The only other dependency is the expl3 programming layer, part of the
 % LaTeX kernel since 2020.  In particular, ulem is NOT loaded: if you
@@ -1714,6 +1715,17 @@
 % around its body: a part given to one reference must not survive into the
 % next.  The p-twins forward their own optional argument rather than set
 % \lx@relsub themselves, so there is one place where the part is built.
+%
+% Every one of them ends in \xspace, as linguex's \printExNo did, and for
+% the same reason: these are control WORDS, so TeX's tokenizer has already
+% eaten the space in "\Last shows that" before any macro can see it, and
+% the reference would set solid against the next word -- "(1)shows".  The
+% \xspace has to sit OUTSIDE the group, after the closing brace: inside it
+% the next token is the group's own }, which \xspace recognises as \egroup
+% and treats as a reason NOT to add a space.  That is also why the p-twins
+% carry one of their own -- the \xspace of the \Last they forward to fires
+% against their closing brace and does nothing.  \pref and \ref need none:
+% they end in an argument, so the source space after } survives.
 \newcommand\lx@relsub{}
 \newcommand\lx@setrelsub[1]{\IfValueT{#1}{\def\lx@relsub{\firstrefdash#1}}}
 \newcommand\lx@fmtEx[1]{\theExLBr#1\lx@relsub\theExRBr}
@@ -1726,21 +1738,21 @@
     \lx@fmtFnEx{\roman{FnExNo}}%
   \else
     \lx@fmtEx{\arabic{ExNo}}%
-  \fi\fi}}
+  \fi\fi}\xspace}
 
 \NewDocumentCommand\Next{o}{{\lx@setrelsub{#1}%
   \if@noftnote
     \lx@fmtEx{\the\numexpr\value{ExNo}+1\relax}%
   \else
     \lx@fmtFnEx{\romannumeral\numexpr\value{FnExNo}+1\relax}%
-  \fi}}
+  \fi}\xspace}
 
 \NewDocumentCommand\NNext{o}{{\lx@setrelsub{#1}%
   \if@noftnote
     \lx@fmtEx{\the\numexpr\value{ExNo}+2\relax}%
   \else
     \lx@fmtFnEx{\romannumeral\numexpr\value{FnExNo}+2\relax}%
-  \fi}}
+  \fi}\xspace}
 
 \NewDocumentCommand\LLast{o}{{\lx@setrelsub{#1}%
   \if@noftnote
@@ -1749,19 +1761,21 @@
     \lx@fmtFnEx{\romannumeral\numexpr\value{FnExNo}-1\relax}%
   \else
     \lx@fmtEx{\arabic{ExNo}}%
-  \fi\fi}}
+  \fi\fi}\xspace}
 
 \NewDocumentCommand\TextNext{o}{{\lx@setrelsub{#1}%
-  \lx@fmtEx{\the\numexpr\value{ExNo}+1\relax}}}
+  \lx@fmtEx{\the\numexpr\value{ExNo}+1\relax}}\xspace}
 
 % parenthesis-free twins
 \newcommand\pref[1]{{\parenstrue\ref{#1}}}
-\NewDocumentCommand\pLast{o}{{\parenstrue\IfValueTF{#1}{\Last[#1]}{\Last}}}
-\NewDocumentCommand\pNext{o}{{\parenstrue\IfValueTF{#1}{\Next[#1]}{\Next}}}
-\NewDocumentCommand\pNNext{o}{{\parenstrue\IfValueTF{#1}{\NNext[#1]}{\NNext}}}
-\NewDocumentCommand\pLLast{o}{{\parenstrue\IfValueTF{#1}{\LLast[#1]}{\LLast}}}
+\NewDocumentCommand\pLast{o}{{\parenstrue\IfValueTF{#1}{\Last[#1]}{\Last}}\xspace}
+\NewDocumentCommand\pNext{o}{{\parenstrue\IfValueTF{#1}{\Next[#1]}{\Next}}\xspace}
+\NewDocumentCommand\pNNext{o}%
+  {{\parenstrue\IfValueTF{#1}{\NNext[#1]}{\NNext}}\xspace}
+\NewDocumentCommand\pLLast{o}%
+  {{\parenstrue\IfValueTF{#1}{\LLast[#1]}{\LLast}}\xspace}
 \NewDocumentCommand\pTextNext{o}%
-  {{\parenstrue\IfValueTF{#1}{\TextNext[#1]}{\TextNext}}}
+  {{\parenstrue\IfValueTF{#1}{\TextNext[#1]}{\TextNext}}\xspace}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%  Interlinear glossing: \gll \glll \glt (cgloss4e replacement)       %%%%

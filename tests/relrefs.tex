@@ -14,6 +14,14 @@
 BARE \Last{} SUB \Last[b] REF \ref{rr:a} PSUB \pLast[b]
 NEXTSUB \Next[c] NNEXTSUB \NNext[d]
 
+%% "\Last shows" must print "(1) shows", not "(1)shows": these are control
+%% words, so TeX's tokenizer eats the following space long before any macro
+%% could put it back, and linguex ends every one of these references in
+%% \xspace for exactly that reason.  \xspace and not \space, because the
+%% space must NOT appear before punctuation -- XSPCOMMA pins that half.
+XSP \Last after PXSP \pLast after XSPARG \Last[b] after
+XSPNEXT \Next after XSPCOMMA \Last, comma
+
 \ex. Second example.
 
 LLASTSUB \LLast[a] PNEXTSUB \pNext[e] PLLASTSUB \pLLast[f]
