@@ -1,0 +1,26 @@
+CORRECTION (added 2026-08-27, after e35fd6c).
+
+The reason this message gives for leaving \altg out is wrong.  It says
+\altg "is written once per tier and the tiers must keep the same width; a
+mark on the object tier alone would widen one box and not the other, and
+the tiers would part company".  There is no such invariant.
+
+The two \altg calls are not stacked, they sit side by side inside one
+gloss column, and the gloss cell's indent is \g__lxp_altg_indent_dim,
+which \__lxp_altg_shape_obj: derives from the object emit's OWN width.
+Widening the object stack moves the gloss stack by exactly as much, with
+nothing to keep in step by hand.  Measured before the correction was
+believed: with a mark on the object tier the three object stems share an
+edge and the three glosses still share theirs, the whole gloss column
+having shifted right by the 1.49pt the gutter added.
+
+e35fd6c gives \altg the hanging gutter, on the object call and a solo
+stack but not on the gloss call -- the real reason for the asymmetry
+being linguistic rather than geometric: a judgment is a claim about the
+object language, and a gloss is a translation of it rather than something
+that is itself grammatical or not.
+
+Everything else in this commit stands.  The wrong claim is corrected in
+linguexx.sty (beside the right one, deliberately), in the manual's §5.7
+and §7.2, and in CHANGELOG.md; this note exists because the message
+itself cannot be corrected without rewriting pushed history.
