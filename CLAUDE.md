@@ -23,6 +23,12 @@ Standalone and modern reimplementation of `linguex` (numbered linguistic example
 - `\altn` / `\altg`: TEXT mode only. No math, no italics, no amsmath. No `Formula` element in the tree (this is what broke PDF/UA-2 before v0.12; avoiding it is the goal).
 - Braces drawn in TikZ on both sides. The `brace` decoration bulges according to the path direction: ascending = opening `{`, descending = closing `}`.
 - `\altg` is written twice in a gloss (objects, then glosses); same number of alternatives in both calls; no spaces between groups.
+- Judgment marks in a stack hang into a gutter ONLY under `[phantomalign]`
+  (`\GlossPhantomAlign`), and in `\altg` only on the call that sets the
+  OBJECT tier plus a solo stack -- a gloss is a translation, not something
+  that is grammatical or not. Both commands build their stack through
+  `\__lxp_alt_build:NNnnN`; keep it that way rather than inlining the
+  decision, which drifted twice when it was written out per caller.
 - Tagging idiom: `\tag_mc_end_push:` … `\tag_mc_begin_pop:n{}`.
 - `[legacy]` mode = geometric fidelity to linguex; orthogonal to `[lazy]`/`[gb4e]`.
 

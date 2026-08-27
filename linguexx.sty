@@ -2975,6 +2975,29 @@
           { \exp_not:V \l__lxp_alt_pre_tl & \exp_not:V \l__lxp_alt_rest_tl }
       }
   }
+%% Build a braced stack, with or without the hanging gutter.  #1 = box to
+%% set, #2 = seq of alternatives, #3 = the column spec the caller wants for
+%% the alternatives themselves, #4 = the hook \__lxp_setstack:NNnn runs
+%% inside the box, #5 = a bool saying whether THIS call may hang a mark.
+%%
+%% Both \altn and \altg go through here, and that is the point rather than
+%% tidiness.  The decision has four parts that have to agree -- may this
+%% call hang, is the option on, which seq is set, and which spec -- and
+%% when they were written out twice they twice came close to drifting: the
+%% gutter's spec had to be edited in two places when the \JdgSep between
+%% its columns was dropped, and \altg's \lpzg hook was written out once per
+%% branch, so a change to one branch's font handling would silently not
+%% apply to the other.  One copy cannot drift from itself.
+\cs_new_protected:Npn \__lxp_alt_build:NNnnN #1#2#3#4#5
+  {
+    \bool_lazy_and:nnTF
+      { \bool_if_p:N #5 } { \bool_if_p:N \l__lx_gl_phantom_bool }
+      { \__lxp_alt_split:N #2 }
+      { \bool_set_false:N \l__lxp_alt_anyjudge_bool }
+    \bool_if:NTF \l__lxp_alt_anyjudge_bool
+      { \__lxp_setstack:NNnn #1 \l__lxp_alt_split_seq { r @{} #3 } {#4} }
+      { \__lxp_setstack:NNnn #1 #2 {#3} {#4} }
+  }
 %% the column spec the optional argument asks for
 \cs_new:Npn \__lxp_alt_colspec:
   { \str_case:VnF \l__lxp_alt_align_tl { {l}{l} {r}{r} } {c} }
@@ -2983,18 +3006,8 @@
 %% the box, so the hook is empty.
 \cs_new_protected:Npn \__lxp_alt_setstack:
   {
-    \bool_if:NTF \l__lx_gl_phantom_bool
-      { \__lxp_alt_split:N \l__lxp_alt_seq }
-      { \bool_set_false:N \l__lxp_alt_anyjudge_bool }
-    \bool_if:NTF \l__lxp_alt_anyjudge_bool
-      {
-        \__lxp_setstack:NNnn \l__lxp_alt_box \l__lxp_alt_split_seq
-          { r @{} \__lxp_alt_colspec: } { }
-      }
-      {
-        \__lxp_setstack:NNnn \l__lxp_alt_box \l__lxp_alt_seq
-          { \__lxp_alt_colspec: } { }
-      }
+    \__lxp_alt_build:NNnnN \l__lxp_alt_box \l__lxp_alt_seq
+      { \__lxp_alt_colspec: } { } \c_true_bool
     \dim_set:Nn \l__lxp_alt_dp_dim { \box_dp:N \l__lxp_alt_box }
     \dim_set:Nn \l__lxp_alt_ht_dim
       { \box_ht:N \l__lxp_alt_box + \l__lxp_alt_dp_dim }
@@ -3164,16 +3177,9 @@
 %% \__lxp_alt_setstack: for why the caller decides and this does not.
 \cs_new_protected:Npn \__lxp_altg_setstack:nN #1#2
   {
-    \bool_lazy_and:nnTF
-      { \bool_if_p:N #2 } { \bool_if_p:N \l__lx_gl_phantom_bool }
-      { \__lxp_alt_split:N \l__lxp_altg_seq }
-      { \bool_set_false:N \l__lxp_alt_anyjudge_bool }
-    \bool_if:NTF \l__lxp_alt_anyjudge_bool
-      { \__lxp_setstack:NNnn \l__lxp_altg_stack_box \l__lxp_alt_split_seq
-          { r @{} l }
-          { #1 \renewcommand \lpzg [1] { \lx@lpzg@build {##1} \textsc {##1} } } }
-      { \__lxp_setstack:NNnn \l__lxp_altg_stack_box \l__lxp_altg_seq { l }
-          { #1 \renewcommand \lpzg [1] { \lx@lpzg@build {##1} \textsc {##1} } } }
+    \__lxp_alt_build:NNnnN \l__lxp_altg_stack_box \l__lxp_altg_seq { l }
+      { #1 \renewcommand \lpzg [1] { \lx@lpzg@build {##1} \textsc {##1} } }
+      #2
     \dim_set:Nn \l__lxp_altg_bxht_dim { \box_ht:N \l__lxp_altg_stack_box }
     \dim_set:Nn \l__lxp_altg_bxdp_dim { \box_dp:N \l__lxp_altg_stack_box }
     \dim_set:Nn \l__lxp_altg_ht_dim
