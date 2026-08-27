@@ -19,4 +19,13 @@
 \noindent RIGHTL \lxAltn[r]{RTOPPPP}{RM}{RBOTTOMMM} RIGHTR
 
 \ex. EXAMPLEL \lxAltn{ETOP}{EBOT} EXAMPLER
+
+%% Judgment marks with alignment OFF, which is the default: they stay part
+%% of the alternative and the rows left-align on the mark, as they always
+%% did.  What is pinned is only that the marks are THERE.  \\ in a tabular
+%% is \@arraycr, which opens with \@ifstar, so an alternative after the
+%% first handed it the starred form \\* and lost its mark outright -- a
+%% clean compile printing "SBOT" where the source said "*SBOT".  The
+%% aligned counterpart of this lives in altn-phantomalign.tex.
+\noindent STARL \lxAltn[l]{*STOPPPP}{*SBOTTOMMM} STARR
 \end{document}

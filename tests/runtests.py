@@ -467,6 +467,16 @@ def a_altn(p: Page):
     r.append(check(max(w.x0 for w in lw) - min(w.x0 for w in lw)
                    < max(w.x0 for w in rw) - min(w.x0 for w in rw) - TOL,
                    "the [l] stack is not laid out like the [r] one"))
+    # judgment marks survive into every row, not just the first.  With
+    # alignment off (the default here) the mark stays inside the
+    # alternative, so the sentinel word carries it and a lost star shows up
+    # as the bare stem -- which p.find would still happily match, hence the
+    # explicit test on the text rather than on mere presence.
+    for tok in ("STOPPPP", "SBOTTOMMM"):
+        got = p.find(tok).text
+        r.append(check(got == f"*{tok}",
+                       f"{tok} keeps its judgment mark; got {got!r}"))
+
     # the stack is set into the line: the sentinels on either side stay on
     # the text baseline while the rows straddle it
     left, right = p.find("CENTREDL"), p.find("CENTREDR")

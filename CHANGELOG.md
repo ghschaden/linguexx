@@ -45,6 +45,17 @@ version string.
   roman series, except under `\TextNext`, which keeps pointing at the main
   one. Covered by `tests/relrefs.tex` (which until now was a case file the
   suite never ran) and, for the dash, by `tests/legacy.tex`.
+- Fix: a judgment mark no longer disappears from an `\altn` alternative.
+  `\altn{est}{*sont}` printed "sont". The stack is a `tabular`, its rows are
+  separated by `\\`, and `\\` in a `tabular` is `\@arraycr`, which opens with
+  `\@ifstar` -- so an alternative beginning with `*` handed the row separator
+  its own starred form `\\*` and the mark was eaten as syntax. Only the
+  second and later alternatives were affected, since nothing precedes the
+  first, and the compile was clean. The separator is now `\\[0pt]`, which
+  settles the star scan before it reaches the mark and also disarms the same
+  trap for an alternative opening with `[` (`\altn{[+wh]}{[-wh]}`, which
+  raised "Illegal unit of measure"). `[0pt]` is a true no-op: it struts the
+  row to the depth `\@arstrut` already gives it. Covered by `tests/altn.tex`.
 - Fix: the relative references no longer swallow the space that follows
   them. `\Last`, `\Next`, `\NNext`, `\LLast`, `\TextNext` and their
   `p`-twins are control words, so TeX's tokenizer discards the space in

@@ -2780,6 +2780,21 @@
 %% correctly attributed to the Span when \box_use:N later places it inside
 %% one.  \hbox_gset:Nn (not \hbox_set:Nn) is required because the group
 %% that scopes the \tagpdfsetup change would otherwise also discard the box.
+%%
+%% The row separator is \\[0pt] and not \\ , which is not cosmetic.  In a
+%% tabular, \\ is \@arraycr, and \@arraycr begins with \@ifstar: an
+%% alternative that opens with a judgment mark therefore hands the row
+%% separator the starred form \\* ("no page break here"), the star is
+%% eaten as syntax, and the mark vanishes from the page.  \altn{est}{*sont}
+%% printed "sont" -- silently, with a clean compile, and only ever in the
+%% second and later alternatives, since nothing precedes the first.  The
+%% explicit [0pt] settles the scan before it reaches the mark: \@arraycr
+%% finds no star, then finds the bracket group it is allowed to find.  It
+%% also disarms the same trap one step further on, where an alternative
+%% opening with "[" -- \altn{[+wh]}{[-wh]} -- would otherwise be read as
+%% \\'s optional extra-space argument and raise "Illegal unit of measure".
+%% 0pt is a true no-op here: \@xargarraycr struts the row to
+%% \dp\@arstrutbox + 0pt, which is the depth \@arstrut already gives it.
 \cs_new_protected:Npn \__lxp_setstack:NNnn #1#2#3#4
   {
     \group_begin:
@@ -2790,7 +2805,7 @@
           \use:e
             {
               \exp_not:N \begin { tabular } [c] { @{} #3 @{} }
-              \seq_use:Nn #2 { \\ }
+              \seq_use:Nn #2 { \\ [ 0pt ] }
             }
           \end { tabular }
         }
