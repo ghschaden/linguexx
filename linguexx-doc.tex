@@ -888,10 +888,9 @@ with the package option \opt{phantomalign} or with \cs{GlossPhantomAlign};
 \cs{GlossPhantomAlignOff} turns it back off, so it can be scoped to a single
 example inside a group. It applies to the space-separated words of
 \cs{gll}/\cs{glll}/\cs{gl}, and it is also what makes a judgment mark hang
-to the left of an \cs{altn} stack instead of displacing the alternative it
-marks (section~\ref{sec:altn}). Alternatives stacked with \cs{altg} are not
-covered: that stack is written once per tier and the tiers have to keep the
-same width, which a gutter on one tier alone would break.
+to the left of a stack instead of displacing the alternative it marks ---
+in \cs{altn} (section~\ref{sec:altn}), and in \cs{altg} on the tier that
+carries the object language (section~\ref{sec:altg}).
 
 For anything the automatic scan cannot see --- a bracket wrapped in a macro
 (the scanner reads the control word, not the \texttt{[}), or a target you
@@ -1306,6 +1305,28 @@ position --- the $n$-th gloss glosses the $n$-th object word.
 
 Outside a gloss, a single \cs{altg} sets one both-braced stack on the
 current baseline --- \cs{altn} with a closing brace, in effect.
+
+\paragraph{Judgment marks: the object tier only.} With
+\cs{GlossPhantomAlign} in force (or the package option \opt{phantomalign};
+section~\ref{sec:phantomalign}), a judgment mark on an object alternative
+hangs to the left of the stack instead of pushing the word it marks out of
+line, exactly as in \cs{altn} (section~\ref{sec:altn}):
+
+\rendered
+{\GlossPhantomAlign
+\exg. Die \altg{Frau}{*Socke}{Maus} ist hier.\\
+      The.\lpzg{sg} \altg{woman.\lpzg{sg}}{sock.\lpzg{sg}}%
+        {mouse.\lpzg{sg}} is.\lpzg{prs} here.\\
+\par}
+
+\afterex
+\noindent The gloss stack follows the widened object stack of its own
+accord, so the paradigm stays a two-column block. The \emph{gloss} tier is
+deliberately left out: a judgment is a claim about the object language, and
+a gloss is a translation of that language rather than something that is
+itself grammatical or not, so a mark typed in a gloss alternative stays
+where you put it. If you want a mark to govern a whole paradigm rather than
+one alternative, put it on the example with \cs{jdg}.
 
 Because each stack already competes for both tiers, \cs{lpzg} inside it
 prints as plain small caps, without the abbreviation span of

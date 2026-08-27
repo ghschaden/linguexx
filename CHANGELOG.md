@@ -67,11 +67,27 @@ version string.
   different widths the gutter takes the widest and every mark sits flush
   against the words. The marks recognised are `\GlossPhantomChars`, and a
   stack in which no alternative carries one is set exactly as before, so the
-  option never moves a stack that has nothing to align. This closes half the
-  gap that section's own comment recorded; `\altg` stacks are still not
-  covered, because its stack is written once per tier and the tiers must
-  keep one width. Documented in the manual's §7.1 and §5.7, covered by
-  `tests/altn-phantomalign.tex`.
+  option never moves a stack that has nothing to align. Documented in the
+  manual's §7.1 and §5.7, covered by `tests/altn-phantomalign.tex`.
+- New: the same for `\altg`, on the tier that carries the object language.
+  A judgment is a claim about the object language, and a gloss is a
+  translation of it rather than something that is itself grammatical or not,
+  so a mark typed in a *gloss* alternative stays where it was put; the
+  object call and a solo `\altg` hang theirs. The gloss stack needs no help
+  to follow the widened object stack: `\__lxp_altg_shape_obj:` derives the
+  gloss cell's indent from the object emit's own width, so the paradigm
+  stays a two-column block. Documented in the manual's §7.2, covered by
+  `tests/altg-phantomalign.tex`, which asserts the asymmetry in both
+  directions.
+
+  This corrects a claim made in the `\altn` entry above as first written,
+  and in the source comments and manual with it: that `\altg` could not
+  have this at all, because its two calls "must keep the same width" and a
+  gutter on one tier would tear them apart. They need not — the two calls
+  sit side by side in one gloss column, not stacked — and nothing had to be
+  kept in step by hand. The wrong reason is recorded next to the right one
+  in `linguexx.sty`, because it is the kind of invariant that looks true
+  from the tier-per-call structure alone.
 - Fix: the relative references no longer swallow the space that follows
   them. `\Last`, `\Next`, `\NNext`, `\LLast`, `\TextNext` and their
   `p`-twins are control words, so TeX's tokenizer discards the space in

@@ -1,0 +1,44 @@
+\input{_preamble}
+%% A judgment in an \altg stack hangs left -- on the OBJECT tier only.
+%%
+%% \altg is written twice, once per tier, and the two calls sit side by
+%% side in one gloss column.  Only the object call may hang a mark: a
+%% judgment is a claim about the object language, and a gloss is a
+%% translation of it rather than something that is itself grammatical or
+%% not.  So the asymmetry below is deliberate and is asserted in both
+%% directions -- the object mark moves out of the column, the gloss mark
+%% stays where it was typed.
+%%
+%% The gloss column following the widened object column is the part that
+%% needs no code: \__lxp_altg_shape_obj: derives \g__lxp_altg_indent_dim
+%% from the object emit's own width, so the gloss stack moves with it.
+%% (A comment here once claimed the opposite -- that the tiers had to keep
+%% one width and a gutter would break them apart.  OGLOSS pins that they
+%% do not.)
+\GlossPhantomAlign
+\begin{document}
+
+% object tier marked: the stems line up and the star leaves the column
+\exg. ODET \altg{OSTEM}{*OSTEM}{OSTEM} OVERB\\
+      odet \altg{OGLOSS}{OGLOSS}{OGLOSS} overb\\
+
+% gloss tier marked: the mark stays inside the alternative, so the marked
+% gloss row is the one row that does NOT line up with the others
+\exg. GDET \altg{GSTEM}{GSTEM}{GSTEM} GVERB\\
+      gdet \altg{GGLOSS}{*GGLOSS}{GGLOSS} gverb\\
+
+% no mark on either tier: nothing may move
+\exg. NDET \altg{NSTEM}{NSTEM} NVERB\\
+      ndet \altg{NGLOSS}{NGLOSS} nverb\\
+
+% the same unmarked paradigm with alignment OFF, as the control for the
+% one above: a stack with nothing to align must sit where it always did,
+% so the two are compared to each other rather than to a coordinate
+{\GlossPhantomAlignOff
+\exg. FDET \altg{FSTEM}{FSTEM} FVERB\\
+      fdet \altg{FGLOSS}{FGLOSS} fverb\\
+\par}
+
+% a solo \altg is an object stack too, so it hangs its mark
+\noindent SOLOL \lxAltg{SSTEM}{*SSTEM} SOLOR
+\end{document}

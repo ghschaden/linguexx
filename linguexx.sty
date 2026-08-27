@@ -2486,9 +2486,10 @@
 %% it back off.  \GlossPhantomChars sets the leading characters that count
 %% (default: the judgment marks * ? # % and the openers ( [ < ), and the
 %% same set is what an \altn stack peels into its hanging gutter (see
-%% \__lxp_alt_setstack:).  \altg alternative columns are still not covered:
-%% its stack is written once per tier and the tiers have to keep the same
-%% width, which a gutter on one tier alone would break.
+%% \__lxp_alt_setstack:), and an \altg one -- but there only on the call
+%% that sets the object tier, and on a solo stack: a judgment is a claim
+%% about the object language, not about its translation, so a mark in a
+%% gloss alternative is left where it was typed.
 \bool_new:N \l__lx_gl_phantom_bool
 \iflx@phantomalign \bool_set_true:N \l__lx_gl_phantom_bool \fi
 \str_new:N \l__lx_gl_phantomchars_str
@@ -2892,10 +2893,22 @@
 %% would make an opt-in about alignment change the look of stacks that have
 %% nothing to align.
 %%
-%% NOT extended to \altg.  Its stack is written once per tier and the tiers
-%% must keep the same width; a mark on the object tier alone would widen
-%% one box and not the other, and the tiers would part company.  That needs
-%% a cross-tier gutter width, which is a different piece of work.
+%% \altg shares this, through \__lxp_altg_setstack:nN -- but only for the
+%% call that sets the OBJECT tier, and for a solo stack, which is an object
+%% stack too.  A judgment is a claim about the object language; the gloss
+%% is a translation of it and is not itself grammatical or not, so a mark
+%% in a gloss alternative stays where it was typed rather than earning a
+%% gutter.  That is a linguistic decision, not a typographic one, which is
+%% why the caller passes it in instead of this code inferring it.
+%%
+%% (An earlier version of this comment claimed \altg could not have it at
+%% all, because "the tiers must keep the same width".  They need not: the
+%% two calls sit side by side in one gloss column, and the gloss cell's
+%% indent is \g__lxp_altg_indent_dim, which \__lxp_altg_shape_obj: derives
+%% from the object emit's OWN width -- so widening the object stack moves
+%% the gloss stack by exactly as much, with nothing to keep in step by
+%% hand.  The claim was wrong; it is recorded here because it is the kind
+%% of invariant that looks true from the tier-per-call structure alone.)
 \seq_new:N  \l__lxp_alt_split_seq
 \tl_new:N   \l__lxp_alt_pre_tl
 \tl_new:N   \l__lxp_alt_rest_tl
@@ -2938,11 +2951,11 @@
       }
   }
 %% Build the two-cell rows, and record whether any mark was found at all.
-\cs_new_protected:Npn \__lxp_alt_split:
+\cs_new_protected:Npn \__lxp_alt_split:N #1
   {
     \seq_clear:N \l__lxp_alt_split_seq
     \bool_set_false:N \l__lxp_alt_anyjudge_bool
-    \seq_map_inline:Nn \l__lxp_alt_seq
+    \seq_map_inline:Nn #1
       {
         \__lxp_alt_peel:n {##1}
         \tl_if_empty:NF \l__lxp_alt_pre_tl
@@ -2960,7 +2973,7 @@
 \cs_new_protected:Npn \__lxp_alt_setstack:
   {
     \bool_if:NTF \l__lx_gl_phantom_bool
-      { \__lxp_alt_split: }
+      { \__lxp_alt_split:N \l__lxp_alt_seq }
       { \bool_set_false:N \l__lxp_alt_anyjudge_bool }
     \bool_if:NTF \l__lxp_alt_anyjudge_bool
       {
@@ -3098,10 +3111,21 @@
 %% abbreviation is set plain inside the stack -- each stack is a single
 %% marked-content span, with no room for a nested abbreviation Span -- but
 %% still counts as used and reaches \lpzglist like any other.
-\cs_new_protected:Npn \__lxp_altg_setstack:n #1
+%% #2 says whether this call may hang a judgment: true for the object tier
+%% and for a solo stack, false for the gloss tier.  See the note on
+%% \__lxp_alt_setstack: for why the caller decides and this does not.
+\cs_new_protected:Npn \__lxp_altg_setstack:nN #1#2
   {
-    \__lxp_setstack:NNnn \l__lxp_altg_stack_box \l__lxp_altg_seq { l }
-      { #1 \renewcommand \lpzg [1] { \lx@lpzg@build {##1} \textsc {##1} } }
+    \bool_lazy_and:nnTF
+      { \bool_if_p:N #2 } { \bool_if_p:N \l__lx_gl_phantom_bool }
+      { \__lxp_alt_split:N \l__lxp_altg_seq }
+      { \bool_set_false:N \l__lxp_alt_anyjudge_bool }
+    \bool_if:NTF \l__lxp_alt_anyjudge_bool
+      { \__lxp_setstack:NNnn \l__lxp_altg_stack_box \l__lxp_alt_split_seq
+          { r @{ \hskip \JdgSep } l }
+          { #1 \renewcommand \lpzg [1] { \lx@lpzg@build {##1} \textsc {##1} } } }
+      { \__lxp_setstack:NNnn \l__lxp_altg_stack_box \l__lxp_altg_seq { l }
+          { #1 \renewcommand \lpzg [1] { \lx@lpzg@build {##1} \textsc {##1} } } }
     \dim_set:Nn \l__lxp_altg_bxht_dim { \box_ht:N \l__lxp_altg_stack_box }
     \dim_set:Nn \l__lxp_altg_bxdp_dim { \box_dp:N \l__lxp_altg_stack_box }
     \dim_set:Nn \l__lxp_altg_ht_dim
@@ -3176,7 +3200,7 @@
             \int_gset:Nn \g__lxp_altg_role_int { 1 }
             \int_gset:Nn \g__lxp_altg_count_int
               { \seq_count:N \l__lxp_altg_seq }
-            \__lxp_altg_setstack:n { }
+            \__lxp_altg_setstack:nN { } \c_true_bool
             \__lxp_altg_emit:n { \__lxp_altg_shape_obj: }
           }
           { % gloss call
@@ -3189,12 +3213,12 @@
                     \int_eval:n { \seq_count:N \l__lxp_altg_seq } ~glosses }
                   { The~two~\string\altg\space calls~of~one~paradigm~must~
                     list~the~same~number~of~alternatives. } }
-            \__lxp_altg_setstack:n { \AltgTransFont }
+            \__lxp_altg_setstack:nN { \AltgTransFont } \c_false_bool
             \__lxp_altg_emit:n { \__lxp_altg_shape_gloss: }
           }
       }
       { % solo, outside a gloss
-        \__lxp_altg_setstack:n { }
+        \__lxp_altg_setstack:nN { } \c_true_bool
         \__lxp_altg_emit:n { \__lxp_altg_shape_solo: }
       }
   }

@@ -874,6 +874,87 @@ def a_altn_phantomalign(p: Page):
     return r
 
 
+def a_altg_phantomalign(p: Page):
+    r"""A judgment in an \altg stack hangs left -- on the OBJECT tier only.
+
+    The asymmetry is the point and is asserted in both directions.  A
+    judgment is a claim about the object language; a gloss is a translation
+    of it and is not itself grammatical or not, so a mark in a gloss
+    alternative is left exactly where it was typed.  Hanging it there would
+    look like a fix and would be saying something false.
+
+    OGLOSS also pins the thing an earlier comment in linguexx.sty got
+    wrong: that the two tiers must keep one width, so a gutter on the
+    object tier alone would tear them apart.  They need not -- the gloss
+    cell's indent is derived from the object emit's own width -- and the
+    gloss column here stays a column while the object stack widens.
+    """
+    r = []
+
+    def cy(w):
+        return (w.y0 + w.y1) / 2
+
+    def stems(tok, n):
+        ws = sorted(p.find_all(tok), key=cy)
+        if len(ws) != n:
+            raise AssertionError(f"expected {tok} {n} times, got {len(ws)}: {ws}")
+        return ws
+
+    def lined_up(ws, tok, edge="x1"):
+        vals = [getattr(w, edge) for w in ws]
+        spread = max(vals) - min(vals)
+        return check(spread < TOL,
+                     f"{tok} share one {edge} ({spread:.2f}pt spread)")
+
+    # --- object tier marked: the stems line up, the mark leaves the column
+    obj = stems("OSTEM", 3)
+    r.append(lined_up(obj, "OSTEM"))
+    marks = [w for w in p.line_of(obj[1]) if w.text == "*"]
+    r.append(check(len(marks) == 1,
+                   f"the object mark is a word of its own; got {marks}"))
+    if marks:
+        gap = obj[1].x0 - marks[0].x1
+        r.append(check(0 < gap < 3.0,
+                       f"the object mark hangs clear by \\JdgSep ({gap:.2f}pt)"))
+    # ... and the gloss column follows it rather than parting company
+    r.append(lined_up(stems("OGLOSS", 3), "OGLOSS", "x0"))
+
+    # --- gloss tier marked: the mark stays INSIDE the alternative, so the
+    # marked row is the one row whose glyphs do not line up with the others
+    ggl = stems("GGLOSS", 3)
+    marked = [w for w in ggl if w.text.startswith("*")]
+    r.append(check(len(marked) == 1 and marked[0].text == "*GGLOSS",
+                   f"a gloss mark is not hung, it stays in its word; "
+                   f"got {[w.text for w in ggl]}"))
+    if len(marked) == 1:
+        plain = [w for w in ggl if w is not marked[0]]
+        r.append(lined_up(plain, "unmarked GGLOSS", "x0"))
+        r.append(check(marked[0].x1 > plain[0].x1 + TOL,
+                       f"the marked gloss is wider by its mark "
+                       f"({marked[0].x1:.2f} vs {plain[0].x1:.2f})"))
+    # the object tier of that same paradigm is untouched by the gloss mark
+    r.append(lined_up(stems("GSTEM", 3), "GSTEM"))
+
+    # --- no mark on either tier: nothing moves.  Measured against the same
+    # paradigm with alignment off, so a stray gutter shows up as a
+    # difference between the two rather than as an absolute coordinate.
+    non, foff = stems("NSTEM", 2), stems("FSTEM", 2)
+    r.append(lined_up(non, "NSTEM"))
+    on_gap = non[0].x0 - p.find("NDET").x1
+    off_gap = foff[0].x0 - p.find("FDET").x1
+    r.append(check(abs(on_gap - off_gap) < TOL,
+                   f"an unmarked paradigm is unmoved by the option "
+                   f"({on_gap:.2f}pt on, {off_gap:.2f}pt off)"))
+
+    # --- a solo \altg is an object stack too
+    solo = stems("SSTEM", 2)
+    r.append(lined_up(solo, "SSTEM"))
+    smarks = [w for w in p.line_of(solo[1]) if w.text == "*"]
+    r.append(check(len(smarks) == 1 and smarks[0].x1 <= solo[1].x0 + TOL,
+                   f"a solo stack hangs its mark too; got {smarks}"))
+    return r
+
+
 def a_glt(p: Page):
     r"""\GlossTransStyle reaches the free translation, and nothing else.
 
@@ -2378,6 +2459,7 @@ ASSERTIONS = {
     "altg": a_altg,
     "altn": a_altn,
     "altn-phantomalign": a_altn_phantomalign,
+    "altg-phantomalign": a_altg_phantomalign,
     "babel-de": a_babel_de,
     "babel-fr": a_babel_fr,
     "babel-fr-order": a_babel_fr_order,
