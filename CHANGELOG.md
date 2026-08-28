@@ -103,6 +103,55 @@ version string.
   kept in step by hand. The wrong reason is recorded next to the right one
   in `linguexx.sty`, because it is the kind of invariant that looks true
   from the tier-per-call structure alone.
+- Fix: `\#` and `\%` are recognised as leading marks by the aligner, and
+  `\GlossPhantomChars` now takes commands as well as characters.
+
+  These are one change because the first is not fixable without the second.
+  The set was a string of characters and the peel rejected anything longer
+  than one of them, so a control sequence could never match -- while a bare
+  `#` is a macro parameter character and a bare `%` opens a comment, which
+  makes `\#` and `\%` the only spellings a document can contain. `\ex. #Ceci`
+  is a TeX error, not a linguexx one. So the two marks the documented default
+  set named were unreachable, and the package disagreed with itself: `\ex.
+  \#Ceci` hung its mark in the margin, because the judgment scanner has
+  always matched `\#` and `\%` by meaning, while `\altn{un nez}{\#le nez}`
+  left the same mark sitting inside the alternative. Reported from a real
+  document.
+
+  The set is now a list of whole marks rather than a string of characters,
+  and an entry may be either. `\GlossPhantomChars` takes them without
+  separators -- one token is one mark -- so `\GlossPhantomChars{*?([<\#\%\dag}`
+  keeps the default set and adds `\dag` to it. A command not in the set is
+  still not a mark, and a *braced* one is not a mark either: `{[}stem` stays
+  as typed, since bracing the bracket is how you keep it out of exactly this
+  scanning.
+
+  The two peelers became one. They had been written out separately -- the
+  gloss aligner peeling characters off a stringified word, the stack builder
+  taking tokens -- and had already drifted: they disagreed about `{[}stem`,
+  and about `\#` they were wrong in the same way for different reasons. One
+  copy cannot drift from itself, which is the argument `\__lxp_alt_build:NNnnN`
+  already makes for the stacks.
+
+  Unifying them exposed a third bug underneath, which nothing could have
+  found before: the gloss aligner retrieved the object word with
+  `\exp_args:NNf`, and f-expansion does not stop where it looks as though it
+  stops -- it evaluates `\seq_item:Nn` and then carries on into the word and
+  expands its leading token too. For a *robust* mark that is one step too
+  many: `\dag` becomes `\protect\dag`, and the peel is offered `\protect`. It
+  was invisible while the set held characters, which cannot be expanded, and
+  it survived the first half of this change because `\#` and `\%` are not
+  robust in LaTeX2e. It shows up the moment a document declares a mark of its
+  own that is. The word is now fetched without expanding anything, which is
+  what the comment at that call site always claimed.
+
+  Covered by `tests/phantommarks.tex`, which asserts the set on both
+  consumers and in both directions -- a declared mark peels, an undeclared
+  one does not -- because "recognised" and "not recognised" are each other's
+  control and a peel that swallowed everything would pass half of it.
+  Mutation-checked: five mutations, five kills, and the f-expansion one is
+  caught by exactly the assertion written for it.
+
 - New: the relative references are clickable. With `hyperref` loaded,
   `\Next`, `\Last`, `\NNext`, `\LLast`, `\TextNext` and their `p`-twins link
   to the example they name, as the `\ref` they abbreviate always has. Nothing

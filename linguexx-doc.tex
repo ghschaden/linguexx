@@ -874,10 +874,26 @@ the object-line font}, so alignment holds even when the gloss tier is set at
 a different size (a \cs{footnotesize} gloss still lines up under the
 full-size bracket). It ships no ink and no marked content, so tagging is
 unaffected. Any number of leading marks are skipped together; the marks that
-count are, by default, the judgment marks \texttt{*\,?\,\#\,\%} and the
+count are, by default, the judgment marks \verb|* ? \# \%| and the
 openers \texttt{(\,[\,<}. Change the set with
-\cs{GlossPhantomChars}\marg{chars}, e.g.\ \cs{GlossPhantomChars}\texttt{\{[(\}}
+\cs{GlossPhantomChars}\marg{marks}, e.g.\ \cs{GlossPhantomChars}\texttt{\{[(\}}
 to react to square and round brackets only.
+
+The argument is a list without separators: \emph{one token is one mark}, so a
+character and a command count alike and neither commas nor spaces are needed
+between them. That is how \verb|\#| and \verb|\%| are in the default set at
+all --- a bare \texttt{\#} is a macro parameter character and a bare
+\texttt{\%} opens a comment, so neither can be typed in an example in the
+first place, and the escaped forms are the only ones that exist. It is also
+how you add a mark of your own:
+
+\begin{code}
+\GlossPhantomChars{*?([<\#\%\dag}
+\end{code}
+
+\noindent leaves the default set alone and adds \cs{dag} to it. A command
+that is not in the set is not a mark: it stays in the word, where you typed
+it.
 
 The feature is \emph{off by default} --- only because turning it on shifts
 the horizontal position of glosses under bracketed material, and existing
@@ -2162,7 +2178,7 @@ exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package opt
 \textbackslash eachwordone/two/three & Font commands for tiers 1--3. \\
 \textbackslash GlossSep & Glue between gloss columns. \\
 \textbackslash GlossPhantomAlign & Align gloss words past leading brackets, parentheses and judgment marks (\emph{recommended}; section~\ref{sec:phantomalign}). Also the package option \opt{phantomalign}; \cs{GlossPhantomAlignOff} reverts. \\
-\textbackslash GlossPhantomChars\allowbreak\marg{chars} & Leading characters that alignment skips (default \texttt{*?\#\%([<}). \\
+\textbackslash GlossPhantomChars\allowbreak\marg{marks} & Leading marks that alignment skips; one token is one mark, characters and commands alike (default \texttt{*?([<} plus \textbackslash\# \textbackslash\%). \\
 \textbackslash GlossPhantom\allowbreak\marg{material} & Manual override: pad a gloss word by an invisible box the width of \meta{material}, in the object font. \\
 \addlinespace
 \multicolumn{2}{@{}l}{\itshape References} \\

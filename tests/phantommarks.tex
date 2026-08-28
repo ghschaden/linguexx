@@ -1,0 +1,59 @@
+%% Which leading marks the aligner recognises -- the SET, not the geometry.
+%%
+%% phantomalign.tex and altn-phantomalign.tex both measure the alignment
+%% itself, and both do it with marks that always worked (* ? [ ().  What
+%% neither could see is that the two marks the default set NAMES could
+%% never match anything.  A bare # is a macro parameter character and a
+%% bare % opens a comment, so neither can be typed in a document at all --
+%% "\ex. #Ceci" is a TeX error, not a linguexx one -- and \# and \% are
+%% the only spellings that exist.  The set held the bare characters, and
+%% the peel rejected any control sequence, so "\altn{un nez}{\#le nez}"
+%% printed its mark inside the alternative while "\ex. \#Ceci" hung the
+%% same mark in the margin: one package, two answers, and the documented
+%% default set was two entries longer than it was true.
+%%
+%% Test geometry, as in phantomalign.tex: each probe pairs a marked
+%% alternative with an unmarked one carrying the SAME stem.  Peeled, the
+%% mark goes to the gutter and the two stems line up -- their right edges
+%% agree, the stems being identical.  Not peeled, the rows are centred
+%% with the mark inside one of them, so the stems do NOT agree.  Both
+%% outcomes are asserted, because "recognised" and "not recognised" are
+%% each other's control.
+\input{_preamble}
+\GlossPhantomAlign
+\begin{document}
+%% (1)-(2) the two marks that could not be typed before.
+\ex. PMHASH a \altn{PSTEMA}{\#PSTEMA} b.\z.
+
+\ex. PMPCT a \altn{PSTEMB}{\%PSTEMB} b.\z.
+
+%% (3) a control sequence that is NOT in the set stays where it was typed.
+%% This is the control for (4) and for the \# cases above: it shows that a
+%% control sequence is matched against the set rather than waved through.
+\ex. PMDAGOFF a \altn{PSTEMC}{\dag PSTEMC} b.\z.
+
+%% (4) ... and the same mark once the document declares it.  One token of
+%% the argument is one mark, so a mixed list needs no separator.
+\GlossPhantomChars{*?([<\#\%\dag}
+\ex. PMDAGON a \altn{PSTEMD}{\dag PSTEMD} b.\z.
+
+%% (5) A BRACED mark is not a mark.  The peel takes its head with an
+%% undelimited argument, which strips the braces, so without an explicit
+%% test "{[}PSTEME" would peel as "[" + "PSTEME" -- and someone who braced
+%% the bracket did so to keep it out of exactly this scanning.
+\ex. PMBRACE a \altn{PSTEME}{{[}PSTEME} b.\z.
+
+%% (6)-(7) The gloss aligner reads the same set and must give the same
+%% answers: \# recognised, and \dag recognised now that it is declared.
+%% \dag is the one that matters, and not because it is exotic: it is
+%% ROBUST, so the gloss aligner's old f-expansion retrieval turned it into
+%% \protect\dag before the peel could see it, and the peel found \protect
+%% instead of a mark.  The word still typeset correctly, so only the
+%% alignment gave it away.  \# and \% are not robust, which is why the
+%% stacks above cannot catch this and a gloss probe is needed for it.
+\ex. \gll \#PMGLHASH ZED\\
+     PMGLHASH zed\\
+
+\ex. \gll \dag PMGLDAG ZED\\
+     PMGLDAG zed\\
+\end{document}

@@ -1019,6 +1019,75 @@ def a_relreflinks_off(p: Page):
     return r
 
 
+def a_phantommarks(p: Page):
+    r"""Which leading marks the aligner recognises, on both consumers.
+
+    Not the geometry -- phantomalign.tex and altn-phantomalign.tex measure
+    that, and both do it with marks that always worked.  What neither could
+    see is that the two marks the default set NAMED could never match: a
+    bare # is a macro parameter character and a bare % opens a comment, so
+    \# and \% are the only spellings a document can contain, and the set
+    held the bare characters while the peel rejected every control
+    sequence.  The package disagreed with itself -- \ex. \#Ceci hung its
+    mark, \altn{un nez}{\#le nez} did not -- and nothing failed.
+
+    Each probe pairs a marked alternative with an unmarked one carrying the
+    same stem.  Peeled, the mark goes to the gutter and the stems agree on
+    their right edge; not peeled, the rows are centred with the mark inside
+    one of them and they do not.  Both outcomes are asserted: "recognised"
+    and "not recognised" are each other's control, and a peel that simply
+    swallowed everything would pass half of this.
+    """
+    r = []
+    txt = " ".join(w.text for w in p.words)
+
+    def spread(stem):
+        ws = p.find_all(stem)
+        if len(ws) != 2:
+            raise AssertionError(f"expected {stem} twice, got {ws}")
+        return max(w.x1 for w in ws) - min(w.x1 for w in ws)
+
+    def peeled(stem, what):
+        d = spread(stem)
+        return check(d < TOL, f"{what}: peeled into the gutter, stems line "
+                              f"up (right-edge spread {d:.2f}pt)")
+
+    def kept(stem, what):
+        d = spread(stem)
+        return check(d > TOL, f"{what}: left where it was typed, stems do "
+                              f"not line up (right-edge spread {d:.2f}pt)")
+
+    # the stacks
+    r.append(peeled("PSTEMA", r"\# in a stack"))
+    r.append(peeled("PSTEMB", r"\% in a stack"))
+    # \dag is not a mark until the document says so, and then it is.  The
+    # pair is the whole of the claim that the set is CONSULTED rather than
+    # every control sequence waved through.
+    r.append(kept("PSTEMC", r"\dag before \GlossPhantomChars names it"))
+    r.append(peeled("PSTEMD", r"\dag after \GlossPhantomChars names it"))
+    # An undelimited head strips braces, so this needs its own test in the
+    # peel; without it "{[}stem" peels as "[" + "stem".
+    r.append(kept("PSTEME", "a braced ["))
+    # the gloss aligner, reading the same set.  \dag is the one that
+    # matters: it is ROBUST, and the old f-expansion retrieval turned it
+    # into \protect\dag before the peel saw it, so the peel found \protect
+    # and no mark.  \# and \% are not robust, which is why the stacks
+    # cannot catch that and this probe can.
+    r.append(peeled("PMGLHASH", r"\# in a gloss word"))
+    r.append(peeled("PMGLDAG", r"\dag in a gloss word"))
+
+    # A peel that swallowed its mark instead of moving it would align the
+    # stems just as well, so the marks have to still be on the page: two
+    # hashes (stack and gloss), one percent, three daggers (the undeclared
+    # stack, the declared one, the gloss).
+    for mark, n, what in (("#", 2, "hash"), ("%", 1, "percent"),
+                          ("†", 3, "dagger")):
+        got = txt.count(mark)
+        r.append(check(got == n, f"the {what} marks are printed, not "
+                                 f"swallowed ({got} of {n})"))
+    return r
+
+
 def a_altn_phantomalign(p: Page):
     r"""A judgment in an \altn stack hangs left, and the stems line up.
 
@@ -2817,6 +2886,7 @@ ASSERTIONS = {
     "lpzglist": a_lpzglist,
     "lpzgsetup": a_lpzgsetup,
     "phantomalign": a_phantomalign,
+    "phantommarks": a_phantommarks,
     "altg": a_altg,
     "altn": a_altn,
     "altn-phantomalign": a_altn_phantomalign,

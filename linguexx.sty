@@ -2735,8 +2735,8 @@
 %% (e.g. \footnotesize glosses still line up).  The phantom ships no ink and
 %% no marked content, so tagging is unaffected.  Enable with the package
 %% option [phantomalign] or \GlossPhantomAlign; \GlossPhantomAlignOff turns
-%% it back off.  \GlossPhantomChars sets the leading characters that count
-%% (default: the judgment marks * ? # % and the openers ( [ < ), and the
+%% it back off.  \GlossPhantomChars sets the leading marks that count
+%% (default: the judgment marks * ? \# \% and the openers ( [ < ), and the
 %% same set is what an \altn stack peels into its hanging gutter (see
 %% \__lxp_alt_setstack:), and an \altg one -- but there only on the call
 %% that sets the object tier, and on a solo stack: a judgment is a claim
@@ -2744,23 +2744,48 @@
 %% gloss alternative is left where it was typed.
 \bool_new:N \l__lx_gl_phantom_bool
 \iflx@phantomalign \bool_set_true:N \l__lx_gl_phantom_bool \fi
-\str_new:N \l__lx_gl_phantomchars_str
-% The set must hold BARE "#" and "%": writing them as \#\% in \str_set:Nn
-% would stringify to "\#\%" and leave literal backslashes in the set, so any
-% object word beginning with a control sequence would then match "\" and be
-% padded.  \c_hash_str / \c_percent_str are the catcode-12 characters.
-\str_set:Ne \l__lx_gl_phantomchars_str { *?([< \c_hash_str \c_percent_str }
+%% The set is a seq of marks in their STRING form, one entry per mark, and
+%% an entry is either a single character ("*") or a control sequence
+%% ("\#").  It used to be a string of characters, which could not hold the
+%% two marks it most needed to.  A bare # is a macro parameter character
+%% and a bare % opens a comment, so neither can be typed in an example at
+%% all -- "\ex. #Ceci" is "You can't use macro parameter character # in
+%% horizontal mode", from TeX and not from here -- and \# and \% are the
+%% only spellings a document can contain.  A character set cannot hold
+%% those: stringified they are two characters each, and matching them
+%% one character at a time would match a leading "\" and pad every word
+%% that begins with any control sequence.  So the whole mark, not its
+%% first character, is what an entry holds and what the peel compares.
+%%
+%% That also brought this into line with the judgment scanner, which has
+%% always recognised \# and \% by meaning (see \__lx_judge_loop:).  The
+%% two disagreed for as long as the set was a string: "\ex. \#Ceci" hung
+%% its mark in the margin while "\altn{un nez}{\#le nez}" did not peel the
+%% same mark into the gutter, and the # and % in the documented default
+%% set were unreachable.
+\seq_new:N \l__lx_gl_phantomchars_seq
 \tl_new:N  \l__lx_gl_prefix_tl
+\tl_new:N  \l__lx_gl_rest_tl
 \tl_new:N  \l__lx_gl_obj_tl
-\str_new:N \l__lx_gl_word_str
 \str_new:N \l__lx_gl_head_str
-\prg_generate_conditional_variant:Nnn \str_if_in:Nn { NV } { T }
+\quark_new:N \q__lx_gl_stop
 \cs_new_protected:Npn \GlossPhantomAlign
   { \bool_set_true:N \l__lx_gl_phantom_bool }
 \cs_new_protected:Npn \GlossPhantomAlignOff
   { \bool_set_false:N \l__lx_gl_phantom_bool }
+%% One token of #1 is one mark, which is what makes a mixed list work
+%% without a separator: \tl_map_inline: hands over a character and a
+%% control sequence alike, one at a time, so \GlossPhantomChars{*?\dag}
+%% declares three marks and needs no commas.  Stored stringified, so the
+%% comparison in the peel is by name and not by catcode -- a "*" in a
+%% package that made it active still matches.
 \cs_new_protected:Npn \GlossPhantomChars #1
-  { \str_set:Nn \l__lx_gl_phantomchars_str {#1} }
+  {
+    \seq_clear:N \l__lx_gl_phantomchars_seq
+    \tl_map_inline:nn {#1}
+      { \seq_put_right:Ne \l__lx_gl_phantomchars_seq { \tl_to_str:n {##1} } }
+  }
+\GlossPhantomChars { *?([< \# \% }
 % Manual per-word override: \GlossPhantom{stuff} typesets an invisible box
 % the width of #1 SET IN THE OBJECT-TIER FONT.  Placed at the front of a
 % gloss word it aligns that word past #1 regardless of the automatic
@@ -2768,27 +2793,86 @@
 % see (a macro-wrapped bracket, a whole prefix word) or a bespoke target.
 \cs_new_protected:Npn \GlossPhantom #1
   { \phantom { \lx@glfontuse {1} {#1} } }
-% Peel the leading run of phantom characters off word #1 into
-% \l__lx_gl_prefix_tl (as a str; catcode-12 punctuation, safe in \phantom).
-\cs_new_protected:Npn \__lx_gl_leadprefix:N #1
+%% Peel the leading run of marks off #1: #2 collects them, #3 keeps the
+%% remainder.  Both consumers come through here -- the gloss aligner, which
+%% wants the marks to size a \phantom and throws the rest away, and an
+%% \altn or \altg stack, which wants both halves as the two cells of a row.
+%% One rule, one copy, for the same reason \__lxp_alt_build:NNnnN is one
+%% function: the two were written out separately and had already drifted,
+%% the gloss one peeling characters off a stringified word and the stack
+%% one taking tokens, so they disagreed about \# (neither took it) and
+%% about "{[}ein" (only the stack peeled it).
+%%
+%% Tokens, not characters.  The head is taken with an UNDELIMITED argument,
+%% so nothing is expanded and markup inside the alternative (\sout,
+%% \textbf, \lpzg) is untouched, and a control sequence arrives whole
+%% rather than as a backslash followed by its name.  It is compared
+%% stringified against the set, where a character and a control sequence
+%% cannot collide: one stringifies to a single character, the other always
+%% to a backslash and a name.
+%%
+%% A leading BRACE GROUP is not a mark and stops the peel, even when the
+%% group holds one.  An undelimited argument strips the braces, so without
+%% this test "{[}ein" would peel as "[" + "ein" -- and someone who braced
+%% the bracket did so to keep it out of exactly this kind of scanning.
+%% (That is what the gloss half used to do, by accident of stringifying;
+%% the stack half used to peel it.  This makes the accident the rule.)
+\cs_new_protected:Npn \__lx_gl_peel:nNN #1#2#3
   {
-    \tl_clear:N \l__lx_gl_prefix_tl
-    \str_set:Nx \l__lx_gl_word_str { \tl_to_str:N #1 }
-    \__lx_gl_leadprefix_loop:
+    \tl_clear:N #2
+    \tl_set:Nn #3 {#1}
+    \__lx_gl_peel_loop:NN #2#3
   }
-\cs_new_protected:Npn \__lx_gl_leadprefix_loop:
+\cs_new_protected:Npn \__lx_gl_peel_loop:NN #1#2
   {
-    \str_if_empty:NF \l__lx_gl_word_str
+    \tl_if_empty:NF #2
+      { \exp_args:NV \__lx_gl_peel_head:nNN #2 #1#2 }
+  }
+\cs_new_protected:Npn \__lx_gl_peel_head:nNN #1#2#3
+  {
+    \tl_if_head_is_group:nF {#1}
+      { \__lx_gl_peel_test:w #1 \q__lx_gl_stop #2#3 }
+  }
+\cs_new_protected:Npn \__lx_gl_peel_test:w #1#2 \q__lx_gl_stop #3#4
+  {
+    \str_set:Ne \l__lx_gl_head_str { \tl_to_str:n {#1} }
+    \seq_if_in:NVT \l__lx_gl_phantomchars_seq \l__lx_gl_head_str
       {
-        \str_set:Nx \l__lx_gl_head_str { \str_head:N \l__lx_gl_word_str }
-        \str_if_in:NVT \l__lx_gl_phantomchars_str \l__lx_gl_head_str
-          {
-            \tl_put_right:NV \l__lx_gl_prefix_tl \l__lx_gl_head_str
-            \str_set:Nx \l__lx_gl_word_str { \str_tail:N \l__lx_gl_word_str }
-            \__lx_gl_leadprefix_loop:
-          }
+        \tl_put_right:Nn #3 {#1}
+        \tl_set:Nn #4 {#2}
+        \__lx_gl_peel_loop:NN #3#4
       }
   }
+%% The gloss aligner's entry point: it needs the marks only, to size the
+%% \phantom that pads the tiers below.
+\cs_new_protected:Npn \__lx_gl_leadprefix:N #1
+  { \exp_args:NV \__lx_gl_peel:nNN #1 \l__lx_gl_prefix_tl \l__lx_gl_rest_tl }
+%% Word #3 of seq #2 into #1, WITHOUT expanding the word.
+%%
+%% The obvious retrieval, \exp_args:NNf with \seq_item:Nn, does not stop
+%% where it looks as though it stops.  \seq_item:Nn is expandable, so
+%% f-expansion evaluates it and then carries on into the item it produced
+%% and expands ITS leading token too.  For a robust mark that is one step
+%% too many: \dag expands to \protect\dag~, and the peel is then offered
+%% \protect and finds no mark.  The word is typeset from the seq
+%% separately, so the page stayed right and only the alignment was lost.
+%%
+%% This was invisible for as long as \GlossPhantomChars held characters
+%% only -- a character cannot be expanded -- and it survived the first
+%% half of admitting control sequences too, because \# and \% are not
+%% robust in LaTeX2e and so pass through f-expansion unharmed.  It shows
+%% up the moment a document declares a mark of its own that is.
+%%
+%% \seq_map_indexed_inline: hands the item over untouched, which is what
+%% the comment at the call site asks for and what f-expansion only
+%% approximated.
+\cs_new_protected:Npn \__lx_gl_word_get:NNn #1#2#3
+  {
+    \tl_clear:N #1
+    \seq_map_indexed_inline:Nn #2
+      { \int_compare:nNnT {##1} = {#3} { \tl_set:Nn #1 {##2} } }
+  }
+\cs_generate_variant:Nn \__lx_gl_word_get:NNn { Ncn }
 \cs_gset_protected:Npn \lx@gloss@multi #1
   {
     \seq_set_split:Nnn \l__lx_gl_lines_seq { \\ } {#1}
@@ -2818,13 +2902,14 @@
         \bool_if:NTF \l__lx_gl_phantom_bool
           {
             % Retrieve the object word WITHOUT expanding it: the auto-scan
-            % must see the leading literal characters, not expand a macro
+            % must see the leading literal marks, not expand a macro
             % (e.g. \textbf{[}ein) and reach a "[" that the printed word only
             % shows through a control word.  Full expansion here would make
             % the scan fire on macro-wrapped brackets and double up with a
-            % manual \GlossPhantom.  f-expansion evaluates \seq_item only.
-            \exp_args:NNf \tl_set:Nn \l__lx_gl_obj_tl
-              { \seq_item:cn { l__lx_gl_tier_1_seq } {##1} }
+            % manual \GlossPhantom.  \__lx_gl_word_get:Ncn expands nothing
+            % at all -- see there for why f-expansion was not enough.
+            \__lx_gl_word_get:Ncn \l__lx_gl_obj_tl
+              { l__lx_gl_tier_1_seq } {##1}
             \__lx_gl_leadprefix:N \l__lx_gl_obj_tl
           }
           { \tl_clear:N \l__lx_gl_prefix_tl }
@@ -3175,52 +3260,20 @@
 \seq_new:N  \l__lxp_alt_split_seq
 \tl_new:N   \l__lxp_alt_pre_tl
 \tl_new:N   \l__lxp_alt_rest_tl
-\str_new:N  \l__lxp_alt_head_str
 \bool_new:N \l__lxp_alt_anyjudge_bool
-\quark_new:N \q__lxp_alt_stop
 
-%% Peel the leading run of \GlossPhantomChars off one alternative:
-%% \l__lxp_alt_pre_tl gets the marks, \l__lxp_alt_rest_tl the remainder.
-%% The head is taken with an undelimited argument, so nothing is expanded
-%% and markup in the alternative (\sout, \textbf, \lpzg) is untouched; a
-%% head that stringifies to more than one character -- any control
-%% sequence, so \# and \% included, exactly as in the gloss scanner -- is
-%% not a mark and ends the peel.
-\cs_new_protected:Npn \__lxp_alt_peel:n #1
-  {
-    \tl_clear:N \l__lxp_alt_pre_tl
-    \tl_set:Nn \l__lxp_alt_rest_tl {#1}
-    \__lxp_alt_peel_loop:
-  }
-\cs_new_protected:Npn \__lxp_alt_peel_loop:
-  {
-    \tl_if_empty:NF \l__lxp_alt_rest_tl
-      {
-        \exp_after:wN \__lxp_alt_peel_test:w
-          \l__lxp_alt_rest_tl \q__lxp_alt_stop
-      }
-  }
-\cs_new_protected:Npn \__lxp_alt_peel_test:w #1#2 \q__lxp_alt_stop
-  {
-    \str_set:Ne \l__lxp_alt_head_str { \tl_to_str:n {#1} }
-    \int_compare:nNnT { \str_count:N \l__lxp_alt_head_str } = { 1 }
-      {
-        \str_if_in:NVT \l__lx_gl_phantomchars_str \l__lxp_alt_head_str
-          {
-            \tl_put_right:Nn \l__lxp_alt_pre_tl {#1}
-            \tl_set:Nn \l__lxp_alt_rest_tl {#2}
-            \__lxp_alt_peel_loop:
-          }
-      }
-  }
 %% Build the two-cell rows, and record whether any mark was found at all.
+%% The peel itself is \__lx_gl_peel:nNN, shared with the gloss aligner --
+%% see the comment there for why there is one copy of it and not two.  A
+%% stack wants BOTH halves: the marks go in the gutter cell and the rest
+%% in the alternative cell.
 \cs_new_protected:Npn \__lxp_alt_split:N #1
   {
     \seq_clear:N \l__lxp_alt_split_seq
     \bool_set_false:N \l__lxp_alt_anyjudge_bool
     \seq_map_inline:Nn #1
       {
-        \__lxp_alt_peel:n {##1}
+        \__lx_gl_peel:nNN {##1} \l__lxp_alt_pre_tl \l__lxp_alt_rest_tl
         \tl_if_empty:NF \l__lxp_alt_pre_tl
           { \bool_set_true:N \l__lxp_alt_anyjudge_bool }
         \seq_put_right:Ne \l__lxp_alt_split_seq
