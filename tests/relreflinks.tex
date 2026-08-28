@@ -1,0 +1,55 @@
+%% Clickable relative references, and the reason there is machinery behind
+%% them: a relative reference must never be a link to nowhere.
+%%
+%% \ref has always been a link and \Last has not, though the two spell the
+%% same reference; this case pins the half that was missing.  What it is
+%% really about, though, is the failure mode that comes with it.  A
+%% relative reference names its target by ARITHMETIC, so it can name a
+%% number no example carries -- \LLast before example 2, \Next past the
+%% last one -- and a link to a destination that does not exist is not an
+%% error: the backend substitutes a whole-page destination, so the click
+%% lands somewhere plausible and wrong.  The engines do not agree that
+%% this deserves a word (pdftex and luatex warn, in different phrasings;
+%% xdvipdfmx says nothing), which is why linguexx checks it itself.
+%%
+%% Every number below is therefore chosen for whether its target exists:
+%% RLBEFORE holds two references that resolve to no example and one that
+%% does, RLPAST points past the end, and the footnote holds one of each on
+%% the footnote series.  The dangling ones must reach the page as the
+%% numbers they always were, must produce NO link, and must be named in
+%% one warning at the end of the run.
+\input{_preamble}
+\usepackage{hyperref}
+\begin{document}
+%% -1 and 0 are examples that do not exist; 1 is the one below.
+RLBEFORE \LLast\ \Last\ \Next
+
+\ex.\label{rl:one} RLEXONE first example.
+\a. RLSUBA sub a.
+\b. RLSUBB sub b.
+\z.
+
+%% \Next[b] prints the letter but aims at the example: the letter anchors
+%% are built from \alph and the printed letter from \Exalph, so a part
+%% link would dangle in any document that renumbers its sub-examples.
+RLNEXT \Next\ RLLAST \Last\ RLNNEXT \NNext\ RLPART \Next[b]
+%% The p-twin forwards to \Next and must arrive at the same link: it
+%% suppresses the parentheses, not the reference.
+RLPTWIN \pNext
+
+\ex. RLEXTWO second example.
+
+%% Inside a footnote the references ride the footnote series -- except
+%% \TextNext, which names the main-series example that follows the
+%% footnote and must link to it and not to a footnote example.
+RLFN host.\footnote{RLTEXTNEXT \TextNext
+\ex. RLFNONE footnote example one.
+
+\ex. RLFNTWO footnote example two.
+
+RLFNLAST \Last\ RLFNNEXT \Next} done.
+
+\ex. RLEXTHREE third example.
+
+RLPAST \Next\ points past the last example.
+\end{document}

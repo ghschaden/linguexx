@@ -29,6 +29,13 @@ Standalone and modern reimplementation of `linguex` (numbered linguistic example
   that is grammatical or not. Both commands build their stack through
   `\__lxp_alt_build:NNnnN`; keep it that way rather than inlining the
   decision, which drifted twice when it was written out per caller.
+- Relative references (`\Next` & co.) link only to an anchor the PREVIOUS
+  run recorded in the `.aux`, and never to one two examples claimed. A
+  constructed `\hyperlink` that skips that check is a silent wrong jump:
+  a missing destination is not an error, the backend substitutes a
+  whole-page one, and xelatex does not even warn. See the block above
+  `\Last` in the .sty, and `doc/DEFERRED-DECISIONS.md` on the shared
+  anchors themselves.
 - Tagging idiom: `\tag_mc_end_push:` … `\tag_mc_begin_pop:n{}`.
 - `[legacy]` mode = geometric fidelity to linguex; orthogonal to `[lazy]`/`[gb4e]`.
 

@@ -21,7 +21,7 @@ numbered on the main `ExNo` series, not on the footnote series `FnExNo`.
 
 **Why.** `\footnote` inside a `minipage` routes through `\@mpfootnotetext`,
 which is a different command from the ordinary `\@footnotetext`. linguexx
-hooks only the latter (`linguexx.sty:257`, inside the `\AtBeginDocument`
+hooks only the latter (`linguexx.sty:270`, inside the `\AtBeginDocument`
 that also sets `\@noftnotefalse`), so the flag that switches an example
 onto the footnote series is never cleared in the minipage case.
 
@@ -63,7 +63,7 @@ references; deferred rather than implemented.*
 page gets `(10)[a]`. The supported ways to spell "letter a of example 10"
 are `\sublabel{ex:10a}` with an ordinary `\ref` to it, and — for a
 *relative* reference only — `\Last[a]` and its family
-(`linguexx.sty:1734`ff), whose part is joined with `\firstrefdash` and
+(`linguexx.sty:1983`ff), whose part is joined with `\firstrefdash` and
 lands inside the parentheses.
 
 So there is an asymmetry: a relative reference can name a sub-example
@@ -80,7 +80,7 @@ written:
 ```
 
 That reuses the machinery `\refrange`/`\prefrange` already rests on
-(`linguexx.sty:3202-3203`): suppress the parentheses with `\pref`,
+(`linguexx.sty:3691-3692`): suppress the parentheses with `\pref`,
 decorate, put the parentheses back. It needs no `.aux` change, it inherits
 `[legacy]`'s `(10-a)` for free because it goes through `\firstrefdash`,
 and a braced argument cannot be confused with anything in running text.
@@ -157,7 +157,7 @@ made nested stacks unsafe. It had not — but the check turned this up.*
 inside the outer's second row, and nothing about the printed page is
 wrong. What is wrong is the outer stack's *spoken* form. Under active
 tagging each stack is wrapped in a `Span` carrying an `/Alt` string built
-by `\__lxp_buildalt:NN` (`linguexx.sty:2746`), which runs `\text_purify:n`
+by `\__lxp_buildalt:NN` (`linguexx.sty:2995`), which runs `\text_purify:n`
 over each alternative so that formatting is stripped for speech. A nested
 `\altn` purifies to its own source text, brackets and all:
 
@@ -249,3 +249,87 @@ out of the PDF rather than asserting on geometry — `tests/` has no such assert
 written to find this uses `qpdf --qdf --object-streams=disable` to get at
 them, since they are inside compressed object streams. Note also that the
 inner `Span` is not the thing to change: it is already correct.
+
+---
+
+## Two examples, one hyperref anchor, when the counter is reset
+
+*Found on 2026-08-28, while making the relative references clickable. The
+links work around it; nothing about the anchors themselves was changed.*
+
+**Current behaviour.** `\theHExNo` is `lxex.<ExNo>` (`linguexx.sty:303`),
+built from the printed counter and nothing else, so two examples that carry
+the same number claim the same hyperref anchor. hyperref keeps the first
+destination of a name and drops the rest, with a warning from pdfTeX and
+LuaTeX and none at all from `xdvipdfmx`. A `\label` on the second example
+therefore links to the first:
+
+```latex
+\documentclass{book}
+\usepackage[legacy]{linguexx}\usepackage{hyperref}
+\begin{document}
+\chapter{One}   \ex.\label{c1} First of chapter one.
+\chapter{Two}   \ex.\label{c2} First of chapter two.
+\ref{c1} \ref{c2}      % both jump to chapter one
+\end{document}
+```
+
+`[legacy]` in a class with chapters is the case that arrives by itself --
+the per-chapter reset is linguex's convention and `linguexx.sty:238`
+reproduces it deliberately -- but `\setcounter{ExNo}{0}` anywhere does the
+same thing in any class.
+
+The printed number is right in every case. Only the destination is wrong,
+which is why the whole suite passed over it: this is the same shape as the
+footnote sub-example collision fixed in v1.2, one level up, and it was found
+the same way -- by reading the anchors rather than the page.
+
+**What the relative-reference links do about it.** They refuse to link. An
+anchor that two examples recorded is marked ambiguous in the `.aux` and
+treated exactly like one no example recorded: the number prints as before,
+no link is made, and the reference is reported in its own words at the end
+of the run (`tests/relreflinks-reset.tex`). That is a promise about the new
+links only -- linguexx adds no *second* wrong jump to a document that
+already has one -- and deliberately not a fix.
+
+**Why nothing was patched.** The mechanism is easy and the semantics are
+not. Three answers, and the cheapest one is not the best:
+
+1. **Carry the chapter**, `lxex.<chapter>.<ExNo>`, whenever linguexx is the
+   one that made ExNo reset. Two lines, and it covers the case that arrives
+   by itself. It does nothing for `\setcounter{ExNo}{0}`, or for a document
+   that adds its own `\@addtoreset`, so it makes the failure rarer and no
+   less silent -- arguably worse, since a rare silent failure is the kind
+   nobody looks for.
+2. **Make the anchor independent of the printed number** -- a serial that
+   counts examples through the document, reset by nothing. Correct by
+   construction and immune to every reset, but the anchor stops being
+   readable, and the `.aux` of an existing document names anchors that the
+   next run will not create.
+3. **Leave the anchors and report the collision**, as the links now do, but
+   for `\ref` as well: one warning naming the examples that share a
+   destination. Fixes nothing and tells the author exactly what is wrong,
+   which for a defect this rare may be worth more than a silent renaming.
+
+All three change what `\theHExNo` records or what the package says about it,
+and (1) and (2) invalidate a stale `.aux` for one run -- the same cost the
+sub-part-on-`\ref` entry above weighs, and the reason neither was settled in
+passing.
+
+**What would decide it.** A document that resets ExNo *and* is read on
+screen: the two together, since the collision costs nothing on paper. If it
+is a `[legacy]` book, (1) is enough and cheap; if the reset is the author's
+own `\setcounter`, only (2) is, and then the question is whether an
+unreadable anchor is a price worth paying for a defect that has been in the
+package since `\theHExNo` was written.
+
+**If it is ever patched:** the anchor is `\theHExNo` and `\lx@Hexstem`
+(`linguexx.sty:303-304`), and `\lx@Hexname`/`\lx@Hfnexname` beside them have
+to be changed in step, since they spell the same name for a number the
+counter has not reached. The ambiguity guard in the relative-reference code
+should stay either way: it is about what the `.aux` recorded, so it keeps
+working whatever the names become, and it is the only thing that would
+notice if a new recipe collided too. `tests/relreflinks-reset.tex` asserts
+the duplicate-destination warning on the engines that emit it, so it fails
+loudly once the collision is gone -- which is the point at which the withheld
+link there becomes needless rather than saved.

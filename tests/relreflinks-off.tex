@@ -1,0 +1,19 @@
+%% [norelreflinks]: the option that turns the links off again.
+%%
+%% Without a case of its own the option is untestable by construction --
+%% deleting the two \DeclareOption lines leaves every other case green,
+%% since they all take the default.  The document is deliberately the
+%% part of relreflinks.tex whose references all RESOLVE: the point is
+%% that a reference with a perfectly good target still does not become a
+%% link, which is a different claim from the one relreflinks.tex makes
+%% about references without one.  \ref stays a link throughout, so the
+%% case also shows that the option turns off linguexx's links and not
+%% hyperref's.
+\input{_preamble-norelreflinks}
+\begin{document}
+\ex.\label{ro:one} ROEXONE first example.
+
+RONEXT \Next\ ROLAST \Last\ ROREF \ref{ro:one}
+
+\ex. ROEXTWO second example.
+\end{document}

@@ -1,0 +1,17 @@
+%% linguexx with the relative-reference links switched off, hyperref
+%% loaded all the same: the configuration in which \ref is a link and
+%% \Next deliberately is not.  Separate from _preamble.tex because a
+%% package option has to be given at load time, and a case file that
+%% \inputs the ordinary preamble is already past it.
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=25mm]{geometry}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else
+  \usepackage{fontspec}
+\fi
+\usepackage[norelreflinks]{linguexx}
+\usepackage{hyperref}
+\pagestyle{empty}

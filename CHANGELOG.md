@@ -103,6 +103,64 @@ version string.
   kept in step by hand. The wrong reason is recorded next to the right one
   in `linguexx.sty`, because it is the kind of invariant that looks true
   from the tier-per-call structure alone.
+- New: the relative references are clickable. With `hyperref` loaded,
+  `\Next`, `\Last`, `\NNext`, `\LLast`, `\TextNext` and their `p`-twins link
+  to the example they name, as the `\ref` they abbreviate always has. Nothing
+  had to be added to the document to make this possible: `hyperref` puts a
+  destination at every `\refstepcounter`, so every example already had one
+  whether or not it carried a `\label`.
+
+  What is new is everything around that. A relative reference names its
+  target by *arithmetic*, so it can name a number no example carries --
+  `\LLast` before example 2, `\Next` after the last one -- and a link to a
+  destination that does not exist is not an error: the backend substitutes a
+  whole-page destination, so the click lands somewhere plausible and wrong.
+  The three engines do not even agree that this deserves a word (pdfTeX and
+  LuaTeX warn, in two different phrasings; `xdvipdfmx` says nothing), so
+  `linguexx` checks it itself. Every example records the anchor `hyperref`
+  gave it in the `.aux`, and a reference is linked only if the previous run
+  saw the anchor it wants. A reference that has no target prints exactly the
+  number it always printed and is named, with its input line, in one warning
+  at the end of the run -- which is new diagnostic information: until now an
+  off-by-one relative reference was silent by construction. If the two runs
+  disagree about the set of anchors the answer is a rerun rather than a
+  report, as for `\lpzglist` and `\tableofcontents` before it.
+
+  A number that *two* examples carry is withheld in the same way, and
+  reported in its own words. `\theHExNo` is built from `ExNo` alone, so
+  resetting the counter -- with `\setcounter`, or by `[legacy]`'s per-chapter
+  reset in a class that has chapters -- makes two examples claim one
+  `hyperref` anchor, and `hyperref` keeps the first destination of a name and
+  drops the rest. That is a defect in the anchors and it is older than the
+  links: a `\label` on the second example has always led to the first. It is
+  not settled here, since mending it means changing what `\theHExNo` records
+  and therefore what a stale `.aux` means. What the links promise is only
+  that they add no wrong jump of their own to a document that has it.
+
+  The optional sub-example part is printed but not aimed at: `\Last[b]` links
+  to the example, not to its letter. The letter anchors exist, but their
+  letter comes from `\alph` while the printed one comes from `\Exalph`, a
+  documented hook, so in a document that renumbers its sub-examples every
+  part-link would dangle -- and the part is hand-typed text that need not
+  name a real letter in the first place. Landing two lines high is the better
+  failure.
+
+  On by default when `hyperref` is loaded, and only then: without it the
+  mechanism costs nothing, looks up no anchor and writes no line to the
+  `.aux`. `[norelreflinks]` turns it off and restores the `linguex`
+  behaviour. `hyperref`'s own `implicit=false` turns it off too, since it
+  suppresses the destinations this aims at. `\ref` is untouched: `linguexx`
+  still only ever *uses* it, so its immunity to the order `hyperref`,
+  `cleveref`, `varioref` and `nameref` load in is unchanged. Covered by
+  `tests/relreflinks.tex`, `tests/relreflinks-off.tex` and
+  `tests/relreflinks-reset.tex`, which read the link annotations out of the
+  PDF -- a link is invisible in the rendering, which is why this was missing
+  for as long as it was. Under tagging the references become `Link` structure
+  elements with their `OBJR`: `tests/ua.tex` now carries one, so veraPDF sees
+  it on all three engines on every run, and `examples/ua-demo.pdf` -- which
+  has one in a footnote too -- still passes `ua2`, `wt1a` and `wt1r`. The
+  shared-anchor defect behind the second paragraph is recorded in
+  `doc/DEFERRED-DECISIONS.md`.
 - Fix: the relative references no longer swallow the space that follows
   them. `\Last`, `\Next`, `\NNext`, `\LLast`, `\TextNext` and their
   `p`-twins are control words, so TeX's tokenizer discards the space in

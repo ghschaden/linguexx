@@ -34,6 +34,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import zlib
 from pathlib import Path
 
 ENGINES = ["pdflatex", "xelatex", "lualatex"]
@@ -194,6 +195,61 @@ def parse_pdf(pdf: Path) -> Page:
     page.raw = pdf.read_bytes()
     page.path = pdf
     return page
+
+
+def link_targets(raw: bytes):
+    """The destination names of every GoTo link in a PDF, repeats kept.
+
+    A link is invisible to pdftotext -- the printed number looks the same
+    whether or not it moves -- so the annotations have to be read out of the
+    file itself.  They are not lying in the open: hyperref's output puts
+    both the annotation and the name tree in compressed object streams, so
+    every Flate stream is inflated and the names are matched in the result.
+    stdlib zlib only, deliberately: reading a link must not cost the suite
+    another external tool.
+
+    Repeats are kept, because two references to the same example are two
+    links.  A rule that folded them into one could not tell a reference that
+    lost its link from one that acquired a second.
+    """
+    text = [raw]
+    for m in re.finditer(rb"stream\r?\n", raw):
+        start = m.end()
+        end = raw.find(b"endstream", start)
+        if end < 0:
+            continue
+        try:
+            text.append(zlib.decompress(raw[start:end]))
+        except zlib.error:              # not Flate: a font, an image, XRef
+            pass
+    joined = b"\n".join(text).decode("latin-1")
+    # "/D (name)" is the GoTo action's destination.  "/Dest" is not matched:
+    # the parenthesis has to follow the key immediately.
+    return re.findall(r"/D\s*\(([^()]*)\)", joined)
+
+
+def example_targets(raw: bytes):
+    """link_targets restricted to the example anchors linguexx names."""
+    return [d for d in link_targets(raw)
+            if d.startswith(("ExNo.lxex.", "FnExNo.lxfnex."))]
+
+
+def warning_body(log: str, opening: str):
+    """One \\PackageWarning from a .log, unwrapped into a single line.
+
+    LaTeX breaks a warning across lines and prefixes the continuations with
+    "(linguexx)", so nothing in a message longer than one line can be found
+    by a plain substring test.
+    """
+    start = log.find(opening)
+    if start < 0:
+        return ""
+    lines = []
+    for line in log[start:].splitlines():
+        if lines and not line.startswith("(linguexx)"):
+            break
+        lines.append(line.replace("(linguexx)", " "))
+    return " ".join(" ".join(lines).split())
 
 
 # ---------------------------------------------------------------------------
@@ -763,6 +819,205 @@ def a_relrefs(p: Page):
     return r
 
 
+def a_relreflinks(p: Page):
+    r"""\Next and \Last are links -- and never links to nothing.
+
+    Two claims, and the second is the one with teeth.  That the references
+    move at all is read out of the PDF's link annotations, because nothing
+    about a link shows up in the rendering: the number is the same glyphs
+    whether or not it is clickable, which is why this was missing for as
+    long as it was.
+
+    The second claim is that a reference with no example behind it is not
+    linked.  A relative reference names its target by arithmetic, so \LLast
+    before example 2 asks for example 0 and \Next after the last one asks
+    for one more than there is; a link to a destination that does not exist
+    is NOT an error, since the backend substitutes a whole-page destination
+    and the click lands somewhere plausible and wrong.  The engines cannot
+    be relied on to say so either -- pdftex and luatex warn in two
+    phrasings and xdvipdfmx says nothing -- so both halves are asserted
+    here: no annotation for the four numbers that name nothing, and one
+    linguexx warning that lists exactly those four.
+
+    The .aux is checked too.  It is where the anchors of one run are handed
+    to the next, and it is what makes a cold run different from a warm one:
+    on the first pass nothing is known, nothing is linked, and the answer
+    is a rerun rather than four false reports of a missing example.
+    """
+    r = []
+    txt = " ".join(w.text for w in p.words)
+
+    def shows(tok, want):
+        got = txt[txt.find(tok):][:len(tok) + 14]
+        return check(f"{tok} {want}" in txt, f"{tok} prints {want}; got {got!r}")
+
+    # The printed numbers first: the formatters were rewritten to take the
+    # number as an EXPRESSION (so that the anchor and the printed digits
+    # come out of one evaluation), and that must not have moved a digit.
+    r.append(shows("RLBEFORE", "(-1) (0) (1)"))
+    r.append(shows("RLNEXT", "(2)"))
+    r.append(shows("RLLAST", "(1)"))
+    r.append(shows("RLNNEXT", "(3)"))
+    r.append(shows("RLPART", "(2b)"))
+    r.append(shows("RLPTWIN", "2"))
+    r.append(shows("RLTEXTNEXT", "(3)"))
+    r.append(shows("RLFNLAST", "(ii)"))
+    r.append(shows("RLFNNEXT", "(iii)"))
+    r.append(shows("RLPAST", "(4)"))
+
+    # The links.  Counted, not merely present: RLBEFORE's \Next and RLLAST
+    # both name example 1; RLNEXT, RLPART and the p-twin RLPTWIN all name
+    # example 2; RLNNEXT and RLTEXTNEXT both name example 3.  \Next[b]
+    # naming example 2 rather than its letter b is a decision, not an
+    # oversight (the letter anchors are built from \alph and the printed
+    # letter from \Exalph), and the p-twin is here because it suppresses
+    # the parentheses, not the reference.
+    got = example_targets(p.raw)
+    want = {"ExNo.lxex.1": 2, "ExNo.lxex.2": 3, "ExNo.lxex.3": 2,
+            "FnExNo.lxfnex.2": 1}
+    for name, n in want.items():
+        r.append(check(got.count(name) == n,
+                       f"{n} link(s) to {name}; got {got.count(name)}"))
+    # \TextNext escaping the footnote is the reason the footnote series is
+    # here at all: (3) inside the footnote must aim at the MAIN example 3.
+    r.append(check(got.count("FnExNo.lxfnex.3") == 0
+                   and "ExNo.lxfnex.3" not in got,
+                   "\\TextNext links to the main series, not the footnote one"))
+    # and nothing else: the four numbers that name no example are the whole
+    # point of the case, and an anchor outside this set would mean a link
+    # aimed at something the document does not have.
+    stray = sorted(set(got) - set(want))
+    r.append(check(not stray, f"no link to an example that does not exist; "
+                              f"got {stray}"))
+
+    # The engines that do report a substituted destination must not report
+    # one.  Vacuous under xelatex, where xdvipdfmx says nothing either way,
+    # which is exactly why linguexx does not rely on this.
+    log = getattr(p, "log", "")
+    for phrase in ("has been referenced but does not exist",
+                   "unreferenced destination"):
+        r.append(check(phrase not in log, f"no backend warning ({phrase!r})"))
+
+    # One warning, naming exactly the four references that found no target,
+    # in document order.  Without it the four are silent: they print the
+    # number they always printed, and nothing marks them as unresolved.
+    body = warning_body(log, "Package linguexx Warning: No example carries")
+    r.append(check(bool(body), "the dangling references are reported at all"))
+    listed = []
+    if "asks for:" in body:
+        tail = body.split("asks for:", 1)[1].split(". The number", 1)[0]
+        listed = [item.strip().split(" ")[0] for item in tail.split(",")
+                  if "(line" in item or item.strip()]
+        listed = [x for x in listed if not x.startswith("(line")]
+    r.append(check(listed == ["-1", "0", "iii", "4"],
+                   f"the report names -1, 0, iii and 4; got {listed}"))
+
+    # The .aux carries the anchors from one run to the next, guarded by a
+    # \providecommand of its own: a document that drops linguexx still has
+    # last run's .aux, and reading it must not be an undefined command.
+    aux = getattr(p, "aux", "")
+    r.append(check(aux.find(r"\providecommand\lx@relref@dest[1]{}") >= 0
+                   and aux.find(r"\providecommand\lx@relref@dest[1]{}")
+                       < aux.find(r"\lx@relref@dest{ExNo"),
+                   "the .aux defines \\lx@relref@dest before using it"))
+    for name in ("ExNo.lxex.1", "ExNo.lxex.2", "ExNo.lxex.3",
+                 "FnExNo.lxfnex.1", "FnExNo.lxfnex.2"):
+        r.append(check(("\\lx@relref@dest{%s}" % name) in aux,
+                       f"the .aux records the anchor of {name}"))
+
+    # Cold run: the anchors are not known yet, so nothing is linked and the
+    # answer is a rerun -- NOT four reports of examples that do exist.  The
+    # warm run must then be quiet, or the message would cry wolf on every
+    # document that has converged.
+    first = getattr(p, "first_log", "")
+    r.append(check("Example anchors out of date" in first,
+                   "the first pass asks for a rerun"))
+    r.append(check("No example carries" not in first,
+                   "the first pass does not report the resolvable references"))
+    r.append(check("Example anchors out of date" not in log,
+                   "the converged run does not ask for a rerun"))
+    return r
+
+
+def a_relreflinks_reset(p: Page):
+    r"""A number two examples share is not linked either.
+
+    \theHExNo is built from ExNo alone, so a reset counter makes two
+    examples claim one anchor and hyperref keeps only the first
+    destination.  That is a defect in the anchors, older than the links: a
+    \label on the second example has always led to the first.  What is
+    asserted here is the narrower promise the links make -- that linguexx
+    adds no wrong jump of its own to a document that has this.  The
+    reference prints its number and stays put, and says so in its own
+    words, since a reader who gets the report has to be able to tell a
+    shared number from a missing one.
+
+    The engines' own duplicate-destination warning is asserted too, on the
+    two that emit it.  It is what makes the case honest: if it ever stops
+    appearing, the anchors have been mended and the withheld link here is
+    a needless one rather than a saved wrong jump.
+    """
+    r = []
+    txt = " ".join(w.text for w in p.words)
+    r.append(check("RSDUP (1) RSUNIQ (2)" in txt,
+                   f"both references print their number; got "
+                   f"{txt[txt.find('RSDUP'):][:24]!r}"))
+    got = example_targets(p.raw)
+    r.append(check("ExNo.lxex.1" not in got,
+                   "the number two examples share is not a link"))
+    r.append(check(got.count("ExNo.lxex.2") == 1,
+                   f"the number one example carries still is "
+                   f"(got {got.count('ExNo.lxex.2')})"))
+    log = getattr(p, "log", "")
+    body = warning_body(log, "Package linguexx Warning: More than one example")
+    r.append(check("1 (line" in body,
+                   f"the shared number is reported, with its line; got {body!r}"))
+    r.append(check("counter was reset" in body,
+                   "the report says why, so a shared number is not read as a "
+                   "missing one"))
+    r.append(check("No example carries" not in log,
+                   "and is not ALSO reported as an example that does not exist"))
+    # pdflatex and lualatex say so; xelatex does not, the collision being
+    # resolved downstream by xdvipdfmx.  Asserted where it is said.
+    if "same identifier" in log or "duplicate destination" in log:
+        r.append(check(True, "the engine confirms the duplicate destination"))
+    return r
+
+
+def a_relreflinks_off(p: Page):
+    r"""[norelreflinks]: the references print, and stay put.
+
+    The option is invisible to every other case, all of which take the
+    default, so without this one the two \DeclareOption lines could be
+    deleted and the suite would stay green.
+
+    Every reference here resolves, which is the point: the claim is not
+    that a link is withheld from a reference that has no target -- that is
+    relreflinks.tex -- but that one with a perfectly good target does not
+    become a link.  \ref sits beside them and must still move, so example 1
+    is named twice on the page and may be a link exactly once.
+    """
+    r = []
+    txt = " ".join(w.text for w in p.words)
+    for tok, want in (("RONEXT", "(2)"), ("ROLAST", "(1)"), ("ROREF", "(1)")):
+        r.append(check(f"{tok} {want}" in txt,
+                       f"{tok} prints {want}; got "
+                       f"{txt[txt.find(tok):][:len(tok) + 14]!r}"))
+    got = example_targets(p.raw)
+    r.append(check(got.count("ExNo.lxex.1") == 1,
+                   f"\\ref still links and \\Last does not (one link to "
+                   f"example 1, got {got.count('ExNo.lxex.1')})"))
+    r.append(check("ExNo.lxex.2" not in got,
+                   "\\Next is not a link"))
+    # Nothing is recorded either: with the links off the .aux must not grow
+    # a line per example for a mechanism the document has switched off.
+    aux = getattr(p, "aux", "")
+    r.append(check(r"\lx@relref@dest" not in aux,
+                   "no anchors are written to the .aux"))
+    r.append(check("linguexx Warning" not in getattr(p, "log", ""),
+                   "and nothing is reported"))
+    return r
+
 
 def a_altn_phantomalign(p: Page):
     r"""A judgment in an \altn stack hangs left, and the stems line up.
@@ -1190,7 +1445,7 @@ def a_ua(p: Page):
     # the document really did typeset, so a compliant-but-empty PDF cannot
     # pass this case by accident
     for tok in ("UAMAIN", "UAALPHA", "UAOBJ", "UATRANS", "UAALTN", "UAALTG",
-                "UAEXE", "UALIST"):
+                "UAEXE", "UALIST", "UAREL"):
         r.append(check(p.find(tok) is not None, f"typeset: {tok}"))
     return r
 
@@ -2574,6 +2829,9 @@ ASSERTIONS = {
     "verb": a_verb,
     "refs": a_refs,
     "relrefs": a_relrefs,
+    "relreflinks": a_relreflinks,
+    "relreflinks-off": a_relreflinks_off,
+    "relreflinks-reset": a_relreflinks_reset,
 }
 
 
@@ -2643,7 +2901,8 @@ def run_case(name: str, engine: str, verbose: bool):
         for pre in CASES.glob("_preamble*.tex"):
             shutil.copy(pre, tmp)
         shutil.copy(STY, tmp)
-        for _ in range(PASSES.get(name, DEFAULT_PASSES)):
+        first_log = ""
+        for npass in range(PASSES.get(name, DEFAULT_PASSES)):
             try:
                 proc = subprocess.run(
                     [engine, "-interaction=nonstopmode", "-halt-on-error",
@@ -2660,6 +2919,16 @@ def run_case(name: str, engine: str, verbose: bool):
                 return [(False, f"TIMED OUT after {CASE_TIMEOUT}s: the engine "
                                 f"did not stop (a TeX loop ignores "
                                 f"nonstopmode)")]
+            # The COLD run's log, kept because some of what the package
+            # reports can only be said on it.  A mechanism that hands the
+            # anchors of one run to the next has nothing to go on when the
+            # .aux is empty, and what it must do there -- ask for a rerun,
+            # rather than report every reference as unresolved -- is invisible
+            # in the converged log the assertions otherwise see.
+            if npass == 0:
+                cold = tmp / f"{name}.log"
+                first_log = cold.read_text(errors="replace") if cold.exists() \
+                    else ""
         # Cases whose point IS the error: the compile is meant to stop, so
         # check the message before treating a non-zero status as a failure.
         if name in EXPECT_ERROR:
@@ -2681,6 +2950,7 @@ def run_case(name: str, engine: str, verbose: bool):
         # Warnings never reach the PDF, so a case that is about what the
         # package REPORTS needs the log as well as the rendering.
         page.log = (tmp / f"{name}.log").read_text(errors="replace")
+        page.first_log = first_log
         # ... and a case about hyperref ANCHORS needs the .aux: the anchor a
         # \label stores is invisible in the rendering (the printed number is
         # right even when the anchor is wrong), and the engines disagree on

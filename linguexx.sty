@@ -187,14 +187,27 @@
 %%           options, so [legacy,gb4e] is meaningful (gb4e syntax,
 %%           linguex geometry), and [legacy] alone implies the dot
 %%           syntax, exactly as [lazy] alone does.
+%%
+%% RELATIVE REFERENCES:
+%%   [relreflinks] (the default): with hyperref loaded, \Next and \Last
+%%           and their family are clickable, like the \ref they are an
+%%           abbreviation of.  Without hyperref the option does nothing
+%%           and costs nothing: no anchor is looked up and no line is
+%%           written to the .aux.
+%%   [norelreflinks]: print the number and never the link, as linguex
+%%           did.  For a document that wants its own \hyperref wrapper
+%%           around these, or none at all.
 \newif\iflx@lazy
 \newif\iflx@gbfour
 \newif\iflx@legacy
 \newif\iflx@phantomalign
+\newif\iflx@relreflinks \lx@relreflinkstrue
 \DeclareOption{lazy}{\lx@lazytrue}
 \DeclareOption{gb4e}{\lx@gbfourtrue}
 \DeclareOption{legacy}{\lx@legacytrue}
 \DeclareOption{phantomalign}{\lx@phantomaligntrue}
+\DeclareOption{relreflinks}{\lx@relreflinkstrue}
+\DeclareOption{norelreflinks}{\lx@relreflinksfalse}
 \DeclareOption*{\PackageWarning{linguexx}{Unknown option
   '\CurrentOption' ignored}}
 \ProcessOptions\relax
@@ -292,6 +305,20 @@
 \def\theHSubExNo{\lx@Hexstem.\alph{SubExNo}}
 \def\theHSubSubExNo{\lx@Hexstem.\alph{SubExNo}.\arabic{SubSubExNo}}
 \def\theHFnExNo{lxfnex.\arabic{FnExNo}}
+
+% The same anchors as \hyperlink TARGETS.  hyperref prefixes the name it
+% builds from \theH<counter> with the counter's own name, so the
+% destination of main example 5 is "ExNo.lxex.5" and that of footnote
+% example 5 is "FnExNo.lxfnex.5".  These two spell that name for a
+% NUMBER rather than for the counter's current value, which is what a
+% relative reference needs and \theHExNo cannot give: \Next has to name
+% an example the document has not reached.  They live here, beside the
+% \theH... definitions they mirror, so that the two spellings of one
+% anchor are edited together; nothing silently depends on their
+% agreeing, though -- see \lx_relref_record: for why a disagreement
+% costs a link and never a wrong jump.
+\newcommand\lx@Hexname[1]{ExNo.lxex.#1}
+\newcommand\lx@Hfnexname[1]{FnExNo.lxfnex.#1}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%  Layout parameters                                                  %%%%
@@ -1250,12 +1277,20 @@
 %% because [legacy] sizes the label box from the label itself.
 \def\lx@custom@item#1{\def\lx@itemlabel{#1}\lx@mainlist\lx@scanjudge}
 \def\lx@exstart@opt[#1]{\lx@custom@item{#1}}
+%% \lx@relref@record notes the hyperref anchor this example just got, so
+%% that a later run's \Next can tell a number the document reaches from
+%% one it does not.  It sits HERE, after the counter step, because that
+%% is where hyperref has made the anchor and set \@currentHref; and it
+%% sits here ONLY, so that the custom-label item above -- which steps no
+%% counter and therefore has no anchor -- records nothing.  It expands to
+%% nothing at all unless the links are switched on.
 \def\lx@main@core{%
   \if@noftnote
     \refstepcounter{ExNo}\def\lx@itemlabel{\theExNo}%
   \else
     \refstepcounter{FnExNo}\def\lx@itemlabel{\theFnExNo}%
-  \fi}
+  \fi
+  \lx@relref@record}
 \def\lx@exstart@normal{\lx@main@core\lx@mainlist\lx@scanjudge}
 \def\lx@mainitem{\lx@main@core\lx@scanjudge}
 %% --- public API (Protocol A: top-level items) -------------------------
@@ -1728,43 +1763,260 @@
 % they end in an argument, so the source space after } survives.
 \newcommand\lx@relsub{}
 \newcommand\lx@setrelsub[1]{\IfValueT{#1}{\def\lx@relsub{\firstrefdash#1}}}
-\newcommand\lx@fmtEx[1]{\theExLBr#1\lx@relsub\theExRBr}
-\newcommand\lx@fmtFnEx[1]{\theFnExLBr#1\lx@relsub\theFnExRBr}
+
+%%%% Clickable relative references ---------------------------------------
+%%
+%% \ref{ex:1} has been a link ever since hyperref existed and \Last has
+%% not, although the two spell the same reference; the reader cannot see
+%% from the page which of them will move.  The targets were there all
+%% along: hyperref puts a destination at every \refstepcounter, so every
+%% example already has one whether or not it carries a \label, and what
+%% was missing was only the link.
+%%
+%% The catch -- and the reason this is machinery rather than a \hyperlink
+%% inside \lx@fmtEx -- is that a relative reference names a number by
+%% ARITHMETIC, and the arithmetic can name a number the document never
+%% reaches: \Next in the last section, \LLast before example 2.  A link
+%% to a destination that does not exist is not an error.  The backend
+%% quietly substitutes a whole-page one, so the click lands somewhere
+%% plausible and wrong, and the three engines do not even agree that this
+%% is worth a word (pdftex warns, luatex warns in other words, xdvipdfmx
+%% says nothing).  So the existence of the target is checked here, once,
+%% for all three: with no target the number is printed exactly as it was
+%% before and the reference is reported at the end of the run.  A
+%% relative reference is never a link to nowhere.
+%%
+%% Knowing whether a target exists takes the .aux, hence a run behind.
+%% Every example records the anchor hyperref gave it -- \@currentHref,
+%% the anchor hyperref ACTUALLY made, rather than one built here to the
+%% same recipe.  That is deliberate: a reference builds the name it wants
+%% with \lx@Hexname, so if the two recipes ever disagree the lookup
+%% fails and the reference degrades to an unlinked number, which is the
+%% old behaviour plus a warning.  Building both ends the same way would
+%% turn the same disagreement into a link that goes somewhere wrong.
+%%
+%% If the two runs disagree about the SET of anchors, the answer is a
+%% rerun rather than a report: a stale .aux makes both halves of the
+%% report untrustworthy, the missing-target list included.  That is the
+%% bargain \lpzglist strikes, and \tableofcontents before it.
+%%
+%% The optional sub-example part is printed but not aimed at: \Last[b]
+%% links to the example, not to its letter b.  Letter anchors do exist
+%% (\theHSubExNo), but their letter comes from \alph while the printed
+%% one comes from \Exalph, a documented hook -- so in a document that
+%% renumbers its sub-examples every part-link would dangle, and the part
+%% is hand-typed text that need not name a real letter in the first
+%% place.  Landing two lines high is the better failure.
+\ExplSyntaxOn
+\bool_new:N \g__lx_relref_link_bool  % hyperref present, its anchors
+                                     % implicit, and [norelreflinks] not given
+\prop_new:N \g__lx_relref_dest_prop  % anchors the .aux knows: the lookup
+\seq_new:N  \g__lx_relref_aux_seq    % the same, in order: the rerun test
+\seq_new:N  \g__lx_relref_new_seq    % anchors recorded on THIS run
+\prop_new:N \g__lx_relref_ambig_prop % anchors TWO examples claimed
+\seq_new:N  \g__lx_relref_bad_seq    % references that found no target
+\seq_new:N  \g__lx_relref_ambig_seq  % references whose anchor is shared
+\str_new:N  \l__lx_relref_dest_str
+
+%% Written to and read back from the .aux.  A destination name is a
+%% string on both sides -- it reaches this from the .aux as letters and
+%% from \@currentHref as whatever hyperref built it out of, and a prop
+%% would take two spellings of "ExNo.lxex.3" for two different keys.
+%%
+%% A name recorded TWICE is recorded as ambiguous instead.  Two examples
+%% claim one anchor whenever ExNo is reset mid-document -- by
+%% \setcounter, or by [legacy]'s per-chapter reset in a class that has
+%% chapters -- because \theHExNo is built from the counter alone.
+%% hyperref keeps the first destination of a name and drops the rest, so
+%% the number 1 of chapter 3 is a link to the number 1 of chapter 1.
+%% That is a defect in the anchors themselves and it predates the links:
+%% a \label in the second chapter has always led to the first, and
+%% mending it means changing what \theHExNo records, which is not this
+%% mechanism's to decide.  What IS this mechanism's business is not
+%% shipping a wrong jump of its own, so an ambiguous name is treated
+%% exactly like a missing one -- the number is printed, no link is made,
+%% and the reference is reported.
+\cs_new_protected:Npn \lx@relref@dest #1
+  {
+    \str_set:Nn \l__lx_relref_dest_str {#1}
+    \prop_if_in:NVTF \g__lx_relref_dest_prop \l__lx_relref_dest_str
+      { \prop_gput:NVn \g__lx_relref_ambig_prop \l__lx_relref_dest_str { } }
+      { \prop_gput:NVn \g__lx_relref_dest_prop \l__lx_relref_dest_str { } }
+    \seq_gput_right:NV \g__lx_relref_aux_seq \l__lx_relref_dest_str
+  }
+%% One example, one anchor.
+\cs_new_protected:Npn \lx_relref_record:
+  {
+    \bool_if:NT \g__lx_relref_link_bool
+      {
+        \str_set:Ne \l__lx_relref_dest_str { \@currentHref }
+        \seq_gput_right:NV \g__lx_relref_new_seq \l__lx_relref_dest_str
+        \legacy_if:nT { @filesw }
+          {
+            \iow_now:Ne \@auxout
+              { \token_to_str:N \lx@relref@dest
+                  { \l__lx_relref_dest_str } }
+          }
+      }
+  }
+\cs_new_eq:NN \lx@relref@record \lx_relref_record:
+
+%% #1 = the anchor wanted, #2 = the number as printed (for the report),
+%% #3 = the whole reference, parentheses and sub-part included.  #3 is
+%% what reaches the page in every branch: the link is added to the
+%% reference, it never replaces or reformats it.
+\cs_new_protected:Npn \lx_relref_emit:nnn #1#2#3
+  {
+    \bool_if:NTF \g__lx_relref_link_bool
+      {
+        \str_set:Ne \l__lx_relref_dest_str {#1}
+        \prop_if_in:NVTF \g__lx_relref_ambig_prop \l__lx_relref_dest_str
+          {
+            \seq_gput_right:Ne \g__lx_relref_ambig_seq
+              { #2 ~ (line~ \int_use:N \inputlineno ) }
+            #3
+          }
+          {
+            \prop_if_in:NVTF \g__lx_relref_dest_prop \l__lx_relref_dest_str
+              { \exp_args:NV \hyperlink \l__lx_relref_dest_str {#3} }
+              {
+                \seq_gput_right:Ne \g__lx_relref_bad_seq
+                  { #2 ~ (line~ \int_use:N \inputlineno ) }
+                #3
+              }
+          }
+      }
+      {#3}
+  }
+%% Both series are formatted through one function, given the number as an
+%% expression rather than as text: the anchor and the printed number have
+%% to come from the same arithmetic, and evaluating it twice at each call
+%% site is how they would drift.  The main series prints its number in
+%% arabic and the footnote series in roman, which is the only difference
+%% between the two.
+\cs_new_protected:Npn \lx@fmtEx #1
+  {
+    \lx_relref_emit:nnn
+      { \lx@Hexname { \int_eval:n {#1} } }
+      { \int_eval:n {#1} }
+      { \theExLBr \int_eval:n {#1} \lx@relsub \theExRBr }
+  }
+\cs_new_protected:Npn \lx@fmtFnEx #1
+  {
+    \lx_relref_emit:nnn
+      { \lx@Hfnexname { \int_eval:n {#1} } }
+      { \int_to_roman:n {#1} }
+      { \theFnExLBr \int_to_roman:n {#1} \lx@relsub \theFnExRBr }
+  }
+
+\msg_new:nnn { linguexx } { relref-rerun }
+  {
+    Example~anchors~out~of~date.~
+    Rerun~LaTeX~to~get~the~links~of~\iow_char:N \\Next~and~
+    \iow_char:N \\Last~right.
+  }
+\msg_new:nnn { linguexx } { relref-dangling }
+  {
+    No~example~carries~the~number~a~relative~reference~asks~for:~#1.\\
+    The~number~is~printed~as~before,~but~it~is~not~a~link.
+  }
+\msg_new:nnn { linguexx } { relref-ambiguous }
+  {
+    More~than~one~example~carries~the~number~a~relative~reference~
+    asks~for:~#1.\\
+    The~example~counter~was~reset,~so~two~examples~share~one~hyperref~
+    anchor~and~a~link~would~lead~to~the~first~of~them.\\
+    The~number~is~printed~as~before,~but~it~is~not~a~link.
+  }
+\cs_new_protected:Npn \lx_relref_check:
+  {
+    \bool_if:NT \g__lx_relref_link_bool
+      {
+        \str_if_eq:eeTF
+          { \seq_use:Nn \g__lx_relref_aux_seq { , } }
+          { \seq_use:Nn \g__lx_relref_new_seq { , } }
+          {
+            \seq_if_empty:NF \g__lx_relref_bad_seq
+              { \msg_warning:nne { linguexx } { relref-dangling }
+                  { \seq_use:Nn \g__lx_relref_bad_seq { ,~ } } }
+            \seq_if_empty:NF \g__lx_relref_ambig_seq
+              { \msg_warning:nne { linguexx } { relref-ambiguous }
+                  { \seq_use:Nn \g__lx_relref_ambig_seq { ,~ } } }
+          }
+          { \msg_warning:nn { linguexx } { relref-rerun } }
+      }
+  }
+\AtEndDocument { \lx_relref_check: }
+
+%% Switched on once, and only if there is something to link to.
+%% hyperref's implicit=false suppresses the anchor at \refstepcounter --
+%% the destination this whole mechanism aims at -- so under it the links
+%% are not merely unhelpful but impossible, and asking for them would
+%% report every reference in the document as dangling.
+%% Switching them on also puts a \providecommand of \lx@relref@dest into
+%% the .aux, as hyperref does for its own label lines: a document that
+%% drops linguexx still has last run's .aux, and reading it must not be
+%% an undefined control sequence.  It goes in HERE, at \begin{document},
+%% and not at the first example: \@auxout is the MAIN .aux at this point,
+%% so the line precedes every record in every file -- including the ones
+%% an \include writes into an .aux of its own, and including an .aux that
+%% \includeonly has left over from a previous run.
+\cs_new_protected:Npn \lx_relref_enable:
+  {
+    \bool_gset_true:N \g__lx_relref_link_bool
+    \legacy_if:nT { @filesw }
+      { \iow_now:Ne \@auxout
+          { \token_to_str:N \providecommand
+            \token_to_str:N \lx@relref@dest [1]{} } }
+  }
+\legacy_if:nT { lx@relreflinks }
+  {
+    \AtBeginDocument
+      {
+        \cs_if_exist:NT \hyperlink
+          {
+            \cs_if_exist:cTF { ifHy@implicit }
+              { \legacy_if:nT { Hy@implicit } { \lx_relref_enable: } }
+              { \lx_relref_enable: }
+          }
+      }
+  }
+\ExplSyntaxOff
 
 \NewDocumentCommand\Last{o}{{\lx@setrelsub{#1}%
   \if@noftnote
-    \lx@fmtEx{\arabic{ExNo}}%
+    \lx@fmtEx{\value{ExNo}}%
   \else\ifnum\value{FnExNo}>\z@
-    \lx@fmtFnEx{\roman{FnExNo}}%
+    \lx@fmtFnEx{\value{FnExNo}}%
   \else
-    \lx@fmtEx{\arabic{ExNo}}%
+    \lx@fmtEx{\value{ExNo}}%
   \fi\fi}\xspace}
 
 \NewDocumentCommand\Next{o}{{\lx@setrelsub{#1}%
   \if@noftnote
-    \lx@fmtEx{\the\numexpr\value{ExNo}+1\relax}%
+    \lx@fmtEx{\value{ExNo}+1}%
   \else
-    \lx@fmtFnEx{\romannumeral\numexpr\value{FnExNo}+1\relax}%
+    \lx@fmtFnEx{\value{FnExNo}+1}%
   \fi}\xspace}
 
 \NewDocumentCommand\NNext{o}{{\lx@setrelsub{#1}%
   \if@noftnote
-    \lx@fmtEx{\the\numexpr\value{ExNo}+2\relax}%
+    \lx@fmtEx{\value{ExNo}+2}%
   \else
-    \lx@fmtFnEx{\romannumeral\numexpr\value{FnExNo}+2\relax}%
+    \lx@fmtFnEx{\value{FnExNo}+2}%
   \fi}\xspace}
 
 \NewDocumentCommand\LLast{o}{{\lx@setrelsub{#1}%
   \if@noftnote
-    \lx@fmtEx{\the\numexpr\value{ExNo}-1\relax}%
+    \lx@fmtEx{\value{ExNo}-1}%
   \else\ifnum\value{FnExNo}>\@ne
-    \lx@fmtFnEx{\romannumeral\numexpr\value{FnExNo}-1\relax}%
+    \lx@fmtFnEx{\value{FnExNo}-1}%
   \else
-    \lx@fmtEx{\arabic{ExNo}}%
+    \lx@fmtEx{\value{ExNo}}%
   \fi\fi}\xspace}
 
 \NewDocumentCommand\TextNext{o}{{\lx@setrelsub{#1}%
-  \lx@fmtEx{\the\numexpr\value{ExNo}+1\relax}}\xspace}
+  \lx@fmtEx{\value{ExNo}+1}}\xspace}
 
 % parenthesis-free twins
 \newcommand\pref[1]{{\parenstrue\ref{#1}}}

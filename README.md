@@ -26,7 +26,11 @@ into the PDF structure tree as genuine, accessible objects:
 - a gloss tier's language can be recorded (`\GlossTierLang{1}{de}` → `/Lang`);
 - Leipzig category abbreviations carry their expansion (`\lpzg{sg}` → `/E`
   "singular"), so they are spoken in full while the page still shows SG, and
-  `\lpzglist` prints the list of those actually used, as a tagged list.
+  `\lpzglist` prints the list of those actually used, as a tagged list;
+- cross-references are links, and reach the tree as `Link` elements with their
+  annotation under them: `\ref` as always, and with it `\Next`, `\Last` and
+  the rest of the relative references, which link to the example they name
+  without needing a label — and never to one the document does not have.
 
 See `doc/TAGGING-NOTES.md` for the technical account and `doc/PDFUA-CHECKLIST.md`
 for turning a document into a PDF/UA-conformant build.

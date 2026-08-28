@@ -1077,6 +1077,40 @@ separator is \cs{firstrefdash}, the same hook \cs{ref} uses for a
 and ``(3-b)'' under \opt{legacy}. Nothing verifies that the letter exists;
 it is text you supply, as it is in \pkg{linguex}.
 
+\paragraph{Clickable references.} With \pkg{hyperref} loaded, each of these
+--- and each \texttt{p}-twin --- prints as a link to the example it names,
+exactly as the \cs{ref} it abbreviates does. No label is needed: \pkg{hyperref} puts a destination at
+every example whether or not anyone asks for one.
+
+A reference that names an example the document does not have ---
+\cs{LLast} before the second example, \cs{Next} after the last one ---
+prints its number as it always did and is deliberately \emph{not} linked. A
+link to a destination that does not exist is not an error; the reader would
+simply be taken somewhere plausible and wrong. Instead every such reference
+is named, with its input line, in one warning at the end of the run:
+
+\begin{code}
+Package linguexx Warning: No example carries the number a relative
+(linguexx)                reference asks for: 0 (line 12), 9 (line 40).
+\end{code}
+
+\noindent A number that \emph{two} examples carry is withheld in the same
+way and reported in its own words. That happens when the example counter is
+reset --- with \cs{setcounter}, or by \opt{legacy}'s per-chapter reset in a
+class that has chapters --- because the anchor \pkg{hyperref} attaches to an
+example is built from the counter alone, so the two examples claim one
+anchor and \pkg{hyperref} keeps only the first. A \cs{ref} to the second has
+always led to the first for the same reason; what the links promise is that
+they add no second wrong jump to a document that has that one.
+
+Which examples exist is read from the \texttt{.aux}, so the links
+are a run behind: a document whose examples have just moved is asked to
+rerun rather than told that its references dangle. The optional part is
+printed but not aimed at --- \cs{Last}\oarg{b} links to the example, not to
+its letter b --- because that letter is text you typed and need not name a
+sub-example that exists. Pass \opt{norelreflinks} to the package to print
+the numbers without links, as \pkg{linguex} does.
+
 \paragraph{The space after the command.} These are control words, so
 \TeX{}'s tokenizer discards the space that follows one before any package
 can see it. Written plainly, \verb|\Last shows| would therefore set as
@@ -1091,7 +1125,10 @@ These commands are part of the \pkg{linguex} compatibility surface and are
 kept for it, but they are worth using sparingly. What they resolve to
 depends on where they stand, so inserting an example between a reference
 and its target silently changes what the reference means --- and nothing
-in the document records that anything was meant at all. In a document you
+in the document records that anything was meant at all. Being clickable
+makes a reference that has drifted easier to notice, since it now lands on
+the wrong example rather than merely naming it, but no less likely. In a
+document you
 expect to revise, prefer \cs{label} with \cs{ref} or, better,
 \pkg{cleveref}'s \cs{cref} (below): a label survives being moved, and a
 label that has lost its target is an error rather than a wrong number.
@@ -2131,7 +2168,7 @@ exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package opt
 \multicolumn{2}{@{}l}{\itshape References} \\
 \textbackslash label, \textbackslash ref & As usual; references print in parentheses. \\
 \textbackslash sublabel\marg{key} & Label a sub-example for use in a range. \\
-\textbackslash Next, \textbackslash NNext, \textbackslash Last, \textbackslash LLast & Relative references; \oarg{letter} adds a sub-example part, as (3b). \\
+\textbackslash Next, \textbackslash NNext, \textbackslash Last, \textbackslash LLast & Relative references; \oarg{letter} adds a sub-example part, as (3b). Clickable under \pkg{hyperref}. \\
 \textbackslash TextNext & Next example of the running text (from a footnote). \\
 \textbackslash pref, \textbackslash pNext, \dots & Parenthesis-free twins of all of the above. \\
 \textbackslash refrange\marg{a}\marg{b} & Compact range, as (3a--c). \\
@@ -2146,6 +2183,7 @@ exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package opt
   \opt{lazy}, \opt{gb4e} & Package options: dot syntax (default), \pkg{gb4e} environment syntax; combinable. \\
   \opt{phantomalign}     & Package option: aligns words in glosses with the word in the object line, not a bracket or judgment mark; combinable.\\
 \opt{legacy} & Package option: the geometry and dash conventions of \pkg{linguex}; orthogonal to the syntax options. \\
+\opt{norelreflinks} & Package option: print \textbackslash Next and \textbackslash Last without the \pkg{hyperref} link. \\
 \textbackslash resetExdefaults & Restore all layout lengths to the current mode's defaults. \\
 \textbackslash firstrefdash & Number--letter dash in ``(3a)''; empty by default, \texttt{-} under \opt{legacy}. \\
 \textbackslash secondrefdash & Letter--roman dash in ``(3a-i)''; \texttt{-} in both modes. \\

@@ -1,0 +1,32 @@
+%% A reset example counter: two examples, one anchor, and no link.
+%%
+%% \theHExNo is built from ExNo alone, so resetting the counter makes two
+%% examples claim one hyperref anchor -- and hyperref keeps the first
+%% destination of a name and drops the rest.  That is a defect in the
+%% anchors and it predates the links: a \label on the second example has
+%% always led to the first, which is what the duplicate-destination
+%% warning in the log is about, and mending it means changing what
+%% \theHExNo records.  What this case pins is the narrower promise the
+%% links make: linguexx does not ADD a wrong jump to a document that has
+%% this.  A number two examples share is withheld from linking exactly as
+%% a number no example carries is, and reported in its own words -- the
+%% cause is different, so a reader who sees the report can tell which of
+%% the two happened.
+%%
+%% \setcounter rather than [legacy]'s per-chapter reset, which is the same
+%% collision in a book class: one mechanism, and this way the case needs
+%% no chapters to show it.
+\input{_preamble}
+\usepackage{hyperref}
+\begin{document}
+\ex.\label{rs:one} RSONE first example, number 1.
+
+\setcounter{ExNo}{0}
+
+\ex. RSTWO second example, number 1 again.
+
+\ex. RSTHREE third example, number 2 and unique.
+
+%% (1) is claimed by two examples and must not link; (2) by one and must.
+RSDUP \LLast\ RSUNIQ \Last
+\end{document}
