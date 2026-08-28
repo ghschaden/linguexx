@@ -12,11 +12,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install poppler-utils, Python and a JRE
+      # qpdf is not decoration: one assertion resolves a named destination to
+      # the page it lands on, which is the whole question for a beamer frame
+      # (the same example is set on every slide and only one of them is the
+      # slide it becomes visible on) and which no poppler tool reports.
+      - name: Install poppler-utils, qpdf, Python and a JRE
         run: |
           apt-get update -qq
           apt-get install -y -qq --no-install-recommends \
-            python3 poppler-utils default-jre-headless curl unzip
+            python3 poppler-utils qpdf default-jre-headless curl unzip
 
       # The suite's `ua` case validates the tagged output with veraPDF and
       # fails hard when it is missing, because veraPDF is the only

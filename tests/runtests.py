@@ -247,6 +247,16 @@ def dest_page(pdf: Path, name: str):
     past.  Doing it by hand meant either assuming the page objects are
     written in page order or parsing /Kids, and qpdf already knows.
     """
+    if not shutil.which("qpdf"):
+        # Say so, rather than let a FileNotFoundError out of a helper: a
+        # missing tool is a setup problem and has to read like one, the way
+        # the `ua` case says what it needs when veraPDF is absent.  This one
+        # got out into CI, where the traceback said 'qpdf' and nothing about
+        # which assertion wanted it or why.
+        raise AssertionError(
+            "qpdf is not on PATH: a named destination cannot be resolved to "
+            "the page it lands on (no poppler tool reports it), so the "
+            "beamer overlay assertions cannot run")
     out = subprocess.run(
         ["qpdf", "--qdf", "--object-streams=disable", str(pdf), "-"],
         capture_output=True,
@@ -254,7 +264,7 @@ def dest_page(pdf: Path, name: str):
     pages = {m.group(2): int(m.group(1)) for m in re.finditer(
         r"%% Page (\d+)\n%% Original object ID: \d+ 0\n(\d+) 0 obj", out)}
     if not pages:
-        raise AssertionError("qpdf produced no page markers; is qpdf on PATH?")
+        raise AssertionError("qpdf produced no page markers in " + str(pdf))
     m = re.search(r"\(" + re.escape(name) + r"\)\s*\n?\s*(\d+) 0 R", out)
     if not m:
         return None
