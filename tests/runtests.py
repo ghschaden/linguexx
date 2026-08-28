@@ -1202,10 +1202,25 @@ def a_relreflinks_reset(p: Page):
                    "missing one"))
     r.append(check("No example carries" not in log,
                    "and is not ALSO reported as an example that does not exist"))
-    # pdflatex and lualatex say so; xelatex does not, the collision being
-    # resolved downstream by xdvipdfmx.  Asserted where it is said.
-    if "same identifier" in log or "duplicate destination" in log:
-        r.append(check(True, "the engine confirms the duplicate destination"))
+    # The engine's own report of the destination it had to drop, which is
+    # what makes this case honest: if it ever stops appearing, the anchors
+    # have been mended and the link withheld above is a needless one rather
+    # than a saved wrong jump.  pdftex and luatex say so; xdvipdfmx does
+    # not, the collision being resolved downstream, so there is nothing to
+    # assert under xelatex and no pretence that there is.
+    #
+    # Written first as `check(True, ...)` inside `if <the phrase is
+    # present>`, which is to say not written at all: a check guarded by its
+    # own condition cannot fail, and it sat there reporting a pass while
+    # doc/DEFERRED-DECISIONS.md cited it as the thing that would fail loudly
+    # when the collision goes.  Same shape as the KNOWN_XFAIL entry that
+    # outlived its reason, and the same lesson: a guard that cannot fire is
+    # indistinguishable from one that guards nothing.
+    if p.engine in ("pdflatex", "lualatex"):
+        r.append(check("same identifier" in log or "duplicate destination"
+                       in log,
+                       f"{p.engine} reports the duplicate destination it had "
+                       f"to drop"))
     return r
 
 
@@ -3313,6 +3328,11 @@ def run_case(name: str, engine: str, verbose: bool):
         # one record all three write identically.
         aux = tmp / f"{name}.aux"
         page.aux = aux.read_text(errors="replace") if aux.exists() else ""
+        # ... and a case about what an ENGINE reports needs to know which
+        # one it is.  The three do not agree about a duplicate destination:
+        # pdftex and luatex warn, xdvipdfmx says nothing, and an assertion
+        # that cannot name the engine can only shrug at the difference.
+        page.engine = engine
         try:
             return ASSERTIONS[name](page)
         except AssertionError as e:

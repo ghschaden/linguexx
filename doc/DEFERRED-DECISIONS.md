@@ -9,6 +9,12 @@ The rule for all of them: do not "fix" these in passing. A drive-by patch
 picks one of the available semantics by accident, and the accident is then
 what the package has promised.
 
+Code is pointed at by NAME here, not by line number. Line numbers were
+tried and rotted twice in a single afternoon: every insertion into
+`linguexx.sty` moves everything below it, so a citation is stale the next
+time anyone commits, and a stale citation in a file whose whole purpose is
+to be read later is worse than none. Names survive, and `grep` finds them.
+
 ---
 
 ## Examples in a `minipage` footnote
@@ -21,8 +27,8 @@ numbered on the main `ExNo` series, not on the footnote series `FnExNo`.
 
 **Why.** `\footnote` inside a `minipage` routes through `\@mpfootnotetext`,
 which is a different command from the ordinary `\@footnotetext`. linguexx
-hooks only the latter (`linguexx.sty:270`, inside the `\AtBeginDocument`
-that also sets `\@noftnotefalse`), so the flag that switches an example
+hooks only the latter (in the `\AtBeginDocument` that also sets
+`\@noftnotefalse`, and rebinds `\@footnotetext`), so the flag that switches an example
 onto the footnote series is never cleared in the minipage case.
 
 Patching `\@mpfootnotetext` the same way is a two-line change. That is not
@@ -62,8 +68,8 @@ references; deferred rather than implemented.*
 `\ref{ex:10}[a]`, the bracket group is not an argument, it is text, and the
 page gets `(10)[a]`. The supported ways to spell "letter a of example 10"
 are `\sublabel{ex:10a}` with an ordinary `\ref` to it, and — for a
-*relative* reference only — `\Last[a]` and its family
-(`linguexx.sty:1983`ff), whose part is joined with `\firstrefdash` and
+*relative* reference only — `\Last[a]` and its family (defined beside
+`\lx@setrelsub`), whose part is joined with `\firstrefdash` and
 lands inside the parentheses.
 
 So there is an asymmetry: a relative reference can name a sub-example
@@ -79,8 +85,8 @@ written:
 \newcommand\refsub[2]{(\prefsub{#1}{#2})}
 ```
 
-That reuses the machinery `\refrange`/`\prefrange` already rests on
-(`linguexx.sty:3691-3692`): suppress the parentheses with `\pref`,
+That reuses the machinery `\refrange`/`\prefrange` already rests on:
+suppress the parentheses with `\pref`,
 decorate, put the parentheses back. It needs no `.aux` change, it inherits
 `[legacy]`'s `(10-a)` for free because it goes through `\firstrefdash`,
 and a braced argument cannot be confused with anything in running text.
@@ -157,7 +163,7 @@ made nested stacks unsafe. It had not — but the check turned this up.*
 inside the outer's second row, and nothing about the printed page is
 wrong. What is wrong is the outer stack's *spoken* form. Under active
 tagging each stack is wrapped in a `Span` carrying an `/Alt` string built
-by `\__lxp_buildalt:NN` (`linguexx.sty:2995`), which runs `\text_purify:n`
+by `\__lxp_buildalt:NN`, which runs `\text_purify:n`
 over each alternative so that formatting is stripped for speech. A nested
 `\altn` purifies to its own source text, brackets and all:
 
@@ -257,8 +263,8 @@ inner `Span` is not the thing to change: it is already correct.
 *Found on 2026-08-28, while making the relative references clickable. The
 links work around it; nothing about the anchors themselves was changed.*
 
-**Current behaviour.** `\theHExNo` is `lxex.<ExNo>` (`linguexx.sty:303`),
-built from the printed counter and nothing else, so two examples that carry
+**Current behaviour.** `\theHExNo` is `lxex.<ExNo>`, built from the
+printed counter and nothing else, so two examples that carry
 the same number claim the same hyperref anchor. hyperref keeps the first
 destination of a name and drops the rest, with a warning from pdfTeX and
 LuaTeX and none at all from `xdvipdfmx`. A `\label` on the second example
@@ -275,8 +281,8 @@ therefore links to the first:
 ```
 
 `[legacy]` in a class with chapters is the case that arrives by itself --
-the per-chapter reset is linguex's convention and `linguexx.sty:238`
-reproduces it deliberately -- but `\setcounter{ExNo}{0}` anywhere does the
+the per-chapter reset is linguex's convention and the `\@addtoreset` in
+the counters section reproduces it deliberately -- but `\setcounter{ExNo}{0}` anywhere does the
 same thing in any class.
 
 The printed number is right in every case. Only the destination is wrong,
@@ -323,13 +329,22 @@ own `\setcounter`, only (2) is, and then the question is whether an
 unreadable anchor is a price worth paying for a defect that has been in the
 package since `\theHExNo` was written.
 
-**If it is ever patched:** the anchor is `\theHExNo` and `\lx@Hexstem`
-(`linguexx.sty:303-304`), and `\lx@Hexname`/`\lx@Hfnexname` beside them have
-to be changed in step, since they spell the same name for a number the
-counter has not reached. The ambiguity guard in the relative-reference code
-should stay either way: it is about what the `.aux` recorded, so it keeps
-working whatever the names become, and it is the only thing that would
-notice if a new recipe collided too. `tests/relreflinks-reset.tex` asserts
-the duplicate-destination warning on the engines that emit it, so it fails
-loudly once the collision is gone -- which is the point at which the withheld
-link there becomes needless rather than saved.
+**If it is ever patched:** four places spell that anchor and all four have
+to change together. `\theHExNo` and `\lx@Hexstem` are what hyperref reads;
+`\lx@Hexname`/`\lx@Hfnexname` beside them spell the same name for a number
+the counter has not reached, which is what a relative reference needs; and
+`\lx_relref_name:` builds it again for the anchors linguexx places itself,
+in the documents where hyperref's implicit ones are switched off (beamer).
+That fourth one arrived after this entry was first written and was missing
+from it for a commit or two -- which is the argument for `grep` over a list.
+
+The ambiguity guard in the relative-reference code should stay either way:
+it is about what the `.aux` recorded, so it keeps working whatever the
+names become, and it is the only thing that would notice if a new recipe
+collided too. `tests/relreflinks-reset.tex` asserts the engine's
+duplicate-destination warning on pdflatex and lualatex, so it fails loudly
+once the collision is gone -- which is the point at which the withheld link
+there becomes needless rather than saved. (It asserts it for real now. It
+was first written as a `check(True, ...)` guarded by the very condition it
+claimed to test, so this paragraph described something that could not
+happen.)
