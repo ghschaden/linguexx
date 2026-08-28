@@ -1,0 +1,73 @@
+%% Relative references under beamer: the class that anchors nothing for us.
+%%
+%% beamer sets hyperref's implicit=false -- it anchors its own \labels and
+%% runs its own navigation -- so there is no destination at
+%% \refstepcounter to link to.  linguexx used to read that as "links are
+%% impossible here" and switch itself off, which left \ref moving and
+%% \Last not: in the class most linguistics slides are written in, exactly
+%% the inconsistency the links exist to remove.  Nothing about
+%% implicit=false makes a destination impossible, so linguexx now makes
+%% one itself.
+%%
+%% The second half of the case is the overlays, and it is the half that
+%% cannot be seen on paper.  A frame is typeset once per slide with the
+%% example counters restored each time, so every example on the two-slide
+%% frame below comes past TWICE with the same number.  Unguarded that is a
+%% duplicate destination (which hyperref drops, warning once per repeat)
+%% and a duplicate .aux record -- and the second record would be read as
+%% two examples claiming one anchor, so the guard against SHARED anchors
+%% would then refuse to link the very examples this case is about.  One
+%% example seen twice has to be told from two examples numbered alike,
+%% and the .aux is where that shows.
+\input{_preamble-beamer}
+\begin{document}
+\begin{frame}{BMFRAMEONE}
+\ex.\label{bm:one} BMONE first example.
+
+BMREF \ref{bm:one} BMLAST \Last\ BMNEXT \Next
+\end{frame}
+
+%% Two slides, two passes over everything in here.
+\begin{frame}{BMFRAMETWO}
+\ex. BMTWO second example.
+\only<2->{BMOVERLAY only on the second slide.}
+
+BMLASTTWO \Last
+\end{frame}
+
+%% \pause: an example EXECUTED on the frame's first slide and visible only
+%% on the next.  This is the commoner half of the problem and the one that
+%% reached a reader.  \pause, \uncover and \onslide run their material on
+%% every slide of the frame -- the counter steps, and an anchor placed
+%% there is placed on that slide -- and drop its ink on the slides where it
+%% is covered.  Anchoring the example where it is first run therefore sends
+%% the click to a slide where the example cannot be seen, and nothing on
+%% the page shows it: there is nothing on that page to show.
+%%
+%% The two examples below are on one frame, one slide apart, and that is
+%% the whole assertion: their destinations must be one page apart too.
+%% Anchored where they are first run, both would land on the same page.
+\begin{frame}{BMFRAMETHREE}
+\ex. BMSHOWN visible at once.
+\pause
+\ex. BMPAUSED typeset here, visible only on the next slide.
+\end{frame}
+
+%% An example whose FIRST appearance is on a later slide.  \only does not
+%% typeset its argument at all on the slides it excludes, so this example
+%% does not exist on slide 1 of this frame and is numbered for the first
+%% time on slide 2.  A rule that asked "is this the frame's first pass"
+%% skipped it outright and gave it no anchor, so BMBEFORE below -- which
+%% names it -- was reported as pointing at an example that does not exist,
+%% by the mechanism that had just discarded its target.  Asking instead
+%% whether the name is new TO THIS FRAME gets it right.
+%%
+%% Last in the document on purpose: with \only around a numbered example
+%% the count itself differs between the slides of this frame, so anything
+%% numbered after it would differ too.
+\begin{frame}{BMFRAMEFOUR}
+BMBEFORE \Next
+
+\only<2->{\ex. BMLATE only on the second slide.}
+\end{frame}
+\end{document}

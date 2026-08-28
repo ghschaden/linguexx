@@ -1095,8 +1095,15 @@ it is text you supply, as it is in \pkg{linguex}.
 
 \paragraph{Clickable references.} With \pkg{hyperref} loaded, each of these
 --- and each \texttt{p}-twin --- prints as a link to the example it names,
-exactly as the \cs{ref} it abbreviates does. No label is needed: \pkg{hyperref} puts a destination at
-every example whether or not anyone asks for one.
+exactly as the \cs{ref} it abbreviates does. No label is needed: every
+example gets a destination whether or not anyone asks for one, from
+\pkg{hyperref} where it makes them and from \pkg{linguexx} where it does
+not. \pkg{beamer} is the case where it does not --- it switches
+\pkg{hyperref}'s implicit anchors off and runs its own navigation --- and
+the links work there too. On a frame with overlays the link lands on the
+slide where the example \emph{appears}: an example after a \cs{pause}, or
+inside \cs{uncover} or \cs{only}, is anchored where the reader can see it
+rather than where \TeX{} first ran it.
 
 A reference that names an example the document does not have ---
 \cs{LLast} before the second example, \cs{Next} after the last one ---

@@ -36,6 +36,21 @@ Standalone and modern reimplementation of `linguex` (numbered linguistic example
   whole-page one, and xelatex does not even warn. See the block above
   `\Last` in the .sty, and `doc/DEFERRED-DECISIONS.md` on the shared
   anchors themselves.
+- Under `beamer` those anchors are linguexx's own (beamer sets hyperref's
+  `implicit=false`), and a frame is typeset once per overlay slide with
+  the counters restored -- so one example comes past several times with
+  one number. `\lx_relref_if_unseen_here:` tells that from a reset
+  counter, and it asks about the FRAME (`\c@framenumber`), never about
+  the pass. Both mistakes are live: a by-name check swallows a reset
+  (the name is exactly what the two cases have in common), and a
+  by-pass check strands an example inside `\only<2->{...}`, whose first
+  appearance IS a later pass. It also refuses a pass on which the example
+  is covered (`\beamer@coveringdepth`), because `\pause`/`\uncover` RUN
+  their material on every slide and only drop its ink -- so the pass an
+  example is first run on is not the slide a reader can see it on. Both
+  mistakes shipped and were reported from a lecture deck; neither leaves a
+  trace on the page, which is why the tests assert on `.aux` records and on
+  the page a destination resolves to.
 - Tagging idiom: `\tag_mc_end_push:` … `\tag_mc_begin_pop:n{}`.
 - `[legacy]` mode = geometric fidelity to linguex; orthogonal to `[lazy]`/`[gb4e]`.
 

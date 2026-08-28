@@ -152,6 +152,86 @@ version string.
   Mutation-checked: five mutations, five kills, and the f-expansion one is
   caught by exactly the assertion written for it.
 
+- Fix: the relative-reference links work under `beamer`, where they had
+  silently switched themselves off.
+
+  `beamer` loads `hyperref` with `implicit=false` -- it anchors its own
+  `\label`s and runs its own navigation -- so `hyperref` places no
+  destination at `\refstepcounter`. The links stood down on that ground, and
+  it was the wrong conclusion from a true premise: nothing about
+  `implicit=false` makes a destination impossible, it only means `hyperref`
+  will not make one unasked. The result was that in the class most
+  linguistics slides are written in, `\ref` moved and `\Last` did not --
+  precisely the inconsistency the links exist to remove, left in place by the
+  guard meant to protect them. Reported from a lecture deck.
+
+  Where `hyperref`'s implicit anchors are off, `linguexx` now places the
+  destination itself, at the example's `\item`, and the rest of the mechanism
+  runs unchanged on names it placed rather than names it read.
+
+  The overlays are the part with no trace on the page. A `beamer` frame is
+  typeset once per slide with the example counters restored each time, so an
+  example on a two-slide frame comes past twice carrying the same number.
+  Left alone that is a second destination of the same name, which `hyperref`
+  drops with a warning per repeat, and a second `.aux` record -- which the
+  guard against *shared* anchors would read as two examples claiming one name
+  and refuse, on that ground, to link the very examples in question.
+
+  The name cannot tell that apart from a genuinely reset counter, which
+  produces the same repetition and does deserve that treatment. What tells
+  them apart is *where* the repeat happens: a frame's passes repeat inside
+  one frame, a reset counter reuses numbers across the document. So the
+  question asked is not "is this the first pass" but "have I already placed
+  this name in this frame", with `\c@framenumber` -- constant across a
+  frame's slides -- saying which frame that is. Outside `beamer` there is no
+  such counter, the question is never asked, and every example records
+  exactly as before.
+
+  Asking about the pass was the first attempt and it was wrong twice over,
+  for cases that are not exotic. An example inside `\only<2->{...}` is not
+  typeset on the first pass, so its *first* appearance is on a later one,
+  and a rule that skipped every later pass gave it no anchor at all --
+  after which the reference naming it was reported as dangling, by the
+  mechanism that had discarded its target.
+
+  And the pass an anchor goes on has to be one where the example can be
+  *seen*, which is not the pass where it is first *run*. `\pause`,
+  `\uncover` and `\onslide` execute their material on every slide of the
+  frame -- the counter steps, and an anchor placed there is placed on that
+  slide -- and drop its ink where it is covered. So an example after a
+  `\pause` runs on slide 1 and appears on slide 3, and anchoring it where
+  it ran sent the reader to a slide with nothing on it to see. Nothing on
+  the page showed the mistake, because on that page there was nothing
+  there: it was found by clicking a reference in a real deck and landing in
+  the wrong place. `\beamer@coveringdepth` is 0 exactly when the material
+  is visible and counts up through nested covering, so it answers for
+  `\pause`, `\uncover` and `\onslide` alike; `\only` needs no answer,
+  since it does not run at all on the slides it excludes. An example
+  covered on *every* slide of its frame is therefore never anchored, and a
+  reference to it is reported as pointing at an example that does not
+  exist -- which it does not.
+
+  Both were caught by the person the feature was built for, on the deck it
+  was built for.
+
+  What the rule still does not catch is a counter reset *inside* a single
+  frame, where the second example is skipped rather than reported. A reset
+  between frames is caught, which is the form a reset takes in practice.
+
+  Covered by `tests/relreflinks-beamer.tex` and
+  `tests/relreflinks-beamer-reset.tex`, which count `.aux` records rather
+  than looking at the page, and each first check that the frame really did
+  produce two slides -- otherwise the overlay assertions would pass on a
+  frame that never repeated. Four mutations, four kills, each for its own
+  reason: dropping the dedup records the overlay repeat and loses the link;
+  making the set document-wide swallows the reset and turns a withheld link
+  into a wrong one; the original pass-based rule leaves the `\only` example
+  with no anchor at all; and ignoring the covering depth puts the paused
+  example's anchor on the same page as the one above it instead of a page
+  later. That last assertion is the only one in the suite that resolves a
+  named destination to a page, which needs `qpdf` -- a new dependency, since
+  no poppler tool reports it.
+
 - New: the relative references are clickable. With `hyperref` loaded,
   `\Next`, `\Last`, `\NNext`, `\LLast`, `\TextNext` and their `p`-twins link
   to the example they name, as the `\ref` they abbreviate always has. Nothing

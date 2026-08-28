@@ -1,0 +1,31 @@
+%% A reset counter under beamer: the other half of the per-frame rule.
+%%
+%% relreflinks-beamer.tex shows that one example seen on several slides is
+%% anchored once.  This shows the converse, and it is what makes the rule
+%% per-FRAME rather than per-document: two examples that genuinely carry
+%% the same number must still be seen as two, reported, and left unlinked,
+%% exactly as in an article.  A document-wide "have I placed this name"
+%% set would pass the other case and silently link this one to the wrong
+%% example.
+%%
+%% The record count carries both halves at once.  Frame one has two
+%% slides, so its example comes past twice and must be recorded ONCE;
+%% frame two reuses the number, and must be recorded again.  Two records:
+%% three would mean the overlay repeat was recorded, one would mean the
+%% reset was swallowed.
+\input{_preamble-beamer}
+\begin{document}
+\begin{frame}{BRFRAMEONE}
+\ex. BRONE first example, on a frame with two slides.
+\only<2->{BROVERLAY only on the second slide.}
+\end{frame}
+
+%% A fresh set of numbers, as a deck might start per section.
+\setcounter{ExNo}{0}
+
+\begin{frame}{BRFRAMETWO}
+\ex. BRTWO also numbered one.
+
+BRLAST \Last
+\end{frame}
+\end{document}

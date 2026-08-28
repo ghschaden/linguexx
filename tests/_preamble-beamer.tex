@@ -1,0 +1,16 @@
+%% beamer, the class this package's users give talks in -- and the reason
+%% the relative-reference links needed a second way of anchoring an
+%% example.  beamer loads hyperref with implicit=false, so hyperref places
+%% no destination at \refstepcounter and linguexx places its own.
+%%
+%% No theme and no navigation symbols: the case is about destinations, and
+%% a theme would put dozens of its own links on every slide.
+\documentclass{beamer}
+\usetheme{default}
+\setbeamertemplate{navigation symbols}{}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\fi
+\usepackage{linguexx}

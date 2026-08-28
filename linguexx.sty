@@ -1326,7 +1326,13 @@
 %% label that already fills \labelwidth is left untouched.  Classic
 %% (untagged) output is identical.
 \def\lx@flushlabel#1{\makebox[\labelwidth][l]{#1}}
-\def\lx@makeitem{\lx@kernel@item[\lx@itemlabel]\lx@emitjudge\ignorespaces}
+%% \lx@relref@anchor places the hyperref destination for this example when
+%% linguexx is the one making them (see \lx_relref_record:).  It goes
+%% after the judgment, so the mark still hangs from the label edge, and
+%% before \ignorespaces, which must stay last.  It expands to nothing at
+%% all in a document whose anchors hyperref is placing itself.
+\def\lx@makeitem{\lx@kernel@item[\lx@itemlabel]\lx@emitjudge
+  \lx@relref@anchor\ignorespaces}
 %% --- public API (Protocol A: emitting the item) -----------------------
 %% Emit the \item for the label currently in \lx@itemlabel and hang any
 %% judgment collected since the last scan.  The \lx_item_... commands
@@ -1808,8 +1814,13 @@
 %% is hand-typed text that need not name a real letter in the first
 %% place.  Landing two lines high is the better failure.
 \ExplSyntaxOn
-\bool_new:N \g__lx_relref_link_bool  % hyperref present, its anchors
-                                     % implicit, and [norelreflinks] not given
+\bool_new:N \g__lx_relref_link_bool  % hyperref present and [norelreflinks]
+                                     % not given
+\bool_new:N \g__lx_relref_own_bool   % ... and the anchors are ours to place
+\tl_new:N   \g__lx_relref_pending_tl % an anchor waiting for its \item
+\prop_new:N \g__lx_relref_seen_prop  % anchors already placed in this frame
+\int_new:N  \g__lx_relref_frame_int  % which frame that was
+\int_gset:Nn \g__lx_relref_frame_int { -1 }
 \prop_new:N \g__lx_relref_dest_prop  % anchors the .aux knows: the lookup
 \seq_new:N  \g__lx_relref_aux_seq    % the same, in order: the rerun test
 \seq_new:N  \g__lx_relref_new_seq    % anchors recorded on THIS run
@@ -1844,20 +1855,143 @@
       { \prop_gput:NVn \g__lx_relref_dest_prop \l__lx_relref_dest_str { } }
     \seq_gput_right:NV \g__lx_relref_aux_seq \l__lx_relref_dest_str
   }
-%% One example, one anchor.
+%% One example, one anchor -- and, where the anchors are ours, one
+%% \hypertarget to go with it.
+%%
+%% Two sources for the name, because there are two ways an example comes
+%% to have a destination.  Ordinarily hyperref makes one at every
+%% \refstepcounter and \@currentHref names it, and taking the name from
+%% there rather than rebuilding it is what keeps a divergence of recipes
+%% costing a link instead of a wrong jump.  With hyperref's implicit
+%% anchors switched off there is no such name, and linguexx makes the
+%% destination itself; then the name has to be built here, by the same
+%% \lx@Hexname a reference will use.
+\cs_new:Npn \lx_relref_name:
+  {
+    \legacy_if:nTF { @noftnote }
+      { \lx@Hexname { \int_use:N \c@ExNo } }
+      { \lx@Hfnexname { \int_use:N \c@FnExNo } }
+  }
 \cs_new_protected:Npn \lx_relref_record:
   {
     \bool_if:NT \g__lx_relref_link_bool
       {
-        \str_set:Ne \l__lx_relref_dest_str { \@currentHref }
-        \seq_gput_right:NV \g__lx_relref_new_seq \l__lx_relref_dest_str
-        \legacy_if:nT { @filesw }
+        \bool_if:NTF \g__lx_relref_own_bool
+          { \str_set:Ne \l__lx_relref_dest_str { \lx_relref_name: } }
+          { \str_set:Ne \l__lx_relref_dest_str { \@currentHref } }
+        \lx_relref_if_unseen_here:T
           {
-            \iow_now:Ne \@auxout
-              { \token_to_str:N \lx@relref@dest
-                  { \l__lx_relref_dest_str } }
+            \bool_if:NT \g__lx_relref_own_bool
+              { \tl_gset_eq:NN \g__lx_relref_pending_tl
+                  \l__lx_relref_dest_str }
+            \seq_gput_right:NV \g__lx_relref_new_seq \l__lx_relref_dest_str
+            \legacy_if:nT { @filesw }
+              {
+                \iow_now:Ne \@auxout
+                  { \token_to_str:N \lx@relref@dest
+                      { \l__lx_relref_dest_str } }
+              }
           }
       }
+  }
+%% The anchor waits for the \item and is placed inside it, where there is
+%% horizontal mode to place it in.  \lx@main@core runs before the list is
+%% even open, which is the right moment to KNOW the anchor and the wrong
+%% one to emit it.
+%%
+%% \Hy@raisedlink is hyperref's own wrapper for an anchor that must not
+%% disturb the line it sits on -- the same one hyperref uses for the
+%% anchors it places at \refstepcounter, which is exactly the thing being
+%% stood in for here.
+\cs_new_protected:Npn \lx_relref_anchor:
+  {
+    \tl_if_empty:NF \g__lx_relref_pending_tl
+      {
+        \exp_args:NV \lx_relref_anchor_place:n \g__lx_relref_pending_tl
+        \tl_gclear:N \g__lx_relref_pending_tl
+      }
+  }
+\cs_new_protected:Npn \lx_relref_anchor_place:n #1
+  { \Hy@raisedlink { \hyper@anchorstart {#1} \hyper@anchorend } }
+\cs_new_eq:NN \lx@relref@anchor \lx_relref_anchor:
+%% Has this anchor already been placed WHERE WE ARE?
+%%
+%% In beamer a frame is set once per overlay slide, with the example
+%% counters restored each time, so an example on a two-slide frame comes
+%% past twice carrying the same number.  Left alone that is a second
+%% destination of the same name -- which hyperref drops, warning once per
+%% repeat -- and a second .aux record, which the guard against SHARED
+%% anchors would then read as two examples claiming one name and refuse,
+%% on that ground, to link the very examples in question.  Both are wrong
+%% for one reason: it is one example, seen twice.
+%%
+%% The name cannot tell them apart, because a genuinely reset counter
+%% produces the same repetition and DOES deserve the shared-anchor
+%% treatment.  What tells them apart is WHERE the repeat happens.  A
+%% frame's passes repeat within one frame; a reset counter reuses names
+%% across the document.  So the question asked here is not "is this the
+%% first pass" but "have I already placed this name in THIS frame", and
+%% \c@framenumber -- constant across a frame's slides, one up per frame --
+%% says which frame that is.
+%%
+%% Asking about the pass instead was the first attempt and it was wrong,
+%% for a case that is not exotic at all: an example inside \only<2->{...}
+%% is not typeset on the first pass, so its FIRST appearance is on a later
+%% one, and a rule that skipped every later pass gave it no anchor at all.
+%% A reference to it then found no target and was reported as dangling --
+%% correctly, by a mechanism that had thrown the target away itself.
+%% Asking about the frame gets that right: on the pass where the example
+%% finally appears, its name is new to the frame, so it is placed.
+%%
+%% And the pass it is placed on has to be one where the example can be
+%% SEEN, which is not the pass where it is first RUN.  \pause, \uncover
+%% and \onslide execute their material on every slide of the frame --
+%% the counter steps, and an anchor placed there is placed on that slide
+%% -- and drop its ink on the slides where it is covered.  So an example
+%% after a \pause runs on slide 1 and appears on slide 3, and anchoring
+%% it where it ran sends the reader to a slide with nothing on it to see.
+%% Nothing on the page shows the mistake, because on that page there is
+%% nothing there.  Reported from the same deck as the \only case, and the
+%% commoner of the two: \pause is everywhere in lecture slides.
+%% \beamer@coveringdepth is 0 exactly when the material is visible on the
+%% slide being set, and counts up through nested covering, so it answers
+%% for \pause, \uncover and \onslide alike; \only needs no answer, since
+%% it does not run at all on the slides it excludes.
+%%
+%% An example covered on EVERY slide of its frame is therefore never
+%% anchored, and a reference to it is reported as pointing at an example
+%% that does not exist.  That is the right answer: it does not.
+%%
+%% What this does not catch is a counter reset INSIDE one frame, where the
+%% second example is skipped rather than reported.  A reset between frames
+%% is caught, which is the form a reset takes in practice (a new section,
+%% a new set of numbers); a reset inside a single slide is not a thing
+%% anyone does.  Outside beamer there is no \c@framenumber, the question
+%% is never asked, and every example records exactly as it did before.
+\prg_new_protected_conditional:Npnn \lx_relref_if_unseen_here: { T }
+  {
+    \cs_if_exist:cTF { c@framenumber }
+      {
+        \bool_lazy_and:nnTF
+          { \cs_if_exist_p:N \beamer@coveringdepth }
+          { \int_compare_p:nNn { \beamer@coveringdepth } > { 0 } }
+          { \prg_return_false: }
+          {
+        \int_compare:nNnF { \c@framenumber } = { \g__lx_relref_frame_int }
+          {
+            \int_gset:Nn \g__lx_relref_frame_int { \c@framenumber }
+            \prop_gclear:N \g__lx_relref_seen_prop
+          }
+        \prop_if_in:NVTF \g__lx_relref_seen_prop \l__lx_relref_dest_str
+          { \prg_return_false: }
+          {
+            \prop_gput:NVn \g__lx_relref_seen_prop
+              \l__lx_relref_dest_str { }
+            \prg_return_true:
+          }
+          }
+      }
+      { \prg_return_true: }
   }
 \cs_new_eq:NN \lx@relref@record \lx_relref_record:
 
@@ -1948,11 +2082,20 @@
   }
 \AtEndDocument { \lx_relref_check: }
 
-%% Switched on once, and only if there is something to link to.
-%% hyperref's implicit=false suppresses the anchor at \refstepcounter --
-%% the destination this whole mechanism aims at -- so under it the links
-%% are not merely unhelpful but impossible, and asking for them would
-%% report every reference in the document as dangling.
+%% Switched on once, if hyperref is there at all.
+%%
+%% hyperref's implicit=false suppresses the anchor at \refstepcounter, so
+%% under it there is no destination to aim at -- and this used to stand
+%% down on that ground.  It was the wrong conclusion from a true premise.
+%% beamer sets implicit=false (it anchors its own \labels and manages its
+%% own navigation), which is to say that in the class a great many
+%% linguistics slides are written in, \ref moved and \Last did not: the
+%% inconsistency this whole mechanism exists to remove, left in place by
+%% the guard meant to protect it.  Nothing about implicit=false makes a
+%% destination impossible; it only means hyperref will not make one
+%% unasked.  So linguexx makes it, and the mechanism runs as before on
+%% names it placed rather than names it read.
+%%
 %% Switching them on also puts a \providecommand of \lx@relref@dest into
 %% the .aux, as hyperref does for its own label lines: a document that
 %% drops linguexx still has last run's .aux, and reading it must not be
@@ -1975,9 +2118,10 @@
       {
         \cs_if_exist:NT \hyperlink
           {
-            \cs_if_exist:cTF { ifHy@implicit }
-              { \legacy_if:nT { Hy@implicit } { \lx_relref_enable: } }
-              { \lx_relref_enable: }
+            \lx_relref_enable:
+            \cs_if_exist:cT { ifHy@implicit }
+              { \legacy_if:nF { Hy@implicit }
+                  { \bool_gset_true:N \g__lx_relref_own_bool } }
           }
       }
   }

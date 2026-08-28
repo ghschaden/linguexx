@@ -21,8 +21,9 @@ Usage:
     python3 runtests.py -v               # show every assertion, not just failures
 
 Requires: pdflatex / xelatex / lualatex, pdftotext and pdfinfo
-(poppler-utils), and veraPDF on PATH as `verapdf` -- the only authoritative
-oracle for PDF/UA, used by the `ua` case.
+(poppler-utils), qpdf (to resolve a named destination to the page it lands
+on, which no poppler tool reports), and veraPDF on PATH as `verapdf` -- the
+only authoritative oracle for PDF/UA, used by the `ua` case.
 Exit status: 0 iff every assertion passed, 1 on a failing assertion,
 2 on a suite-integrity problem (an unwired case file, a missing case file,
 a stale KNOWN_XFAIL or PASSES key) or when no case matches -k.
@@ -232,6 +233,37 @@ def example_targets(raw: bytes):
     """link_targets restricted to the example anchors linguexx names."""
     return [d for d in link_targets(raw)
             if d.startswith(("ExNo.lxex.", "FnExNo.lxfnex."))]
+
+
+def dest_page(pdf: Path, name: str):
+    """The 1-based page a named destination lands on, or None.
+
+    Which page an anchor sits on is the whole question for a beamer frame,
+    where the same example is set on every slide and only one of them is the
+    slide it becomes visible on.  Nothing in poppler reports it -- pdfinfo
+    and pdftotext see pages and text, not the name tree -- so the file is
+    normalised with qpdf first, which resolves the object streams the name
+    tree and the destinations live in and labels each page object on its way
+    past.  Doing it by hand meant either assuming the page objects are
+    written in page order or parsing /Kids, and qpdf already knows.
+    """
+    out = subprocess.run(
+        ["qpdf", "--qdf", "--object-streams=disable", str(pdf), "-"],
+        capture_output=True,
+    ).stdout.decode("latin-1")
+    pages = {m.group(2): int(m.group(1)) for m in re.finditer(
+        r"%% Page (\d+)\n%% Original object ID: \d+ 0\n(\d+) 0 obj", out)}
+    if not pages:
+        raise AssertionError("qpdf produced no page markers; is qpdf on PATH?")
+    m = re.search(r"\(" + re.escape(name) + r"\)\s*\n?\s*(\d+) 0 R", out)
+    if not m:
+        return None
+    body = re.search(r"\n" + m.group(1) + r" 0 obj\s*(.*?)\nendobj",
+                     out, re.S)
+    if not body:
+        return None
+    ref = re.search(r"(\d+) 0 R", " ".join(body.group(1).split()))
+    return pages.get(ref.group(1)) if ref else None
 
 
 def warning_body(log: str, opening: str):
@@ -936,6 +968,147 @@ def a_relreflinks(p: Page):
                    "the first pass does not report the resolvable references"))
     r.append(check("Example anchors out of date" not in log,
                    "the converged run does not ask for a rerun"))
+    return r
+
+
+def a_relreflinks_beamer(p: Page):
+    r"""Relative references under beamer, where nothing anchors them for us.
+
+    beamer sets hyperref's implicit=false -- it anchors its own \labels and
+    runs its own navigation -- so there is no destination at
+    \refstepcounter.  linguexx used to read that as "impossible here" and
+    switch itself off, which left \ref moving and \Last not, in the class
+    most linguistics slides are written in.  It now places the destination
+    itself, and this asserts that the references reach it.
+
+    The other half is the overlays, and it is the half that leaves no mark
+    on the page.  A frame is set once per slide with the example counters
+    restored each time, so an example on a two-slide frame comes past twice
+    with the same number: unguarded, a duplicate destination that hyperref
+    drops, and a duplicate .aux record that the shared-anchor guard would
+    read as two examples claiming one name -- refusing, on that ground, to
+    link the very examples this case is about.  The .aux is where one
+    example seen twice can be told from two examples numbered alike, so
+    the .aux is what is counted here.
+    """
+    r = []
+    txt = " ".join(w.text for w in p.words)
+    aux = getattr(p, "aux", "")
+    log = getattr(p, "log", "")
+
+    # The frame really did produce two slides.  Without this the overlay
+    # assertions below would pass vacuously on any beamer that collapsed it.
+    r.append(check(txt.count("BMTWO") == 2 and txt.count("BMOVERLAY") == 1,
+                   f"the second frame really has two slides (BMTWO "
+                   f"{txt.count('BMTWO')}x, BMOVERLAY "
+                   f"{txt.count('BMOVERLAY')}x)"))
+
+    for tok, want in (("BMREF", "(1)"), ("BMLAST", "(1)"),
+                      ("BMNEXT", "(2)"), ("BMLASTTWO", "(2)")):
+        r.append(check(f"{tok} {want}" in txt,
+                       f"{tok} prints {want}; got "
+                       f"{txt[txt.find(tok):][:len(tok) + 12]!r}"))
+
+    # The links exist at all -- the whole point, and invisible on the page.
+    got = example_targets(p.raw)
+    for name in ("ExNo.lxex.1", "ExNo.lxex.2"):
+        r.append(check(name in got, f"the references link to {name}; "
+                                    f"targets found: {sorted(set(got))}"))
+    # beamer's own anchoring is undisturbed: \ref still reaches the label
+    # destination beamer made for it.
+    r.append(check("bm:one" in link_targets(p.raw),
+                   "\\ref still links to beamer's own label destination"))
+
+    # One example, one record -- on a frame typeset twice.
+    for name in ("ExNo.lxex.1", "ExNo.lxex.2"):
+        n = aux.count("\\lx@relref@dest{%s}" % name)
+        r.append(check(n == 1, f"{name} is recorded once, not once per "
+                               f"overlay (got {n})"))
+
+    # An example that first appears on a LATER slide.  \only does not
+    # typeset what it excludes, so this one is numbered for the first time
+    # on the frame's second pass; a rule that skipped every pass after the
+    # first gave it no anchor at all, and the reference naming it was then
+    # reported as dangling by the mechanism that had discarded its target.
+    r.append(check(txt.count("BMLATE") == 1,
+                   f"the deferred example is set on one slide only "
+                   f"(BMLATE {txt.count('BMLATE')}x)"))
+    n = aux.count("\\lx@relref@dest{ExNo.lxex.5}")
+    r.append(check(n == 1, f"the deferred example is recorded once, on the "
+                           f"pass where it appears (got {n})"))
+    r.append(check("ExNo.lxex.5" in got,
+                   "and the reference made before it links to it"))
+    r.append(check("BMBEFORE (5)" in txt,
+                   f"BMBEFORE prints (5); got "
+                   f"{txt[txt.find('BMBEFORE'):][:20]!r}"))
+
+    # \pause: the example is EXECUTED on the frame's first slide -- the
+    # counter steps, and an anchor placed there is placed on that slide --
+    # while its ink is dropped, so the reader sees it only later.  That gap
+    # between executed and visible is why anchoring it where it was first
+    # set sent a click to a slide with no example on it, and why no
+    # page-based check could see the mistake: on the page, nothing is there.
+    # The example appears once, and the assertion is not about the page at
+    # all but about where its destination went.
+    r.append(check(txt.count("BMPAUSED") == 1,
+                   f"the paused example shows on one slide (BMPAUSED "
+                   f"{txt.count('BMPAUSED')}x)"))
+    shown, paused = (dest_page(p.path, "ExNo.lxex.3"),
+                     dest_page(p.path, "ExNo.lxex.4"))
+    r.append(check(shown is not None and paused is not None
+                   and paused == shown + 1,
+                   f"the paused example is anchored one slide after the one "
+                   f"above it, where it becomes visible (pages {shown} and "
+                   f"{paused})"))
+
+    # ... which is what keeps both warnings away: the engine's, for a
+    # destination it had to drop, and linguexx's, for an anchor it would
+    # otherwise take to be shared between two examples.
+    r.append(check("destination with the same identifier" not in log
+                   and "duplicate destination" not in log,
+                   "no duplicate-destination warning from the engine"))
+    r.append(check("linguexx Warning" not in log,
+                   "and no linguexx warning: nothing dangles and nothing "
+                   "is shared"))
+    return r
+
+
+def a_relreflinks_beamer_reset(p: Page):
+    r"""Two examples numbered alike under beamer are still two examples.
+
+    The companion to relreflinks-beamer.tex, and the case that makes the
+    rule per-FRAME rather than per-document.  A document-wide "have I
+    placed this name already" set would pass that case and silently link
+    this one to the wrong example: the overlay repeat and the reset
+    counter produce the same repeated name, and only where the repeat
+    happens tells them apart.
+
+    One number carries both halves.  Frame one has two slides, so its
+    example comes past twice and must be recorded once; frame two reuses
+    the number and must be recorded again.  Three records would mean the
+    overlay repeat was recorded; one would mean the reset was swallowed.
+    """
+    r = []
+    txt = " ".join(w.text for w in p.words)
+    aux = getattr(p, "aux", "")
+    log = getattr(p, "log", "")
+
+    r.append(check(txt.count("BRONE") == 2 and txt.count("BROVERLAY") == 1,
+                   f"the first frame really has two slides (BRONE "
+                   f"{txt.count('BRONE')}x, BROVERLAY "
+                   f"{txt.count('BROVERLAY')}x)"))
+    n = aux.count("\\lx@relref@dest{ExNo.lxex.1}")
+    r.append(check(n == 2, f"the number is recorded twice -- once per "
+                           f"example, not once per slide and not once for "
+                           f"both examples (got {n})"))
+    r.append(check("ExNo.lxex.1" not in example_targets(p.raw),
+                   "and the reference to it is not a link"))
+    body = warning_body(log, "Package linguexx Warning: More than one example")
+    r.append(check("1 (line" in body,
+                   f"the shared number is reported; got {body!r}"))
+    r.append(check("BRLAST (1)" in txt,
+                   f"BRLAST still prints (1); got "
+                   f"{txt[txt.find('BRLAST'):][:16]!r}"))
     return r
 
 
@@ -2902,6 +3075,8 @@ ASSERTIONS = {
     "relreflinks": a_relreflinks,
     "relreflinks-off": a_relreflinks_off,
     "relreflinks-reset": a_relreflinks_reset,
+    "relreflinks-beamer": a_relreflinks_beamer,
+    "relreflinks-beamer-reset": a_relreflinks_beamer_reset,
 }
 
 
