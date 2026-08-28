@@ -24,9 +24,15 @@ Requires: pdflatex / xelatex / lualatex, pdftotext and pdfinfo
 (poppler-utils), qpdf (to resolve a named destination to the page it lands
 on, which no poppler tool reports), and veraPDF on PATH as `verapdf` -- the
 only authoritative oracle for PDF/UA, used by the `ua` case.
+That list is REQUIRED_TOOLS, and it is checked rather than described: the
+suite refuses to start if a tool is missing from PATH, unnamed in this
+paragraph, or not installed by the CI workflow.  The three used to be
+kept in step by hand and were not.
+
 Exit status: 0 iff every assertion passed, 1 on a failing assertion,
 2 on a suite-integrity problem (an unwired case file, a missing case file,
-a stale KNOWN_XFAIL or PASSES key) or when no case matches -k.
+a stale KNOWN_XFAIL or PASSES key, a required tool that PATH, this
+docstring and the workflow do not agree about) or when no case matches -k.
 """
 
 import argparse
@@ -102,6 +108,42 @@ EXPECT_ERROR = {
     # \verb fine, so the braced form is the only thing on trial.
     "verb-braced": "Missing $ inserted",
 }
+#: The external tools the suite runs on, and how CI is expected to provide
+#: each one.  ONE list, checked three ways by suite_integrity: present on
+#: PATH, named in this module's docstring, and installed by the workflow.
+#:
+#: It exists because the three drifted apart and only the slowest of them
+#: noticed.  qpdf was added for the beamer overlay assertions and went into
+#: the docstring and not into the workflow; every local run was green
+#: (qpdf happens to be installed on the machine it was written on) and CI
+#: died two minutes in on a FileNotFoundError from inside a helper, having
+#: compiled everything and asserted almost nothing.  A requirement that
+#: lives only in prose is a requirement nothing enforces.
+#:
+#: Fields: how the workflow provides it, whether its absence should stop
+#: the suite before anything runs, and what it is for.
+#:   "image"      -- comes with the texlive container; nothing to install
+#:   "apt:<pkg>"  -- <pkg> must appear in the workflow's apt line
+#:   "step:<name>" -- a workflow step of that name must exist
+#: veraPDF is deliberately NOT a startup check: a_ua owns that message, and
+#: a startup check here would make that branch unreachable dead code.
+REQUIRED_TOOLS = {
+    "pdflatex":  ("image", False, "engine"),
+    "xelatex":   ("image", False, "engine"),
+    "lualatex":  ("image", False, "engine"),
+    "pdftotext": ("apt:poppler-utils", True,
+                  "word boxes: every geometric assertion reads them"),
+    "pdfinfo":   ("apt:poppler-utils", True,
+                  "the tagged structure tree"),
+    "qpdf":      ("apt:qpdf", True,
+                  "resolving a named destination to the page it lands on"),
+    "verapdf":   ("step:Install veraPDF", False,
+                  "the PDF/UA oracle, used by the `ua` case"),
+}
+#: The workflow the tools above are checked against.  Absent from a
+#: distribution tarball, where there is no CI to disagree with; the check
+#: is about this repository, not about the package.
+WORKFLOW = Path(__file__).parent.parent / ".github" / "workflows" / "ci.yml"
 CASES = Path(__file__).parent / "cases"
 if not CASES.is_dir():                       # flat layout: cases beside the script
     CASES = Path(__file__).parent
@@ -3142,6 +3184,62 @@ def suite_integrity():
             problems.append(f"KNOWN_XFAIL key {key!r} names no known engine.")
         elif name not in known:
             problems.append(f"KNOWN_XFAIL key {key!r} names no known case.")
+    problems.extend(tooling_integrity())
+    return problems
+
+
+def tooling_integrity():
+    """Cross-check REQUIRED_TOOLS against PATH, the docstring and the workflow.
+
+    Three places have to agree about what the suite needs, and they had
+    already drifted once: qpdf reached the docstring and not the workflow,
+    so every local run passed and CI failed on a FileNotFoundError two
+    minutes in.  The list in REQUIRED_TOOLS is now the only statement of the
+    requirement, and this checks that the other two match it.
+
+    The docstring half is not pedantry.  It is what a person reads before
+    running the suite, and it is the only one of the three a reader of the
+    file can see.
+    """
+    problems = []
+    for tool, (provided, at_startup, why) in REQUIRED_TOOLS.items():
+        if at_startup and not shutil.which(tool):
+            problems.append(
+                f"{tool} is not on PATH; the suite needs it for {why}.")
+        if tool not in (__doc__ or ""):
+            problems.append(
+                f"{tool} is in REQUIRED_TOOLS but this module's docstring "
+                f"does not name it, so nobody reading the file learns they "
+                f"need it.")
+    if not WORKFLOW.exists():
+        return problems
+    workflow = WORKFLOW.read_text(errors="replace")
+    # What is searched is the apt-get command's own argument list, and not
+    # the file.  Searching the file passes a workflow that installs nothing:
+    # this one both installs qpdf and SAYS why, in a comment and in a step
+    # name, so a whole-file test finds the word three times over and two of
+    # them are prose.  Verified the only way worth trusting -- by deleting
+    # qpdf from the apt line and watching the first two versions of this
+    # check stay green.
+    joined = re.sub(r"\\\n\s*", " ", workflow)   # undo the line continuations
+    apt = set()
+    for m in re.finditer(r"apt-get\s+install[^\n]*", joined):
+        apt.update(m.group(0).split())
+    for tool, (provided, at_startup, why) in REQUIRED_TOOLS.items():
+        kind, _, value = provided.partition(":")
+        if kind == "image":
+            continue                    # the container brings it
+        if kind == "apt":
+            ok = value in apt
+            what = f"install the package {value!r}"
+        else:
+            ok = f"- name: {value}" in workflow
+            what = f"run a step named {value!r}"
+        if not ok:
+            problems.append(
+                f"{tool} is required ({why}) but {WORKFLOW.name} does not "
+                f"{what}; CI would then fail on a machine that happens not "
+                f"to have it, long after the compile that hides why.")
     return problems
 
 
