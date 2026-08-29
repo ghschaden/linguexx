@@ -14,7 +14,10 @@ Two other input syntaxes are available as options and drive the same engine, so
 they share one counter, one label system and all layout parameters with the dot
 syntax: `[gb4e]` for the `exe` / `xlist` environments, and `[langsci]` for the
 `\ea` … `\z` front-end of `langsci-gb4e`. Loaded alongside `[lazy]`, either
-lets a document move over one example at a time.
+lets a document move over one example at a time. `[langsci]` provides what
+`langsci-gb4e`'s own two documents describe — the LangSci author guidelines and
+its manual — and refuses the rest by name, with an error saying what to write
+instead.
 
 ## Accessibility
 

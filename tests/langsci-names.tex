@@ -1,0 +1,29 @@
+%% Every command and environment [langsci] RETIRES is still defined, and
+%% raises the package error that names what to write instead.
+%%
+%% Refusing by name is the whole point: a document being ported stops at the
+%% line that needs changing, rather than at "Undefined control sequence" with
+%% no indication that the name was ever a langsci-gb4e one.  If a retirement
+%% were dropped, the name would simply be absent and this page would say so.
+%%
+%% langsci-retired.tex asserts that one of them errors; this asserts that all
+%% of them exist to error.  Both halves are needed: a retirement that was
+%% never installed leaves an undefined name, and a retirement installed as a
+%% no-op leaves a name that silently does nothing.
+\input{_preamble-langsci}
+\makeatletter
+\newcommand\chk[1]{\expandafter\ifx\csname #1\endcsname\relax
+  NAMEBAD-#1 \else\expandafter\ifx\csname #1\endcsname\@undefined
+  NAMEBAD-#1 \else NAMEOK \fi\fi}
+\makeatother
+\begin{document}
+NAMESTART
+\chk{eal}\chk{zl}\chk{eas}\chk{zs}\chk{zllast}\chk{eafirst}
+\chk{ealnoraggedright}\chk{examplesroman}\chk{examplesitalics}
+\chk{attop}\chk{atcenter}\chk{xbox}\chk{nobreakbox}
+\chk{gblabelsep}\chk{subexsep}\chk{singlegloss}\chk{nosinglegloss}
+\chk{twodigitexamples}\chk{threedigitexamples}\chk{fourdigitexamples}
+\chk{xlista}\chk{xlistabr}\chk{xlisti}\chk{xlistn}\chk{xlistA}\chk{xlistI}
+\chk{qlist}
+NAMEEND
+\end{document}

@@ -103,8 +103,7 @@ EXPECT_ERROR = {
     "langsci-legacy": "cannot be combined",
     "langsci-unclosed": "was never closed",
     "langsci-exioutside": "outside an example",
-    "langsci-easnest": "inside an example",
-    "langsci-nojambox": "Undefined control sequence",
+    "langsci-retired": "not part of the documented",
     "judgment-badarg": "needs one command here",
     "straysub": "no example to attach it to",
     # Not a package error but TeX's own, and deliberately so: a dot-syntax
@@ -2441,13 +2440,12 @@ def a_langsci(p: Page):
     labw = [w for w in p.words if re.fullmatch(r"\(\d+\)", w.text)]
     margin = min(w.x0 for w in labw)
     got = [w.text for w in labw if abs(w.x0 - margin) < TOL]
-    r.append(check(got == ["(1)", "(2)", "(3)", "(4)", "(5)", "(6)", "(7)"],
+    r.append(check(got == ["(1)", "(2)", "(3)", "(4)", "(5)", "(6)"],
                    f"one counter across every shape the front-end has; "
                    f"got {got}"))
     letters = [w.text for w in p.words if w.text in ("a.", "b.", "c.", "i.")]
-    r.append(check(letters == ["a.", "b.", "i.", "c.", "a.", "b."],
-                   f"letters, a nested roman, and the \\eal list; "
-                   f"got {letters}"))
+    r.append(check(letters == ["a.", "b.", "i.", "c."],
+                   f"letters and a nested roman; got {letters}"))
     # --- the nesting itself ---------------------------------------------
     two, three = p.find("LSTWO"), p.find("LSTHREE")
     suba, subb, subc = p.find("LSSUBA"), p.find("LSSUBB"), p.find("LSSUBC")
@@ -2472,20 +2470,6 @@ def a_langsci(p: Page):
     hung = [w for w in p.line_of(subb)
             if not lab.match(w.text) and w is not subb and w.x1 <= subb.x0 + TOL]
     r.append(check(hung, f"the mark hangs left of the text; found {hung}"))
-    # --- \eal: a head with no text, and the letters under it ------------
-    lsla, lslb = p.find("LSLA"), p.find("LSLB")
-    r.append(check(abs(lsla.x0 - suba.x0) < TOL,
-                   f"\\eal opens the SAME letter level as a nested opener "
-                   f"({lsla.x0:.2f} vs {suba.x0:.2f})"))
-    r.append(check(abs(lslb.x0 - lsla.x0) < TOL,
-                   f"and its second item stays there "
-                   f"({lslb.x0:.2f} vs {lsla.x0:.2f})"))
-    # The head takes no text, so its number shares a line with the first
-    # letter.  This is the half of \eal that a token list cannot see: give
-    # the head an item it does not deserve and the letters move down a line.
-    r.append(check(any(w.text == "(4)" for w in p.line_of(lsla)),
-                   f"the \\eal head number sits on its first letter's line; "
-                   f"that line is {[w.text for w in p.line_of(lsla)][:4]}"))
     # --- the four-tier gloss the option brings ---------------------------
     tiers = [p.find(t) for t in ("LSGOBJ", "LSGONE", "LSGTWO", "LSGTRI")]
     r.append(check(all(abs(t.x0 - tiers[0].x0) < TOL for t in tiers),
@@ -2519,7 +2503,7 @@ def a_langsci(p: Page):
                        f"at the margin ({[round(e, 1) for e in re_]} against "
                        f"{margin:.1f})"))
     txt = " ".join(w.text for w in p.words)
-    r.append(check("LSREFS (1) and (7)." in txt,
+    r.append(check("LSREFS (1) and (6)." in txt,
                    f"label and \\Last resolve; got "
                    f"{txt[txt.find('LSREFS'):][:24]!r}"))
     return r
@@ -2591,99 +2575,47 @@ def a_langsci_mixed(p: Page):
     return r
 
 
-def _langsci_widths(p: Page):
-    """(two-digit x, three-digit x, four-digit x, item penalty) off the page.
-
-    Shared by the two option cases, which carry the same sentinels on
-    purpose: neither is an assertion by itself.  With the option code
-    deleted, langsci-options still shows an unwidened box and a kernel
-    penalty -- exactly what it asserts -- so what is being checked is that
-    the two cases DIFFER, and that only holds if one function reads both.
-    """
-    xs = tuple(p.find(t).x0 for t in ("WSMALL", "WBIG", "WHUGE"))
-    m = re.search(r"(-\d+)", " ".join(
-        w.text for w in p.line_of(p.find("WPENALTY"))))
-    return xs + (m.group(1) if m else None,)
-
-
 def a_langsci_exewidth(p: Page):
-    r"""autoexewidth on, and the kernel's item penalty."""
-    r = []
-    small, big, huge, pen = _langsci_widths(p)
-    r.append(check(huge > small + 1,
-                   f"autoexewidth widens the label box for a four-digit "
-                   f"number ({huge:.2f} vs {small:.2f})"))
-    # It must widen and never narrow.  The default box is already wider than
-    # "(235)", so an \exewidth that simply set the sample moved a three-digit
-    # document's text LEFT of a two-digit one's -- which is what this line
-    # catches and what the first implementation did.
-    r.append(check(abs(big - small) < TOL,
-                   f"and does not NARROW it for a three-digit one "
-                   f"({big:.2f} vs {small:.2f})"))
-    r.append(check(pen == "-51",
-                   f"without [lowerpenalty] the item penalty is the "
-                   f"kernel's; got {pen}"))
-    return r
+    r"""\exewidth, and the auto-widening that is deliberately NOT provided.
 
-
-def a_langsci_options(p: Page):
-    r"""[manualexewidth] and [lowerpenalty]: the same two knobs, given."""
-    r = []
-    small, big, huge, pen = _langsci_widths(p)
-    r.append(check(abs(huge - small) < TOL and abs(big - small) < TOL,
-                   f"[manualexewidth] leaves the label box alone at every "
-                   f"width ({small:.2f}, {big:.2f}, {huge:.2f})"))
-    r.append(check(pen == "-1000",
-                   f"[lowerpenalty] lowers the item penalty, so a batch may "
-                   f"break across a page; got {pen}"))
-    return r
-
-
-def a_langsci_lists(p: Page):
-    r"""The sub-level numbering variants, and \qlist.
-
-    Each variant is asserted by the label its item actually prints, read off
-    the line rather than from a token list, because what makes a variant
-    wrong is that it prints the numbering of a DIFFERENT variant -- a page
-    that looks entirely plausible until it is compared with the source.
-
-    Two of these deliberately do not reproduce upstream: \xlistabr labels
-    every item "(xnumii." there and \qlist raises "No counter 'xnum'
-    defined" and labels every item ".".  Both are upstream defects; what is
-    asserted is what the names promise.  See the .sty beside each.
+    The manual documents \exewidth as the way to make room for three-digit
+    numbers; upstream additionally widens the box by itself past 98 and 998,
+    but the only interface to that is an option neither document mentions,
+    so [langsci] leaves it out.  Both halves are asserted, because "we chose
+    not to implement it" and "we forgot" look identical from one example.
     """
     r = []
+    small, huge, wide = (p.find(t).x0 for t in ("WSMALL", "WHUGE", "WWIDE"))
+    r.append(check(abs(huge - small) < TOL,
+                   f"a four-digit number does not widen the box by itself "
+                   f"({huge:.2f} vs {small:.2f})"))
+    r.append(check(wide > small + 1,
+                   f"\\exewidth does widen it when asked "
+                   f"({wide:.2f} vs {small:.2f})"))
+    return r
 
-    def label_of(tok):
-        """The leftmost word on the sentinel's line, when it is left of it."""
-        w = p.find(tok)
-        line = p.line_of(w)
-        left = [t for t in line if t.x1 <= w.x0 + TOL]
-        return left[0].text if left else None
 
-    want = [("LLDEFAULT", "a."), ("LLALPH", "a."), ("LLABR", "(a)"),
-            ("LLROMAN", "i."), ("LLARABIC", "1."), ("LLUPALPH", "A."),
-            ("LLUPROMAN", "I.")]
-    got = [(tok, label_of(tok)) for tok, _ in want]
-    r.append(check(got == want,
-                   f"each numbering variant prints its own numbering; "
-                   f"got {got}"))
-    # One label box for every level, whatever the numbering: the variants
-    # must not move the text they label.
-    xs = [p.find(tok).x0 for tok, _ in want]
-    r.append(check(max(xs) - min(xs) < TOL,
-                   f"a variant does not move the text it labels; got "
-                   f"{[round(x, 2) for x in xs]}"))
-    # A variant is set in the environment's OWN group.  Set anywhere wider
-    # and the plain xlist after six of them would still be numbering in
-    # upper roman -- and would keep doing so for the rest of the document.
-    r.append(check(label_of("LLAGAIN") == "a.",
-                   f"a variant does not leak into the next list; the plain "
-                   f"xlist after six of them prints "
-                   f"{label_of('LLAGAIN')!r}"))
-    r.append(check((label_of("LLQA"), label_of("LLQB")) == ("A.", "B."),
-                   f"\\qlist letters its items; got "
-                   f"{(label_of('LLQA'), label_of('LLQB'))}"))
+def a_langsci_names(p: Page):
+    r"""Every retired name is defined, and defined to complain.
+
+    [langsci] provides what the LangSci guidelines and the langsci-gb4e
+    manual document; the two dozen commands in neither are refused BY NAME,
+    so that a document being ported stops where it has to change instead of
+    at "Undefined control sequence".  The case prints NAMEOK for each name
+    that exists and NAMEBAD-<name> for each that does not.
+
+    This is the half that langsci-retired.tex cannot cover: that one shows a
+    retired name errors, this one shows they all still exist to do it.  A
+    retirement that was never installed leaves an undefined name and shows up
+    here as NAMEBAD.
+    """
+    r = []
+    txt = " ".join(w.text for w in p.words)
+    bad = re.findall(r"NAMEBAD-\S+", txt)
+    ok = txt.count("NAMEOK")
+    r.append(check(not bad, f"every retired name is still defined; missing {bad}"))
+    r.append(check(ok == 27,
+                   f"all 27 retired names checked; the page shows {ok}"))
     return r
 
 
@@ -2773,20 +2705,6 @@ def a_langsci_extra(p: Page):
     r.append(check("LEXREF (1) and LEXXREF (1" in txt,
                    f"\\xref and \\xxref resolve; got "
                    f"{txt[txt.find('LEXREF'):][:34]!r}"))
-    # --- \attop and \atcenter --------------------------------------------
-    # Same two-line box, two alignments.  \attop puts its FIRST line on the
-    # example's baseline; \atcenter straddles it.  Asserted against each
-    # other, so neither can pass by sitting where the other should.
-    top_base, cen_base = p.find("LEATTOP"), p.find("LEACBASE")
-    ata, atb = p.find("LEATA"), p.find("LEATB")
-    aca, acb = p.find("LEACA"), p.find("LEACB")
-    r.append(check(abs(ata.y0 - top_base.y0) < 2.0 and atb.y0 > top_base.y0,
-                   f"\\attop aligns its first line with the baseline "
-                   f"({ata.y0:.1f} vs {top_base.y0:.1f}, second at "
-                   f"{atb.y0:.1f})"))
-    r.append(check(aca.y0 < cen_base.y0 < acb.y0,
-                   f"\\atcenter straddles the baseline ({aca.y0:.1f} < "
-                   f"{cen_base.y0:.1f} < {acb.y0:.1f})"))
     # --- \gltoffset -------------------------------------------------------
     with_off = p.find("LEGTRANS").y0 - p.find("LEGGLOSS").y0
     without = p.find("LEGTRANS2").y0 - p.find("LEGGLOSS2").y0
@@ -2840,13 +2758,11 @@ def a_langsci_ua(p: Page):
     r.append(check(len(depths) >= 5 and len(levels) == 1,
                    f"every top-level example number sits at one depth; "
                    f"got {depths}"))
-    # The numbering variants announce what they print.  langsci-lists.tex
-    # asserts the printed half; this is the other half, and it is the half
-    # no rendering shows -- a list labelled "A." whose class says LowerRoman
-    # is well-formed PDF and passes veraPDF.
+    # Each level announces the numbering it prints.  The printed half shows
+    # on the page; this half does not -- a list labelled "a." whose class
+    # says LowerRoman is well-formed PDF and passes veraPDF.
     classes = struct_ol_classes(p.path)
-    for cls, printed in [("lxOLupperalpha", "A."), ("lxOLupperroman", "I."),
-                         ("lxOLdecimal", "(1)"), ("lxOLalpha", "a."),
+    for cls, printed in [("lxOLdecimal", "(1)"), ("lxOLalpha", "a."),
                          ("lxOLroman", "i.")]:
         r.append(check(classes.get(cls, 0) >= 1,
                        f"a list printing {printed} carries /ListNumbering "
@@ -2856,10 +2772,10 @@ def a_langsci_ua(p: Page):
     # or a MathML association, and this package has neither to give: the
     # 0.12 rewrite of \altg exists because of exactly this.
     r.append(check(not struct_has_formula(p.path),
-                   "no Formula element in the tree: \\exp's prime and "
-                   "\\atcenter are text, not math"))
+                   "no Formula element in the tree: \\exp's prime is text, "
+                   "not math"))
     # a compliant but empty PDF must not pass this case by accident
-    for tok in ("UALSMAIN", "UALSALPHA", "UALSROMAN", "UALSLISTA",
+    for tok in ("UALSMAIN", "UALSALPHA", "UALSROMAN", "UALSPRIME",
                 "UALSOBJ", "UALSTRANS", "UALSDOT", "UALSREL"):
         r.append(check(p.find(tok) is not None, f"typeset: {tok}"))
     return r
@@ -3616,10 +3532,9 @@ ASSERTIONS = {
     "langsci": a_langsci,
     "langsci-mixed": a_langsci_mixed,
     "langsci-ua": a_langsci_ua,
-    "langsci-lists": a_langsci_lists,
     "langsci-extra": a_langsci_extra,
     "langsci-exewidth": a_langsci_exewidth,
-    "langsci-options": a_langsci_options,
+    "langsci-names": a_langsci_names,
     "numbering": a_numbering,
     "judgment-align": a_judgment_align,
     "judgments": a_judgments,

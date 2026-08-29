@@ -65,52 +65,56 @@ version string.
   Found while building the `\ea` front-end's own exit, which had it right from
   the start; `tests/ua.tex` now carries the shape, and its header records the
   three things about it that are load-bearing.
-- New: the rest of the `langsci-gb4e` surface, under `[langsci]`. The sub-level
-  numbering variants (`xlista`, `xlistabr`, `xlisti`, `xlistn`, `xlistA`,
-  `xlistI`, `qlist`); the item variants (`\exi`, `\exr`, `\exp`, `\sn`);
-  `\eas` … `\zs`, `\eafirst`, `\zlast`, `\zllast`; `\jambox`; `\attop`,
-  `\atcenter`, `\xbox`, `\nobreakbox`, `\xref`, `\xxref`; and the width,
-  separation, font and gloss knobs (`\exewidth` and the digit shorthands,
-  `\gblabelsep`, `\exfont` / `\glossfont` / `\transfont` / `\exnrfont` and
-  their footnote variants, `\examplesroman`, `\examplesitalics`,
-  `\gltoffset`, `\singlegloss`). The four package options come too:
-  `[nojambox]`, `[manualexewidth]`, `[lowerpenalty]`, `[nocgloss]`. Manual
-  §3.6; `tests/langsci-lists.tex`, `tests/langsci-extra.tex`,
-  `tests/langsci-exewidth.tex` and `tests/langsci-options.tex` assert them,
-  with three more `EXPECT_ERROR` cases for the refusals.
+- New: the rest of the **documented** `langsci-gb4e` surface, under `[langsci]`.
+  What "documented" means is decided by that package's own two authorities --
+  the LangSci author guidelines (§5.7.1 and the showcases of §12) and the
+  `langsci-gb4e` manual -- and the option provides what they name and nothing
+  else: `\glll`…`\gllllllll`, `exe`/`xlist`, `\exi`, `\exr`, `\exp`, `\sn`,
+  `\xref`, `\xxref`, `\exewidth`, `\judgewidth`, `\zlast`,
+  `\eanoraggedright`, the eight font commands, and
+  `\nogltOffset`/`\resetgltOffset`. Manual §3.6.
 
-  **Seven deliberate differences from upstream**, each documented where it
-  stands. `\exp` keeps *both* meanings -- it is the LaTeX kernel's math
-  operator as well as an item command, and upstream simply takes it, so a
-  paper writing `\exp{ex:5}` silently loses `$\exp(x)$`; here the mode
-  decides. `\exp`'s prime and `\atcenter` are written in text mode, upstream
-  having both in math, which would put a `Formula` element in the tree --
-  `\atcenter` therefore centres on `\ExAtCenterAxis` and sits 0.38pt lower
-  than a real `\vcenter` at 10pt (measured). `\eas` boxes its example in a
-  `minipage` rather than a `tabular`, which would wrap running prose in a
-  `Table` element. `xlistabr` and `qlist` do what their names say: upstream's
-  label every item `(xnumii.` and `.` respectively, both being defects rather
-  than conventions. `\examplesroman` / `\examplesitalics` set the object tier
-  only, upstream's attempt to set the example font besides being a no-op
-  (`\exfont` takes no argument there). `\subexsep` and `\judgewidth` warn
-  instead of acting: the first parametrises a per-level label separation this
-  package does not have, the second a reserved judgment column, where a
-  judgment here hangs into the label gutter and reserves nothing. And
-  `[nocgloss]` is accepted and reported rather than obeyed -- there is no
-  bundled `cgloss` to withhold, and what `\exg.`, `\altg`, `\lpzg` and the
-  tagged gloss structure should do without the glossing engine has more than
-  one defensible answer; see `doc/DEFERRED-DECISIONS.md`.
+  **The two dozen commands in neither document are refused by name.** `\eal`,
+  `\zl`, `\eas`, `\zs`, `\zllast`, `\eafirst`, `\ealnoraggedright`; the six
+  sub-list numbering variants and `qlist`; `\examplesroman` and
+  `\examplesitalics`; `\attop`, `\atcenter`, `\xbox`, `\nobreakbox`;
+  `\gblabelsep`, `\subexsep`, `\singlegloss`, `\nosinglegloss`,
+  `\twodigitexamples` and its siblings; and the four package options. Each is
+  *defined*, and defined to raise an error naming what to write instead, so a
+  document being ported stops at the line that has to change rather than at
+  "Undefined control sequence". The options warn instead of stopping, a
+  preamble not yet being typesetting.
 
-  Three of the above were found by the tests rather than by reading upstream.
-  `autoexewidth` at first *narrowed* the label box for three-digit numbers,
-  because this package's default box is already wider than `(235)` and
-  `\exewidth` sets a width rather than raising one. `\exp` was silently
-  replaced under `\DocumentMetadata`, where the tagged-math code re-declares
-  the operator after this package is read, so the dispatch is installed at
-  begin-document as well as at load. And the `/ListNumbering` class of each
-  numbering variant is asserted from the structure tree, not the page: a list
-  labelled `A.` whose class says `LowerRoman` is well-formed PDF, passes
-  veraPDF, and is simply false.
+  Two of them could not honestly have been provided at all: `xlistabr` labels
+  every item `(xnumii.` in `langsci-gb4e` and `qlist` raises "No counter 'xnum'
+  defined", so neither has ever worked in a released version. Implementing them
+  would not have been compatibility but the invention of a meaning for a name
+  with no working precedent. Upstream's automatic widening of the label box
+  past 98 and 998 examples is left out for the same kind of reason: its only
+  interface is `[manualexewidth]`, which neither document mentions, and the
+  manual's own instruction for three-digit numbers is to call `\exewidth`.
+
+  **Four deliberate differences from upstream** among what *is* provided.
+  `\exp` keeps both meanings -- it is the LaTeX kernel's math operator as well
+  as an item command, and upstream simply takes it, so a paper writing
+  `\exp{ex:5}` silently loses `$\exp(x)$` and in fact stops compiling; here
+  the mode decides. `\exp`'s prime is written in text mode, upstream having it
+  in math, which would put a `Formula` element in the tree. `\judgewidth`
+  warns instead of acting: it sets the width of a reserved judgment column, and
+  a judgment here hangs into the label gutter and reserves nothing, which is
+  why marked and unmarked examples align. And the font commands are
+  declarations, as upstream's are -- the manual writes them with an argument
+  (`\exfont{\itshape}`), but its own `\exfont` takes none, so that spelling
+  does nothing there either.
+
+  Three things were found by the tests rather than by reading upstream.
+  `\exp` was silently replaced under `\DocumentMetadata`, where the tagged-math
+  code re-declares the operator after this package is read, so the dispatch is
+  installed at begin-document as well as at load. `\lx@custom@item@here` was
+  dead code until `\exi` was routed through it, so a mutation making it step a
+  counter changed nothing and the suite stayed green over it. And the fix for
+  the `xlistabr`-shaped problem that seemed obvious -- `\let` to `\def` --
+  does not work, the numbering slot being used as `\@xs<N>{counter}`.
 - New: a documented API for building a syntax front-end or a geometry mode
   on this package's machinery, without touching its internals. The seam was
   already there -- the dot syntax and the `exe`/`xlist` environments are

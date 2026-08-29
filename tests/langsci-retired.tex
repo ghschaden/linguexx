@@ -1,0 +1,18 @@
+%% The undocumented half of langsci-gb4e, refused by name.
+%%
+%% [langsci] provides what the LangSci author guidelines and the langsci-gb4e
+%% manual document, and nothing else -- two dozen further commands the package
+%% defines appear in neither, and two of them (xlistabr, qlist) have never
+%% worked upstream at all, so implementing them would have been inventing a
+%% meaning rather than reproducing one.
+%%
+%% They are refused BY NAME rather than left undefined, so that a document
+%% being ported stops at the line that needs changing with a message saying
+%% what to write instead.  This case pins one of them; langsci-retired.sh is
+%% not a thing, so the rest are covered by the assertion in a_langsci that
+%% every retired name is defined and raises this error.  See EXPECT_ERROR.
+\input{_preamble-langsci}
+\begin{document}
+RETIREDPROSE ordinary text.
+\eal
+\end{document}

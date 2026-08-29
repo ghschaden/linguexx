@@ -52,11 +52,6 @@ UALSINTRO ordinary running text precedes the first example.
 \ex UALSTWO a second top-level example in the same block.
 \z
 
-\eal
-  \ex UALSLISTA under a head with no text.
-  \ex UALSLISTB the second letter.
-\zl
-
 \ea \gll UALSOBJ zwei Zeilen\\
         UALSGLOSS two lines\\
 \glt UALSTRANS the free translation.
@@ -69,23 +64,15 @@ UALSINTRO ordinary running text precedes the first example.
 %% not from the page, because that is where each of them can go wrong
 %% invisibly.
 %%
-%% A variant sets the printed label and the /ListNumbering class a screen
-%% reader announces; a list labelled "A." whose class says LowerRoman is
-%% well-formed PDF, passes veraPDF, and is simply false, so the page cannot
-%% catch it and langsci-lists.tex asserts only the printed half.
-%%
-%% \exp and \atcenter are $'$ and $\vcenter{...}$ upstream.  Math here means
-%% a Formula element, which is the PDF/UA-2 failure that forced the 0.12
-%% removal of the old \altg -- so the tree must contain no Formula at all,
-%% and a_langsci_ua asserts exactly that.  (The variants must sit in an exe
-%% batch: they are environments, and the one-syntax-per-example rule keeps
-%% environments out of an \ea example.)
+%% \exp is written $'$ upstream.  Math here means a Formula element, which is
+%% the PDF/UA-2 failure that forced the 0.12 removal of the old \altg -- so
+%% the tree must contain no Formula at all, and a_langsci_ua asserts exactly
+%% that.  \exp must sit in an exe batch or after \ea; this one takes the
+%% batch, which also gets the environment syntax into the tagged case.
 \begin{exe}
-\ex UALSVAR an example whose sub-levels carry the numbering variants.
- \begin{xlistA} \ex UALSUPALPHA an upper-alpha sub-example. \end{xlistA}
- \begin{xlistI} \ex UALSUPROMAN an upper-roman sub-example. \end{xlistI}
+\ex UALSVAR an example with a custom-labelled item under it.
 \exp{uals:one} UALSPRIME a primed cross-reference as a label.
-\ex UALSCENTRE \atcenter{\hbox{UALSCA}\hbox{UALSCB}} centred beside it.
+\ex UALSPLAIN a plain item after it.
 \end{exe}
 
 %% The references are written \pLast / \pref, i.e. WITHOUT the

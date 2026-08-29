@@ -534,29 +534,6 @@ bracket judgment of \cs{ex}\oarg{judgment}\marg{text} is available at
 every level, \cs{ea} included: in \pkg{langsci-gb4e} \cs{ea} expands to
 \cs{begin\{exe\}}\cs{ex}, so anything \cs{ex} accepts, \cs{ea} accepts.
 
-\cs{eal} \dots\ \cs{zl} is the second pair: an example whose body is a
-sub-list, i.e.\ a number with no text of its own and the letters
-underneath it.
-
-\begin{code}
-\eal
-  \ex LALISTA under a head with no text of its own.
-  \ex LALISTB the second letter.
-\zl
-\end{code}
-
-\rendered
-\eal
-  \ex LALISTA under a head with no text of its own.
-  \ex LALISTB the second letter.
-\zl
-
-\afterex
-\cs{eal} is top-level only, as it is in \pkg{langsci-gb4e}; written inside
-an example it is a package error rather than a guess at what a nested one
-ought to mean. Where you want a nested list, write \cs{ea} and open the
-level below it with a second \cs{ea}, as in the first example above.
-
 The option also brings \pkg{langsci-gb4e}'s deeper gloss stacks,
 \cs{gllll} through \cs{gllllllll} --- four to eight tiers. They are
 wrappers over the same engine as \cs{gll}, and section~\ref{sec:anygl}
@@ -636,9 +613,12 @@ than a silent choice between them.
 
 \subsubsection*{The rest of \pkg{langsci-gb4e}}
 
-The option carries the rest of the package's surface too, so that a preamble
-and a document body being ported need no editing. Everything below is
-available under \opt{langsci} and nowhere else.
+The option carries the rest of that package's \emph{documented} surface, so
+that a preamble and a document body being ported need no editing.
+``Documented'' means named in one of its two authorities: the LangSci author
+guidelines (\S5.7.1 and the showcases of \S12), and the \pkg{langsci-gb4e}
+manual. The distinction matters, because \pkg{langsci-gb4e} defines about two
+dozen further commands that appear in neither --- see below.
 
 \begin{center}
 \small
@@ -647,99 +627,107 @@ available under \opt{langsci} and nowhere else.
 \normalfont what & what it does\\
 \midrule
 \endhead
-\multicolumn{2}{@{}l}{\normalfont\itshape sub-level numbering}\\
-\textbackslash begin\{xlista\} & letters, \texttt{a.}\\
-\textbackslash begin\{xlistabr\} & letters in parentheses, \texttt{(a)}\\
-\textbackslash begin\{xlisti\} & lower roman, \texttt{i.}\\
-\textbackslash begin\{xlistn\} & arabic, \texttt{1.}\\
-\textbackslash begin\{xlistA\} & upper alph, \texttt{A.}\\
-\textbackslash begin\{xlistI\} & upper roman, \texttt{I.}\\
-\textbackslash begin\{qlist\} & a free-standing lettered list, margins symmetric\\
-\addlinespace
-\multicolumn{2}{@{}l}{\normalfont\itshape items}\\
-\textbackslash exi\marg{label} & an item with the label given, stepping no counter\\
-\textbackslash exr\marg{key} & an item labelled with another example's number\\
-\textbackslash exp\marg{key} & the same, primed\\
-\textbackslash sn & an unnumbered item\\
-\addlinespace
-\multicolumn{2}{@{}l}{\normalfont\itshape the rest of the front-end}\\
-\textbackslash eas \dots\ \textbackslash zs & an example boxed so it will not break across a page\\
-\textbackslash eafirst, \textbackslash zlast,\linebreak \textbackslash zllast & the same, without the space above or below\\
-\addlinespace
-\multicolumn{2}{@{}l}{\normalfont\itshape boxes and references}\\
+\multicolumn{2}{@{}l}{\normalfont\itshape what the guidelines teach}\\
+\textbackslash ea \dots\ \textbackslash z & an example, and its levels\\
+\textbackslash ex & the next item at the level open\\
+\textbackslash gll, \textbackslash glt & a two-tier gloss and its translation\\
 \textbackslash jambox\oarg{width}\marg{text} & line \meta{text} up \meta{width} from the right margin\\
 \textbackslash jambox*\marg{text} & the same, and set \textbackslash jamwidth\ to its width\\
-\textbackslash attop\marg{box},\linebreak \textbackslash atcenter\marg{box} & align a box by its top, or on its centre\\
-\textbackslash xbox\marg{width}\marg{text},\linebreak \textbackslash nobreakbox\marg{text} & unbreakable boxes\\
-\textbackslash xref\marg{key},\linebreak \textbackslash xxref\marg{key}\marg{key} & a reference, and a range in one pair of parentheses\\
 \addlinespace
-\multicolumn{2}{@{}l}{\normalfont\itshape lengths and fonts}\\
-\textbackslash exewidth\marg{sample} & reserve a label box as wide as \meta{sample}\\
-\textbackslash twodigitexamples \dots & \texttt{(23)}, \texttt{(234)}, \texttt{(2345)}\\
-\textbackslash gblabelsep\marg{len} & the gap between label box and text\\
-\textbackslash exfont, \textbackslash exnrfont & the example body, and its number\\
-\textbackslash glossfont, \textbackslash transfont & the gloss tiers, and the free translation\\
-\textbackslash fnexfont \dots & the same four inside a footnote\\
-\textbackslash examplesroman,\linebreak \textbackslash examplesitalics & the object tier upright or italic\\
-\textbackslash gltoffset, \textbackslash nogltOffset & the space above the free translation\\
-\textbackslash singlegloss,\linebreak \textbackslash nosinglegloss & set the gloss single-spaced, or not\\
+\multicolumn{2}{@{}l}{\normalfont\itshape what the \pkg{langsci-gb4e} manual adds}\\
+\textbackslash glll \dots\ \textbackslash gllllllll & three to eight gloss tiers (\S8.2)\\
+\texttt{exe}, \texttt{xlist} & the environment forms (\S6)\\
+\textbackslash exi\marg{label} & an item with the label given, stepping no counter (\S7.1)\\
+\textbackslash exr\marg{key} & an item labelled with another example's number (\S7.3)\\
+\textbackslash exp\marg{key} & the same, primed (\S7.2)\\
+\textbackslash sn & an unnumbered item (\S7.5)\\
+\textbackslash xref\marg{key}, \textbackslash xxref\marg{key}\marg{key} & a reference, and a range in one pair of parentheses (\S7.4)\\
+\textbackslash exewidth\marg{sample} & reserve a label box as wide as \meta{sample} (\S7.6)\\
+\textbackslash judgewidth\marg{len} & no effect here; see below (\S7.6)\\
+\textbackslash zlast & \textbackslash z, without the space below (\S7.6)\\
+\textbackslash eanoraggedright & \textbackslash ea, allowing hyphenation (\S7.6)\\
+\textbackslash exfont, \textbackslash exnrfont & the example body, and its number (\S11)\\
+\textbackslash glossfont, \textbackslash transfont & the gloss tiers, and the translation (\S11)\\
+\textbackslash fnexfont \dots & the same four inside a footnote (\S11)\\
+\textbackslash nogltOffset,\linebreak \textbackslash resetgltOffset & the space above the translation (\S11)\\
 \bottomrule
 \end{longtable}
 \end{center}
 
-\noindent The four package options come too: \opt{nojambox},
-\opt{manualexewidth}, \opt{lowerpenalty} and \opt{nocgloss}. The first three
-do what they do upstream --- suppress \cs{jambox}, stop the label box from
-widening by itself once the numbers reach three digits, and let examples
-break across a page. \opt{nocgloss} is accepted and reports that it has no
-effect; see below.
+\subsubsection*{What this package does \emph{not} provide}
+
+\pkg{langsci-gb4e} also defines a further two dozen commands that neither the
+guidelines nor its own manual mentions:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+\item \cs{eal}, \cs{zl}, \cs{eas}, \cs{zs}, \cs{zllast}, \cs{eafirst},
+  \cs{ealnoraggedright};
+\item the six sub-list numbering variants \texttt{xlista},
+  \texttt{xlistabr}, \texttt{xlisti}, \texttt{xlistn}, \texttt{xlistA},
+  \texttt{xlistI}, and \texttt{qlist};
+\item \cs{examplesroman}, \cs{examplesitalics};
+\item \cs{attop}, \cs{atcenter}, \cs{xbox}, \cs{nobreakbox};
+\item \cs{gblabelsep}, \cs{subexsep}, \cs{singlegloss}, \cs{nosinglegloss},
+  \cs{twodigitexamples} and its two siblings;
+\item and the four package options \opt{nojambox}, \opt{manualexewidth},
+  \opt{lowerpenalty}, \opt{nocgloss}.
+\end{itemize}
+
+None of these is provided. Two of them could not honestly be: \texttt{xlistabr}
+labels every item \texttt{(xnumii.} in \pkg{langsci-gb4e} and \texttt{qlist}
+raises ``No counter `xnum' defined'' there, so neither has ever worked in a
+released version --- implementing them here would not be compatibility but the
+invention of a meaning for a name with no working precedent. The rest are
+left out because the option's promise is the \emph{documented} interface, and
+a smaller surface that is entirely real is worth more than a larger one that
+is half hearsay.
+
+They are not silently absent, though. Every one of them is defined to raise an
+error naming what to write instead, so a document being ported stops at the
+line that has to change rather than at ``Undefined control sequence'':
+
+\begin{code}
+! Package linguexx Error: \eal is not part of the documented
+                          langsci-gb4e interface.
+
+[langsci] provides what the LangSci author guidelines and the
+langsci-gb4e manual document, and \eal is in neither.
+Write \ea, then a nested \ea for the list under it.
+\end{code}
+
+\noindent The four package options behave the same way but warn rather than
+stop: a preamble is not yet typesetting anything, and a warning names the
+situation without ending the run.
+
+Upstream's automatic widening of the label box past 98 and 998 examples is not
+provided either, for the same reason: its only interface is
+\opt{manualexewidth}, which neither document mentions, and the manual's own
+instruction for a document with three-digit numbers is to call
+\cs{exewidth}\marg{sample}.
 
 \subsubsection*{Where this differs from \pkg{langsci-gb4e}, and why}
 
-Seven things are not copies, and each is worth knowing before a page is
-compared against one set with the original.
+Four things among what \emph{is} provided are not copies.
 
 \begin{itemize}[leftmargin=*]
 \item \cs{exp} keeps \emph{both} meanings. It is the \LaTeX\ kernel's math
   operator as well as \pkg{langsci-gb4e}'s item command, and upstream simply
   takes it, so a paper that writes \cs{exp}\marg{key} silently loses
-  \verb|$\exp(x)$|. Here the mode decides: inside math it is the operator,
-  outside it is the item. Nothing is lost either way.
-\item \cs{exp}'s prime and \cs{atcenter} are written in \emph{text mode}.
-  Upstream writes them \verb|$'$| and \verb|$\vcenter{...}$|, and math here
-  would put a \texttt{Formula} element in the structure tree --- the
-  PDF/UA-2 failure that forced the removal of the old \cs{altg} in v0.12
-  (section~\ref{sec:tagging}). \cs{atcenter} therefore centres on
-  \cs{ExAtCenterAxis}, half the x-height, rather than on the math axis,
-  which is only readable from inside math mode; against a real
-  \cs{vcenter} at 10pt the box sits 0.38\,pt lower.
-\item \cs{eas} boxes its example in a \texttt{minipage} and not in a
-  \texttt{tabular}. Upstream's tabular is a layout device and nothing else,
-  but it would wrap running prose in a \texttt{Table} element, which is
-  wrong for a screen reader as well as for PDF/UA. A footnote inside one
-  reaches the minipage-footnote numbering noted in section~\ref{sec:notes}.
-\item \texttt{xlistabr} and \texttt{qlist} do what their names say.
-  Upstream's \texttt{xlistabr} labels every item \texttt{(xnumii.} and
-  upstream's \texttt{qlist} raises ``No counter `xnum' defined'' and labels
-  every item ``\texttt{.}''; both are defects rather than conventions, so a
-  document using them is not getting what it asked for today either.
-\item \cs{examplesroman} and \cs{examplesitalics} set the object tier and
-  not the example font. Upstream tries to do both, and cannot: its
-  \cs{exfont} takes no argument, so the \verb|\exfont{\itshape}| in those
-  two calls it and then typesets a group that does nothing.
-\item \cs{subexsep} and \cs{judgewidth} warn instead of acting. The first
-  sets a label separation for the sub-levels alone, and this package has one
-  \cs{Exlabelsep} for every level (section~\ref{sec:layout}); the second
-  sets the width of a reserved judgment column, and here a judgment hangs
-  into the label gutter and reserves nothing --- which is exactly why marked
-  and unmarked examples align (section~\ref{sec:jdgspace}).
-\item \opt{nocgloss} is accepted and reports. Upstream it stops a bundled
-  copy of \pkg{cgloss} from being read so that another package can own
-  \cs{gll}; here there is no bundled copy to withhold, and the glossing is
-  what \cs{exg.}, \cs{altg}, \cs{GlossTierLang}, \cs{lpzg} and the tagged
-  word-bundle structure are all built on. Switching it off would leave each
-  of those needing an answer, and they have more than one; the question is
-  recorded in \texttt{doc/DEFERRED-DECISIONS.md} rather than guessed at.
+  \verb|$\exp(x)|\verb|$| --- and, worse, stops compiling. Here the mode
+  decides: inside math it is the operator, outside it is the item.
+\item \cs{exp}'s prime is written in \emph{text mode}. Upstream writes it
+  \verb|$'$|, and math here would put a \texttt{Formula} element in the
+  structure tree --- the PDF/UA-2 failure that forced the removal of the old
+  \cs{altg} in v0.12 (section~\ref{sec:tagging}). The mark is
+  \cs{ExPrimeMark}, a raised \cs{textquotesingle}.
+\item \cs{judgewidth} warns instead of acting. It sets the width of a
+  reserved judgment column, and here a judgment hangs into the label gutter
+  and reserves nothing --- which is exactly why marked and unmarked examples
+  align (section~\ref{sec:jdgspace}).
+\item The font commands are declarations, as upstream's are. The
+  \pkg{langsci-gb4e} manual writes them with an argument
+  (\cs{exfont}\marg{\cs{itshape}}), but its own \cs{exfont} takes none, so
+  that spelling does nothing there either; use \cs{renewcommand} to set them.
 \end{itemize}
 
 \noindent And one difference already noted above: \cs{ea} does not set its
