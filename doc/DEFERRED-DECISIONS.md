@@ -348,3 +348,52 @@ there becomes needless rather than saved. (It asserts it for real now. It
 was first written as a `check(True, ...)` guarded by the very condition it
 claimed to test, so this paragraph described something that could not
 happen.)
+
+---
+
+## Handing `\gll` to another package: `[nocgloss]`
+
+*Raised on 2026-08-29, while implementing the rest of the `langsci-gb4e`
+surface under `[langsci]`; accepted as an option name and not implemented.*
+
+**Current behaviour.** `\usepackage[nocgloss,langsci]{linguexx}` is accepted
+and warns that it has no effect. Everything glossing stays defined.
+
+**Why.** In `langsci-gb4e` the option means something narrow: that file
+bundles an adapted copy of `cgloss`, and `nocgloss` stops the copy being
+read so that a document can load a different glossing package and have it
+own `\gll`. There is no bundled copy here to withhold. The glossing *is* the
+package: `\exg.` and `\ag.`–`\fg.` expand into it, `\altg` occupies two of
+its tiers through a cross-tier protocol, `\GlossTierLang`, `\GlossTransLang`
+and `\lpzg` decorate its output, and the whole tagged word-bundle structure
+— the thing that makes a gloss read in the right order to a screen reader —
+is built inside `\lx@gloss@multi`.
+
+So the option cannot be honoured by not defining four macros. Each of the
+following needs an answer, and each has more than one defensible one:
+
+1. `\exg.` and `\ag.`–`\fg.` expand to `\gll`. Do they become errors naming
+   the option, keep working against the foreign `\gll` (whose argument
+   syntax may differ), or stop being defined?
+2. `\altg` needs the tier machinery, not merely the user command. Does
+   `[nocgloss]` take `\altg` with it? It is not a glossing command in the
+   `cgloss` sense, and a document may want it and a foreign glosser both.
+3. `\lpzg` and `\lpzglist` are useful outside a gloss and are wired into the
+   tagging. They would presumably stay — but then `\lpzg` inside a foreign
+   `\gll` produces a Span this package did not open.
+4. The PDF/UA promises in the README are made about *this* glossing engine.
+   With another package's output in the tree, they are no longer this
+   package's to make, and nothing would say so.
+
+**What would decide it.** A real document that wants `linguexx` for its
+examples and a different package for its glosses, and that says which of the
+four it expects. Until then the option reports rather than guesses: a
+warning costs a line in the log, and a wrong answer to (1)–(4) would be a
+silent change in what a gloss means.
+
+**If it is ever implemented:** the seam is `\lx@gloss@multi` and the user
+commands immediately below it (`\gll`, `\glll`, the `\gllll`…`\gllllllll`
+family, `\gl`…`\endgl`, `\glt`). `\lx@glosshead`, which is what the `\exg.`
+shorthands go through, is the one that decides (1). Note that `\altg`'s
+two-call protocol reads `\g__lxp_altg_role_int` across tiers of the same
+gloss and would have nothing to synchronise against.

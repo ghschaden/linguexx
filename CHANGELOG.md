@@ -4,6 +4,57 @@ All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
 ## 1.2
+- New: `[langsci]`, the `\ea` … `\z` front-end of `langsci-gb4e` (Language
+  Science Press's fork of `gb4e`). `\ea` opens an example or, inside one, the
+  next level down; `\z` closes whatever the matching `\ea` opened; the depth is
+  read off the nesting instead of being spelt out. `\eal` … `\zl` is the
+  head-and-list shape, and the option brings `\gllll` through `\gllllllll`
+  (four to eight gloss tiers) with it. It implies `[gb4e]`, so `exe`, `xlist`
+  and `\ex` come along. Manual §3.6; `tests/langsci.tex`,
+  `tests/langsci-mixed.tex` and `tests/langsci-ua.tex` (veraPDF and the
+  structure depths) exercise it, and four `EXPECT_ERROR` cases pin the refusals.
+
+  What it is for is **migration**. Combined with `[lazy]` both syntaxes are
+  live at once, and because they drive the same engine they share one counter,
+  one label system, one set of anchors and all layout parameters -- so a
+  document moves from the dot syntax to `\ea` one example at a time, and
+  converting an example renumbers nothing, moves no cross-reference and shifts
+  nothing on the page. `tests/langsci-mixed.tex` asserts exactly that: a
+  converted example and its unconverted neighbour set their sub-examples at the
+  same indents.
+
+  **One syntax per example.** An `\a.` inside an `\ea` example, and an `\ea`
+  inside an `\ex.` example or an `exe` batch, are package errors. The two
+  cannot be mixed *within* one example because they open different amounts:
+  `\ea` opens the level, its list and its first item together, where `\a.`
+  opens a level that `\z.` closes. Mixed, the closers stop matching the
+  openers, and both ways of getting it wrong typeset silently -- a `\z.` inside
+  an `\ea` example leaves the example half-open and drops what follows into the
+  wrong list, and a `\z` after an `\a.` leaves the letters live for the rest of
+  the document. There is no principled way to pick one reading, so neither is
+  picked. This does **not** narrow the within-example mixing that `[lazy,gb4e]`
+  documents and `tests/gbfour.tex` asserts (`\a.` inside `exe`, an `xlist`
+  inside `\a.`): those two agree about what `\z.` means, which is precisely
+  what `\ea` does not. A footnote is a new stream, so a footnote hung on an
+  example written one way may hold examples written the other.
+
+  Two deliberate departures from `langsci-gb4e`. Its `\ea` sets examples ragged
+  right and this one does not, because in a half-converted document that reflows
+  every converted example against the ones still to come and a page diff can no
+  longer tell a mistake from a conversion; `\ExRaggedRight` asks for the
+  original behaviour, and `\eanoraggedright` / `\ealnoraggedright` are provided
+  for source compatibility. And `[legacy,langsci]` is a package error rather
+  than an approximation: `[legacy]` reproduces `linguex`'s geometry to the value
+  and `langsci-gb4e` has its own, so the combination asks for two answers to
+  every length in the package.
+
+  An `\ea` that is never closed is a named error, not the kernel's
+  `\begin{list} ... ended by \end{document}`. It is the one mistake this
+  syntax makes easy and the other two cannot make at all -- an `\ex.` example
+  ends at a blank line and an `exe` batch at its `\end`, but an `\ea` example
+  ends at a `\z` and at nothing else -- so it gets the treatment a stray `\a.`
+  already had: the message names `\ea` and the line it stood on, and the
+  example is then closed so the document finishes with that error alone.
 - Fix: `\z.` closes the `\glt` language span when it pops a sub-level. An
   example exit has to close that span while the translation paragraph is still
   the current one; `\lx@bodyend` and the `exe`/`xlist` ends all did, and this
@@ -11,8 +62,55 @@ version string.
   popped by `\z.` with the example continuing after it, therefore left the span
   open across the list close: **veraPDF failed all three profiles**, nothing
   showed on the page, and every structure assertion in the suite still passed.
-  `tests/ua.tex` now carries the shape, and its header records the three things
-  about it that are load-bearing.
+  Found while building the `\ea` front-end's own exit, which had it right from
+  the start; `tests/ua.tex` now carries the shape, and its header records the
+  three things about it that are load-bearing.
+- New: the rest of the `langsci-gb4e` surface, under `[langsci]`. The sub-level
+  numbering variants (`xlista`, `xlistabr`, `xlisti`, `xlistn`, `xlistA`,
+  `xlistI`, `qlist`); the item variants (`\exi`, `\exr`, `\exp`, `\sn`);
+  `\eas` … `\zs`, `\eafirst`, `\zlast`, `\zllast`; `\jambox`; `\attop`,
+  `\atcenter`, `\xbox`, `\nobreakbox`, `\xref`, `\xxref`; and the width,
+  separation, font and gloss knobs (`\exewidth` and the digit shorthands,
+  `\gblabelsep`, `\exfont` / `\glossfont` / `\transfont` / `\exnrfont` and
+  their footnote variants, `\examplesroman`, `\examplesitalics`,
+  `\gltoffset`, `\singlegloss`). The four package options come too:
+  `[nojambox]`, `[manualexewidth]`, `[lowerpenalty]`, `[nocgloss]`. Manual
+  §3.6; `tests/langsci-lists.tex`, `tests/langsci-extra.tex`,
+  `tests/langsci-exewidth.tex` and `tests/langsci-options.tex` assert them,
+  with three more `EXPECT_ERROR` cases for the refusals.
+
+  **Seven deliberate differences from upstream**, each documented where it
+  stands. `\exp` keeps *both* meanings -- it is the LaTeX kernel's math
+  operator as well as an item command, and upstream simply takes it, so a
+  paper writing `\exp{ex:5}` silently loses `$\exp(x)$`; here the mode
+  decides. `\exp`'s prime and `\atcenter` are written in text mode, upstream
+  having both in math, which would put a `Formula` element in the tree --
+  `\atcenter` therefore centres on `\ExAtCenterAxis` and sits 0.38pt lower
+  than a real `\vcenter` at 10pt (measured). `\eas` boxes its example in a
+  `minipage` rather than a `tabular`, which would wrap running prose in a
+  `Table` element. `xlistabr` and `qlist` do what their names say: upstream's
+  label every item `(xnumii.` and `.` respectively, both being defects rather
+  than conventions. `\examplesroman` / `\examplesitalics` set the object tier
+  only, upstream's attempt to set the example font besides being a no-op
+  (`\exfont` takes no argument there). `\subexsep` and `\judgewidth` warn
+  instead of acting: the first parametrises a per-level label separation this
+  package does not have, the second a reserved judgment column, where a
+  judgment here hangs into the label gutter and reserves nothing. And
+  `[nocgloss]` is accepted and reported rather than obeyed -- there is no
+  bundled `cgloss` to withhold, and what `\exg.`, `\altg`, `\lpzg` and the
+  tagged gloss structure should do without the glossing engine has more than
+  one defensible answer; see `doc/DEFERRED-DECISIONS.md`.
+
+  Three of the above were found by the tests rather than by reading upstream.
+  `autoexewidth` at first *narrowed* the label box for three-digit numbers,
+  because this package's default box is already wider than `(235)` and
+  `\exewidth` sets a width rather than raising one. `\exp` was silently
+  replaced under `\DocumentMetadata`, where the tagged-math code re-declares
+  the operator after this package is read, so the dispatch is installed at
+  begin-document as well as at load. And the `/ListNumbering` class of each
+  numbering variant is asserted from the structure tree, not the page: a list
+  labelled `A.` whose class says `LowerRoman` is well-formed PDF, passes
+  veraPDF, and is simply false.
 - New: a documented API for building a syntax front-end or a geometry mode
   on this package's machinery, without touching its internals. The seam was
   already there -- the dot syntax and the `exe`/`xlist` environments are

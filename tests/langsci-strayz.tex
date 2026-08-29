@@ -1,0 +1,9 @@
+%% \z in prose, with nothing open.  It closes a level opened by the langsci
+%% opener; left unguarded it would close the list it is not inside, and the
+%% failure would surface far away as "\begin{list} ended by \end{document}".
+%% See EXPECT_ERROR.
+\input{_preamble-langsci}
+\begin{document}
+STRAYZ ordinary prose, and then a stray closer.
+\z
+\end{document}

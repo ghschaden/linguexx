@@ -1,0 +1,9 @@
+%% The one-syntax-per-example rule, dot commands inside an \ea example.
+%% Without the ban this renders: the sub-level opens, and only its \z. --
+%% the OTHER thing the ban forbids -- could close it again.  See EXPECT_ERROR.
+\input{_preamble-langsci}
+\begin{document}
+\ea NOMIXONE an example opened by the langsci front-end.
+\a. NOMIXSUB a dot-syntax sub-level inside it.
+\z
+\end{document}

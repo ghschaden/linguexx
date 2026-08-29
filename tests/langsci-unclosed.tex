@@ -1,0 +1,15 @@
+%% An \ea that is never closed -- the one mistake this syntax makes easy,
+%% and the only one of the three that can make it: an \ex. example ends at
+%% a blank line and an exe batch at its \end, but an \ea example ends at a
+%% \z and at nothing else.  Without the check the kernel reports it as
+%% "\begin{list} on input line N ended by \end{document}", which names the
+%% list rather than the command, and everything after the missing closer
+%% has silently been set inside the example.  See EXPECT_ERROR.
+\input{_preamble-langsci}
+\begin{document}
+UNCLOSEDPROSE ordinary text first.
+
+\ea UNCLOSEDEX an example whose closer was forgotten.
+
+UNCLOSEDAFTER text that has been set inside it without saying so.
+\end{document}

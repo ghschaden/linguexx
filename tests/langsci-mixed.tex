@@ -1,0 +1,46 @@
+%% The migration case: [lazy,langsci], one document, both syntaxes.
+%%
+%% This is what the option exists for -- a document written in the dot
+%% syntax moving to \ea one example at a time -- so what it asserts is that
+%% converting an example changes nothing around it: the counter runs on
+%% through all three syntaxes, the geometry of a converted example is the
+%% geometry of the one before it, and the cross-references still resolve.
+%%
+%% It also pins the two carve-outs from the one-syntax-per-example rule.
+%% Within an exe batch, \a. ... \z. keeps working: that is a documented and
+%% separately tested promise of [lazy,gb4e] (see the manual, "Mixing the two
+%% syntaxes"), and [langsci] must not have narrowed it.  And a footnote is a
+%% new stream, so a footnote hung on an example written one way may hold an
+%% example written the other.
+%%
+%% (\ea in running text opens an example; the prose here avoids the name.)
+\input{_preamble-langsci}
+\begin{document}
+\ex.\label{mx:dot} MXDOT an example still in the dot syntax.
+\a. MXDOTA its first sub-example.
+\b. MXDOTB its second.
+\z.
+
+\ea\label{mx:ea} MXEA the next example, already converted.
+  \ea MXEAA its first sub-example.
+  \ex MXEAB its second.
+  \z
+\z
+
+\begin{exe}
+\ex MXEXE an exe batch, which the ban does not touch.
+\a. MXEXEA a dot sub-level inside the batch.
+\z.
+\ex MXEXEB back at the batch's main level.
+\end{exe}
+
+\ea MXFN an example carrying a footnote.\footnote{MXFNTEXT the note, which
+holds an example of its own, written the other way.
+
+\ex. MXFNEX a dot-syntax example inside the footnote.
+
+}
+\z
+
+Refs: \ref{mx:dot}, \ref{mx:ea} and \Last.
+\end{document}

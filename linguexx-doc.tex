@@ -35,7 +35,7 @@
 \usepackage{amsmath}
 \usepackage{graphicx}
 \usepackage[normalem]{ulem}
-\usepackage[lazy,gb4e]{linguexx}
+\usepackage[lazy,langsci]{linguexx}
 \usepackage[colorlinks,linkcolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
 
 % --- documentation helpers --------------------------------------------------
@@ -408,9 +408,12 @@ workaround is needed. The default (equivalently, the option
 two may be combined, \opt{[lazy,gb4e]}, for a document that
 deliberately mixes them --- this manual does --- and then the two forms
 drive the same engine, sharing one counter, one label system and all
-layout parameters. These options choose the input \emph{syntax}; a further,
-orthogonal option \opt{legacy} chooses the \emph{geometry} of the original
-\pkg{linguex} and may be added to either (section~\ref{sec:layout}). \texttt{exe} is a \emph{batch}:
+layout parameters. A third syntax option, \opt{langsci},
+adds the \cs{ea} \dots\ \cs{z} front-end on top of these; it has a section
+to itself (\ref{sec:langsci}). These options choose the input
+\emph{syntax}; a further, orthogonal option \opt{legacy} chooses the
+\emph{geometry} of the original \pkg{linguex} and may be added to the
+first two (section~\ref{sec:layout}). \texttt{exe} is a \emph{batch}:
 every \cs{ex} inside it --- written \emph{without} the period --- is a
 new top-level example. \texttt{xlist} embeds a sub-level, nestable once
 more for the romans; its items are made by \cs{ex} (or by plain
@@ -481,6 +484,266 @@ the same thing \cs{item} means inside an \texttt{xlist}. A \cs{z.}\ at
 the \emph{top} level of a batch, where there is no sub-level left to
 close, is a package error naming \cs{end\{exe\}} --- ending the batch is
 the environment's own job.
+
+\subsection{The \pkg{langsci-gb4e} interface: \cs{ea} \dots\ \cs{z}}
+\label{sec:langsci}
+
+\pkg{langsci-gb4e}, Language Science Press's fork of \pkg{gb4e}, writes
+what the environments of the preceding section write, without the
+environments. \cs{ea} opens an example; inside one, it opens the next
+level down; and \cs{z} closes whatever the matching \cs{ea} opened. The
+depth is never spelt out --- it is read off the nesting. The option is
+\cs{usepackage[langsci]\{linguexx\}}, and it implies \opt{gb4e}, so
+\texttt{exe}, \texttt{xlist} and \cs{ex} come with it.
+
+\begin{code}
+\ea LAONE the first example.
+\z
+
+\ea LATWO the head of a nest.
+  \ea LASUBA the first sub-example.
+  \ex[*]{LASUBB judged through the bracket.}
+    \ea LAROMAN the roman level.
+    \z
+  \ex LASUBC back at the letters.
+  \z
+\ex LATHREE a second top-level example.
+\z
+\end{code}
+
+\rendered
+\ea LAONE the first example.
+\z
+
+\ea LATWO the head of a nest.
+  \ea LASUBA the first sub-example.
+  \ex[*]{LASUBB judged through the bracket.}
+    \ea LAROMAN the roman level.
+    \z
+  \ex LASUBC back at the letters.
+  \z
+\ex LATHREE a second top-level example.
+\z
+
+\afterex
+Two things in that example are worth naming. \cs{ex} inside an \cs{ea}
+block continues at the level currently open, exactly as it does inside
+\texttt{exe} --- so the \cs{ex} after the inner \cs{z} is a second
+\emph{top-level} example, and the one before it a further letter. And the
+bracket judgment of \cs{ex}\oarg{judgment}\marg{text} is available at
+every level, \cs{ea} included: in \pkg{langsci-gb4e} \cs{ea} expands to
+\cs{begin\{exe\}}\cs{ex}, so anything \cs{ex} accepts, \cs{ea} accepts.
+
+\cs{eal} \dots\ \cs{zl} is the second pair: an example whose body is a
+sub-list, i.e.\ a number with no text of its own and the letters
+underneath it.
+
+\begin{code}
+\eal
+  \ex LALISTA under a head with no text of its own.
+  \ex LALISTB the second letter.
+\zl
+\end{code}
+
+\rendered
+\eal
+  \ex LALISTA under a head with no text of its own.
+  \ex LALISTB the second letter.
+\zl
+
+\afterex
+\cs{eal} is top-level only, as it is in \pkg{langsci-gb4e}; written inside
+an example it is a package error rather than a guess at what a nested one
+ought to mean. Where you want a nested list, write \cs{ea} and open the
+level below it with a second \cs{ea}, as in the first example above.
+
+The option also brings \pkg{langsci-gb4e}'s deeper gloss stacks,
+\cs{gllll} through \cs{gllllllll} --- four to eight tiers. They are
+wrappers over the same engine as \cs{gll}, and section~\ref{sec:anygl}
+describes \cs{gl} \dots\ \cs{endgl}, which takes any number of tiers and
+is available whatever options are in force.
+
+\subsubsection*{One syntax per example}
+
+The dot syntax and the \cs{ea} front-end may be mixed in one document ---
+that is what \opt{[lazy,langsci]} is for, and the next paragraph is about
+little else --- but not \emph{within one example}. An \cs{a.}\ inside an
+\cs{ea} example, and an \cs{ea} inside an \cs{ex.}\ example or an
+\texttt{exe} batch, are package errors naming both syntaxes.
+
+The reason is that \cs{ea} and \cs{a.}\ do different amounts of work.
+\cs{ea} opens the level, its list \emph{and} its first item in one
+command; \cs{a.}\ opens a level that \cs{z.}\ closes. Mixed, the closers
+no longer match the openers: a \cs{z.}\ inside an \cs{ea} example would
+close one of the three things \cs{ea} opened and leave the example
+half-open, and a \cs{z} after an \cs{a.}\ would close the letter level and
+leave the letters live for the rest of the document. Both of those
+typeset without complaint --- the first drops the following text into the
+wrong list, the second silently demotes the next example to a
+sub-example --- so the rule exists to turn a page that is quietly wrong
+into a message at the line that asked for it.
+
+The mixing described in section~\ref{sec:envs} is untouched: \cs{a.}\
+inside \texttt{exe}, and an \texttt{xlist} inside a dot-command example,
+work exactly as they did. Those two agree about what \cs{z.}\ means,
+which is precisely what \cs{ea} does not.
+
+A footnote is a new stream, not part of the example it hangs on, so a
+footnote on an example written one way may hold examples written the
+other.
+
+One mistake this syntax makes possible and the other two do not is
+forgetting the closer: an \cs{ex.}\ example ends at a blank line and an
+\texttt{exe} batch at its \cs{end}, but an \cs{ea} example ends at a
+\cs{z} and at nothing else. An \cs{ea} left open is reported by name, with
+the line it stood on, and the example is closed so that the rest of the
+document still typesets --- everything after the missing \cs{z} will have
+been set inside it. A missing \emph{inner} \cs{z} has the same effect and
+the same message: the outer \cs{z} closes the inner level, and the example
+itself is what stays open.
+
+\subsubsection*{Moving a document across, one example at a time}
+
+That is what the option is for. Load \opt{[lazy,langsci]} and both
+syntaxes are live at once:
+
+\begin{code}
+\usepackage[lazy,langsci]{linguexx}
+\end{code}
+
+\noindent Both drive the same engine, so they share one counter, one
+label system, one set of anchors and all layout parameters. Converting an
+example therefore renumbers nothing, moves no cross-reference and shifts
+nothing on the page: a converted example and its unconverted neighbour set
+their sub-examples at the same indents. The unit of conversion is the
+whole example, which is also the unit that carries a number and that a
+\cs{ref} points at.
+
+One deliberate difference from \pkg{langsci-gb4e} follows from this.
+There, \cs{ea} sets its examples ragged right; here it does not, because
+in a half-converted document that would reflow every converted example
+against the ones still to come, and a page diff could then no longer tell
+a mistake from a conversion. \cs{ExRaggedRight} asks for
+\pkg{langsci-gb4e}'s behaviour; \cs{eanoraggedright} and
+\cs{ealnoraggedright} exist for source compatibility and set justified
+whatever that switch says.
+
+Finally, \opt{langsci} cannot be combined with \opt{legacy}: \opt{legacy}
+reproduces \pkg{linguex}'s geometry to the value and \pkg{langsci-gb4e}
+has its own, and a document asking for both has asked for two answers to
+every length in the package. The combination is a package error rather
+than a silent choice between them.
+
+\subsubsection*{The rest of \pkg{langsci-gb4e}}
+
+The option carries the rest of the package's surface too, so that a preamble
+and a document body being ported need no editing. Everything below is
+available under \opt{langsci} and nowhere else.
+
+\begin{center}
+\small
+\begin{longtable}{@{}>{\ttfamily\raggedright}p{0.34\linewidth} p{0.60\linewidth}@{}}
+\toprule
+\normalfont what & what it does\\
+\midrule
+\endhead
+\multicolumn{2}{@{}l}{\normalfont\itshape sub-level numbering}\\
+\textbackslash begin\{xlista\} & letters, \texttt{a.}\\
+\textbackslash begin\{xlistabr\} & letters in parentheses, \texttt{(a)}\\
+\textbackslash begin\{xlisti\} & lower roman, \texttt{i.}\\
+\textbackslash begin\{xlistn\} & arabic, \texttt{1.}\\
+\textbackslash begin\{xlistA\} & upper alph, \texttt{A.}\\
+\textbackslash begin\{xlistI\} & upper roman, \texttt{I.}\\
+\textbackslash begin\{qlist\} & a free-standing lettered list, margins symmetric\\
+\addlinespace
+\multicolumn{2}{@{}l}{\normalfont\itshape items}\\
+\textbackslash exi\marg{label} & an item with the label given, stepping no counter\\
+\textbackslash exr\marg{key} & an item labelled with another example's number\\
+\textbackslash exp\marg{key} & the same, primed\\
+\textbackslash sn & an unnumbered item\\
+\addlinespace
+\multicolumn{2}{@{}l}{\normalfont\itshape the rest of the front-end}\\
+\textbackslash eas \dots\ \textbackslash zs & an example boxed so it will not break across a page\\
+\textbackslash eafirst, \textbackslash zlast,\linebreak \textbackslash zllast & the same, without the space above or below\\
+\addlinespace
+\multicolumn{2}{@{}l}{\normalfont\itshape boxes and references}\\
+\textbackslash jambox\oarg{width}\marg{text} & line \meta{text} up \meta{width} from the right margin\\
+\textbackslash jambox*\marg{text} & the same, and set \textbackslash jamwidth\ to its width\\
+\textbackslash attop\marg{box},\linebreak \textbackslash atcenter\marg{box} & align a box by its top, or on its centre\\
+\textbackslash xbox\marg{width}\marg{text},\linebreak \textbackslash nobreakbox\marg{text} & unbreakable boxes\\
+\textbackslash xref\marg{key},\linebreak \textbackslash xxref\marg{key}\marg{key} & a reference, and a range in one pair of parentheses\\
+\addlinespace
+\multicolumn{2}{@{}l}{\normalfont\itshape lengths and fonts}\\
+\textbackslash exewidth\marg{sample} & reserve a label box as wide as \meta{sample}\\
+\textbackslash twodigitexamples \dots & \texttt{(23)}, \texttt{(234)}, \texttt{(2345)}\\
+\textbackslash gblabelsep\marg{len} & the gap between label box and text\\
+\textbackslash exfont, \textbackslash exnrfont & the example body, and its number\\
+\textbackslash glossfont, \textbackslash transfont & the gloss tiers, and the free translation\\
+\textbackslash fnexfont \dots & the same four inside a footnote\\
+\textbackslash examplesroman,\linebreak \textbackslash examplesitalics & the object tier upright or italic\\
+\textbackslash gltoffset, \textbackslash nogltOffset & the space above the free translation\\
+\textbackslash singlegloss,\linebreak \textbackslash nosinglegloss & set the gloss single-spaced, or not\\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\noindent The four package options come too: \opt{nojambox},
+\opt{manualexewidth}, \opt{lowerpenalty} and \opt{nocgloss}. The first three
+do what they do upstream --- suppress \cs{jambox}, stop the label box from
+widening by itself once the numbers reach three digits, and let examples
+break across a page. \opt{nocgloss} is accepted and reports that it has no
+effect; see below.
+
+\subsubsection*{Where this differs from \pkg{langsci-gb4e}, and why}
+
+Seven things are not copies, and each is worth knowing before a page is
+compared against one set with the original.
+
+\begin{itemize}[leftmargin=*]
+\item \cs{exp} keeps \emph{both} meanings. It is the \LaTeX\ kernel's math
+  operator as well as \pkg{langsci-gb4e}'s item command, and upstream simply
+  takes it, so a paper that writes \cs{exp}\marg{key} silently loses
+  \verb|$\exp(x)$|. Here the mode decides: inside math it is the operator,
+  outside it is the item. Nothing is lost either way.
+\item \cs{exp}'s prime and \cs{atcenter} are written in \emph{text mode}.
+  Upstream writes them \verb|$'$| and \verb|$\vcenter{...}$|, and math here
+  would put a \texttt{Formula} element in the structure tree --- the
+  PDF/UA-2 failure that forced the removal of the old \cs{altg} in v0.12
+  (section~\ref{sec:tagging}). \cs{atcenter} therefore centres on
+  \cs{ExAtCenterAxis}, half the x-height, rather than on the math axis,
+  which is only readable from inside math mode; against a real
+  \cs{vcenter} at 10pt the box sits 0.38\,pt lower.
+\item \cs{eas} boxes its example in a \texttt{minipage} and not in a
+  \texttt{tabular}. Upstream's tabular is a layout device and nothing else,
+  but it would wrap running prose in a \texttt{Table} element, which is
+  wrong for a screen reader as well as for PDF/UA. A footnote inside one
+  reaches the minipage-footnote numbering noted in section~\ref{sec:notes}.
+\item \texttt{xlistabr} and \texttt{qlist} do what their names say.
+  Upstream's \texttt{xlistabr} labels every item \texttt{(xnumii.} and
+  upstream's \texttt{qlist} raises ``No counter `xnum' defined'' and labels
+  every item ``\texttt{.}''; both are defects rather than conventions, so a
+  document using them is not getting what it asked for today either.
+\item \cs{examplesroman} and \cs{examplesitalics} set the object tier and
+  not the example font. Upstream tries to do both, and cannot: its
+  \cs{exfont} takes no argument, so the \verb|\exfont{\itshape}| in those
+  two calls it and then typesets a group that does nothing.
+\item \cs{subexsep} and \cs{judgewidth} warn instead of acting. The first
+  sets a label separation for the sub-levels alone, and this package has one
+  \cs{Exlabelsep} for every level (section~\ref{sec:layout}); the second
+  sets the width of a reserved judgment column, and here a judgment hangs
+  into the label gutter and reserves nothing --- which is exactly why marked
+  and unmarked examples align (section~\ref{sec:jdgspace}).
+\item \opt{nocgloss} is accepted and reports. Upstream it stops a bundled
+  copy of \pkg{cgloss} from being read so that another package can own
+  \cs{gll}; here there is no bundled copy to withhold, and the glossing is
+  what \cs{exg.}, \cs{altg}, \cs{GlossTierLang}, \cs{lpzg} and the tagged
+  word-bundle structure are all built on. Switching it off would leave each
+  of those needing an answer, and they have more than one; the question is
+  recorded in \texttt{doc/DEFERRED-DECISIONS.md} rather than guessed at.
+\end{itemize}
+
+\noindent And one difference already noted above: \cs{ea} does not set its
+examples ragged right unless \cs{ExRaggedRight} asks for it.
 
 \subsection{Examples in footnotes}
 
@@ -789,7 +1052,7 @@ The two are independent of \cs{lpzglist}: it reports the keys it cannot
 explain in a list it builds, whereas these check the document. A key that
 a list has already reported is not reported twice.
 
-\subsection{Any number of tiers: \cs{gl} \dots\ \cs{endgl}}
+\subsection{Any number of tiers: \cs{gl} \dots\ \cs{endgl}}\label{sec:anygl}
 
 Heavily annotated data --- transliteration, segmentation, gloss, category
 line --- needs more than three tiers. \cs{gl} takes any number of lines,

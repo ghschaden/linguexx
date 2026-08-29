@@ -1,0 +1,64 @@
+%% The rest of the langsci-gb4e surface: the item variants, the box and
+%% reference helpers, \jambox, the fonts, and the free translation's offset.
+%%
+%% Two of these carry an invariant of this package rather than upstream's
+%% code.  \exp is written $'$ upstream and \atcenter is $\vcenter{...}$;
+%% math mode would put a Formula element in the tree, which is the PDF/UA-2
+%% failure that forced the 0.12 rewrite, so both are built in text mode here
+%% and neither may reintroduce it.  \exp additionally keeps the LaTeX
+%% kernel's math operator, which upstream overwrites -- the last line of
+%% this case is what says so.
+\input{_preamble-langsci}
+\begin{document}
+\begin{exe}
+\ex\label{le:host} LEHOST the host example.
+\exi{ident} LEEXI a custom label.
+\exr{le:host} LEEXR the referenced number.
+\exp{le:host} LEEXP the referenced number, primed.
+\sn LESN no label at all.
+\exi{id2}[*]{LEJUDGEDEXI a custom label with a bracket judgment.}
+\ex[*]{LEJUDGED still hangs its mark.}
+\ex LEJAM an example with a note.\jambox{(Greek)}
+\end{exe}
+
+%% A paragraph long enough to wrap, so that at least one line ends exactly
+%% at the right margin.  The \jambox assertion measures the gutter from
+%% there, and without it there is no line on the page that reaches the
+%% margin at all -- the first version of this case measured the gutter
+%% against the longest line that happened to be present and reported 73pt
+%% for a 144pt setting.
+LEMARGIN this paragraph is here to establish where the right margin is, and
+it has to run over more than one line before it can do that, since a line
+that stops short of the margin says nothing whatever about where the margin
+is.
+
+LEXREF \xref{le:host} and LEXXREF \xxref{le:host}{le:host}.
+
+%% Both boxes on one line, so that the two alignments are measured against
+%% the same baseline.  LEACBASE is a sentinel and not the word "and": the
+%% assertion needs a UNIQUE word on that line to take the baseline from.
+\ea LEATTOP \attop{\hbox{LEATA}\hbox{LEATB}} LEACBASE \atcenter{\hbox{LEACA}\hbox{LEACB}} here.
+\z
+
+\eas LEEAS an example boxed so that it cannot break across a page.
+\zs
+
+%% (A length register named in prose is read as a value, not typeset: the
+%% first version of this line said "sits \gltoffset below it" and TeX
+%% answered "Missing number, treated as zero".)
+\ea LEGLT a gloss with the offset in force.
+\gll LEGOBJ Der Hund\\
+     LEGGLOSS the dog\\
+\glt LEGTRANS the free translation.
+\z
+
+{\nogltOffset
+\ea LEGLT2 the same, with the offset switched off.
+\gll LEGOBJ2 Der Hund\\
+     LEGGLOSS2 the dog\\
+\glt LEGTRANS2 the free translation.
+\z
+}
+
+LEMATH the kernel's math operator survives: $\exp(x)$ LEMATHEND.
+\end{document}

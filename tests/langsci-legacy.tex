@@ -1,0 +1,9 @@
+%% [legacy,langsci]: refused at load time.  [legacy] is linguex's geometry
+%% to the value and langsci-gb4e has its own, so the combination asks for
+%% two answers to every length in the package.  Without the guard the
+%% document compiles and silently gets one of them.  See EXPECT_ERROR.
+\documentclass{article}
+\usepackage[legacy,langsci]{linguexx}
+\begin{document}
+LEGACYLANGSCI unreachable.
+\end{document}

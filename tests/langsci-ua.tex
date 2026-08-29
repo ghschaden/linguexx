@@ -1,0 +1,100 @@
+% ---------------------------------------------------------------------------
+% PDF/UA gate for the \ea ... \z front-end.
+%
+% The front-end opens lists and items in an order no other case produces:
+% \ea opens an example, its list and its first item in one command, and \z
+% closes a level whose \begingroup was opened by \lx@subopen@*.  That is
+% exactly the shape in which a structure element gets opened at the wrong
+% moment or left unclosed, and neither failure shows on the page:
+% marked content straddling its parent fails veraPDF while passing every
+% geometric assertion, and an element never closed is spec-valid -- veraPDF
+% passes it -- while the rest of the document silently becomes its child.
+% So this case is asserted on twice, by veraPDF and by struct_label_depths,
+% which are complementary and neither of which is sufficient.
+%
+% The preamble is not shared: _preamble-ua.tex loads [lazy,gb4e] and
+% already contains \begin{document}.  It mirrors it otherwise.
+% "uncompress" lets the structure-tree helpers read the tree out of the raw
+% bytes and does not affect validity; a dc:title is mandatory under
+% ISO 14289-2 clause 8.11.1, hence the pdftitle.  Three LaTeX passes are
+% needed for UA convergence under pdflatex and xelatex -- see PASSES.
+%
+% No footnote, for the reason ua.tex gives at length: on this TeX Live a
+% footnote in a tagged UA-2 article emits untagged content with no linguexx
+% loaded at all.  langsci-mixed.tex covers the footnote carve-out
+% structurally, and examples/ua-demo end to end.
+% ---------------------------------------------------------------------------
+\DocumentMetadata{uncompress,lang=en,pdfversion=2.0,pdfstandard=ua-2,tagging=on}
+\documentclass{article}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else
+  \usepackage{fontspec}
+\fi
+\usepackage[lazy,langsci]{linguexx}
+\usepackage{hyperref}
+\hypersetup{pdftitle={linguexx langsci front-end PDF/UA case},
+            pdfdisplaydoctitle=true}
+\pagestyle{empty}
+\begin{document}
+\section{UALSSECT the langsci front-end, tagged}
+
+UALSINTRO ordinary running text precedes the first example.
+
+\ea\label{uals:one} UALSMAIN a numbered example.
+  \ea UALSALPHA a sub-example.
+  \ex[*]{UALSBETA a judged sub-example.}
+    \ea UALSROMAN a sub-sub-example.
+    \z
+  \z
+\ex UALSTWO a second top-level example in the same block.
+\z
+
+\eal
+  \ex UALSLISTA under a head with no text.
+  \ex UALSLISTB the second letter.
+\zl
+
+\ea \gll UALSOBJ zwei Zeilen\\
+        UALSGLOSS two lines\\
+\glt UALSTRANS the free translation.
+\z
+
+\ex. UALSDOT an example in the dot syntax, in the same document.
+
+%% The numbering variants, and the two constructs that had to be rewritten
+%% out of math mode.  Both halves are asserted from the STRUCTURE TREE and
+%% not from the page, because that is where each of them can go wrong
+%% invisibly.
+%%
+%% A variant sets the printed label and the /ListNumbering class a screen
+%% reader announces; a list labelled "A." whose class says LowerRoman is
+%% well-formed PDF, passes veraPDF, and is simply false, so the page cannot
+%% catch it and langsci-lists.tex asserts only the printed half.
+%%
+%% \exp and \atcenter are $'$ and $\vcenter{...}$ upstream.  Math here means
+%% a Formula element, which is the PDF/UA-2 failure that forced the 0.12
+%% removal of the old \altg -- so the tree must contain no Formula at all,
+%% and a_langsci_ua asserts exactly that.  (The variants must sit in an exe
+%% batch: they are environments, and the one-syntax-per-example rule keeps
+%% environments out of an \ea example.)
+\begin{exe}
+\ex UALSVAR an example whose sub-levels carry the numbering variants.
+ \begin{xlistA} \ex UALSUPALPHA an upper-alpha sub-example. \end{xlistA}
+ \begin{xlistI} \ex UALSUPROMAN an upper-roman sub-example. \end{xlistI}
+\exp{uals:one} UALSPRIME a primed cross-reference as a label.
+\ex UALSCENTRE \atcenter{\hbox{UALSCA}\hbox{UALSCB}} centred beside it.
+\end{exe}
+
+%% The references are written \pLast / \pref, i.e. WITHOUT the
+%% parentheses, and that is not cosmetic.  a_langsci_ua reads the nesting
+%% depth of every top-level example number out of the structure tree, and
+%% it finds them by their printed form: a "(5)" standing in running text is
+%% indistinguishable from the fifth example's label and would be reported
+%% as a number sitting at the wrong depth.  The paren-less forms take the
+%% same anchor and make the same Link, so nothing about the tagging is
+%% left uncovered -- and ua.tex asserts on the parenthesised spelling.
+UALSREL a relative reference: \pLast, and a label: \pref{uals:one}.
+\end{document}

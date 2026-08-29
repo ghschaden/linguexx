@@ -1,0 +1,9 @@
+%% \exi labels an item of a list that is already open.  In prose there is no
+%% list, and without the guard the \item reaches whatever list happens to be
+%% open -- or none, and the failure surfaces as TeX's own "Something's wrong
+%% -- perhaps a missing \item" from somewhere else entirely.  See EXPECT_ERROR.
+\input{_preamble-langsci}
+\begin{document}
+EXIOUT ordinary prose, and then a label with nothing to label.
+\exi{ident} EXIOUTBODY.
+\end{document}

@@ -10,6 +10,12 @@ It runs on **pdfLaTeX, XeLaTeX and LuaLaTeX**. A `[legacy]` option reproduces
 `linguex`'s exact geometry for drop-in replacement; the default mode is a
 slightly tighter variant.
 
+Two other input syntaxes are available as options and drive the same engine, so
+they share one counter, one label system and all layout parameters with the dot
+syntax: `[gb4e]` for the `exe` / `xlist` environments, and `[langsci]` for the
+`\ea` … `\z` front-end of `langsci-gb4e`. Loaded alongside `[lazy]`, either
+lets a document move over one example at a time.
+
 ## Accessibility
 
 When the document enables the LaTeX tagging code, `linguexx` writes its examples
@@ -39,7 +45,7 @@ for turning a document into a PDF/UA-conformant build.
 
 ```latex
 \documentclass{article}
-\usepackage[lazy]{linguexx}   % or [legacy], [gb4e], combinations thereof
+\usepackage[lazy]{linguexx}   % or [legacy], [gb4e], [langsci], combinations
 \begin{document}
 \ex. A first example.
 \a. a sub-example

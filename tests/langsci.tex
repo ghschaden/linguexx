@@ -1,0 +1,62 @@
+%% [langsci] alone: the \ea ... \z front-end of langsci-gb4e, with the dot
+%% syntax NOT loaded.  Covers what the front-end has to get right on its
+%% own -- the depth read off the nesting, the bracket judgment at every
+%% level, \eal's head example with no text, and the deeper gloss stacks
+%% the option brings with it.  langsci-mixed.tex covers the other half,
+%% the two syntaxes in one document.
+%%
+%% Note for whoever edits this file: \ea in RUNNING TEXT opens an example.
+%% Prose here must not mention it by name, which is why the sentences below
+%% say "the front-end" where they would otherwise say the command.
+\input{_preamble-langscionly}
+\begin{document}
+\ea\label{ls:one} LSONE the first example.
+\z
+
+\ea LSTWO the head of a nest.
+  \ea LSSUBA the first sub-example.
+  \ex[*]{LSSUBB judged through the bracket.}
+    \ea LSROMANA the roman level.
+    \z
+  \ex LSSUBC back at the letters.
+  \z
+\ex LSTHREE a second top-level example, in the same block.
+\z
+
+\eal
+  \ex LSLA under a head that has no text of its own.
+  \ex LSLB the second letter.
+\zl
+
+\ea \gllll LSGOBJ zwei Zeilen\\
+           LSGONE two lines\\
+           LSGTWO deux lignes\\
+           LSGTRI due righe\\
+\glt LSTRANS the free translation.
+\z
+
+%% Justification.  This front-end deliberately does NOT set its examples
+%% ragged right, where langsci-gb4e does; \ExRaggedRight asks for langsci's
+%% behaviour.  Both need a line long enough to wrap before they can be told
+%% apart, which is what the padding in these two is for -- they carry the
+%% same text so that the only difference between them is the switch.
+\ea LSJUST justified by default, and carrying enough text to wrap over
+several lines, because one line reaches no margin at all and two might
+reach it by accident: what tells the two settings apart is not whether
+some line falls short of the margin, but whether the full lines all end
+at the same place, which is what justification means and what ragged
+setting gives up.
+\z
+
+{\ExRaggedRight
+\ea LSRAG justified by default, and carrying enough text to wrap over
+several lines, because one line reaches no margin at all and two might
+reach it by accident: what tells the two settings apart is not whether
+some line falls short of the margin, but whether the full lines all end
+at the same place, which is what justification means and what ragged
+setting gives up.
+\z
+}
+
+LSREFS \ref{ls:one} and \Last.
+\end{document}

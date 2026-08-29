@@ -83,7 +83,7 @@ ENGINES_FOR = {
     "utf8-unicode": ("xelatex", "lualatex"),
 }
 DEFAULT_PASSES = 2
-PASSES = {"ua": 3, "frontend": 3}
+PASSES = {"ua": 3, "frontend": 3, "langsci-ua": 3}
 #: Cases that must FAIL to compile, mapped to a substring their .log has to
 #: contain.  A package error is as much a feature as a rendering is -- it is
 #: what a silently wrong construct was turned into -- and without this it
@@ -92,6 +92,19 @@ PASSES = {"ua": 3, "frontend": 3}
 #: assertion.
 EXPECT_ERROR = {
     "altg-unpaired": "has no partner",
+    # The one-syntax-per-example rule, both directions and the stray.  Each
+    # of these renders without complaint if its guard is removed, and each
+    # renders something the writer did not ask for: a sub-level only the
+    # forbidden \z. could close, a level opened inside a body that is still
+    # being collected, and a list closed where none was open.
+    "langsci-nomix": "inside an \\ea example",
+    "langsci-eamix": "written in the other syntax",
+    "langsci-strayz": "with no \\ea to close",
+    "langsci-legacy": "cannot be combined",
+    "langsci-unclosed": "was never closed",
+    "langsci-exioutside": "outside an example",
+    "langsci-easnest": "inside an example",
+    "langsci-nojambox": "Undefined control sequence",
     "judgment-badarg": "needs one command here",
     "straysub": "no example to attach it to",
     # Not a package error but TeX's own, and deliberately so: a dot-syntax
@@ -2367,6 +2380,491 @@ def a_gbfour(p: Page):
     return r
 
 
+def _qdf(pdf: Path):
+    """The PDF normalised by qpdf, as text.
+
+    Object streams hold the structure tree, and neither poppler tool
+    unpacks them: pdfinfo -struct-text prints element names but drops the
+    attribute CLASSES an element points at with /C, which is exactly what
+    the list-numbering assertions are about.
+    """
+    if not shutil.which("qpdf"):
+        raise AssertionError(
+            "qpdf is not on PATH: the structure tree's attribute classes "
+            "cannot be read (no poppler tool unpacks them)")
+    return subprocess.run(
+        ["qpdf", "--qdf", "--object-streams=disable", str(pdf), "-"],
+        capture_output=True).stdout.decode("latin-1")
+
+
+def struct_ol_classes(pdf: Path):
+    """How many list elements point at each of this package's /ListNumbering
+    attribute classes.
+
+    The class is what a screen reader announces, and the printed label is
+    what the page shows.  Nothing makes them agree except the code that
+    sets both, so a list labelled "A." whose class says LowerRoman is
+    well-formed PDF, passes veraPDF, and is false -- invisible to every
+    other check in this file.  Counting the /C references is the only way
+    to see it; the ClassMap alone is not enough, because a class is written
+    there whether or not anything uses it.
+    """
+    from collections import Counter
+    return Counter(re.findall(r"/C\s*/(lxOL[a-z]+)", _qdf(pdf)))
+
+
+def struct_has_formula(pdf: Path):
+    """True if the structure tree contains a Formula element.
+
+    \\altn, \\altg and (under [langsci]) \\exp and \\atcenter are written in
+    text mode precisely so that none appears: a Formula in a PDF/UA-2
+    document needs an /Alt or a MathML association, and the 0.12 rewrite of
+    \\altg exists because of it.  Upstream langsci-gb4e writes both of the
+    latter two in math mode.
+    """
+    return bool(re.search(r"/S\s*/Formula", _qdf(pdf)))
+
+
+def a_langsci(p: Page):
+    r"""[langsci] alone: \ea ... \z with the dot syntax not loaded.
+
+    What is on trial is that the depth comes off the NESTING and nothing
+    else.  \ea is one command at every level -- it opens a top-level
+    example, a letter level or a roman level depending only on what is
+    already open -- so a dispatch that is off by one produces a page that
+    is entirely plausible and entirely wrong, with the sub-examples of the
+    second example hanging off the first.  Hence the positions below rather
+    than a token list: every level is measured against its own parent and
+    against its own sibling.
+    """
+    r = []
+    labw = [w for w in p.words if re.fullmatch(r"\(\d+\)", w.text)]
+    margin = min(w.x0 for w in labw)
+    got = [w.text for w in labw if abs(w.x0 - margin) < TOL]
+    r.append(check(got == ["(1)", "(2)", "(3)", "(4)", "(5)", "(6)", "(7)"],
+                   f"one counter across every shape the front-end has; "
+                   f"got {got}"))
+    letters = [w.text for w in p.words if w.text in ("a.", "b.", "c.", "i.")]
+    r.append(check(letters == ["a.", "b.", "i.", "c.", "a.", "b."],
+                   f"letters, a nested roman, and the \\eal list; "
+                   f"got {letters}"))
+    # --- the nesting itself ---------------------------------------------
+    two, three = p.find("LSTWO"), p.find("LSTHREE")
+    suba, subb, subc = p.find("LSSUBA"), p.find("LSSUBB"), p.find("LSSUBC")
+    roman = p.find("LSROMANA")
+    r.append(check(suba.x0 > two.x0 + 2,
+                   f"a nested opener deepens ({suba.x0:.2f} vs {two.x0:.2f})"))
+    r.append(check(roman.x0 > suba.x0 + 2,
+                   f"a second nesting reaches the romans "
+                   f"({roman.x0:.2f} vs {suba.x0:.2f})"))
+    r.append(check(abs(subc.x0 - suba.x0) < TOL,
+                   f"the closer returns to the letters, it does not leave "
+                   f"the roman level open ({subc.x0:.2f} vs {suba.x0:.2f})"))
+    r.append(check(abs(three.x0 - two.x0) < TOL,
+                   f"and again to the main level, where a further \\ex is a "
+                   f"top-level example ({three.x0:.2f} vs {two.x0:.2f}, "
+                   f"letters were at {suba.x0:.2f})"))
+    # --- the bracket judgment, at a level the front-end opened ----------
+    r.append(check(abs(subb.x0 - suba.x0) < TOL,
+                   f"[judgment] does not displace the text "
+                   f"({subb.x0:.2f} vs {suba.x0:.2f})"))
+    lab = re.compile(r"^([a-f]\.|[ivx]+\.|\(\d+\))$")
+    hung = [w for w in p.line_of(subb)
+            if not lab.match(w.text) and w is not subb and w.x1 <= subb.x0 + TOL]
+    r.append(check(hung, f"the mark hangs left of the text; found {hung}"))
+    # --- \eal: a head with no text, and the letters under it ------------
+    lsla, lslb = p.find("LSLA"), p.find("LSLB")
+    r.append(check(abs(lsla.x0 - suba.x0) < TOL,
+                   f"\\eal opens the SAME letter level as a nested opener "
+                   f"({lsla.x0:.2f} vs {suba.x0:.2f})"))
+    r.append(check(abs(lslb.x0 - lsla.x0) < TOL,
+                   f"and its second item stays there "
+                   f"({lslb.x0:.2f} vs {lsla.x0:.2f})"))
+    # The head takes no text, so its number shares a line with the first
+    # letter.  This is the half of \eal that a token list cannot see: give
+    # the head an item it does not deserve and the letters move down a line.
+    r.append(check(any(w.text == "(4)" for w in p.line_of(lsla)),
+                   f"the \\eal head number sits on its first letter's line; "
+                   f"that line is {[w.text for w in p.line_of(lsla)][:4]}"))
+    # --- the four-tier gloss the option brings ---------------------------
+    tiers = [p.find(t) for t in ("LSGOBJ", "LSGONE", "LSGTWO", "LSGTRI")]
+    r.append(check(all(abs(t.x0 - tiers[0].x0) < TOL for t in tiers),
+                   f"\\gllll aligns four tiers in one column; got "
+                   f"{[round(t.x0, 2) for t in tiers]}"))
+    r.append(check([t.y0 for t in tiers] == sorted(t.y0 for t in tiers),
+                   f"and stacks them in order; got "
+                   f"{[round(t.y0, 1) for t in tiers]}"))
+    # --- justification: the one deliberate difference from langsci -------
+    # Justified, every line but the last ends exactly at the right margin;
+    # ragged, none of them does.  Measured against the margin the JUSTIFIED
+    # example establishes, so the check needs no page geometry of its own.
+    just = _band_lines(p, p.find("LSJUST").y0 - 1, p.find("LSRAG").y0 - 1)
+    rag = _band_lines(p, p.find("LSRAG").y0 - 1, p.find("LSREFS").y0 - 1)
+    edges = lambda lines: [max(w.x1 for w in line) for line in lines]
+    je, re_ = edges(just), edges(rag)
+    r.append(check(len(je) >= 2 and len(re_) >= 2,
+                   f"both justification examples wrapped ({len(je)} and "
+                   f"{len(re_)} lines)"))
+    if len(je) >= 2 and len(re_) >= 2:
+        margin = max(je[:-1])
+        r.append(check(all(abs(e - margin) < TOL for e in je[:-1]),
+                       f"the default is justified: every full line reaches "
+                       f"the margin; got {[round(e, 1) for e in je]}"))
+        # Not "no ragged line reaches the margin": a ragged line can break
+        # flush by accident, and one in this very example does.  What
+        # separates the settings is that the justified lines are all the
+        # SAME length and the ragged ones are not.
+        r.append(check(min(re_[:-1]) < margin - 2,
+                       f"\\ExRaggedRight: the full lines no longer all end "
+                       f"at the margin ({[round(e, 1) for e in re_]} against "
+                       f"{margin:.1f})"))
+    txt = " ".join(w.text for w in p.words)
+    r.append(check("LSREFS (1) and (7)." in txt,
+                   f"label and \\Last resolve; got "
+                   f"{txt[txt.find('LSREFS'):][:24]!r}"))
+    return r
+
+
+def a_langsci_mixed(p: Page):
+    r"""[lazy,langsci]: the migration case, both syntaxes in one document.
+
+    The property that makes an example-at-a-time migration possible is that
+    converting one example changes nothing around it, and that is what is
+    measured: one counter through all three syntaxes, and a converted
+    example whose sub-levels land exactly where the unconverted example's
+    did.  A front-end with its own counter or its own geometry would pass
+    every other case in this suite and fail here.
+
+    It also pins the two carve-outs from the one-syntax-per-example rule --
+    \a. inside an exe batch (the [lazy,gb4e] promise, which [langsci] must
+    not have narrowed) and a footnote holding an example written the other
+    way.  Both are asserted from the page, because both fail silently: the
+    first by demoting the next example to a sub-item, the second by
+    refusing to compile at all.
+    """
+    r = []
+    labw = [w for w in p.words if re.fullmatch(r"\(\d+\)", w.text)]
+    margin = min(w.x0 for w in labw)
+    got = [w.text for w in labw if abs(w.x0 - margin) < TOL]
+    r.append(check(got == ["(1)", "(2)", "(3)", "(4)", "(5)"],
+                   f"one counter runs through the dot syntax, the front-end "
+                   f"and an exe batch; got {got}"))
+    # --- a converted example has the geometry of an unconverted one ------
+    dot, ea = p.find("MXDOT"), p.find("MXEA")
+    dota, dotb = p.find("MXDOTA"), p.find("MXDOTB")
+    eaa, eab = p.find("MXEAA"), p.find("MXEAB")
+    r.append(check(abs(ea.x0 - dot.x0) < TOL,
+                   f"main level, both syntaxes ({ea.x0:.2f} vs {dot.x0:.2f})"))
+    r.append(check(abs(eaa.x0 - dota.x0) < TOL,
+                   f"letter level, both syntaxes: converting an example does "
+                   f"not move it ({eaa.x0:.2f} vs {dota.x0:.2f})"))
+    r.append(check(abs(eab.x0 - dotb.x0) < TOL,
+                   f"and its second sub-example likewise "
+                   f"({eab.x0:.2f} vs {dotb.x0:.2f})"))
+    r.append(check(eaa.x0 > ea.x0 + 2,
+                   f"the converted example really has a sub-level "
+                   f"({eaa.x0:.2f} vs {ea.x0:.2f})"))
+    # --- carve-out 1: \a. ... \z. inside an exe batch, untouched ---------
+    exe, exea, exeb = p.find("MXEXE"), p.find("MXEXEA"), p.find("MXEXEB")
+    r.append(check(exea.x0 > exe.x0 + 2,
+                   f"\\a. still opens a sub-level inside exe "
+                   f"({exea.x0:.2f} vs {exe.x0:.2f})"))
+    r.append(check(abs(exeb.x0 - exe.x0) < TOL,
+                   f"and \\z. still closes it, so the next \\ex is a "
+                   f"top-level example and not sub-item b. "
+                   f"({exeb.x0:.2f} vs {exe.x0:.2f}, sub-level was "
+                   f"{exea.x0:.2f})"))
+    # --- carve-out 2: a footnote holds an example of the other syntax ----
+    # It compiles at all only because the footnote boundary clears the
+    # "an example is open" flags; and the number proves it went onto the
+    # footnote series rather than the main one.
+    r.append(check(p.find("MXFNEX") is not None,
+                   "a dot-syntax example inside a footnote of a converted "
+                   "example typesets"))
+    fnlab = [w.text for w in p.words if re.fullmatch(r"\(i+\)", w.text)]
+    r.append(check(fnlab == ["(i)"],
+                   f"and is numbered on the footnote series; got {fnlab}"))
+    txt = " ".join(w.text for w in p.words)
+    r.append(check("Refs: (1), (2) and (5)." in txt,
+                   f"references resolve across the syntaxes; got "
+                   f"{txt[txt.find('Refs'):][:26]!r}"))
+    return r
+
+
+def _langsci_widths(p: Page):
+    """(two-digit x, three-digit x, four-digit x, item penalty) off the page.
+
+    Shared by the two option cases, which carry the same sentinels on
+    purpose: neither is an assertion by itself.  With the option code
+    deleted, langsci-options still shows an unwidened box and a kernel
+    penalty -- exactly what it asserts -- so what is being checked is that
+    the two cases DIFFER, and that only holds if one function reads both.
+    """
+    xs = tuple(p.find(t).x0 for t in ("WSMALL", "WBIG", "WHUGE"))
+    m = re.search(r"(-\d+)", " ".join(
+        w.text for w in p.line_of(p.find("WPENALTY"))))
+    return xs + (m.group(1) if m else None,)
+
+
+def a_langsci_exewidth(p: Page):
+    r"""autoexewidth on, and the kernel's item penalty."""
+    r = []
+    small, big, huge, pen = _langsci_widths(p)
+    r.append(check(huge > small + 1,
+                   f"autoexewidth widens the label box for a four-digit "
+                   f"number ({huge:.2f} vs {small:.2f})"))
+    # It must widen and never narrow.  The default box is already wider than
+    # "(235)", so an \exewidth that simply set the sample moved a three-digit
+    # document's text LEFT of a two-digit one's -- which is what this line
+    # catches and what the first implementation did.
+    r.append(check(abs(big - small) < TOL,
+                   f"and does not NARROW it for a three-digit one "
+                   f"({big:.2f} vs {small:.2f})"))
+    r.append(check(pen == "-51",
+                   f"without [lowerpenalty] the item penalty is the "
+                   f"kernel's; got {pen}"))
+    return r
+
+
+def a_langsci_options(p: Page):
+    r"""[manualexewidth] and [lowerpenalty]: the same two knobs, given."""
+    r = []
+    small, big, huge, pen = _langsci_widths(p)
+    r.append(check(abs(huge - small) < TOL and abs(big - small) < TOL,
+                   f"[manualexewidth] leaves the label box alone at every "
+                   f"width ({small:.2f}, {big:.2f}, {huge:.2f})"))
+    r.append(check(pen == "-1000",
+                   f"[lowerpenalty] lowers the item penalty, so a batch may "
+                   f"break across a page; got {pen}"))
+    return r
+
+
+def a_langsci_lists(p: Page):
+    r"""The sub-level numbering variants, and \qlist.
+
+    Each variant is asserted by the label its item actually prints, read off
+    the line rather than from a token list, because what makes a variant
+    wrong is that it prints the numbering of a DIFFERENT variant -- a page
+    that looks entirely plausible until it is compared with the source.
+
+    Two of these deliberately do not reproduce upstream: \xlistabr labels
+    every item "(xnumii." there and \qlist raises "No counter 'xnum'
+    defined" and labels every item ".".  Both are upstream defects; what is
+    asserted is what the names promise.  See the .sty beside each.
+    """
+    r = []
+
+    def label_of(tok):
+        """The leftmost word on the sentinel's line, when it is left of it."""
+        w = p.find(tok)
+        line = p.line_of(w)
+        left = [t for t in line if t.x1 <= w.x0 + TOL]
+        return left[0].text if left else None
+
+    want = [("LLDEFAULT", "a."), ("LLALPH", "a."), ("LLABR", "(a)"),
+            ("LLROMAN", "i."), ("LLARABIC", "1."), ("LLUPALPH", "A."),
+            ("LLUPROMAN", "I.")]
+    got = [(tok, label_of(tok)) for tok, _ in want]
+    r.append(check(got == want,
+                   f"each numbering variant prints its own numbering; "
+                   f"got {got}"))
+    # One label box for every level, whatever the numbering: the variants
+    # must not move the text they label.
+    xs = [p.find(tok).x0 for tok, _ in want]
+    r.append(check(max(xs) - min(xs) < TOL,
+                   f"a variant does not move the text it labels; got "
+                   f"{[round(x, 2) for x in xs]}"))
+    # A variant is set in the environment's OWN group.  Set anywhere wider
+    # and the plain xlist after six of them would still be numbering in
+    # upper roman -- and would keep doing so for the rest of the document.
+    r.append(check(label_of("LLAGAIN") == "a.",
+                   f"a variant does not leak into the next list; the plain "
+                   f"xlist after six of them prints "
+                   f"{label_of('LLAGAIN')!r}"))
+    r.append(check((label_of("LLQA"), label_of("LLQB")) == ("A.", "B."),
+                   f"\\qlist letters its items; got "
+                   f"{(label_of('LLQA'), label_of('LLQB'))}"))
+    return r
+
+
+def a_langsci_extra(p: Page):
+    r"""The item variants, the box and reference helpers, \jambox, and the
+    free translation's offset.
+
+    \exp carries two of this package's invariants at once, and both are
+    asserted elsewhere as well as here: it must not enter math mode (see
+    a_langsci_ua, which checks the tree for a Formula element), and it must
+    leave the LaTeX kernel's math operator alone -- upstream overwrites it,
+    so a paper that writes both \exp{ex:5} and $\exp(x)$ loses the second.
+    The last line of the case is the operator.
+    """
+    r = []
+
+    def label_of(tok):
+        w = p.find(tok)
+        left = [t for t in p.line_of(w) if t.x1 <= w.x0 + TOL]
+        return left[0].text if left else None
+
+    host = p.find("LEHOST")
+    r.append(check(label_of("LEEXI") == "ident",
+                   f"\\exi labels an item with what it is given; got "
+                   f"{label_of('LEEXI')!r}"))
+    r.append(check(label_of("LEEXR") == "(1)",
+                   f"\\exr labels it with another example's number; got "
+                   f"{label_of('LEEXR')!r}"))
+    # \exp's label is "(1" + a raised prime + ")", so pdftotext splits it;
+    # the prime sits on a line of its own.  What matters is that the number
+    # is there, parenthesised, and that something was raised beside it.
+    r.append(check((label_of("LEEXP") or "").startswith("(1"),
+                   f"\\exp labels it with the number too; got "
+                   f"{label_of('LEEXP')!r}"))
+    r.append(check(label_of("LESN") is None,
+                   f"\\sn labels it with nothing at all; got "
+                   f"{label_of('LESN')!r}"))
+    # ...and none of the four moved the text, which is the point of a label
+    # box: \exi's label is wider than the box and hangs out to the left.
+    xs = {tok: p.find(tok).x0
+          for tok in ("LEHOST", "LEEXI", "LEEXR", "LEEXP", "LESN")}
+    r.append(check(max(xs.values()) - min(xs.values()) < TOL,
+                   f"a custom label does not move the text; got "
+                   f"{ {k: round(v, 2) for k, v in xs.items()} }"))
+    # a judgment still hangs, on a plain item and on a custom-labelled one
+    for tok in ("LEJUDGED", "LEJUDGEDEXI"):
+        jw = p.find(tok)
+        r.append(check(abs(jw.x0 - host.x0) < TOL,
+                       f"{tok}: [judgment] still does not displace the text "
+                       f"({jw.x0:.2f} vs {host.x0:.2f})"))
+    # A custom label steps NO counter.  Five items in this batch carry one,
+    # so if any of them stepped ExNo the numbers below would run to (8)
+    # instead of (3) -- which is the only place the page shows it, the
+    # labels themselves being whatever they were handed.
+    # Read off the two items that DO step it rather than by collecting every
+    # number at the margin: \exr's label is itself "(1)", set in the label
+    # column, and nothing about its shape says it is a reference.
+    nums = (label_of("LEJUDGED"), label_of("LEJAM"))
+    r.append(check(nums == ("(2)", "(3)"),
+                   f"\\exi, \\exr, \\exp and \\sn step no counter: the two "
+                   f"items after them are {nums}, not (7) and (8)"))
+    # ...and \exp's prime really is there: a prime that vanished would leave
+    # every assertion above untouched.  Asserted by PRESENCE in the label
+    # column and not by its raised position, because the engines disagree
+    # about where it is -- pdflatex extracts the raised mark as a word of its
+    # own on a line of its own, xelatex and lualatex fold it into the single
+    # word "(1'\u0029".  Either way it is in the column left of the text.
+    w0 = p.find("LEEXP")
+    mid = (w0.y0 + w0.y1) / 2
+    near = [w for w in p.words
+            if w.x1 <= w0.x0 + TOL and abs((w.y0 + w.y1) / 2 - mid) < 12]
+    blob = "".join(w.text for w in near)
+    r.append(check(any(c in blob for c in ("'", "&apos;", "\u2032")),
+                   f"\\exp sets a prime beside the number; the label column "
+                   f"holds {[w.text for w in near]!r}"))
+    # --- \jambox: the note starts \jamwidth from the right margin --------
+    jam = p.find("(Greek)")
+    body = p.find("LEJAM")
+    r.append(check(any(w is jam for w in p.line_of(body)),
+                   "\\jambox keeps its note on the example's line"))
+    margin = max(w.x1 for w in p.words)
+    r.append(check(abs((margin - jam.x0) - 144.54) < 1.5,
+                   f"\\jambox starts \\jamwidth (2in) from the right margin; "
+                   f"got {margin - jam.x0:.2f}pt"))
+    # --- references -------------------------------------------------------
+    txt = " ".join(w.text for w in p.words)
+    r.append(check("LEXREF (1) and LEXXREF (1" in txt,
+                   f"\\xref and \\xxref resolve; got "
+                   f"{txt[txt.find('LEXREF'):][:34]!r}"))
+    # --- \attop and \atcenter --------------------------------------------
+    # Same two-line box, two alignments.  \attop puts its FIRST line on the
+    # example's baseline; \atcenter straddles it.  Asserted against each
+    # other, so neither can pass by sitting where the other should.
+    top_base, cen_base = p.find("LEATTOP"), p.find("LEACBASE")
+    ata, atb = p.find("LEATA"), p.find("LEATB")
+    aca, acb = p.find("LEACA"), p.find("LEACB")
+    r.append(check(abs(ata.y0 - top_base.y0) < 2.0 and atb.y0 > top_base.y0,
+                   f"\\attop aligns its first line with the baseline "
+                   f"({ata.y0:.1f} vs {top_base.y0:.1f}, second at "
+                   f"{atb.y0:.1f})"))
+    r.append(check(aca.y0 < cen_base.y0 < acb.y0,
+                   f"\\atcenter straddles the baseline ({aca.y0:.1f} < "
+                   f"{cen_base.y0:.1f} < {acb.y0:.1f})"))
+    # --- \gltoffset -------------------------------------------------------
+    with_off = p.find("LEGTRANS").y0 - p.find("LEGGLOSS").y0
+    without = p.find("LEGTRANS2").y0 - p.find("LEGGLOSS2").y0
+    r.append(check(with_off - without > 1.0,
+                   f"\\gltoffset opens a gap above the free translation, "
+                   f"and \\nogltOffset closes it ({with_off:.2f} vs "
+                   f"{without:.2f})"))
+    # --- the kernel's math operator survives ------------------------------
+    r.append(check("exp(x)" in txt,
+                   "the kernel's \\exp still typesets the math operator; "
+                   "upstream overwrites it"))
+    return r
+
+
+def a_langsci_ua(p: Page):
+    r"""The PDF/UA gate for the \ea front-end, asserted two ways.
+
+    \ea opens an example, its list and its first item in one command, and
+    \z closes a level whose group was opened somewhere else entirely --
+    a shape in which an element is easy to open at the wrong moment or to
+    leave unclosed.  Neither shows on the page, and neither oracle sees
+    both: marked content straddling its parent fails veraPDF while passing
+    every geometric assertion here, and an element never closed is
+    spec-valid, so veraPDF passes it while the rest of the document becomes
+    its child.  That one is caught only by the depths.
+    """
+    r = []
+    if not shutil.which("verapdf"):
+        r.append((False, "verapdf is not on PATH: the PDF/UA gate for the "
+                         "langsci front-end cannot run"))
+    else:
+        verdicts, failures, raw = verapdf_report(p.path)
+        if not verdicts:
+            r.append((False, f"veraPDF produced no verdict (broken install?); "
+                             f"its output was {raw[:300]!r}"))
+        else:
+            failed = [name for name, ok in verdicts if not ok]
+            r.append(check(not failed,
+                           f"veraPDF: the \\ea front-end produces valid "
+                           f"PDF/UA; failed {failed} with {failures}"
+                           if failed else
+                           "veraPDF: the \\ea front-end produces valid PDF/UA"))
+            logged = verapdf_log_records(raw)
+            r.append(check(not logged,
+                           f"veraPDF parsed it without complaint; it logged "
+                           f"{len(logged)} record(s): {logged[:3]}"
+                           if logged else
+                           "veraPDF parsed it without complaint"))
+    depths = struct_label_depths(p.path)
+    levels = {d for _, d in depths}
+    r.append(check(len(depths) >= 5 and len(levels) == 1,
+                   f"every top-level example number sits at one depth; "
+                   f"got {depths}"))
+    # The numbering variants announce what they print.  langsci-lists.tex
+    # asserts the printed half; this is the other half, and it is the half
+    # no rendering shows -- a list labelled "A." whose class says LowerRoman
+    # is well-formed PDF and passes veraPDF.
+    classes = struct_ol_classes(p.path)
+    for cls, printed in [("lxOLupperalpha", "A."), ("lxOLupperroman", "I."),
+                         ("lxOLdecimal", "(1)"), ("lxOLalpha", "a."),
+                         ("lxOLroman", "i.")]:
+        r.append(check(classes.get(cls, 0) >= 1,
+                       f"a list printing {printed} carries /ListNumbering "
+                       f"{cls}; the tree has {dict(classes)}"))
+    # \exp and \atcenter are written in text mode on purpose -- upstream has
+    # both in math.  A Formula element in a PDF/UA-2 document needs an /Alt
+    # or a MathML association, and this package has neither to give: the
+    # 0.12 rewrite of \altg exists because of exactly this.
+    r.append(check(not struct_has_formula(p.path),
+                   "no Formula element in the tree: \\exp's prime and "
+                   "\\atcenter are text, not math"))
+    # a compliant but empty PDF must not pass this case by accident
+    for tok in ("UALSMAIN", "UALSALPHA", "UALSROMAN", "UALSLISTA",
+                "UALSOBJ", "UALSTRANS", "UALSDOT", "UALSREL"):
+        r.append(check(p.find(tok) is not None, f"typeset: {tok}"))
+    return r
+
+
 def a_frontend(p: Page):
     r"""The public API is SUFFICIENT: a syntax front-end built out of
     \lx_... names alone produces the same geometry and the same structure
@@ -3115,6 +3613,13 @@ ASSERTIONS = {
     "utf8": a_utf8,
     "utf8-unicode": a_utf8_unicode,
     "gbfour": a_gbfour,
+    "langsci": a_langsci,
+    "langsci-mixed": a_langsci_mixed,
+    "langsci-ua": a_langsci_ua,
+    "langsci-lists": a_langsci_lists,
+    "langsci-extra": a_langsci_extra,
+    "langsci-exewidth": a_langsci_exewidth,
+    "langsci-options": a_langsci_options,
     "numbering": a_numbering,
     "judgment-align": a_judgment_align,
     "judgments": a_judgments,
