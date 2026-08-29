@@ -1525,7 +1525,16 @@
     \let\lx@donext\lx@zpop@err
   \fi\fi\fi\fi
   \lx@donext}
-\def\lx@zpop@one{\lx@closelist\endgroup}
+%% \lx@glt@langend before the list closes, for the reason \end{xlist} does
+%% it: a \glt language Span is opened from \everypar and has to be closed
+%% while the translation paragraph is still the current one.  This pop is
+%% the third exit an example has (\lx@bodyend and the environment ends are
+%% the others) and it was the one that did not close it, so a \glt with a
+%% \GlossTransLang inside a roman level, popped by \z. with the example
+%% continuing after, left the Span open across the list close and failed
+%% veraPDF on all three profiles.  Nothing showed on the page and no
+%% structure assertion saw it; ua.tex now carries the shape.
+\def\lx@zpop@one{\lx@glt@langend\lx@closelist\endgroup}
 % Text on the same line as a main-level \z. is a CONTINUATION: it is set
 % flush left under the example (no \parindent), separated from it by the
 % example's normal bottom space, and closed with \par (the source's own

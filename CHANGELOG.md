@@ -4,6 +4,15 @@ All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
 ## 1.2
+- Fix: `\z.` closes the `\glt` language span when it pops a sub-level. An
+  example exit has to close that span while the translation paragraph is still
+  the current one; `\lx@bodyend` and the `exe`/`xlist` ends all did, and this
+  third exit did not. A `\glt` under `\GlossTransLang` inside a roman level,
+  popped by `\z.` with the example continuing after it, therefore left the span
+  open across the list close: **veraPDF failed all three profiles**, nothing
+  showed on the page, and every structure assertion in the suite still passed.
+  `tests/ua.tex` now carries the shape, and its header records the three things
+  about it that are load-bearing.
 - New: a documented API for building a syntax front-end or a geometry mode
   on this package's machinery, without touching its internals. The seam was
   already there -- the dot syntax and the `exe`/`xlist` environments are

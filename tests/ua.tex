@@ -34,6 +34,29 @@ UAINTRO ordinary running text precedes the first example.
 \exg. UAOBJ Der Hund bellte.\\ the dog bark.\lpzg{3sg.pst}\\
 \glt `UATRANS The dog barked.'
 
+%% The same translation-with-a-language, but inside a roman level that a
+%% \z. pops while the example goes on.  That pop is the third exit an
+%% example has -- \lx@bodyend and the environment ends are the others --
+%% and it was the one that did not close the \glt language Span, which
+%% then stayed open across the list close: veraPDF failed all three
+%% profiles, nothing showed on the page, and every structure assertion in
+%% this file still passed.
+%%
+%% Three things here are load-bearing, and each was got wrong once while
+%% this case was being written.  It must stand AFTER \GlossTransLang above
+%% (before it, no Span is opened at all and the case goes green with the
+%% bug in place).  The gloss must be at the ROMAN level, since a \z. at
+%% the letter level ends the example through \lx@bodyend, which closes the
+%% Span anyway.  And the \b. after the pop is not decoration: without it
+%% the example ends immediately and \lx@bodyend closes the Span again.
+\ex. UAZMAIN an example whose sub-sub-level carries a translation.
+\a. UAZALPHA a sub-example.
+\a. \gll UAZOBJ Der Hund bellte.\\
+        UAZGLOSS the dog barked.\\
+\glt `UAZTRANS The dog barked.'
+\z.
+\b. UAZAFTER a sub-example after the pop.
+
 %% stacked alternatives, text-mode: no Formula element may appear (that is
 %% the PDF/UA-2 failure which forced the 0.12 removal of \altg)
 \ex. UAALTN I saw \altn{the cat}{a dog} here.

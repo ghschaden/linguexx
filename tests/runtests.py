@@ -1754,7 +1754,7 @@ def a_ua(p: Page):
     # the document really did typeset, so a compliant-but-empty PDF cannot
     # pass this case by accident
     for tok in ("UAMAIN", "UAALPHA", "UAOBJ", "UATRANS", "UAALTN", "UAALTG",
-                "UAEXE", "UALIST", "UAREL"):
+                "UAEXE", "UALIST", "UAREL", "UAZTRANS", "UAZAFTER"):
         r.append(check(p.find(tok) is not None, f"typeset: {tok}"))
     return r
 
