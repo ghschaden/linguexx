@@ -19,7 +19,8 @@ to be read later is worse than none. Names survive, and `grep` finds them.
 
 ## Examples in a `minipage` footnote
 
-*Raised by the code review of 2026-07-30 (item D2); deferred there and
+*Raised by the code review of 2026-07-30 (item D2); deferred there.
+Revisited 2026-08-30 with evidence from the rest of the family (below), and
 still deferred.*
 
 **Current behaviour.** Examples inside a footnote of a `minipage` are
@@ -32,8 +33,9 @@ hooks only the latter (in the `\AtBeginDocument` that also sets
 onto the footnote series is never cleared in the minipage case.
 
 Patching `\@mpfootnotetext` the same way is a two-line change. That is not
-the problem. The problem is that there are three defensible answers and no
-evidence for choosing between them:
+the problem. The problem is that there are three defensible answers, and
+nothing that chooses between them — the family evidence recorded below
+raises the cost of moving off the current one without saying it is right:
 
 1. share `FnExNo` with ordinary footnotes — but two minipages on a page
    then interleave their numbering with each other and with the page's
@@ -44,18 +46,77 @@ evidence for choosing between them:
    needs new user-facing syntax to reference an example across the
    boundary.
 
-`linguex` never answered this either, so there is no precedent to inherit
-and no existing documents whose expectations would be violated.
+**What the rest of the family does** *(checked 2026-08-30, while auditing
+`langsci-gb4e` for the `[langsci]` option)*. All four packages behave the
+same way here, and all four for the same reason: each hooks
+`\@footnotetext` and none hooks `\@mpfootnotetext`.
 
-**What would decide it.** A real document that puts numbered examples in a
-minipage footnote and *cares* which number they get. Until then the
-behaviour is documented rather than changed: see the manual's "Notes and
-limitations" (§10), which tells the reader to put the examples outside the
-minipage if the numbering matters.
+| package | ordinary footnote | minipage footnote |
+| --- | --- | --- |
+| `linguexx` | `(i)` — footnote series | `(2)` — main series |
+| `langsci-gb4e` | `(i)` — footnote series | `(2)` — main series |
+| `linguex` | `(i)` — footnote series | `(2)` — main series |
+| `gb4e` | `(1)` — no footnote series at all | `(2)` — main series |
+
+Established by rendering the same four-example document against each
+package and reading the numbers off the page, not by reading the sources.
+In every case the main-text examples on either side of the minipage come
+out `(1)` and `(3)`, so the minipage-footnote example does not merely
+*look* like a main-series example: it consumes a main-series number. The
+saved hooks are `\oldFootnotetext` in `langsci-gb4e` (beside its `fnx`
+counter), `\predefinedfootnotetext` in `linguex` and
+`\@gbsaved@footnotetext` in `gb4e`; `grep` for those names to re-check
+this when any of them is updated.
+
+That is weaker evidence than the table looks, and it cuts both ways.
+
+*It is not a precedent in the sense of a decision.* Three packages landing
+on option 2 by the same omission is not three packages choosing option 2.
+Nobody weighed the answers above; each hooked the command it knew about,
+and `gb4e` — which has no footnote series at all — cannot be said to have
+an opinion on which series a footnote example belongs to. What the
+uniformity does establish is the other half of the original sentence: there
+*are* existing documents built against this behaviour, across the whole
+family, so the "no expectations would be violated" half was simply wrong.
+
+*And it now costs more to change than it did.* When this entry was written
+linguexx had no reason to match anyone here. `[langsci]` gives it one:
+inside that option linguexx is meant to be a drop-in for `langsci-gb4e`,
+and a document converting to it one example at a time is checked by
+diffing its output against its own previous run. Renumbering a
+minipage-footnote example would be a divergence from the package being
+emulated, showing up in exactly the shape the migration promise is about —
+a number moving for a reason that is not the conversion. This argues for
+option 2, but on compatibility grounds only; it says nothing about which
+semantics is right, and it would not apply to a document not using
+`[langsci]`.
+
+The maintainer's reading, recorded 2026-08-30 when the same behaviour came
+up as a candidate defect in the `langsci-gb4e` audit: this looks like a
+typesetting decision rather than an error. It was struck from that audit's
+findings for that reason.
+
+**What would decide it.** The criterion is unchanged — a real document that
+puts numbered examples in a minipage footnote and *cares* which number they
+get. What changed on 2026-08-30 is what a patch would have to overcome, not
+what would justify one. The family evidence does not supply that document;
+it shows only that nobody has been bothered enough to hook the other
+command. Until such a document turns up the behaviour is documented rather
+than changed: see the manual's "Notes and limitations" (§10), which tells
+the reader to put the examples outside the minipage if the numbering
+matters. If one does turn up, note that the compatibility argument above
+binds only `[langsci]`, so "change it everywhere" and "change it except
+under `[langsci]`" are then two different proposals, and the second is a
+fourth answer this entry did not originally list.
 
 **If it is ever patched:** the change is to hook `\@mpfootnotetext`
 alongside `\@footnotetext`, and it needs a test case, since nothing in
-`tests/` currently exercises a minipage footnote at all.
+`tests/` currently exercises a minipage footnote at all. A test is worth
+adding *before* anyone patches it, pinning the present numbering: the
+behaviour is deliberate-by-deferral rather than deliberate-by-choice, which
+is exactly the kind that gets changed by accident in the course of doing
+something else. Such a test asserts the status quo, it does not endorse it,
+and whoever settles this entry should expect to rewrite it.
 
 ---
 

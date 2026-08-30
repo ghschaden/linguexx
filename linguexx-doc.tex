@@ -2114,9 +2114,11 @@ all three engines.
   \texttt{minipage} is a different command from the ordinary one, and only
   the ordinary one is hooked. Whether such examples ought to share the
   footnote series, keep the main one, or get a series per minipage is a
-  question \pkg{linguex} never answered either, so nothing is claimed here
-  and nothing is patched; if the numbering matters in your document, put
-  the examples outside the minipage.
+  question \pkg{linguex}, \pkg{gb4e} and \pkg{langsci-gb4e} never answered
+  either: all three number such examples on the main series too, so a
+  document arriving from any of them keeps the numbers it had. Nothing is
+  claimed here and nothing is patched; if the numbering matters in your
+  document, put the examples outside the minipage.
 
 \item \textbf{\pkg{ulem} is not loaded.} For struck-through alternatives
   (\cs{sout} inside \cs{altn}), load \pkg{ulem} yourself; the usual choice
