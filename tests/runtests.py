@@ -2595,6 +2595,38 @@ def a_langsci_exewidth(p: Page):
     return r
 
 
+def a_langsci_hole(p: Page):
+    r"""No empty line after an example whose last line is full.
+
+    hyperref hangs the destination off \refstepcounter, and in horizontal
+    mode that is a zero-width box added to the line being built -- so a
+    counter stepped before the previous item's paragraph is closed leaves
+    the NEXT example's anchor at the end of the PREVIOUS example's last
+    line, behind the space that ended the source line.  On a full line the
+    breaker takes that space and gives the anchor a line of its own, and
+    the example is followed by a hole nothing in the source accounts for.
+
+    Measured as two gaps rather than one distance, so the rule does not
+    have to know a baselineskip: the middle item of each group is overfull
+    by construction, and it must sit as far from its successor as from its
+    predecessor.  With the anchor misplaced the second gap is twice the
+    first, which is what the hole is.
+
+    All three levels are checked because each steps its own counter in its
+    own core.
+    """
+    r = []
+    for level in ("MAIN", "SUB", "ROMAN"):
+        one, two, three = (p.find("HOLE" + level + n).y0
+                           for n in ("ONE", "TWO", "THREE"))
+        before, after = two - one, three - two
+        r.append(check(abs(after - before) < TOL,
+                       f"{level.lower()}: the full item is followed by one "
+                       f"line, not two ({after:.2f} after vs {before:.2f} "
+                       f"before)"))
+    return r
+
+
 def a_langsci_names(p: Page):
     r"""Every retired name is defined, and defined to complain.
 
@@ -3535,6 +3567,7 @@ ASSERTIONS = {
     "langsci-extra": a_langsci_extra,
     "langsci-exewidth": a_langsci_exewidth,
     "langsci-names": a_langsci_names,
+    "langsci-hole": a_langsci_hole,
     "numbering": a_numbering,
     "judgment-align": a_judgment_align,
     "judgments": a_judgments,

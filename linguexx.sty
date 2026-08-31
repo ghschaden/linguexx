@@ -1413,7 +1413,29 @@
 %% sits here ONLY, so that the custom-label item above -- which steps no
 %% counter and therefore has no anchor -- records nothing.  It expands to
 %% nothing at all unless the links are switched on.
+%% \lx@endprevpar closes the PREVIOUS item's paragraph before the counter
+%% is stepped, and every counter-stepping core below starts with it.  It
+%% looks redundant -- \item ends that paragraph anyway, a few tokens later
+%% -- and is not: hyperref hangs the example's destination off
+%% \refstepcounter, through \Hy@raisedlink, which in horizontal mode
+%% contributes a zero-width \smash box to the line being built.  Stepping
+%% the counter first therefore leaves the NEXT example's anchor at the end
+%% of the PREVIOUS example's last line, where it does two kinds of damage:
+%%   - the line breaker may put that box, and the \parfillskip after it, on
+%%     a line of its own.  On a full line it does, and the example is
+%%     followed by an empty line -- a hole between (b) and (c) with nothing
+%%     in the source to explain it, which is how this was found;
+%%   - across a page break the destination lands on the page the previous
+%%     example ends on, so \ref jumps one page short.
+%% In vertical mode \Hy@raisedlink adds the destination to the vertical
+%% list and neither happens, which is why the outermost \ea -- reached in
+%% vertical mode already -- never showed the bug.
+%% \unskip twice, and the \if@inlabel guard, are \@item's own: \item is
+%% what would otherwise be doing this, and a pending label (an \item whose
+%% paragraph has not started) must be left for it to open.
+\def\lx@endprevpar{\if@inlabel\else\ifhmode\unskip\unskip\par\fi\fi}
 \def\lx@main@core{%
+  \lx@endprevpar
   \if@noftnote
     \refstepcounter{ExNo}\def\lx@itemlabel{\theExNo}%
   \else
@@ -1877,10 +1899,12 @@
 \fi % iflx@gbfour
 
 \def\lx@subitem@core{%
+  \lx@endprevpar
   \refstepcounter{SubExNo}%
   \def\lx@itemlabel{\SubExLBr\Exalph{SubExNo}\SubExRBr}}
 \def\lx@subitem{\lx@subitem@core\lx@scanjudge}
 \def\lx@subsubitem@core{%
+  \lx@endprevpar
   \refstepcounter{SubSubExNo}%
   \def\lx@itemlabel{\SubSubExLBr\Exroman{SubSubExNo}\SubSubExRBr}}
 \def\lx@subsubitem{\lx@subsubitem@core\lx@scanjudge}

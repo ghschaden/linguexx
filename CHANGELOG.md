@@ -55,6 +55,19 @@ version string.
   ends at a `\z` and at nothing else -- so it gets the treatment a stray `\a.`
   already had: the message names `\ea` and the line it stood on, and the
   example is then closed so the document finishes with that error alone.
+- Fix: an example whose last line is full is no longer followed by an empty
+  line. With `hyperref` loaded, an example's destination is hung off
+  `\refstepcounter`, and in horizontal mode that is a zero-width box added to
+  the line being built -- so stepping the counter before the previous item's
+  paragraph was closed left the *next* example's anchor at the end of the
+  *previous* example's last line, behind the space that ended the source line.
+  On a full line the breaker took that space and gave the anchor a line of its
+  own: a hole between (b) and (c) with nothing in the source to explain it,
+  reported from a LangSci paper. The same misplacement put the destination on
+  the wrong side of a page break, so a `\ref` to the example below one could
+  jump a page short. All three item levels stepped their counter that way and
+  all three are fixed; `tests/langsci-hole.tex` asserts, at each level, that a
+  full item sits as far from its successor as from its predecessor.
 - Fix: `\z.` closes the `\glt` language span when it pops a sub-level. An
   example exit has to close that span while the translation paragraph is still
   the current one; `\lx@bodyend` and the `exe`/`xlist` ends all did, and this

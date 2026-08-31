@@ -1,0 +1,61 @@
+%% An example must not be followed by an empty line that nothing in the
+%% source asked for.
+%%
+%% hyperref hangs an example's destination off \refstepcounter, and in
+%% horizontal mode that destination is a zero-width \smash box contributed
+%% to the line being built.  Stepping the counter before the previous
+%% item's paragraph is closed therefore parks the NEXT example's anchor at
+%% the end of the PREVIOUS example's last line, after the space that ends
+%% the source line.  When that line is full, the line breaker takes the
+%% break at that space and sets the anchor -- and the \parfillskip after
+%% it -- on a line of its own: an empty line between two sub-examples,
+%% with nothing in the source to explain it.  (The same misplacement makes
+%% \ref jump a page short when a page break falls between the two items;
+%% one cause, so the geometry here pins both.)
+%%
+%% hyperref is required for the case to have a subject: see below.
+%%
+%% Each group is three items with a full one in the middle, and the case
+%% asserts that the two gaps are equal: an item followed by a hole is one
+%% line further from its successor than from its predecessor.  The middle
+%% item is made overfull by construction rather than by wording, because
+%% "this line is full" must not depend on the engine's font.  Its trailing
+%% end-of-line space is what the breaker breaks at, so do not comment it
+%% away.
+%%
+%% All three counter-stepping levels are covered, because each has its own
+%% core (\lx@main@core, \lx@subitem@core, \lx@subsubitem@core) and a fix
+%% applied to one of them leaves the others holed.
+\input{_preamble-langsci}
+%% hyperref is what makes the anchor exist at all; without it loaded this
+%% case is three groups of ordinary examples and proves nothing.
+\usepackage{hyperref}
+\newcommand\holefill[1]{\makebox[\dimexpr\linewidth+5pt][l]{#1 a line wider than the measure.}}
+\begin{document}
+
+%% top level: consecutive items of one batch, i.e. \lx@main@core.
+\begin{exe}
+\ex HOLEMAINONE the item before.
+\ex \holefill{HOLEMAINTWO}
+\ex HOLEMAINTHREE the item after.
+\end{exe}
+
+%% sub-level, through the langsci front-end: \lx@subitem@core.
+\ea
+  \ea HOLESUBONE the sub-example before.
+  \ex \holefill{HOLESUBTWO}
+  \ex HOLESUBTHREE the sub-example after.
+  \z
+\z
+
+%% third level: \lx@subsubitem@core.
+\ea
+  \ea
+    \ea HOLEROMANONE the roman item before.
+    \ex \holefill{HOLEROMANTWO}
+    \ex HOLEROMANTHREE the roman item after.
+    \z
+  \z
+\z
+
+\end{document}
