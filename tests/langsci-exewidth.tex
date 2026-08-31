@@ -1,24 +1,27 @@
-%% \exewidth, which the langsci-gb4e manual documents in its section 7.6:
-%% "Use \exewidth{(222)} to set the width reserved for identifiers to
-%% three-digits."  It sets this package's own \Exlabelwidth, so the sample
-%% given is what the label box is made as wide as.
+%% The two langsci-gb4e options that have a DEFAULT state worth pinning:
+%% autoexewidth (on) and the item penalty (the kernel's).  Their other state
+%% is langsci-options.tex, and the two cases are only meaningful together --
+%% either one alone would pass with the option's code deleted.
 %%
-%% What is NOT provided, and what this case therefore also pins by its
-%% absence: upstream widens the box by itself once the numbers pass 98 and
-%% 998.  Its only interface is the [manualexewidth] option, which neither
-%% document mentions, and the manual's own instruction for a document with
-%% three-digit numbers is to call \exewidth.  So a four-digit number here
-%% sits in whatever box the document asked for, and WSMALL and WHUGE align.
+%% autoexewidth widens the label box once the numbers reach four digits.  It
+%% must WIDEN ONLY: this package's default box is already wider than "(235)",
+%% so setting the sample outright -- which is what \exewidth does, and what
+%% the first version of this did -- moved a three-digit document's text LEFT
+%% of a two-digit one's.  Hence three examples and not two: WBIG is the one
+%% that catches it.
 \input{_preamble-langsci}
+\makeatletter
 \begin{document}
 \setcounter{ExNo}{5}
 \ea WSMALL a two-digit number.
 \z
+\setcounter{ExNo}{100}
+\ea WBIG a three-digit number.
+\z
 \setcounter{ExNo}{1000}
-\ea WHUGE a four-digit number, in the same box.
+\ea WHUGE a four-digit number.
 \z
 
-\exewidth{(2345)}
-\ea WWIDE after \string\exewidth\ asked for a wider one.
+\ea WPENALTY the item penalty here is \the\@itempenalty\ by default.
 \z
 \end{document}

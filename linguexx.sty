@@ -223,6 +223,14 @@
 % the cases that exercise the section are the ones where it is not
 % skipped.
 \newif\iflx@earagged
+% langsci-gb4e's own package options, and the switch its \singlegloss pair
+% sets.  Declared HERE, with the rest of the flags, and not in the \ea
+% section that reads them, for the reason given just above.
+\newif\iflx@nojambox
+\newif\iflx@manualexewidth
+\newif\iflx@lowerpenalty
+\newif\iflx@nocgloss
+\newif\iflx@singlegloss \lx@singleglosstrue
 \newif\iflx@legacy
 \newif\iflx@phantomalign
 \newif\iflx@relreflinks \lx@relreflinkstrue
@@ -233,22 +241,14 @@
 % That also makes the "no syntax option means [lazy]" rule below do the
 % right thing for [langsci] alone.
 \DeclareOption{langsci}{\lx@langscitrue\lx@gbfourtrue}
-% langsci-gb4e's own four options are accepted and reported, not obeyed:
-% neither the LangSci author guidelines nor the langsci-gb4e manual mentions
-% any of them, and [langsci] provides the documented interface.  Declared
-% rather than left to \DeclareOption* so that a preamble being ported gets a
-% message about THIS option instead of a generic "unknown option".  A warning
-% and not an error: a preamble is not yet typesetting anything.
-\def\lx@ls@retire@opt#1{%
-  \DeclareOption{#1}{%
-    \PackageWarning{linguexx}{[#1] is not part of the documented
-      langsci-gb4e interface and has no effect here.\MessageBreak
-      [langsci] provides what the author guidelines and the langsci-gb4e
-      manual document; this option is in neither}}}
-\lx@ls@retire@opt{nojambox}
-\lx@ls@retire@opt{manualexewidth}
-\lx@ls@retire@opt{lowerpenalty}
-\lx@ls@retire@opt{nocgloss}
+% langsci-gb4e's four options, under their own names so that a preamble
+% being ported does not have to be edited.  They are read only under
+% [langsci]; given without it they are accepted and do nothing, which is
+% what they would do in a document that has no \ea in it either.
+\DeclareOption{nojambox}{\lx@nojamboxtrue}
+\DeclareOption{manualexewidth}{\lx@manualexewidthtrue}
+\DeclareOption{lowerpenalty}{\lx@lowerpenaltytrue}
+\DeclareOption{nocgloss}{\lx@nocglosstrue}
 \DeclareOption{legacy}{\lx@legacytrue}
 \DeclareOption{phantomalign}{\lx@phantomaligntrue}
 \DeclareOption{relreflinks}{\lx@relreflinkstrue}
@@ -346,23 +346,67 @@
      \lx@inexamplefalse \lx@inexefalse \lx@inlangscifalse
      #1}}}
 
-\renewcommand{\theExNo}{\protect\theExLBr\arabic{ExNo}\protect\theExRBr}
-\renewcommand{\theFnExNo}{\protect\theFnExLBr\roman{FnExNo}\protect\theFnExRBr}
-
-\renewcommand{\theSubExNo}{%
-  \hbox{\if@noftnote\protect\theExLBr\Exarabic{ExNo}\firstrefdash
-      \Exalph{SubExNo}\protect\theExRBr
-    \else
-      \protect\theFnExLBr\Exroman{FnExNo}\firstrefdash%
-      \Exalph{SubExNo}\protect\theFnExRBr
-    \fi}}
-
-\renewcommand{\theSubSubExNo}{%
-  \hbox{\if@noftnote\protect\theExLBr%
-          \Exarabic{ExNo}\firstrefdash\Exalph{SubExNo}\secondrefdash
-             \Exroman{SubSubExNo}\protect\theExRBr%
-    \else\protect\theFnExLBr\Exroman{FnExNo}\firstrefdash
-              \Exalph{SubExNo}\secondrefdash\Exroman{SubSubExNo}\protect\theFnExRBr\fi}}
+%% What \ref prints, in two flavours, and where the parentheses live.
+%%
+%% linguex puts them in the counter format: \theExNo IS "(1)", so \ref
+%% gives "(1)" and the label prints the same thing.  langsci-gb4e (and gb4e
+%% under it) puts them in the LIST LABEL instead and leaves the counter
+%% bare, so \ref there gives "1" and an author writes "(\ref{ex:x})" or
+%% \xref -- which is why upstream's \xref is "(\ref{#1})" while this
+%% package's, back when \ref always parenthesised, was a plain \ref.
+%% Neither convention is more correct; but a document ported from one to
+%% the other must not silently print "((1))".
+%%
+%% So the flavour follows the syntax the document is written in: [langsci]
+%% selects the bare one, everything else the parenthesised one.  Each is
+%% installed by one macro, and \ExParenRefs / \ExBareRefs let a document
+%% ask for the other by name -- a [langsci] document whose prose already
+%% says "as in \ref{ex:x}" wants \ExParenRefs and one line, not a pass over
+%% its cross-references.
+%%
+%% What must NOT depend on the flavour is anything this package prints
+%% itself.  The example's own number, \Next and its family, \refrange,
+%% \Refrange, \xref, \xxref and \exp all spell the parentheses out --
+%% through \theExLBr / \theExRBr, around the bare number \pref gives -- so
+%% they print the same characters either way; only a plain \ref, and the
+%% \cref that follows it, change.  \lx@labelExNo is the seam for the main
+%% label: it is the printed number, parenthesised in both flavours, and it
+%% is \theExNo in only one of them.
+\def\lx@refs@paren{%
+  \renewcommand{\theExNo}{\protect\theExLBr\arabic{ExNo}\protect\theExRBr}%
+  \renewcommand{\theFnExNo}{\protect\theFnExLBr\roman{FnExNo}\protect\theFnExRBr}%
+  \renewcommand{\theSubExNo}{%
+    \hbox{\if@noftnote\protect\theExLBr\Exarabic{ExNo}\firstrefdash
+        \Exalph{SubExNo}\protect\theExRBr
+      \else
+        \protect\theFnExLBr\Exroman{FnExNo}\firstrefdash%
+        \Exalph{SubExNo}\protect\theFnExRBr
+      \fi}}%
+  \renewcommand{\theSubSubExNo}{%
+    \hbox{\if@noftnote\protect\theExLBr%
+            \Exarabic{ExNo}\firstrefdash\Exalph{SubExNo}\secondrefdash
+               \Exroman{SubSubExNo}\protect\theExRBr%
+      \else\protect\theFnExLBr\Exroman{FnExNo}\firstrefdash
+                \Exalph{SubExNo}\secondrefdash\Exroman{SubSubExNo}\protect\theFnExRBr\fi}}%
+  \def\lx@labelExNo{\theExNo}%
+  \def\lx@labelFnExNo{\theFnExNo}}
+\def\lx@refs@bare{%
+  \renewcommand{\theExNo}{\arabic{ExNo}}%
+  \renewcommand{\theFnExNo}{\roman{FnExNo}}%
+  \renewcommand{\theSubExNo}{%
+    \hbox{\if@noftnote\Exarabic{ExNo}\firstrefdash\Exalph{SubExNo}%
+      \else\Exroman{FnExNo}\firstrefdash\Exalph{SubExNo}\fi}}%
+  \renewcommand{\theSubSubExNo}{%
+    \hbox{\if@noftnote
+            \Exarabic{ExNo}\firstrefdash\Exalph{SubExNo}\secondrefdash
+              \Exroman{SubSubExNo}%
+      \else \Exroman{FnExNo}\firstrefdash\Exalph{SubExNo}\secondrefdash
+              \Exroman{SubSubExNo}\fi}}%
+  \def\lx@labelExNo{\protect\theExLBr\theExNo\protect\theExRBr}%
+  \def\lx@labelFnExNo{\protect\theFnExLBr\theFnExNo\protect\theFnExRBr}}
+\newcommand\ExParenRefs{\lx@refs@paren}
+\newcommand\ExBareRefs{\lx@refs@bare}
+\iflx@langsci \lx@refs@bare \else \lx@refs@paren \fi
 
 % hyperref anchor names (avoid the \protect-laden \the... expansions).
 %
@@ -558,10 +602,12 @@
   \lx@ol@set{lxOLdecimal}%
   \labelwidth\Exlabelwidth \labelsep\Exlabelsep
   \leftmargin\dimexpr\Exindent+\Exlabelwidth+\Exlabelsep\relax}
-\def\lx@geom@sub@default{\lx@ol@set{lxOLalpha}%
+\def\lx@geom@sub@default{%
+  \expandafter\lx@ol@set\expandafter{\lx@sub@olclass}%
   \labelwidth\SubExlabelwidth \labelsep\Exlabelsep
   \leftmargin\dimexpr\SubExlabelwidth+\Exlabelsep\relax \topsep\z@}
-\def\lx@geom@subsub@default{\lx@ol@set{lxOLroman}%
+\def\lx@geom@subsub@default{%
+  \expandafter\lx@ol@set\expandafter{\lx@subsub@olclass}%
   \labelwidth\SubSubExlabelwidth \labelsep\Exlabelsep
   \leftmargin\dimexpr\SubSubExlabelwidth+\Exlabelsep\relax \topsep\z@}
 
@@ -1235,6 +1281,12 @@
             newattribute = { lxOLdecimal } { /O /List /ListNumbering /Decimal } ,
             newattribute = { lxOLalpha   } { /O /List /ListNumbering /LowerAlpha } ,
             newattribute = { lxOLroman   } { /O /List /ListNumbering /LowerRoman } ,
+            % for the sub-level numbering variants of [langsci] (\xlistA,
+            % \xlistI, \xlistn): the printed label and /ListNumbering have
+            % to agree, or a screen reader announces a numbering the page
+            % does not show.
+            newattribute = { lxOLupperalpha } { /O /List /ListNumbering /UpperAlpha } ,
+            newattribute = { lxOLupperroman } { /O /List /ListNumbering /UpperRoman } ,
           }
       }
     \cs_if_exist:NT \__block_list_begin:
@@ -1269,17 +1321,20 @@
 %% box (\lx@flushlabel, not the list default, which right-aligns a label
 %% narrower than \labelwidth).  Only \topsep and the level geometry differ
 %% between the three, so only those are set beside this.
-%% Two font hooks, empty unless [langsci] fills them in: they are what
-%% \exfont and \exnrfont have to reach, and there is no other seam in the
-%% list that a declaration could be attached to.  Empty is exactly what
-%% every document that never loads the option gets, and \lx@bodyfont sits
-%% at the end of the parameter block so that a font it selects is the one
-%% the item bodies are set in.
+%% Two font hooks and a page-breaking one, all empty (or \relax) unless
+%% [langsci] fills them in: they are what \exfont / \exnrfont and the
+%% [lowerpenalty] option of langsci-gb4e have to reach, and there is no
+%% other seam in the list that a declaration could be attached to.  Empty
+%% is exactly what every document that never loads the option gets, and
+%% \lx@bodyfont sits at the end of the parameter block so that a font it
+%% selects is the one the item bodies are set in.
 \let\lx@bodyfont\@empty
 \let\lx@labelfont\@empty
+\let\lx@itempenalty\relax
 \def\lx@listdefaults{%
   \itemindent\z@ \listparindent\z@ \parsep\z@ \itemsep\z@
   \partopsep\z@ \parskip\z@
+  \lx@itempenalty
   \let\makelabel\lx@flushlabel
   \lx@bodyfont}
 \def\lx@mainlist{%
@@ -1437,9 +1492,9 @@
 \def\lx@main@core{%
   \lx@endprevpar
   \if@noftnote
-    \refstepcounter{ExNo}\def\lx@itemlabel{\theExNo}%
+    \refstepcounter{ExNo}\def\lx@itemlabel{\lx@labelExNo}%
   \else
-    \refstepcounter{FnExNo}\def\lx@itemlabel{\theFnExNo}%
+    \refstepcounter{FnExNo}\def\lx@itemlabel{\lx@labelFnExNo}%
   \fi
   \lx@relref@record}
 \def\lx@exstart@normal{\lx@main@core\lx@mainlist\lx@scanjudge}
@@ -1898,15 +1953,31 @@
   {\lx@glt@langend \lx@closelist}
 \fi % iflx@gbfour
 
+%% The printed sub-level labels, and the /ListNumbering class that has to
+%% agree with them, behind one name each.  They are macros rather than
+%% literals so that a front-end can open a level with a numbering of its
+%% own -- [langsci]'s \xlista, \xlisti, \xlistn, \xlistA, \xlistI.  A
+%% variant sets them in the environment's own group, so the choice cannot
+%% outlive the list it was made for.
+%%
+%% Both halves must move together.  The label is what the page shows and
+%% the class is what a screen reader announces; changing one and not the
+%% other is a defect no rendering shows and veraPDF does not reject,
+%% because /ListNumbering /LowerRoman on a list printing "A." is
+%% well-formed PDF and simply false.
+\def\lx@sublabel{\SubExLBr\Exalph{SubExNo}\SubExRBr}
+\def\lx@subsublabel{\SubSubExLBr\Exroman{SubSubExNo}\SubSubExRBr}
+\def\lx@sub@olclass{lxOLalpha}
+\def\lx@subsub@olclass{lxOLroman}
 \def\lx@subitem@core{%
   \lx@endprevpar
   \refstepcounter{SubExNo}%
-  \def\lx@itemlabel{\SubExLBr\Exalph{SubExNo}\SubExRBr}}
+  \def\lx@itemlabel{\lx@sublabel}}
 \def\lx@subitem{\lx@subitem@core\lx@scanjudge}
 \def\lx@subsubitem@core{%
   \lx@endprevpar
   \refstepcounter{SubSubExNo}%
-  \def\lx@itemlabel{\SubSubExLBr\Exroman{SubSubExNo}\SubSubExRBr}}
+  \def\lx@itemlabel{\lx@subsublabel}}
 \def\lx@subsubitem{\lx@subsubitem@core\lx@scanjudge}
 
 % close all sublists still open at the end of the example body;
@@ -2051,6 +2122,41 @@
   \fi
   \lx@donext}
 
+%% \eal ... \zl: an example whose body is a sub-list, i.e. a head number
+%% with no text of its own and the letters underneath.  langsci defines it
+%% as "\begin{exe}\ex\begin{xlist}", unconditionally top-level, and it is
+%% kept that way: the reading in which a nested \eal means "item here, then
+%% open the level below" is a plausible generalisation, and inventing it
+%% here would be new syntax that langsci-gb4e does not have.  Nested, it
+%% says so and stops.
+\def\lx@eal{\lx@eal@do\lx@ea@rag}
+\def\lx@ealnorag{\lx@eal@do\relax}
+\def\lx@eal@do#1{%
+  \iflx@inlangsci
+    \let\lx@donext\lx@eal@nesterr
+  \else\iflx@inexample
+    \let\lx@donext\lx@ea@mixerr
+  \else\iflx@inexe
+    \let\lx@donext\lx@ea@mixerr
+  \else
+    \def\lx@donext{\lx@eal@top{#1}}%
+  \fi\fi\fi
+  \lx@donext}
+%% \lx@item@judged{} and not \lx@mainitem: the head item takes no text, so
+%% there is nothing to scan for a judgment, and \lx@scanjudge would peek at
+%% \lx@subopen@i instead of at the input.  The empty argument sets an empty
+%% mark, which \lx@emitjudge skips.
+\def\lx@eal@top#1{%
+  \lx@example@begin
+  \lx@inlangscitrue
+  \edef\lx@ea@openline{\the\inputlineno}%
+  \lx@guesslabel
+  \lx@mainlist
+  #1%
+  \lx@item@judged{}%
+  \lx@subopen@i}
+\def\lx@zl{\lx@z\lx@z}
+
 %% Errors.  Each names the syntax the example is actually in, because that
 %% is the thing the writer has to know and the one thing the line they are
 %% looking at does not say.
@@ -2071,6 +2177,13 @@
     An exe batch ends at \string\end{exe}\iflx@lazy, and an example opened
     with \string\ex.\space ends at a blank line or early at \string\z.
     (with the period)\fi.}}
+\def\lx@eal@nesterr{%
+  \PackageError{linguexx}{\string\eal\space inside an example}%
+   {\string\eal\space opens a top-level example whose body is a
+    sub-list; it has no nested meaning, in this package or in
+    langsci-gb4e.\MessageBreak
+    Write \string\ea\space here, and open the level below it with a
+    second \string\ea.}}
 
 %% Installing the names.  This claim is louder than \lx@claim@shorthand,
 %% which backs off silently when a name is taken: \z. and \eg are
@@ -2136,124 +2249,106 @@
     \lx@bodyend
   \fi}
 
-%%%% ---- the documented rest of langsci-gb4e ----------------------------
-%% What [langsci] provides beyond \ea ... \z is what langsci-gb4e's own two
-%% documents describe, and nothing else.  Those are the LangSci author
-%% guidelines (LangSci-guidelines.pdf, section 5.7.1 and the showcases) and
-%% the package manual (langsci-gb4e.pdf).  Counted across both:
+%%%% ---- the rest of langsci-gb4e -----------------------------------------
+%% Everything the package offers beyond \ea ... \z: its list and item
+%% variants, \jambox, the box and reference helpers, and the width,
+%% separation and font knobs.  All of it under [langsci] and nowhere else.
 %%
-%%   recommended by the guidelines  \ea \z \ex, \gll \glt, \jambox
-%%   manual only                    \glll ... \gllllllll (8.2), exe/xlist (6),
-%%                                  \exi \exr \exp \sn \xref \xxref (7),
-%%                                  \exewidth \judgewidth \zlast
-%%                                  \eanoraggedright (7.6), the eight fonts
-%%                                  and \nogltOffset/\resetgltOffset (11)
-%%   in neither                     everything under \lx@ls@retire below
+%% The criterion is WHAT WORKS UPSTREAM, not what upstream's two documents
+%% describe.  Those documents -- the LangSci author guidelines and the
+%% langsci-gb4e manual -- cover a fraction of the package: \eal ... \zl,
+%% the sub-list numbering variants, \attop, \xbox, the four package options
+%% and a dozen more names appear in neither, and are used in real LangSci
+%% sources all the same.  A document being ported does not care which half
+%% of the package its author reached for, so a name that has a working
+%% behaviour in a released langsci-gb4e has one here.  (v1.2 briefly took
+%% the other line and provided the documented surface alone; a paper whose
+%% examples are written with \eal ... \zl is what settled it.)
 %%
-%% The package ALSO defines a further two dozen commands that neither
-%% document mentions -- the six xlist numbering variants, qlist, \eal, \eas,
-%% \attop, \xbox, four package options and more.  They are not provided
-%% here.  Two of them, qlist and xlistabr, have moreover never worked in any
-%% released version, so implementing them would not be compatibility at all:
-%% it would be inventing a meaning for a name with no working precedent,
-%% which is the one thing this package does not do by default.
+%% The limit of that rule is a name with NO working behaviour to copy.
+%% xlistabr labels every item "(xnumii." upstream and qlist raises "No
+%% counter 'xnum' defined": there is nothing there to be compatible with,
+%% and providing them would mean inventing a meaning for a name whose
+%% precedent is a bug.  Those two are refused BY NAME, through
+%% \lx@ls@retire below, so a document using one stops at the line that has
+%% to change rather than at "Undefined control sequence".
 %%
-%% They are not silently absent either.  Each is defined to raise an error
-%% naming what to write instead, so a document being ported is stopped at
-%% the line that needs changing rather than at "Undefined control sequence".
-
-%% Names are TAKEN, with a warning, exactly as \ea and \z are: the option was
-%% asked for this syntax, and a document that silently lost \jambox would
-%% lose it everywhere at once.  \@ifundefined makes an undefined name \relax
-%% while testing it, so everything installed this way is defined with \def
-%% rather than \newcommand.
+%% Names are TAKEN, with a warning, exactly as \ea and \z are: the option
+%% was asked for this syntax, and a document that silently lost \jambox
+%% would lose it everywhere at once.  \@ifundefined makes an undefined
+%% name \relax while testing it, so everything installed this way is
+%% defined with \def rather than \newcommand.
 \def\lx@ls@take#1{%
   \@ifundefined{#1}{}%
     {\PackageWarning{linguexx}{\@backslashchar#1\space was already
        defined; [langsci] has taken the name over}}}
 
-%% A name langsci-gb4e has and neither of its documents describes.
+%% A name langsci-gb4e has and has never made work.  Defined, and defined
+%% to complain: an undefined name says nothing about where it came from.
 \def\lx@ls@retire#1#2{%
   \expandafter\def\csname #1\endcsname{%
-    \PackageError{linguexx}{\@backslashchar#1\space is not part of the
-      documented langsci-gb4e interface}%
-     {[langsci] provides what the LangSci author guidelines and the
-      langsci-gb4e manual document, and \@backslashchar#1\space is in
-      neither.\MessageBreak #2}}}
+    \PackageError{linguexx}{\@backslashchar#1\space has never worked in
+      langsci-gb4e}%
+     {[langsci] provides what langsci-gb4e does, and
+      \@backslashchar#1\space is a name it defines without ever having
+      given it a working behaviour.\MessageBreak #2}}}
 %% The same for an environment.  \begin has already opened the group by the
 %% time the error fires, so the \end half has to exist and do nothing.
 \def\lx@ls@retire@env#1#2{%
   \lx@ls@retire{#1}{#2}%
   \expandafter\let\csname end#1\endcsname\relax}
 
-\lx@ls@retire{eal}{Write \string\ea, then a nested \string\ea\space for the
-  list under it.}
-\lx@ls@retire{zl}{Close each level with its own \string\z.}
-\lx@ls@retire{eas}{Write \string\ea\space ... \string\z. To keep an example
-  from breaking across a page, the guidelines use \string\protectedex{...},
-  which is a command of the LangSci class rather than of this package.}
-\lx@ls@retire{zs}{Close the example with \string\z.}
-\lx@ls@retire{zllast}{Write \string\zlast\space at the level that needs it.}
-\lx@ls@retire{eafirst}{Write \string\ea. The vertical space above an example
-  is \string\Extopsep.}
-\lx@ls@retire{ealnoraggedright}{Write \string\eanoraggedright.}
-\lx@ls@retire{examplesroman}{Set the object tier with
-  \string\GlossTierFont{1}{\string\textup}.}
-\lx@ls@retire{examplesitalics}{Set the object tier with
-  \string\GlossTierFont{1}{\string\textit}.}
-\lx@ls@retire{attop}{This package has no counterpart; \string\vtop\space and
-  \string\raisebox\space are what it was built from.}
-\lx@ls@retire{atcenter}{This package has no counterpart, and upstream's is
-  written in math mode, which would put a Formula element in the structure
-  tree. \string\raisebox\space does the same job in text.}
-\lx@ls@retire{xbox}{Use \string\parbox\space directly.}
-\lx@ls@retire{nobreakbox}{Use \string\parbox{\string\linewidth}{...}, or the
-  guidelines' \string\protectedex{...} to keep an example whole.}
-\lx@ls@retire{gblabelsep}{Set \string\Exlabelsep.}
-\lx@ls@retire{subexsep}{This package uses one \string\Exlabelsep\space for
-  every level; set that.}
-\lx@ls@retire{singlegloss}{This package does not change
-  \string\baselinestretch\space inside a gloss.}
-\lx@ls@retire{nosinglegloss}{This package does not change
-  \string\baselinestretch\space inside a gloss.}
-\lx@ls@retire{twodigitexamples}{Write \string\exewidth{(23)}.}
-\lx@ls@retire{threedigitexamples}{Write \string\exewidth{(234)}.}
-\lx@ls@retire{fourdigitexamples}{Write \string\exewidth{(2345)}.}
-%% The six numbering variants and qlist.  xlistabr and qlist additionally
-%% have never worked upstream -- xlistabr labels every item "(xnumii." and
-%% qlist raises "No counter 'xnum' defined" -- so there is no behaviour to
-%% be compatible with.
-\lx@ls@retire@env{xlista}{Use xlist, whose first level is already lettered.}
-\lx@ls@retire@env{xlistabr}{Use xlist. Upstream's xlistabr labels every item
-  "(xnumii." and has never produced the parenthesised letters its name
-  promises, so there is no behaviour here to reproduce.}
-\lx@ls@retire@env{xlisti}{Use xlist, whose second level is already roman.}
-\lx@ls@retire@env{xlistn}{Use xlist; this package's sub-level numbering is
-  set by \string\SubExLBr\space and \string\Exalph.}
-\lx@ls@retire@env{xlistA}{Use xlist; this package's sub-level numbering is
-  set by \string\SubExLBr\space and \string\Exalph.}
-\lx@ls@retire@env{xlistI}{Use xlist; this package's sub-level numbering is
-  set by \string\SubSubExLBr\space and \string\Exroman.}
-\lx@ls@retire@env{qlist}{Use an ordinary LaTeX list. Upstream's qlist names a
-  counter no file in the package defines, so it has never worked in any
-  released version.}
 %% ---- widths -------------------------------------------------------------
-%% \exewidth takes a SAMPLE, as the manual's section 7.6 does
-%% ("\exewidth{(222)} to set the width reserved for identifiers to
-%% three-digits"): the label box is made as wide as the text given.  It sets
-%% this package's own \Exlabelwidth, so it and \setlength{\Exlabelwidth}{...}
-%% are two spellings of one thing.
-%%
-%% Upstream also widens the box by itself once the numbers pass 98 and 998.
-%% That is not provided: its only interface is the [manualexewidth] option,
-%% which neither document mentions, and the manual's own instruction for a
-%% document with three-digit numbers is to call \exewidth.
+%% \exewidth takes a SAMPLE, as upstream does: the label box is made as
+%% wide as the text given, so \exewidth{(23)} reserves room for a two-digit
+%% number.  It sets this package's own \Exlabelwidth, so it and
+%% \setlength{\Exlabelwidth}{...} are two spellings of one thing.
 \lx@ls@take{exewidth}\def\exewidth#1{\settowidth{\Exlabelwidth}{#1}}
-%% \judgewidth is documented (manual 7.6) and has no counterpart here: it
-%% sets the width of a reserved judgment column, and a judgment in this
-%% package hangs into the label gutter and reserves nothing -- which is
-%% exactly why marked and unmarked examples align.  It says so rather than
-%% pretending.
+\lx@ls@take{twodigitexamples}\def\twodigitexamples{\exewidth{(23)}}
+\lx@ls@take{threedigitexamples}\def\threedigitexamples{\exewidth{(234)}}
+\lx@ls@take{fourdigitexamples}\def\fourdigitexamples{\exewidth{(2345)}}
+%% autoexewidth, on unless [manualexewidth] was given: widen the box once
+%% the numbers reach three and four digits, on upstream's thresholds.  It
+%% earns its keep even though this package sizes labels better than gb4e
+%% did, because the DEFAULT mode uses a fixed \Exlabelwidth -- a document
+%% with more than 98 examples would otherwise have its own text pushed
+%% right as the number outgrew the box.  It only ever widens, and only at a
+%% main-level list, which is where a number is printed.
+%% WIDENS ONLY, which \exewidth on its own does not: the default
+%% \Exlabelwidth is already wider than "(235)", so setting the sample
+%% outright made a three-digit document's text jump LEFT of a two-digit
+%% one's -- the opposite of the point, and measured rather than reasoned
+%% about (WBIG landed at 102.08 against WSMALL's 105.58).  Upstream cannot
+%% hit this because its own default box is narrower.
+\iflx@manualexewidth\else
+  \newlength\lx@autowd
+  \def\lx@autowiden#1{%
+    \settowidth{\lx@autowd}{#1}%
+    \ifdim\lx@autowd>\Exlabelwidth \setlength{\Exlabelwidth}{\lx@autowd}\fi}
+  \def\lx@autoexewidth{%
+    \ifnum\value{ExNo}>998\relax
+      \lx@autowiden{(1235)}%
+    \else
+      \ifnum\value{ExNo}>98\relax \lx@autowiden{(235)}\fi
+    \fi}
+  \let\lx@orig@mainlist\lx@mainlist
+  \def\lx@mainlist{\lx@autoexewidth\lx@orig@mainlist}
+\fi
+
+%% ---- separations --------------------------------------------------------
+\lx@ls@take{gblabelsep}\def\gblabelsep#1{\setlength{\Exlabelsep}{#1}}
+%% \subexsep and \judgewidth have no counterpart here, and say so rather
+%% than approximate.  \subexsep sets a label separation for the sub-levels
+%% alone; this package has ONE \Exlabelsep for all three levels (see the
+%% layout section), and quietly aliasing the two would leave \gblabelsep
+%% and \subexsep fighting over one length.  \judgewidth sets the width of a
+%% reserved judgment column; here a judgment HANGS into the label gutter
+%% and reserves nothing, which is precisely why marked and unmarked
+%% examples align -- there is no width to set.
+\lx@ls@take{subexsep}\def\subexsep#1{%
+  \PackageWarning{linguexx}{\string\subexsep\space has no effect: this
+    package uses one \string\Exlabelsep\space for every level.\MessageBreak
+    Set that instead}}
 \lx@ls@take{judgewidth}\def\judgewidth#1{%
   \PackageWarning{linguexx}{\string\judgewidth\space has no effect: a
     judgment here hangs into the label gutter rather than occupying a
@@ -2262,9 +2357,10 @@
     [phantomalign]}}
 
 %% ---- fonts --------------------------------------------------------------
-%% The eight names of the manual's section 11, wired to the hooks the list
-%% and the gloss engine expose.  The \fn... four apply inside a footnote,
-%% where upstream switches them by hand and \if@noftnote already knows.
+%% Upstream's names -- the eight of the manual's section 11 -- wired to the
+%% hooks the list and the gloss engine expose.  The \fn... variants apply
+%% inside a footnote, where upstream switches them by hand and \if@noftnote
+%% already knows.
 %%
 %% The manual writes them with an argument -- "\exfont{\itshape}" -- and
 %% upstream's are declarations taking none, so that spelling silently does
@@ -2280,13 +2376,26 @@
 \lx@ls@take{fnexnrfont}\def\fnexnrfont{\fnexfont}
 \def\lx@bodyfont{\if@noftnote\exfont\else\fnexfont\fi}
 \def\lx@labelfont{\if@noftnote\exnrfont\else\fnexnrfont\fi}
+%% \singlegloss (upstream's default) sets the gloss single-spaced whatever
+%% \baselinestretch the document runs at.  Where the document never changes
+%% \baselinestretch the two settings are indistinguishable, which is what
+%% makes following upstream's default safe here.
+\lx@ls@take{singlegloss}\def\singlegloss{\lx@singleglosstrue}
+\lx@ls@take{nosinglegloss}\def\nosinglegloss{\lx@singleglossfalse}
+%% Upstream's \examplesroman / \examplesitalics also try to set \exfont,
+%% and cannot: \exfont takes no argument, so "\exfont{\itshape}" there
+%% calls it and then typesets a group that does nothing.  What they do do is
+%% set the OBJECT tier, and that is what these do -- through
+%% \GlossTierFont, which is this package's name for it.
+\lx@ls@take{examplesroman}\def\examplesroman{\GlossTierFont{1}{\textup}}
+\lx@ls@take{examplesitalics}\def\examplesitalics{\GlossTierFont{1}{\textit}}
 
 %% ---- item variants -------------------------------------------------------
-%% Manual section 7.  \exi{label} gives an item the label it is handed,
-%% stepping no counter -- and so recording no anchor, which is what
-%% \lx@custom@item@here is for.  Like \ex it takes either a bracket judgment
-%% with a braced body, or plain text after it.  \exr and \exp label an item
-%% with another example's number, \sn with nothing at all.
+%% Manual section 7.  \exi{label} gives an item the label it is handed, stepping no counter --
+%% and so recording no anchor, which is what \lx@custom@item@here is for.
+%% Like \ex it takes either a bracket judgment with a braced body, or plain
+%% text after it.  \exr and \exp label an item with another example's
+%% number, \sn with nothing at all.
 \def\lx@exi#1{%
   \iflx@inexe
     \def\lx@donext{\lx@exi@go{#1}}%
@@ -2311,10 +2420,12 @@
     \string\ea.\MessageBreak
     For a custom label on an example of its own, write \string\ex.[label]
     instead.}}
-%% \ref prints the parentheses itself here (they are part of \theExNo), so
-%% \exr hands its label straight over; \exp has to take them apart again to
-%% put the prime INSIDE them, which is what \pref is for.
-\lx@ls@take{exr}\def\exr#1{\lx@exi{\ref{#1}}}
+%% Both label an item with a PARENTHESISED number, upstream's "(\ref{#1})"
+%% and "(\ref{#1}$'$)", so both spell the delimiters out around the bare
+%% number \pref gives -- and print the same label under either reference
+%% flavour (see \lx@refs@bare).  \exp puts the prime INSIDE the
+%% parentheses, which is the whole reason \pref exists.
+\lx@ls@take{exr}\def\exr#1{\lx@exi{\theExLBr\pref{#1}\theExRBr}}
 \lx@ls@take{sn}\def\sn{\lx@exi{}}
 %% \exp is the one name that cannot simply be taken: it is the LaTeX
 %% kernel's math operator, so a paper writing $\exp(x)$ and one writing
@@ -2360,62 +2471,180 @@
 %% The choice follows the package's rule -- stay out of math -- rather than
 %% a measurement, because "the tagger does not currently emit a Formula for
 %% \ensuremath" is a property of this TeX Live and not a promise.
+%% \ExPrimeRaise is separate so the height can be tuned without repeating
+%% the box.
 \newcommand\ExPrimeRaise{0.4ex}
 \lx@ls@take{ExPrimeMark}%
 \def\ExPrimeMark{\raisebox{\ExPrimeRaise}{\textquotesingle}}
 
+%% ---- sub-level numbering variants ---------------------------------------
+%% One environment per numbering, as upstream has them.  Each sets the
+%% printed label AND the /ListNumbering class -- see \lx@sublabel for why
+%% those two must never be set apart -- and sets them inside the
+%% environment's own group, so a variant list cannot change the numbering of
+%% the next one.
+%%
+%% \lx@xlist@style takes the numbering command, the attribute class and the
+%% two delimiters, and sets both levels: which of the two is used depends on
+%% the depth the environment opens at, and only the one used has any effect.
+\def\lx@xlist@style#1#2#3#4{%
+  \def\lx@sublabel{#3#1{SubExNo}#4}%
+  \def\lx@subsublabel{#3#1{SubSubExNo}#4}%
+  \def\lx@sub@olclass{#2}\def\lx@subsub@olclass{#2}}
+\def\lx@xlist@env#1#2#3#4{%
+  \lx@nomix@dot{a numbering variant of \string\begin{xlist}}%
+  \lx@xlist@style{#1}{#2}{#3}{#4}%
+  \lx@subenv@begin \lx@inexetrue}
+\NewDocumentEnvironment{xlista}{}
+  {\lx@xlist@env{\Exalph}{lxOLalpha}{}{.}}{\lx@glt@langend \lx@closelist}
+\NewDocumentEnvironment{xlisti}{}
+  {\lx@xlist@env{\Exroman}{lxOLroman}{}{.}}{\lx@glt@langend \lx@closelist}
+\NewDocumentEnvironment{xlistn}{}
+  {\lx@xlist@env{\Exarabic}{lxOLdecimal}{}{.}}{\lx@glt@langend \lx@closelist}
+\NewDocumentEnvironment{xlistA}{}
+  {\lx@xlist@env{\Alph}{lxOLupperalpha}{}{.}}{\lx@glt@langend \lx@closelist}
+\NewDocumentEnvironment{xlistI}{}
+  {\lx@xlist@env{\Roman}{lxOLupperroman}{}{.}}{\lx@glt@langend \lx@closelist}
+%% The two that are refused instead, for the reason given at the head of
+%% this section: neither has ever produced what its name says, so there is
+%% no upstream behaviour to be compatible with.  Reproducing the defect
+%% would help nobody, and picking a meaning for the name would be new
+%% syntax wearing an old one's clothes -- which is the thing this package
+%% does not do by default.  If a document turns up that wants either, the
+%% shape both would take is in the history of this file (v1.2, before this
+%% section was rewritten): xlistabr as \lx@xlist@env{\Exalph}{lxOLalpha}
+%% with parenthesis delimiters, qlist as a free-standing lettered list with
+%% symmetric margins built through \lx@openlist.
+\lx@ls@retire@env{xlistabr}{Use xlist. Upstream's xlistabr labels every item
+  "(xnumii." -- \string\@xlist\space \string\let's its first argument to a
+  single token and xlistabr hands it four -- so it has never produced the
+  parenthesised letters its name promises.}
+\lx@ls@retire@env{qlist}{Use an ordinary LaTeX list. Upstream's qlist names
+  the counter xnum, which no file in langsci-gb4e defines, so it raises
+  "No counter 'xnum' defined" and labels every item ".".}
+
 %% ---- \jambox ------------------------------------------------------------
 %% Alexis Dimitriadis's jambox, as langsci-gb4e carries it and as the author
-%% guidelines use it (their section 12.3): line material up a fixed distance
-%% from the right margin, overflowing left or wrapping to the next line when
-%% it will not fit.  \exsource is this package's own version of the same idea
-%% and aligns flush right; \jambox is the more general one, with the gutter
-%% as a parameter.
+%% guidelines use it (their section 12.3): line material up
+%% a fixed distance from the right margin, overflowing left or wrapping to
+%% the next line when it will not fit.  \exsource is this package's own
+%% version of the same idea and aligns flush right; \jambox is the more
+%% general one, with the gutter as a parameter.
 %%
-%% Upstream's note that it does not work in ragged-right mode holds here too,
-%% and matters more, because \ExRaggedRight can turn ragged setting on: the
-%% algorithm finishes the line with \hfill, which has nothing to push against
-%% once \rightskip is already infinitely stretchable.
-\@ifundefined{jamwidth}{\newdimen\jamwidth}{}\jamwidth=2in
-\newsavebox\lx@jambox
-\lx@ls@take{jambox}%
-\def\jambox{\@ifnextchar[{\lx@jambox@opt}%
-   {\@ifnextchar*{\lx@jambox@set}{\lx@jambox@opt[\the\jamwidth]}}}
-\def\lx@jambox@set*#1{\sbox\lx@jambox{#1}\jamwidth=\wd\lx@jambox
-  \lx@jambox@opt[\the\jamwidth]{\usebox\lx@jambox}}
-\def\lx@jambox@opt[#1]#2{{\sbox\lx@jambox{#2}%
-  \ifdim\wd\lx@jambox<#1\relax
-    \@tempdima=#1\relax \advance\@tempdima by-\wd\lx@jambox
-    \unskip\nobreak\hfill\penalty250
-    \hskip 1.2em minus 1.2em
-    \hbox{}\nobreak\hfill\usebox\lx@jambox\nobreak
-    \hskip\@tempdima minus \@tempdima\hbox{}%
-  \else
-    \hfill\penalty50\hbox{}\nobreak\hfill\usebox\lx@jambox
-  \fi
-  \parfillskip=0pt \finalhyphendemerits=0 \par}}
+%% Upstream's note that it does not work in ragged-right mode holds here
+%% too, and matters more, because \ExRaggedRight can turn ragged setting on:
+%% the algorithm finishes the line with \hfill, which has nothing to push
+%% against once \rightskip is already infinitely stretchable.
+\iflx@nojambox\else
+  \@ifundefined{jamwidth}{\newdimen\jamwidth}{}\jamwidth=2in
+  \newsavebox\lx@jambox
+  \lx@ls@take{jambox}%
+  \def\jambox{\@ifnextchar[{\lx@jambox@opt}%
+     {\@ifnextchar*{\lx@jambox@set}{\lx@jambox@opt[\the\jamwidth]}}}
+  \def\lx@jambox@set*#1{\sbox\lx@jambox{#1}\jamwidth=\wd\lx@jambox
+    \lx@jambox@opt[\the\jamwidth]{\usebox\lx@jambox}}
+  \def\lx@jambox@opt[#1]#2{{\sbox\lx@jambox{#2}%
+    \ifdim\wd\lx@jambox<#1\relax
+      \@tempdima=#1\relax \advance\@tempdima by-\wd\lx@jambox
+      \unskip\nobreak\hfill\penalty250
+      \hskip 1.2em minus 1.2em
+      \hbox{}\nobreak\hfill\usebox\lx@jambox\nobreak
+      \hskip\@tempdima minus \@tempdima\hbox{}%
+    \else
+      \hfill\penalty50\hbox{}\nobreak\hfill\usebox\lx@jambox
+    \fi
+    \parfillskip=0pt \finalhyphendemerits=0 \par}}
+\fi
 
-%% ---- references ----------------------------------------------------------
-%% Manual section 7.4.  \ref prints its own parentheses here, so \xref is
-%% \ref; \xxref puts ONE pair around the range -- upstream's "(2--3)", not
-%% the "(2)--(3)" that this package's own \Refrange gives.  The dash is
-%% \rangedash, so a document that has set that gets it here too.
-\lx@ls@take{xref}\def\xref#1{\ref{#1}}
+%% ---- boxes and references ------------------------------------------------
+\lx@ls@take{attop}\def\attop#1{\leavevmode\vtop{\strut\vskip-\baselineskip\vbox{#1}}}
+%% \atcenter is upstream's $\vcenter{...}$ written in text mode: a box of
+%% height h and depth d is raised by (d-h)/2 plus the height the centre is
+%% meant to sit at, so that its middle lands there rather than its baseline.
+%% Math mode is what this package does not enter -- a Formula element here
+%% would cost the document its PDF/UA-2 conformance -- and that is the one
+%% thing this cannot copy exactly.
+%%
+%% \vcenter centres on the MATH AXIS, and the axis is only readable as
+%% \fontdimen22\textfont2, which outside math mode is \nullfont: asking for
+%% it there raises "Font \nullfont has only 7 fontdimen parameters" and
+%% yields zero, which is a visibly wrong box and was this macro's first
+%% version.  \ExAtCenterAxis stands in for it, at the usual text-mode
+%% approximation of half the x-height.  Against a real \vcenter at 10pt,
+%% with identical content, the box sits 0.38pt lower -- measured, not
+%% estimated.  It is a command so that a document which
+%% cares can set the axis it wants.
+\newcommand\ExAtCenterAxis{.5ex}
+\newsavebox\lx@atcbox
+\lx@ls@take{atcenter}%
+\def\atcenter#1{%
+  \leavevmode
+  \sbox\lx@atcbox{\vbox{#1}}%
+  \raisebox{\dimexpr .5\dp\lx@atcbox - .5\ht\lx@atcbox
+            + \ExAtCenterAxis \relax}{\usebox\lx@atcbox}}
+\lx@ls@take{xbox}\def\xbox#1#2{\noindent\parbox[t]{#1}{#2}\noindent}
+\lx@ls@take{nobreakbox}\def\nobreakbox#1{\xbox{\linewidth}{#1}}
+%% Manual section 7.4.  \xref is upstream's "(\ref{#1})", and is written
+%% that way here -- \pref inside the delimiters -- so that it prints "(1)"
+%% under either reference flavour, including the bare one [langsci] selects
+%% (see \lx@refs@bare).  \xxref puts ONE pair around the range --
+%% upstream's "(2--3)", not the "(2)--(3)" that this package's own
+%% \Refrange gives.  The dash is \rangedash, so a document that has set that
+%% gets it here too.
+\lx@ls@take{xref}\def\xref#1{\theExLBr\pref{#1}\theExRBr}
 \lx@ls@take{xxref}\def\xxref#1#2{\theExLBr\pref{#1}\rangedash\pref{#2}\theExRBr}
 
-%% ---- \zlast --------------------------------------------------------------
-%% Manual section 7.6: "when you have an example which happens to be the last
-%% item in a footnote, there can be excess vertical space; use \zlast instead
-%% of \z".  Upstream spells the amount as a multiple of \baselineskip, which
-%% is its own geometry; here it is this package's \Extopsep, so that it
-%% suppresses what this package actually put there.
+%% ---- the rest of the \ea family -----------------------------------------
+%% \eas ... \zs is upstream's "example in a box": one that will not break
+%% across a page.  Upstream boxes it in a tabular, purely as a layout device;
+%% that would wrap running prose in a Table element, which is wrong for a
+%% screen reader and wrong for PDF/UA, so this one uses a minipage -- the
+%% same box, tagged as what it is.  A footnote inside one reaches the
+%% minipage-footnote numbering recorded in doc/DEFERRED-DECISIONS.md, and
+%% that is the one thing to know about it.
+\def\lx@eas{\lx@eas@do\lx@ea@rag}
+\def\lx@eas@do#1{%
+  \iflx@inlangsci
+    \let\lx@donext\lx@eas@nesterr
+  \else\iflx@inexample
+    \let\lx@donext\lx@ea@mixerr
+  \else\iflx@inexe
+    \let\lx@donext\lx@ea@mixerr
+  \else
+    \def\lx@donext{\lx@eas@top{#1}}%
+  \fi\fi\fi
+  \lx@donext}
+\def\lx@eas@top#1{%
+  \lx@example@begin
+  \lx@inlangscitrue
+  \edef\lx@ea@openline{\the\inputlineno}%
+  \lx@guesslabel
+  \lx@mainlist
+  #1%
+  \lx@item@judged{}%
+  \minipage[t]{\linewidth}}
+\def\lx@zs{\endminipage\lx@z}
+\def\lx@eas@nesterr{%
+  \PackageError{linguexx}{\string\eas\space inside an example}%
+   {\string\eas\space opens a top-level example boxed so that it cannot
+    break across a page; it has no nested meaning, in this package or in
+    langsci-gb4e.\MessageBreak
+    Write \string\ea\space here.}}
+%% \eafirst, \zlast and \zllast suppress the vertical space an example would
+%% otherwise put above or below itself -- for one that opens or closes a
+%% float, a frame or a table cell.  Upstream spells the amount as a multiple
+%% of \baselineskip, which is its own geometry; here it is this package's
+%% \Extopsep, so that they suppress what this package actually put there.
+%% \zllast is upstream's \removelastskip, which needs no translation.
+\def\lx@eafirst{\vspace{-\Extopsep}\lx@ea}
 \def\lx@zlast{\lx@z\vspace{-\Extopsep}}
+\def\lx@zllast{\lx@zl\removelastskip}
 
 %% ---- what has to wait for the glossing section --------------------------
 %% \glt, \GlossTransStyle and \lx@glossfont are defined further down this
-%% file than the \ea front-end sits, so these run at the end of the package
-%% instead of here.  Written in place they would be overwritten by the
-%% definitions they are meant to wrap -- which is how \lx@glossfont was
+%% file than the \ea front-end sits, so these four run at the end of the
+%% package instead of here.  Written in place they would be overwritten by
+%% the definitions they are meant to wrap -- which is how \lx@glossfont was
 %% found: it was silently \let to \@empty again two thousand lines later.
 \AtEndOfPackage{%
   \@ifundefined{gltoffset}{\newlength{\gltoffset}}{}%
@@ -2427,16 +2656,46 @@
   \def\glt{\par\nobreak\vskip\gltoffset\nobreak\lx@orig@glt}%
   \lx@ls@take{trans}\let\trans\glt
   \def\GlossTransStyle{\if@noftnote\transfont\else\fntransfont\fi}%
-  \def\lx@glossfont{\if@noftnote\glossfont\else\fnglossfont\fi}}
+  \def\lx@glossfont{%
+    \iflx@singlegloss \def\baselinestretch{1}\selectfont \fi
+    \if@noftnote\glossfont\else\fnglossfont\fi}}
 
-%% The documented names, and only those.  \ea \z \ex \gll \glt \jambox are
-%% what the author guidelines teach; \zlast, \eanoraggedright and \exi come
-%% from the manual.  Everything else langsci-gb4e defines is retired above.
+%% ---- [nocgloss] ----------------------------------------------------------
+%% Accepted and reported, not obeyed.  Upstream it stops the gloss macros
+%% being defined so that another package can own \gll; here the glossing is
+%% not a bundled file but the thing \exg., \altg, \GlossTierLang, \lpzg and
+%% the whole tagged word-bundle structure are built on, and switching it off
+%% would leave every one of those without an answer.  What each should then
+%% do has more than one defensible answer and no document yet asking the
+%% question -- see doc/DEFERRED-DECISIONS.md -- so nothing is decided by
+%% default here.
+\iflx@nocgloss
+  \PackageWarning{linguexx}{[nocgloss] is accepted and has no effect: this
+    package's glossing is not separable from \string\exg.,
+    \string\altg\space and the tagged gloss structure.\MessageBreak
+    If you need another package to own \string\gll, say so -- see
+    doc/DEFERRED-DECISIONS.md}
+\fi
+
+%% ---- page breaking -------------------------------------------------------
+%% [lowerpenalty] lets examples break across a page, which is what a book
+%% with long examples wants and what LangSci sets.
+\iflx@lowerpenalty
+  \def\lx@itempenalty{\@itempenalty-1000\relax}
+\fi
+
 \def\lx@langsci@install{%
   \lx@langsci@claim{ea}\lx@ea
   \lx@langsci@claim{z}\lx@z@dispatch
+  \lx@langsci@claim{eal}\lx@eal
+  \lx@langsci@claim{zl}\lx@zl
   \lx@langsci@claim{eanoraggedright}\lx@eanorag
+  \lx@langsci@claim{ealnoraggedright}\lx@ealnorag
+  \lx@langsci@claim{eas}\lx@eas
+  \lx@langsci@claim{zs}\lx@zs
+  \lx@langsci@claim{eafirst}\lx@eafirst
   \lx@langsci@claim{zlast}\lx@zlast
+  \lx@langsci@claim{zllast}\lx@zllast
   \lx@langsci@claim{exi}\lx@exi
   \lx@exp@install}
 \lx@langsci@install
@@ -4615,7 +4874,11 @@
   \fi}
 \newcommand\prefrange[2]{\pref{#1}\rangedash\lx@subletter{#2}}
 \newcommand\refrange[2]{(\prefrange{#1}{#2})}
-\newcommand\Refrange[2]{\ref{#1}\rangedash\ref{#2}}
+%% Spelt with \pref and the delimiters rather than with \ref, so that the
+%% two full references it prints are parenthesised under \ExBareRefs too:
+%% what \Refrange promises is "(2)--(3)", not "whatever \ref gives, twice".
+\newcommand\Refrange[2]{%
+  \theExLBr\pref{#1}\theExRBr\rangedash\theExLBr\pref{#2}\theExRBr}
 
 %% cleveref knows nothing about the example counters, so \cref{ex:one} comes
 %% out as "?? (1)" -- its marker for a type it has no name for.  The names

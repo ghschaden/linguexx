@@ -1,15 +1,18 @@
-%% Every command and environment [langsci] RETIRES is still defined, and
-%% raises the package error that names what to write instead.
+%% Every name langsci-gb4e defines still exists under [langsci].
 %%
-%% Refusing by name is the whole point: a document being ported stops at the
-%% line that needs changing, rather than at "Undefined control sequence" with
-%% no indication that the name was ever a langsci-gb4e one.  If a retirement
-%% were dropped, the name would simply be absent and this page would say so.
+%% Twenty-five of them are provided -- the criterion is what WORKS upstream,
+%% not what upstream's two documents describe, and the .sty records why --
+%% and the remaining two, xlistabr and qlist, are defined to complain,
+%% because neither has ever worked upstream and there is no behaviour to
+%% reproduce.  Either way the name is defined, which is what this case
+%% checks: a document being ported must never meet "Undefined control
+%% sequence" on a name langsci-gb4e has.
 %%
-%% langsci-retired.tex asserts that one of them errors; this asserts that all
-%% of them exist to error.  Both halves are needed: a retirement that was
-%% never installed leaves an undefined name, and a retirement installed as a
-%% no-op leaves a name that silently does nothing.
+%% Existence is all this case can check, and it is worth checking on its
+%% own: what the provided ones DO is asserted by langsci.tex,
+%% langsci-lists.tex, langsci-extra.tex and langsci-options.tex, and what
+%% the two refusals do by langsci-retired.tex.  A name dropped in a refactor
+%% shows up here and nowhere else.
 \input{_preamble-langsci}
 \makeatletter
 \newcommand\chk[1]{\expandafter\ifx\csname #1\endcsname\relax

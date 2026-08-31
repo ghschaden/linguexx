@@ -1,0 +1,32 @@
+%% The sub-level numbering variants of langsci-gb4e.
+%%
+%% Each of these sets two things that have to agree -- the printed label and
+%% the /ListNumbering class a screen reader announces -- and only one of them
+%% shows on the page.  This case asserts the printed half; langsci-ua.tex
+%% asserts the other half on the same constructs, because a list labelled
+%% "A." whose class says LowerRoman is well-formed PDF, passes veraPDF, and
+%% is simply false.
+%%
+%% xlistabr and qlist are NOT here: neither has ever worked upstream, so
+%% [langsci] refuses them by name instead of inventing a behaviour for them.
+%% langsci-retired.tex is where that refusal is asserted.
+\input{_preamble-langsci}
+\begin{document}
+\begin{exe}
+\ex LLHOST the host example.
+ \begin{xlist}  \ex LLDEFAULT.  \end{xlist}
+ \begin{xlista} \ex LLALPH.     \end{xlista}
+ \begin{xlisti} \ex LLROMAN.    \end{xlisti}
+ \begin{xlistn} \ex LLARABIC.   \end{xlistn}
+ \begin{xlistA} \ex LLUPALPH.   \end{xlistA}
+ \begin{xlistI} \ex LLUPROMAN.  \end{xlistI}
+\end{exe}
+
+%% A variant must not leak its numbering into the list after it: the style is
+%% set in the environment's own group and nowhere else.  A plain xlist here,
+%% after five variants, has to be lettered again.
+\begin{exe}
+\ex LLAFTER a second host.
+ \begin{xlist} \ex LLAGAIN back to the default numbering. \end{xlist}
+\end{exe}
+\end{document}

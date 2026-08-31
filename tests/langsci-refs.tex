@@ -1,0 +1,52 @@
+%% Where the parentheses live: what \ref prints under [langsci], and what
+%% does not follow it.
+%%
+%% langsci-gb4e leaves the counter bare and parenthesises the LIST LABEL,
+%% so \ref there gives "1" and an author writes "(\ref{ex:x})" or \xref;
+%% linguex puts the parentheses in \theExNo, so \ref gives "(1)".  A
+%% document ported from the first to the second prints "((1))" until the
+%% flavour follows the syntax, which is what [langsci] now makes it do.
+%%
+%% The other half of the rule is the half a one-sided fix breaks: every
+%% number this package prints ITSELF is parenthesised whatever the flavour
+%% -- the example's own label, \Next and \Last, \xref, \xxref, \exr and
+%% \Refrange -- so the same page must show bare and parenthesised numbers
+%% side by side.  A change that took the parentheses off \theExNo alone
+%% would strip the label with them and still pass a case that only looked
+%% at \ref.
+%%
+%% \ExParenRefs and \ExBareRefs ask for the other flavour by name, and are
+%% here in both directions: the second half of this case is a [langsci]
+%% document put back to linguex references and then back again.
+\input{_preamble-langsci}
+\begin{document}
+\ea\label{lr:main} LRMAIN a main example.
+\z
+
+\ea LRHOST a host.
+  \ea\label{lr:sub} LRSUBA a sub-example.
+  \ex LRSUBB another.
+    \ea\label{lr:rom} LRROMA a roman one.
+    \z
+  \z
+\z
+
+LRREF \ref{lr:main} \ref{lr:sub} \ref{lr:rom} LRREFEND
+
+LRXREF \xref{lr:main} LRXXREF \xxref{lr:main}{lr:sub} LRRANGE
+\Refrange{lr:main}{lr:sub} LRREL \Next\ \Last
+
+%% The footnote series references the same way, on its own numbering.
+LRFNHOST a host sentence.\footnote{\ea\label{lr:fn} LRFN an example in a
+  footnote.\z LRREFFN \ref{lr:fn} LRREFFNEND}
+
+\ExParenRefs
+\ea\label{lr:paren} LRPAREN under \string\ExParenRefs.
+\z
+LRREFPAREN \ref{lr:paren} LRREFPARENEND
+
+\ExBareRefs
+\ea\label{lr:bare} LRBARE back under \string\ExBareRefs.
+\z
+LRREFBARE \ref{lr:bare} LRREFBAREEND
+\end{document}

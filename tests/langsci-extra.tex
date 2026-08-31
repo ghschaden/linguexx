@@ -34,6 +34,15 @@ is.
 
 LEXREF \xref{le:host} and LEXXREF \xxref{le:host}{le:host}.
 
+%% Both boxes on one line, so that the two alignments are measured against
+%% the same baseline.  LEACBASE is a sentinel and not the word "and": the
+%% assertion needs a UNIQUE word on that line to take the baseline from.
+\ea LEATTOP \attop{\hbox{LEATA}\hbox{LEATB}} LEACBASE \atcenter{\hbox{LEACA}\hbox{LEACB}} here.
+\z
+
+\eas LEEAS an example boxed so that it cannot break across a page.
+\zs
+
 %% (A length register named in prose is read as a value, not typeset: the
 %% first version of this line said "sits \gltoffset below it" and TeX
 %% answered "Missing number, treated as zero".)

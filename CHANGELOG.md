@@ -8,7 +8,8 @@ version string.
   Science Press's fork of `gb4e`). `\ea` opens an example or, inside one, the
   next level down; `\z` closes whatever the matching `\ea` opened; the depth is
   read off the nesting instead of being spelt out. `\eal` … `\zl` is the
-  head-and-list shape, and the option brings `\gllll` through `\gllllllll`
+  head-and-list shape, `\eas` … `\zs` the one that will not break across a
+  page, and the option brings `\gllll` through `\gllllllll`
   (four to eight gloss tiers) with it. It implies `[gb4e]`, so `exe`, `xlist`
   and `\ex` come along. Manual §3.6; `tests/langsci.tex`,
   `tests/langsci-mixed.tex` and `tests/langsci-ua.tex` (veraPDF and the
@@ -78,47 +79,59 @@ version string.
   Found while building the `\ea` front-end's own exit, which had it right from
   the start; `tests/ua.tex` now carries the shape, and its header records the
   three things about it that are load-bearing.
-- New: the rest of the **documented** `langsci-gb4e` surface, under `[langsci]`.
-  What "documented" means is decided by that package's own two authorities --
-  the LangSci author guidelines (§5.7.1 and the showcases of §12) and the
-  `langsci-gb4e` manual -- and the option provides what they name and nothing
-  else: `\glll`…`\gllllllll`, `exe`/`xlist`, `\exi`, `\exr`, `\exp`, `\sn`,
+- New: the rest of the `langsci-gb4e` surface, under `[langsci]`, and the
+  criterion for it is **what works upstream** rather than what upstream's two
+  documents describe. `\eal`…`\zl`, `\eas`…`\zs`, `\zllast`, `\eafirst`,
+  `\ealnoraggedright`; the sub-list numbering variants `xlista`, `xlisti`,
+  `xlistn`, `xlistA`, `xlistI`; `\examplesroman`, `\examplesitalics`;
+  `\attop`, `\atcenter`, `\xbox`, `\nobreakbox`; `\gblabelsep`, `\subexsep`,
+  `\singlegloss`, `\nosinglegloss`, `\twodigitexamples` and its siblings;
+  `\glll`…`\gllllllll`, `exe`/`xlist`, `\exi`, `\exr`, `\exp`, `\sn`,
   `\xref`, `\xxref`, `\exewidth`, `\judgewidth`, `\zlast`,
-  `\eanoraggedright`, the eight font commands, and
-  `\nogltOffset`/`\resetgltOffset`. Manual §3.6.
+  `\eanoraggedright`, the eight font commands, `\nogltOffset`/
+  `\resetgltOffset`, and the four package options `[nojambox]`,
+  `[manualexewidth]`, `[lowerpenalty]`, `[nocgloss]`. Manual §3.6.
 
-  **The two dozen commands in neither document are refused by name.** `\eal`,
-  `\zl`, `\eas`, `\zs`, `\zllast`, `\eafirst`, `\ealnoraggedright`; the six
-  sub-list numbering variants and `qlist`; `\examplesroman` and
-  `\examplesitalics`; `\attop`, `\atcenter`, `\xbox`, `\nobreakbox`;
-  `\gblabelsep`, `\subexsep`, `\singlegloss`, `\nosinglegloss`,
-  `\twodigitexamples` and its siblings; and the four package options. Each is
-  *defined*, and defined to raise an error naming what to write instead, so a
-  document being ported stops at the line that has to change rather than at
-  "Undefined control sequence". The options warn instead of stopping, a
-  preamble not yet being typesetting.
+  This **reverses the decision taken earlier in this cycle**, which was to
+  provide the documented surface alone -- the LangSci author guidelines and
+  the `langsci-gb4e` manual -- and to refuse the two dozen names in neither.
+  The reasoning was that a smaller surface entirely backed by documentation
+  is worth more than a larger one that is half hearsay. What settled it the
+  other way was a LangSci paper whose examples are written with `\eal` …
+  `\zl`: the undocumented half of `langsci-gb4e` is in use in real sources,
+  a document being ported does not care which half of the package its author
+  reached for, and a name with a working behaviour upstream now has one here.
 
-  Two of them could not honestly have been provided at all: `xlistabr` labels
-  every item `(xnumii.` in `langsci-gb4e` and `qlist` raises "No counter 'xnum'
-  defined", so neither has ever worked in a released version. Implementing them
-  would not have been compatibility but the invention of a meaning for a name
-  with no working precedent. Upstream's automatic widening of the label box
-  past 98 and 998 examples is left out for the same kind of reason: its only
-  interface is `[manualexewidth]`, which neither document mentions, and the
-  manual's own instruction for three-digit numbers is to call `\exewidth`.
+  **Two names are still refused**, and only because there is nothing to copy.
+  `xlistabr` labels every item `(xnumii.` upstream -- its `\@xlist` binds the
+  numbering slot to a single token and `xlistabr` hands it four -- and
+  `qlist` names a counter (`xnum`) that no file in the package defines, so it
+  raises "No counter 'xnum' defined" and labels every item ".". Neither has
+  ever worked in a released version; providing them would not be
+  compatibility but the invention of a meaning for a name whose only
+  precedent is a bug. Both are *defined*, and defined to raise an error
+  saying what to write instead, so a document using one stops at the line
+  that has to change rather than at "Undefined control sequence".
 
   **Four deliberate differences from upstream** among what *is* provided.
   `\exp` keeps both meanings -- it is the LaTeX kernel's math operator as well
   as an item command, and upstream simply takes it, so a paper writing
   `\exp{ex:5}` silently loses `$\exp(x)$` and in fact stops compiling; here
-  the mode decides. `\exp`'s prime is written in text mode, upstream having it
-  in math, which would put a `Formula` element in the tree. `\judgewidth`
-  warns instead of acting: it sets the width of a reserved judgment column, and
-  a judgment here hangs into the label gutter and reserves nothing, which is
-  why marked and unmarked examples align. And the font commands are
-  declarations, as upstream's are -- the manual writes them with an argument
-  (`\exfont{\itshape}`), but its own `\exfont` takes none, so that spelling
-  does nothing there either.
+  the mode decides. `\exp`'s prime and `\atcenter` are written in text mode,
+  upstream having them in math, which would put a `Formula` element in the
+  tree. `\eas` boxes its example in a `minipage` and not in a `tabular`,
+  which would wrap running prose in a `Table` element. `\judgewidth` and
+  `\subexsep` warn instead of acting: the first sets the width of a reserved
+  judgment column, and a judgment here hangs into the label gutter and
+  reserves nothing, which is why marked and unmarked examples align; the
+  second sets a label separation for the sub-levels alone, and this package
+  has one `\Exlabelsep` for every level. `[nocgloss]` is accepted and
+  reports: there is no bundled `cgloss` here to withhold, and what each of
+  `\exg.`, `\altg`, `\GlossTierLang` and `\lpzg` should then do is in
+  `doc/DEFERRED-DECISIONS.md` rather than guessed at. And the font commands
+  are declarations, as upstream's are -- the manual writes them with an
+  argument (`\exfont{\itshape}`), but its own `\exfont` takes none, so that
+  spelling does nothing there either.
 
   Three things were found by the tests rather than by reading upstream.
   `\exp` was silently replaced under `\DocumentMetadata`, where the tagged-math
@@ -128,6 +141,31 @@ version string.
   counter changed nothing and the suite stayed green over it. And the fix for
   the `xlistabr`-shaped problem that seemed obvious -- `\let` to `\def` --
   does not work, the numbering slot being used as `\@xs<N>{counter}`.
+- New: under `[langsci]`, a plain `\ref` prints the bare number, as
+  `langsci-gb4e` does. **This changes what an existing `[langsci]` document's
+  cross-references print**: `\ref{ex:x}` gives `1` where it gave `(1)`, at
+  every level and on the footnote series (`1`, `2a`, `2b-i`, `i`).
+
+  The two ecosystems disagree about where the parentheses live. `linguex`
+  puts them in the counter format, so `\ref` gives "(1)" and prose says "as
+  in \ref{ex:x}"; `langsci-gb4e` puts them in the example's label and leaves
+  the counter bare, so `\ref` gives "1" and prose says "(\ref{ex:x})" -- or
+  `\xref{ex:x}`, which is why upstream's `\xref` is `(\ref{#1})`. Neither is
+  more correct, and a document carried from the second convention to the
+  first prints "((1))" on every cross-reference, which is what this fixes.
+  The convention therefore follows the syntax the document is written in.
+
+  Everything this package prints *itself* is parenthesised whatever the
+  convention -- the example's own label, `\Next` and its family, `\xref`,
+  `\xxref`, `\exr`, `\exp`, `\refrange` and `\Refrange` -- so only a plain
+  `\ref`, and the `\cref` that follows it, change. `\ExParenRefs` and
+  `\ExBareRefs` ask for the other convention by name, in the preamble or
+  mid-document; the manual itself is a `[langsci]` document that writes
+  `\ExParenRefs` in its preamble, which is the whole of what a paper in the
+  same position has to do. `tests/langsci-refs.tex` asserts both
+  conventions, both switches and the fact that the label keeps its
+  parentheses -- the last because the tempting one-line version of this
+  change (drop them from `\theExNo`) takes the printed number with them.
 - New: a documented API for building a syntax front-end or a geometry mode
   on this package's machinery, without touching its internals. The seam was
   already there -- the dot syntax and the `exe`/`xlist` environments are

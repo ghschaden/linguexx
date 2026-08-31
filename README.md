@@ -15,8 +15,13 @@ they share one counter, one label system and all layout parameters with the dot
 syntax: `[gb4e]` for the `exe` / `xlist` environments, and `[langsci]` for the
 `\ea` … `\z` front-end of `langsci-gb4e`. Loaded alongside `[lazy]`, either
 lets a document move over one example at a time. `[langsci]` provides what
-`langsci-gb4e`'s own two documents describe — the LangSci author guidelines and
-its manual — and refuses the rest by name, with an error saying what to write
+`langsci-gb4e` does — the criterion is what works there, not what its two
+documents describe — including `\eal` … `\zl`, the sub-list numbering
+variants, the box and font commands and its four package options. It also
+takes that package's reference convention: under `[langsci]` a plain `\ref`
+prints `1` rather than `(1)`, as `langsci-gb4e` does, and `\ExParenRefs`
+asks for the other one. The two names that have never worked upstream
+(`xlistabr`, `qlist`) are refused by name, with an error saying what to write
 instead.
 
 ## Accessibility
