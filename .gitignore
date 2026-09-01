@@ -38,6 +38,14 @@ examples/*.pdf
 tests/*.pdf
 !linguexx-doc.pdf
 
+# the linguex/linguexx timing benchmark: generated documents, their build
+# artefacts and the raw timings, none of it reproducible across machines and
+# none of it part of the package.  Everything in it regenerates from
+# benchmarks/generate.py, run.py and summarize.py, which are ignored with it
+# -- kept locally, deliberately, so the repository does not carry numbers
+# that are true of one laptop.
+benchmarks/
+
 # implementation scaffolding -- plans and work orders addressed to whoever
 # executes them.  Kept locally, not part of the distribution.  Note the
 # pattern: a plan file put in doc/ will not be picked up by "git add" until
