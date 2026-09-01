@@ -2803,6 +2803,47 @@ def a_langsci_hole(p: Page):
     return r
 
 
+def a_langsci_ellipsis(p: Page):
+    r"""An item may open with a literal ellipsis; \ex must not eat it.
+
+    \ex peeks with \@ifnextchar, which skips spaces, so "\ex ... text" and
+    "\ex. text" reach the peek identically and prose is taken for syntax.
+    langsci-gb4e's \ex never peeked, and the continuation-style example
+    this case is taken from (EISS 15, Fusco et al.) relies on that.
+
+    Three assertions for one bug, because the peek damages three things
+    and a fix confined to any one of them is not a fix:
+
+    - the dots.  The peek consumes one, so ".." is rendered where the
+      source wrote "...".
+    - the level.  What follows the eaten dot is handed to the dot syntax,
+      which opens a level of its own instead of adding an item to the
+      one \ea opened: the sub-item becomes example (2).
+    - the letters.  With the item promoted, the \ea group has a single
+      lettered member, so "b." is absent from the page entirely.
+
+    \ea, which opens a level and does not peek for a period, carries the
+    same leading ellipsis as the control: ELLIPSUBA passing while
+    ELLIPSUBB fails is the signature of this bug rather than of a
+    document that simply mis-set its dots.
+    """
+    r = []
+    got = p.labels()
+    r.append(check(got == ["(1)"],
+                   f"the \\ea example is one example; got {got}"))
+    letters = [w.text for w in p.words if w.text in ("a.", "b.")]
+    r.append(check(letters == ["a.", "b."],
+                   f"both sub-items are lettered members of it; got "
+                   f"{letters}"))
+    for tok, label in (("ELLIPSUBA", "a."), ("ELLIPSUBB", "b.")):
+        line = p.line_of(p.find(tok))
+        texts = [w.text for w in line]
+        r.append(check(texts[:2] == [label, "..."],
+                       f"{tok}: the item opens with its letter and an "
+                       f"intact ellipsis; got {texts[:2]}"))
+    return r
+
+
 def a_langsci_extra(p: Page):
     r"""The item variants, the box and reference helpers, \jambox, and the
     free translation's offset.
@@ -3737,6 +3778,7 @@ ASSERTIONS = {
     "langsci-refs": a_langsci_refs,
     "langsci-hole": a_langsci_hole,
     "langsci-extra": a_langsci_extra,
+    "langsci-ellipsis": a_langsci_ellipsis,
     "langsci-exewidth": a_langsci_exewidth,
     "langsci-options": a_langsci_options,
     "numbering": a_numbering,

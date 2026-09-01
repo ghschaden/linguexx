@@ -1,0 +1,48 @@
+%% An item whose text OPENS with a literal ellipsis.  \ex is not allowed to
+%% read that ellipsis as the dot of the dot syntax.
+%%
+%% From EISS 15 (Fusco et al.), where a continuation-style example set the
+%% context in the mother item and let each sub-item resume the sentence:
+%%
+%%     \ea Context 1 (direct): ... based on its taste...
+%%     \ea ... she doesn't consider it gluten-free.
+%%     \ex ... she doesn't believe that it's gluten-free.
+%%     \z
+%%     \z
+%%
+%% \ex peeks with \@ifnextchar, which SKIPS SPACES, so "\ex ... text" and
+%% "\ex. text" arrive at the peek as the same token stream and the first is
+%% taken for the second.  The ellipsis is prose here; nothing in the source
+%% asks for the dot syntax, and langsci-gb4e -- whose front-end this is, and
+%% whose \ex never peeked -- set the item without complaint.
+%%
+%% The damage is not confined to the item.  Under [lazy,langsci] the peek
+%% consumes one dot and hands the rest to the dot syntax inside an \ea
+%% example, so the case
+%%   - loses a dot, rendering ".." where the source wrote "...",
+%%   - raises the one-syntax-per-example error,
+%%   - promotes the sub-item to a NEW top-level example, leaving \z with no
+%%     level to close and the list open at \end{document}.
+%% Hence the label assertion: one example number, not two, is what separates
+%% a fix at the peek from one that only patches the rendering of the dots.
+%%
+%% Under [langsci] alone (the Language Science Press book setting, without
+%% [lazy]) the same peek reaches a dot-syntax branch that is not installed,
+%% and the document dies with "The dot syntax (\ex.) is not available under
+%% [gb4e]" -- one bug, two faces.
+%%
+%% \ea is not affected and is here as the control: it opens a level and
+%% never peeks for a period, so its own leading ellipsis has always been
+%% prose.  A fix that makes \ex agree with it is the whole of what is
+%% wanted.
+\input{_preamble-langsci}
+\begin{document}
+
+\ea ELLIPCTX Kim doesn't know the ingredients that went into this cake, but
+    based on its taste...
+  \ea ... ELLIPSUBA she doesn't consider it gluten-free.
+  \ex ... ELLIPSUBB she doesn't believe that it's gluten-free.
+  \z
+\z
+
+\end{document}

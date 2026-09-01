@@ -1028,7 +1028,48 @@
        write the next in the other syntax -- between examples the two mix
        freely, which is what [lazy,langsci] is for.}%
   \fi}
-\def\ex{\@ifnextchar.{\lx@ex@dot}{\lx@ex@nodot}}
+%% \ex peeks for the dot of the dot syntax, and the peek has to tell it
+%% from a period the writer meant as prose.  The continuation-style
+%% example -- a mother item sets a context and each sub-item resumes the
+%% sentence -- opens its items with a literal ellipsis, and langsci-gb4e,
+%% whose \ex never peeked, always set that as text.
+%%
+%% The two are distinguishable, but not by \@ifnextchar, which SKIPS
+%% SPACES.  TeX's own scanner has already eaten the space after the
+%% control word, so what reaches the peek is:
+%%
+%%     \ex. body        ->  . <space> b o d y      (dot syntax)
+%%     \ex ... text     ->  . . . <space> t e x t  (prose)
+%%     \ex. ...body     ->  . <space> . . . b      (dot syntax, prose body)
+%%
+%% The period that opens the dot syntax is followed by the space that
+%% separates it from the body; the first period of an ellipsis is followed
+%% by the second, with nothing in between.  So the test is what comes
+%% IMMEDIATELY after the first period -- \futurelet, which does not skip
+%% spaces, where \@ifnextchar would skip that separating space and read
+%% the third line above as prose, trading one misparse for another.
+%%
+%% \lx@ex@peek takes the first period as its delimiter and hands it back
+%% on both branches: to \lx@ex@dot, which is delimited by it in turn, and
+%% ahead of the two that remain on the text branch, so the item opens with
+%% all three.
+%%
+%% \exg. and the \a.-\f. shorthands expand to \ex. plus a control
+%% sequence, which is not a period and takes the dot branch as before.
+%% The one form this cannot resolve is \ex....body -- dot syntax whose
+%% body opens with an ellipsis and no space -- which is read as prose.
+%% It is unwritable either way, and the spaced form above is not.
+\let\lx@dotchar=.
+\def\lx@ex@peek.{\futurelet\lx@peeked\lx@ex@peek@ii}
+\def\lx@ex@peek@ii{%
+  \ifx\lx@peeked\lx@dotchar
+    \expandafter\lx@ex@peek@text
+  \else
+    \expandafter\lx@ex@peek@dot
+  \fi}
+\def\lx@ex@peek@text{\lx@ex@nodot.}
+\def\lx@ex@peek@dot{\lx@ex@dot.}
+\def\ex{\@ifnextchar.{\lx@ex@peek}{\lx@ex@nodot}}
 \iflx@lazy
   \def\lx@ex@dot.{\lx@nomix@dot{\string\ex.}\lx@collectbody}
 \else

@@ -56,6 +56,33 @@ version string.
   ends at a `\z` and at nothing else -- so it gets the treatment a stray `\a.`
   already had: the message names `\ea` and the line it stood on, and the
   example is then closed so the document finishes with that error alone.
+- Fix: an item may open with a literal ellipsis. `\ex` peeks for the period
+  that opens the dot syntax, and the peek could not tell it from a period the
+  writer meant as prose: `\ex ... she doesn't believe that it's gluten-free.`
+  was read as `\ex.` and the ellipsis eaten. Reported from EISS 15, where a
+  continuation-style example -- a mother item sets a context and each sub-item
+  resumes the sentence -- opens every item with one, and which `langsci-gb4e`,
+  whose `\ex` never peeked, had always set as text. Under `[langsci]` the
+  document did not build at all; under `[lazy,langsci]` it built, and did
+  worse: the peek ate one dot, handed the rest to the dot syntax, and promoted
+  the sub-item to a *new top-level example*, so the `\z` that should have
+  closed the group had no level to close and the list was left open at
+  `\end{document}` -- a lost dot, a renumbered example and three errors from
+  one ellipsis. The instrument was wrong rather than the branch: `\@ifnextchar`
+  skips spaces, and the space it skips is exactly what separates the two
+  cases. TeX's scanner has already eaten the space after the control word, so
+  `\ex. body` reaches the peek as `. <space> b`, `\ex ... text` as `. . .`, and
+  `\ex. ...body` -- dot syntax whose body opens with an ellipsis -- as
+  `. <space> . . .`; the test is therefore what follows the first period
+  *immediately*, which is `\futurelet` and not `\@ifnextchar`. Deciding it
+  with the latter fixes the first two and breaks the third, trading one
+  misparse for another. `\exg.` and the `\a.`-`\f.` shorthands expand to
+  `\ex.` plus a control sequence and take the dot branch as before. One form
+  stays ambiguous and is documented at the definition: `\ex....body`, with no
+  space, reads as prose -- the spaced form says the same thing and this one
+  cannot. `tests/langsci-ellipsis.tex` carries the reported example and pins
+  all three of what the peek damaged: the dots survive, both sub-items stay
+  lettered members of their group, and the group is one example and not two.
 - Fix: an example whose last line is full is no longer followed by an empty
   line. With `hyperref` loaded, an example's destination is hung off
   `\refstepcounter`, and in horizontal mode that is a zero-width box added to
