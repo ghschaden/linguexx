@@ -556,6 +556,18 @@ version string.
   after a control sequence, and `\lpzgcheck` warned about a key the author
   cannot find in the source. The label is purified before it is parsed;
   printing is unaffected.
+- Fix: the brace's tip. A cusp has two tangents and the outline was
+  offset along one of them, so the two halves of the brace met in a pinch
+  with a flat wedge hanging off it -- invisible at reading size,
+  unmistakable at thirty times it. The point is now where the two outer
+  edges actually meet, and the notch inside it where the two inner edges
+  cross; the inner curves END at that crossing rather than running past it
+  and doubling back, which is what left a white star sitting in the point
+  on the first attempt at this. Both are clamped, and to different
+  amounts, because Computer Modern's tip is *blunt* -- cut off with a
+  small flat -- while its notch is a clean deep V: one pen-half out, two
+  in. The clamp also keeps a short brace's tip from running away, the
+  corner length being a quarter of the span.
 - Two brace spacings retuned for the weight the brace now has, both of
   them defaults that were measured against a hairline and do not survive
   it. `\AltBraceOuterSep` (the gap between a brace and the words around

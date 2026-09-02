@@ -190,6 +190,12 @@
 %%          object line's first word ("[" is one of the openers
 %%          \GlossPhantomChars lists), which a space-skipping
 %%          \@ifnextchar could not tell from a label.
+%%          Fix: the brace's tip, where the two halves met in a pinch
+%%          with a wedge hanging off it -- a cusp has two tangents and
+%%          the outline was offset along one.  The point is the
+%%          intersection of the outer edges, the notch that of the
+%%          inner ones, clamped to one and two pen-halves so the tip
+%%          is blunt like Computer Modern's rather than a needle.
 %%          \AltBraceOuterSep 0.7em -> 0.35em and \AltJdgTuck
 %%          0.45em -> 0.2em, both tuned to the hairline the brace
 %%          used to be: the outer gap held the stack at arm's length
@@ -4743,6 +4749,8 @@
 \fp_new:N  \l__lxp_brace_na_fp    % terminal normal, across it
 \fp_new:N  \l__lxp_brace_qt_fp    % tip normal, along
 \fp_new:N  \l__lxp_brace_qa_fp    % tip normal, across
+\fp_new:N  \l__lxp_brace_tip_fp   % how far the point reaches past the cusp
+\fp_new:N  \l__lxp_brace_notch_fp % ... and how deep the notch cuts inside it
 %% one point of the outline: #1 along the brace from its foot, #2 across
 %% it, away from the stack.  Each argument is used ONCE -- they arrive as
 %% expressions, and a second mention would evaluate the expression twice.
@@ -4800,6 +4808,33 @@
       { -0.3 * \l__lxp_brace_amp_fp / \l_tmpa_fp }
     \fp_set:Nn \l__lxp_brace_qa_fp
       { 0.15 * \l__lxp_brace_c_fp / \l_tmpa_fp }
+    %% How far the point of the tip reaches past the skeleton's own cusp.
+    %% A cusp has two tangents, not one, so the outline cannot simply be
+    %% offset there: the two half-braces' outer edges are parallel to
+    %% their own branches, and where they MEET is the point.  On the
+    %% symmetry axis that intersection sits hp / qa beyond the cusp (qa is
+    %% the tangent's component along the brace, so a sharper cusp reaches
+    %% further), and the inner edges meet the same distance inside it.
+    %%
+    %% Both are clamped, and by different amounts, because a full miter is
+    %% not what a brace has.  Computer Modern's tip is BLUNT -- the point
+    %% is cut off with a small flat -- while its notch is a clean deep V,
+    %% so the outer clamp is one pen-half and the inner two; taken to the
+    %% full intersection the tip comes out as a needle that no typeface
+    %% draws.  The clamp earns its keep on short braces as well, and this
+    %% is the reason PostScript clamps a miter too: the corner length is a
+    %% quarter of the span, so on a two-line stack the cusp closes up,
+    %% hp/qa runs away, and the point would reach 3pt past the brace.
+    \fp_set:Nn \l__lxp_brace_tip_fp
+      {
+        min ( \l__lxp_brace_hp_fp / \l__lxp_brace_qa_fp ,
+              1.0 * \l__lxp_brace_hp_fp )
+      }
+    \fp_set:Nn \l__lxp_brace_notch_fp
+      {
+        min ( \l__lxp_brace_hp_fp / \l__lxp_brace_qa_fp ,
+              2.0 * \l__lxp_brace_hp_fp )
+      }
     \str_if_eq:nnTF {#1} { L }
       {
         \fp_set:Nn \l__lxp_brace_x_fp
@@ -4833,6 +4868,16 @@
       { 0.7 * \l__lxp_brace_amp_fp
         + \l__lxp_brace_hp_fp * \l__lxp_brace_qa_fp }
       { \l__lxp_brace_mid_fp + \l__lxp_brace_hp_fp * \l__lxp_brace_qt_fp }
+      { \l__lxp_brace_amp_fp + \l__lxp_brace_hp_fp * \l__lxp_brace_qa_fp }
+    %% the point itself, and the same offset taken on the OTHER branch:
+    %% one point served both until v1.2, and the two halves then met in a
+    %% pinch with a flat wedge hanging off it -- invisible at reading size
+    %% and unmistakable at thirty times it.
+    \__lxp_brace_line:nn
+      { \l__lxp_brace_mid_fp }
+      { \l__lxp_brace_amp_fp + \l__lxp_brace_tip_fp }
+    \__lxp_brace_line:nn
+      { \l__lxp_brace_mid_fp - \l__lxp_brace_hp_fp * \l__lxp_brace_qt_fp }
       { \l__lxp_brace_amp_fp + \l__lxp_brace_hp_fp * \l__lxp_brace_qa_fp }
     \__lxp_brace_curve:nnnnnn
       { \l__lxp_brace_mid_fp + 0.15 * \l__lxp_brace_c_fp
@@ -4874,8 +4919,15 @@
         + \l__lxp_brace_hp_fp * \l__lxp_brace_qt_fp }
       { 0.7 * \l__lxp_brace_amp_fp
         - \l__lxp_brace_hp_fp * \l__lxp_brace_qa_fp }
-      { \l__lxp_brace_mid_fp - \l__lxp_brace_hp_fp * \l__lxp_brace_qt_fp }
-      { \l__lxp_brace_amp_fp - \l__lxp_brace_hp_fp * \l__lxp_brace_qa_fp }
+      { \l__lxp_brace_mid_fp }
+      { \l__lxp_brace_amp_fp - \l__lxp_brace_notch_fp }
+    %% ... and the notch on the inside is that same intersection taken the
+    %% other way, but it REPLACES the two offset ends rather than sitting
+    %% between them.  Inside a cusp the two edges cross over each other, so
+    %% a path through both ends and the crossing doubles back: the fill
+    %% rule counts the little triangle twice with opposite signs and leaves
+    %% a white star sitting in the point.  The curves are ended at the
+    %% crossing instead, which is where the ink really stops.
     \__lxp_brace_curve:nnnnnn
       { \l__lxp_brace_mid_fp - 0.15 * \l__lxp_brace_c_fp
         - \l__lxp_brace_hp_fp * \l__lxp_brace_qt_fp }
