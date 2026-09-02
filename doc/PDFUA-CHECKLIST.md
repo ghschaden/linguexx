@@ -59,6 +59,11 @@ By linguexx (objectives 1-6), verified with `pdfinfo -struct-text`:
 - [x] Gloss columns are grouped as `Span`s in word-by-word reading order.
 - [x] A gloss tier's language is recorded (`/Lang`) via `\GlossTierLang`.
 - [x] Leipzig abbreviations carry their expansion (`/E`) via `\lpzg`.
+- [x] An abbreviation whose small caps had to be *made* -- a modified
+      label in a font with no bold small caps, where the glyphs on the page
+      are capitals -- carries an `/ActualText` of the letters as written,
+      so the text layer still says `m.pl`. Checked by `tests/ua.tex`,
+      which reads it back on every run.
 
 
 ## What you must do

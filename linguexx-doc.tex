@@ -1003,7 +1003,10 @@ records the spoken expansion of the label (``third person singular past'')
 for a screen reader; that behaviour, and the list of abbreviations it
 knows, are described in section~\ref{sec:leipzigtag}. \cs{lpzg} is
 self-contained and does not require, or interact with, the \pkg{leipzig}
-package.
+package. It may also stand in a section title: \pkg{hyperref} is told what
+one means in a PDF string, so the bookmark carries the label as written
+(\texttt{3sg.pst}) instead of the warning and the dropped command a title
+command it does not know about would earn.
 
 \paragraph{Modified labels.} A label, or a piece of one, may be marked up
 inside the call --- to pick the cell of a paradigm the surrounding

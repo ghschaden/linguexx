@@ -556,6 +556,20 @@ version string.
   after a control sequence, and `\lpzgcheck` warned about a key the author
   cannot find in the source. The label is purified before it is parsed;
   printing is unaffected.
+- `\lpzg` may stand in a section title. A heading is expanded into a PDF
+  string for the bookmark, and a command hyperref has not been told about
+  is dropped there with "Token not allowed in a PDF string (Unicode):
+  removing `\lpzg'" -- on every run of every document that glosses in a
+  heading. The label survived that by accident (dropping the command
+  leaves its argument behind); the log did not. `\lpzg` is now declared to
+  hyperref as its own argument, so the bookmark reads `3sg.pst` -- the
+  same letters an `/ActualText` hands out, since a PDF string has no small
+  caps to carry. `\altn`, `\altg`, `\Next` and its family are deliberately
+  *not* declared: a stack of alternatives and a number the list machinery
+  works out have no one-line reading, and hyperref's own treatment of them
+  -- dropped, with the warning that says so -- is the honest outcome.
+  `tests/cedilla.tex`, the case about what survives a title, reads the
+  bookmark back out of hyperref's `.out`.
 - Fix: `\exg.[label]` takes the custom label `\ex.[label]` takes. `\exg.`
   expands to `\ex.` plus the gloss head, so the bracket was no longer the
   first thing the label peek saw: the label came out as the first word of

@@ -175,6 +175,12 @@
 %%          /ActualText under tagging.  The label is also purified
 %%          before it is parsed, so the markup no longer reaches the
 %%          Leipzig table as a key.
+%%          \lpzg may stand in a section title: it is declared to
+%%          hyperref as its own argument, so the bookmark carries the
+%%          label instead of the "Token not allowed in a PDF string"
+%%          that an unknown command earns on every run.  \altn,
+%%          \altg and the relative references are deliberately not
+%%          declared -- neither has a one-line reading.
 %%          Fix: \exg.[label] takes the custom label \ex.[label]
 %%          takes.  \exg. expands to \ex. plus the gloss head, so the
 %%          bracket was no longer the first thing \lx@exstart peeked
@@ -3657,6 +3663,37 @@
       { \lx@tag@span@exp:nn { tag = Span , E = { \l__lx_lpzg_exp_tl } }
           { \lx@lpzg@print:n {#1} } }
       { \lx@lpzg@print:n {#1} }
+  }
+
+%% An abbreviation may stand in a section title, and hyperref has to be
+%% told what it means there.  A title is \edef-ed into a PDF string for the
+%% bookmark, where a command that is not on hyperref's list produces
+%%
+%%   Token not allowed in a PDF string (Unicode): removing `\lpzg'
+%%
+%% on every run.  The bookmark came out right in spite of it -- dropping
+%% the command leaves the label behind as text -- but only by accident,
+%% and the warning is real noise in a document that glosses in its
+%% headings.  A PDF string has no small caps and no structure, so the
+%% right value is the label as written, which is \@firstofone: \lpzg{3sg}
+%% bookmarks as "3sg", the same letters an /ActualText hands out.
+%%
+%% \lpzg ONLY, deliberately.  \altn and \altg print a stack of
+%% alternatives, and \Next and its family print a number the surrounding
+%% list machinery works out -- neither has a sensible one-line reading,
+%% and neither belongs in a heading in the first place.  They keep
+%% hyperref's own treatment (dropped, with the warning that says so),
+%% which is the honest outcome for a command that cannot be spelt in a
+%% string.
+%%
+%% Deferred to \AtBeginDocument because hyperref may be loaded after this
+%% package, and guarded because it may not be loaded at all.
+%% \pdfstringdefDisableCommands appends to a hook rather than setting it,
+%% so a document that has its own entries keeps them.
+\AtBeginDocument
+  {
+    \cs_if_exist:NT \pdfstringdefDisableCommands
+      { \pdfstringdefDisableCommands { \cs_set_eq:NN \lpzg \use:n } }
   }
 
 %% \lpzglist: the list of abbreviations the document actually uses.

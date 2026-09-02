@@ -13,6 +13,14 @@
 %% the title -- unprotected, its \futurelet peek runs during that expansion
 %% and dies with "Use of \lx@dot@a doesn't match its definition".
 \subsection{TITLEcaf\a'e}
+%% \lpzg in a title is the other command this file is about: a heading is
+%% \edef-ed into a PDF string, and one that hyperref has not been told
+%% about is dropped with "Token not allowed in a PDF string".  The label
+%% survived that by accident (dropping \lpzg leaves its argument behind);
+%% what did not was the log, on every run of every document that glosses
+%% in a heading.  The bookmark is checked from the .out file, because
+%% nothing about it shows on the page.
+\subsection{TITLEgloss \lpzg{3sg.pst}}
 
 BEFOREa\c cb and BEFOREdir\c{c} and BEFOREbar\b{b} and BEFOREdot\d{d}.
 

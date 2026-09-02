@@ -332,6 +332,32 @@ def dest_page(pdf: Path, name: str):
     return pages.get(ref.group(1)) if ref else None
 
 
+def bookmark_titles(out: str):
+    r"""The heading strings from hyperref's .out file, decoded.
+
+    Each line is \BOOKMARK [level][open]{anchor}{title}{parent}, and the
+    title is a PDF string: UTF-16BE, byte by byte, with everything outside
+    a small ASCII range written as a \nnn octal escape.  So "3" arrives as
+    \0003 and the whole thing has to be decoded before it can be compared
+    to anything a human wrote.
+    """
+    titles = []
+    for line in out.splitlines():
+        m = re.search(r"\}\{(.*)\}\{", line)
+        if not m:
+            continue
+        raw, buf, i = m.group(1), bytearray(), 0
+        while i < len(raw):
+            if raw[i] == "\\" and raw[i + 1:i + 4].isdigit():
+                buf.append(int(raw[i + 1:i + 4], 8))
+                i += 4
+            else:
+                buf.append(ord(raw[i]))
+                i += 1
+        titles.append(bytes(buf).decode("utf-16-be", "replace").lstrip("\ufeff"))
+    return titles
+
+
 def warning_body(log: str, opening: str):
     """One \\PackageWarning from a .log, unwrapped into a single line.
 
@@ -1704,6 +1730,22 @@ def a_cedilla(p: Page):
     # the title runs its peek and the compile dies
     r.append(check("TITLEcafé" in txt,
                    rf"\a' in a hyperref section title survives; got {txt[:60]!r}"))
+    # \lpzg in a title: on the page, in the bookmark, and without the
+    # "Token not allowed in a PDF string" that hyperref emits for a command
+    # it has not been told about.  The bookmark has no small caps to lose,
+    # so the label is spelt there as it was written.
+    r.append(check("TITLEgloss" in txt,
+                   rf"\lpzg in a hyperref section title typesets; "
+                   rf"got {txt[:60]!r}"))
+    titles = [t for t in bookmark_titles(p.out) if "TITLEgloss" in t]
+    r.append(check(titles == ["TITLEgloss 3sg.pst"],
+                   f"the bookmark carries the abbreviation as written; "
+                   f"got {titles}"))
+    r.append(check("removing `\\lpzg'" not in p.log,
+                   "and hyperref is not left to drop it from the string, "
+                   "which is what it does -- \"Token not allowed in a PDF "
+                   "string (Unicode): removing `\\lpzg'\" -- for a command "
+                   "it has not been told about"))
     # ... and in running text, in all four positions relative to examples:
     # before any example, and after each of the three example syntaxes.
     # "after exe" is the one that breaks if \end{exe} leaks the \begingroup
@@ -4166,6 +4208,12 @@ def run_case(name: str, engine: str, verbose: bool):
         # one record all three write identically.
         aux = tmp / f"{name}.aux"
         page.aux = aux.read_text(errors="replace") if aux.exists() else ""
+        # ... and a case about a PDF BOOKMARK needs hyperref's .out, for the
+        # same reason: a bookmark is not on the page, it is not in the text
+        # layer, and in the PDF it sits inside a compressed object stream.
+        # The .out is what hyperref writes it from, in one line per heading.
+        out = tmp / f"{name}.out"
+        page.out = out.read_text(errors="replace") if out.exists() else ""
         # ... and a case about what an ENGINE reports needs to know which
         # one it is.  The three do not agree about a duplicate destination:
         # pdftex and luatex warn, xdvipdfmx says nothing, and an assertion

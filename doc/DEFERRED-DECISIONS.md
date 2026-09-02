@@ -319,6 +319,116 @@ inner `Span` is not the thing to change: it is already correct.
 
 ---
 
+## What an UNTAGGED document's text layer should say for made small caps
+
+*Found on 2026-09-02, while making a modifier inside `\lpzg` add to the
+small caps instead of replacing them. Not a defect in that work: a
+question it could not answer without picking one, so it picked the
+smaller half and left this.*
+
+**Current behaviour.** Where the font has no small caps for the series a
+modifier selected -- Latin Modern has no bold ones in any encoding --
+`\lpzg` makes them: it uppercases the letters and sets them at
+`\LpzgCapsScale` of the size, in the font the modifier asked for. The page
+is then right, and the *glyphs* are capitals. Under active tagging that
+costs nothing, because the made caps carry marked content of their own
+with an `/ActualText` of the letters as written, and copy-and-paste and a
+screen reader both get `m.pl`. With tagging off there is no `/ActualText`
+to carry:
+
+```
+tagged:    page M.PL   extracts m.pl      <- the source, restored
+untagged:  page M.PL   extracts M.PL      <- capitals, as made caps always
+```
+
+so a document that is not tagged silently loses the case of an
+abbreviation to the clipboard. Only where the caps are made: a font with
+real bold small caps (pdflatex's default `cmr`, any OpenType face with
+`smcp` in its bold weight) takes the plain `\textsc` path and extracts as
+it always did.
+
+**Why nothing was patched.** The mechanism is not the hard part.
+`accsupp` does exactly this for untagged documents -- `\BeginAccSupp` puts
+an `/ActualText` on a `/Span` marked-content block -- and it works on all
+three engines. What it costs is the question:
+
+1. **A dependency, and PDF literals.** `accsupp` emits its own `BDC`/`EMC`
+   pair. Inside a tagged document that is a second, foreign marked-content
+   nesting around content that already has one, which is the exact hazard
+   the tagging notes are about; it would have to be switched off whenever
+   tagging is on, so the package would carry two implementations of one
+   idea and a branch between them.
+2. **A silent change to every untagged PDF's byte stream**, for a case
+   that only arises in fonts without bold small caps.
+3. **The precedent.** Nothing else in this package rewrites the text layer
+   of an untagged document. `\altn`, `\altg` and the judgment marks all
+   extract as what they draw.
+
+There is also a prior question: whether making caps at all is the right
+answer for a font that has none, as against refusing the modifier and
+saying so in the log. That was decided (the modifier is what the author
+asked for and the small caps are what the label *is*), and this entry is
+about the consequence, not about revisiting it.
+
+**What would decide it.** A document that is not tagged, uses a font
+without bold small caps, and is read by something that consumes its text
+layer -- a corpus tool, a plagiarism checker, a reader copying glosses out
+of a PDF. All three together: with tagging on the case does not arise, and
+with a font that has the shape it does not either. Failing that, `accsupp`
+(or its successor) becoming something the LaTeX kernel provides rather
+than a package to pull in.
+
+**If it is ever patched:** the site is `\lx@sc@made:n`, which already has
+the `\lx@tag@if@active:TF` branch the untagged arm would hang off -- the
+`/ActualText` string it builds under tagging is the same one an untagged
+arm needs. `tests/ua.tex` asserts the tagged half -- the label reads back
+as written, on all three engines -- and `tests/lpzg-mod.tex` the geometry;
+the untagged half has no assertion, deliberately, because asserting the
+capitals would pin the very behaviour this entry leaves open.
+
+---
+
+## How much of the size the made small caps take, and from where
+
+*The other half of the same afternoon.*
+
+**Current behaviour.** `\LpzgCapsScale` is one number for the whole
+document, default `0.75`. It is Latin Modern's figure: its real small caps
+sit at 0.7526 of its cap height, measured, and made caps at 0.75 of the
+size therefore match the real ones beside them in the same label to within
+a rounding error. Nothing measures the font in use, so a family whose
+small caps sit at, say, 0.70 or 0.80 gets made caps that are visibly the
+wrong size next to its real ones -- and the author has to notice and set
+the parameter.
+
+**Why nothing was patched.** The measurement is three lines: set
+`\hbox{\scshape x}` and `\hbox{X}`, take the ratio of their heights, cache
+it per family. What stops it is *where* it would run. Setting a box while
+tagging is active runs the tagging hooks inside a box that is then thrown
+away, which is how marked content is orphaned and how a structure tree
+acquires children nobody can see -- the failure mode this package's whole
+tagging discipline is built around, and one that veraPDF catches only
+sometimes. Doing it once at `\begin{document}` avoids the throw-away box
+being inside tagged content, but the font a label uses is not the font the
+preamble ends in, so the measurement would be of the wrong family as often
+as not.
+
+**What would decide it.** A font whose real small caps are far enough from
+0.75 that the mismatch is visible in a printed gloss -- with the two kinds
+of caps side by side in one label, which is the only place the difference
+shows. Failing that, a way to measure a box without the tagging hooks
+firing inside it (`\tag_stop:`/`\tag_start:` around the measurement is the
+obvious candidate, and would want its own veraPDF case before being
+trusted with this).
+
+**If it is ever patched:** the constant is `\LpzgCapsScale` and its only
+reader is `\lx@sc@made:n`. Note that a measured ratio must not become a
+*silent* one: the parameter is documented and a document may already set
+it, so a measurement has to be the default the parameter overrides, not a
+replacement for it.
+
+---
+
 ## Two examples, one hyperref anchor, when the counter is reset
 
 *Found on 2026-08-28, while making the relative references clickable. The
