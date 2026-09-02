@@ -405,6 +405,13 @@ number the original carries, whatever that turns out to be.
 \cs{exg.}\ takes the same argument, with one difference in how it is
 written, described where it is documented (section~\ref{sec:exgabbrev}).
 
+A custom label belongs to a whole example, and to nothing smaller:
+\cs{ex.}\ and \cs{exg.}\ take one, the sub-example commands
+\cs{a.}--\cs{f.}\ and \cs{ag.}--\cs{fg.}\ do not. A bracket after one of
+those is ordinary text, and the letter or roman numeral remains the
+label --- which is what a sub-level is for: its items are identified by
+their place in it.
+
 \subsection{An environment interface}\label{sec:envs}
 
 Everything above can equally be written with conventional environments,
