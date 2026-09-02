@@ -190,6 +190,14 @@
 %%          object line's first word ("[" is one of the openers
 %%          \GlossPhantomChars lists), which a space-skipping
 %%          \@ifnextchar could not tell from a label.
+%%          \AltBraceOuterSep 0.7em -> 0.35em and \AltJdgTuck
+%%          0.45em -> 0.2em, both tuned to the hairline the brace
+%%          used to be: the outer gap held the stack at arm's length
+%%          from its words, and the tuck put a hanging judgment 0.24pt
+%%          from the brace, which is to say on it.  0.2em also keeps
+%%          the clearance steady across sizes, which 0.45em cannot now
+%%          that the pen grows with the font and the amplitude does
+%%          not.
 %%          The brace of \altn and \altg is drawn as a filled
 %%          OUTLINE with a typographic weight, instead of tikz's
 %%          brace decoration stroked at a hairline: Computer Modern's
@@ -333,6 +341,30 @@
 %% difference -- the only way to see it was to look for the callers.
 %% Should the TikZ brace ever be replaced, whatever replaces it declares
 %% its own dependencies; that is the point of not declaring them here.
+%%
+%% TIKZ ITSELF STAYS, and this is the note saying not to try again.  It
+%% was tried: tikz is loaded for one macro, the drawn brace, and on a
+%% minimal document under pdflatex it was 0.13s of the 0.15s this package
+%% cost and 11.5k of its 12.5k control sequences, which is a great deal to
+%% pay for one macro.  The whole brace was reimplemented in pict2e, which
+%% is a twentieth of the load, and it worked: the same curve to within
+%% 0.12pt, the full suite green on all three engines, veraPDF green, and
+%% even the latex+dvips route intact.
+%%
+%% It was still the wrong trade, for two reasons that only showed up
+%% afterwards.  The first is what the brace should look like: a stroked
+%% path has one width everywhere and a typographic brace does not, so the
+%% brace is drawn as a filled outline now -- and pict2e cannot fill a
+%% curved path at all (\polygon* takes straight edges), which leaves
+%% flattening the outline into some 130 sampled points at 0.6s a brace.
+%% pgf fills Beziers, so the same shape is fourteen segments and no
+%% sampling.  The second is who pays: a linguist's document tends to load
+%% pgf anyway, through beamer or forest or a tree package, and then the
+%% saving is zero while the brace is worse.
+%%
+%% So the question is settled, not deferred.  Reopen it only if the brace
+%% stops needing a filled curved path -- and then read
+%% \__lxp_brace:nnn first, since that is the thing being traded away.
 \RequirePackage{tikz}%              drawn brace for \lxAltn (no math mode)
 \RequirePackage{xspace}%            space after \Last & co. (see below)
 %% No decorations.pathreplacing: the brace was its "brace" decoration
@@ -5056,12 +5088,29 @@
 %% arm curls AWAY from the content between its tips, so at the height of
 %% any given row the ink sits well left of the box's right edge, and the
 %% gutter's mark can move into that hollow without ever touching it.  What
-%% the tuck buys is the thing a reserved gutter costs: with it, the marked
-%% row sits close to the brace and the unmarked rows are no longer pushed a
-%% full mark-width in.  Measured at 10pt on a one-star stack, brace to mark
-%% goes from 6.84pt to 2.40pt and brace to the unmarked row from 11.52pt to
-%% 6.96pt -- the latter being what an unmarked stack has anyway (6.36pt),
-%% which is the point: adding a judgment stops moving the words.
+%% the tuck buys is the thing a reserved gutter costs: the marked row sits
+%% close to the brace and the unmarked rows are no longer pushed a full
+%% mark-width in.  Measured at 10pt on a one-star stack, brace to mark goes
+%% from 4.26pt untucked to 2.28pt, and brace to the unmarked row from
+%% 9.66pt to 7.68pt.
+%%
+%% The default was 0.45em while the brace was a hairline, and it does not
+%% survive a brace with weight: at 0.45em the mark clears the new outline
+%% by 0.24pt, which is to say it touches it.  Two things moved at once --
+%% the ink got thicker, and the pen is an em while \AltBraceAmplitude is an
+%% absolute 4pt, so the hollow no longer keeps its proportions as the font
+%% grows.  0.2em is where the clearance comes back to what the hairline
+%% gave (2.28pt at 10pt) AND stops depending on the size: 2.28 / 2.28 /
+%% 2.34 / 2.28 / 2.22pt at 10/12/14/17/20pt, where 0.3em gives 1.26pt at
+%% 10pt and 0.30pt at 20pt.  The old comment claimed the clearance widened
+%% with the font; that was true of a hairline whose ink did not grow, and
+%% is not true now.
+%%
+%% What it costs is the other half of the bargain: at 0.45em a judged stack
+%% put its words within half a point of where an unjudged one puts them,
+%% and at 0.2em they sit about 3pt further in.  That is the trade a brace
+%% of this weight forces -- the hollow is smaller than it was -- and the
+%% mark not touching the brace is worth more than the words not moving.
 %%
 %% Only the OPENING gap changes.  The closing brace rides along with the
 %% box, so the stack gets narrower rather than sliding sideways, and the
@@ -5069,12 +5118,10 @@
 %% when a mark is actually there: an unmarked stack is set exactly as
 %% before, which is what makes this safe to have on by default.
 %%
-%% \AltJdgTuck is a length in em and stays clear at every size.  That is
-%% not obvious -- \AltBraceAmplitude is an absolute 4pt and does not grow
-%% with the font -- so it was measured rather than argued: clearance at
-%% 10/12/14/17/20pt is 2.40/2.52/2.88/3.72/4.20pt, i.e. it widens as the
-%% font grows, because the fixed amplitude pushes the brace's ink further
-%% left in relative terms while the mark grows with the text.
+%% \AltJdgTuck is a length in em, and at its default the clearance holds
+%% across sizes rather than drifting -- see the measurements above.  It is
+%% a balance of two things that scale differently: the mark and the pen
+%% grow with the font, \AltBraceAmplitude does not.
 %% Nothing here is clamped, on purpose: \AltJdgTuck is a tunable like
 %% \AltBraceRaise or \AltBraceWidth, and a knob that silently ignores what
 %% it is set to is worse than one that does as it is told.  But a tuck too
@@ -5129,7 +5176,7 @@
       { \hspace { \AltBraceSep } }
   }
 %% the printed object (brace + stack + brace), no tagging.  The outer
-%% gap (\AltBraceOuterSep) clears the decoration's outward bulge from
+%% gap (\AltBraceOuterSep) clears the brace's outward bulge from
 %% whatever precedes/follows; the inner gap just separates the brace from
 %% the stack it braces.
 \cs_new_protected:Npn \__lxp_alt_emit:
@@ -5159,19 +5206,26 @@
 % Tunable dimensions of the drawn brace.  AltBraceSep is the INNER gap,
 % between the brace and the stack it braces; AltBraceOuterSep is the
 % OUTER gap, between the brace and whatever precedes/follows it in the
-% surrounding text.  They differ because the TikZ brace decoration
-% bulges outward past its own bounding box (the curl reaches further
-% than the box declared for it) only on the outer side -- the inner
-% side has no such overflow to clear, so it can sit much closer.
+% surrounding text.  They differ because the brace bulges outward past
+% its own bounding box (the tip reaches further than the box declared for
+% it, by about 1.1pt at 11pt) only on the outer side -- the inner side has
+% no such overflow to clear, so it can sit much closer.
+%
+% The outer gap was 0.7em while the brace was a hairline, and 0.7em is
+% most of a word space on top of the one the source already has: with a
+% brace of the type's own weight the stack read as a thing held at arm's
+% length from the words it belongs to.  Halved.  What has to be cleared is
+% the tip's overflow, not the box, so 0.35em still leaves about 2.8pt of
+% air past the bulge at 11pt.
 \newcommand\AltBraceWidth{0.9ex}
 \newcommand\AltBraceAmplitude{4pt}
 \newcommand\AltBraceSep{0.15em}
-\newcommand\AltBraceOuterSep{0.7em}
+\newcommand\AltBraceOuterSep{0.35em}
 \newcommand\AltBraceRaise{0pt}
 % How far a stack carrying a hanging judgment tucks toward its opening
 % brace, into the hollow the brace's arm leaves.  0pt reverts to the
 % untucked layout; see \__lxp_alt_opensep: for what the default buys.
-\newcommand\AltJdgTuck{0.45em}
+\newcommand\AltJdgTuck{0.2em}
 
 % Alias \altn -> \lxAltn unless somebody already owns \altn.
 \AtBeginDocument{%

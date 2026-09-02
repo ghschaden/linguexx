@@ -1429,6 +1429,23 @@ def a_altn_phantomalign(p: Page):
         return check(spread < TOL,
                      f"{tok} stems line up (right-edge spread {spread:.2f}pt)")
 
+    # The mark must CLEAR the brace it tucks toward.  \AltJdgTuck pulls the
+    # stack into the hollow the brace's arm leaves, and how much room that
+    # hollow has depends on the brace's own ink -- so this is the assertion
+    # that a heavier brace, or a deeper tuck, cannot quietly print the mark
+    # on top of the curve.  It is the fault the package warns about when
+    # the tuck is set past the brace's box, and the one it cannot warn
+    # about when the ink simply grows: measured, not argued.
+    probe_l = p.find("PROBEL")
+    marked = [w for w in p.find_all("PSTEM") if w.text.startswith("*")]
+    if len(marked) != 1:
+        raise AssertionError(f"expected one *PSTEM, got {marked}")
+    clear = ink_clearance(p.path, probe_l.x1, marked[0].x1 + 1,
+                          marked[0].y0, marked[0].y1)
+    r.append(check(clear > 1.0,
+                   f"the hanging mark clears the opening brace "
+                   f"({clear:.2f}pt of air at the closest row)"))
+
     def hangs(marked, plain, tok):
         """`marked` carries a mark, `plain` does not, and the stems agree.
 
@@ -3664,6 +3681,42 @@ def stroke_width(pdf: Path, x0, x1, y0, y1, dpi=1200):
             f"no ink in ({x0:.1f},{y0:.1f})-({x1:.1f},{y1:.1f})")
     runs.sort()
     return runs[len(runs) // 2]
+
+
+def ink_clearance(pdf: Path, x0, x1, y0, y1, dpi=1200):
+    """The narrowest gap, in points, between the first two runs of ink in
+    a box -- scanned row by row, and the smallest gap any row shows.
+
+    This is the measurement for "these two things do not touch", and it
+    exists because nothing else in a PDF says so: TeX has no opinion about
+    overlapping ink, so a judgment mark printed on top of a brace compiles
+    clean, extracts clean, and is wrong only on the page.  Row-wise and
+    minimum, because the two shapes approach each other at one height and
+    the box average would hide it.
+    """
+    px, width, height = _render_gray(pdf, dpi)
+    s = dpi / 72.0
+    cx0, cx1 = max(0, int(x0 * s)), min(width, int(x1 * s) + 1)
+    best = None
+    for y in range(max(0, int(y0 * s)), min(height, int(y1 * s) + 1)):
+        base = y * width
+        dark = [x for x in range(cx0, cx1) if px[base + x] < 170]
+        if not dark:
+            continue
+        runs = []
+        for x in dark:
+            if runs and x - runs[-1][-1] <= 3:
+                runs[-1].append(x)
+            else:
+                runs.append([x])
+        if len(runs) >= 2:
+            gap = (runs[1][0] - runs[0][-1]) / s
+            if best is None or gap < best:
+                best = gap
+    if best is None:
+        raise AssertionError(
+            f"no two runs of ink in ({x0:.1f},{y0:.1f})-({x1:.1f},{y1:.1f})")
+    return best
 
 
 def ink_bbox(pdf: Path, x0, y0, x1, y1, dpi=600, threshold=200):

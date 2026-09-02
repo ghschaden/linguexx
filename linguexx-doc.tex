@@ -1701,17 +1701,20 @@ rows, which come right to meet the marked one --- so an aligned stack is no
 wider than the same stack unaligned.
 
 A stack that carries a mark also tucks \cs{AltJdgTuck} (default
-\texttt{0.45em}) closer to its opening brace. The room is there: a brace's
+\texttt{0.2em}) closer to its opening brace. The room is there: a brace's
 arm curls \emph{away} from the content between its tips, so at the height
 of any row its ink sits well inside the box, and the mark moves into that
-hollow without touching it. The effect is to undo what the hanging costs:
-at 10pt on a one-star stack the opening brace sits 2.4pt from the mark
-instead of 6.8pt, and 7.0pt from the unmarked rows instead of 11.5pt ---
-which is what an unmarked stack has anyway, so adding a judgment stops
-displacing the words. Only the opening gap changes, so the closing brace
-rides along with the stack and the distance from the preceding word is
-untouched; and only a stack that actually carries a mark tucks. Set
-\cs{AltJdgTuck} to \texttt{0pt} for the untucked layout.
+hollow without touching it. The effect is to undo part of what the hanging
+costs: at 10pt on a one-star stack the opening brace sits 7.7pt from the
+unmarked rows instead of 9.7pt, while the mark keeps 2.3pt of air. The
+default is chosen so that the air holds at every size --- 2.3pt from 10pt
+to 20pt --- which a deeper tuck does not, since the brace's pen grows with
+the font and \cs{AltBraceAmplitude} does not. Only the opening gap
+changes, so the closing brace rides along with the stack and the distance
+from the preceding word is untouched; and only a stack that actually
+carries a mark tucks. Set \cs{AltJdgTuck} to \texttt{0pt} for the untucked
+layout, or deeper than the default to trade the mark's air for words that
+stay where an unjudged stack puts them.
 
 Like the other brace lengths, it is not clamped: a large enough value
 pulls the stack straight through the brace, and \TeX{} has no opinion
@@ -1749,11 +1752,12 @@ figure is Computer Modern's own, whose brace stem measures
 \texttt{1.20pt} at 11\,pt, so the default puts the brace at the colour of
 the type around it. The other four govern
 placement, not shape: \cs{AltBraceSep} (\texttt{0.15em}, the gap between
-brace and stack), \cs{AltBraceOuterSep} (\texttt{0.7em}, the gap between
+brace and stack), \cs{AltBraceOuterSep} (\texttt{0.35em}, the gap between
 the brace and whatever precedes or follows it --- wider than
 \cs{AltBraceSep} because the drawn curl bulges outward past its own box
-only on that side), \cs{AltBraceRaise} (\texttt{0pt}, a vertical nudge),
-and \cs{AltJdgTuck} (\texttt{0.45em}, how far a stack carrying a hanging
+only on that side, by about \texttt{1.1pt} at 11\,pt), \cs{AltBraceRaise}
+(\texttt{0pt}, a vertical nudge),
+and \cs{AltJdgTuck} (\texttt{0.2em}, how far a stack carrying a hanging
 judgment tucks toward its opening brace --- see above).
 \cs{altg} (section~\ref{sec:altg}) draws its braces with the same
 \cs{AltBraceWidth}, \cs{AltBraceAmplitude} and \cs{AltBracePen}, so

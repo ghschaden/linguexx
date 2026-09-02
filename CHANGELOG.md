@@ -556,6 +556,26 @@ version string.
   after a control sequence, and `\lpzgcheck` warned about a key the author
   cannot find in the source. The label is purified before it is parsed;
   printing is unaffected.
+- Two brace spacings retuned for the weight the brace now has, both of
+  them defaults that were measured against a hairline and do not survive
+  it. `\AltBraceOuterSep` (the gap between a brace and the words around
+  it) goes from `0.7em` to **`0.35em`**: 0.7em is most of a word space on
+  top of the one the source already has, and with a brace of the type's
+  own weight the stack read as something held at arm's length from the
+  words it belongs to. What has to be cleared there is the tip's overflow
+  past its box -- about 1.1pt at 11pt -- so the halved value still leaves
+  2.8pt of air. And `\AltJdgTuck` (how far a stack with a hanging judgment
+  tucks into the hollow of its opening brace, under `[phantomalign]`) goes
+  from `0.45em` to **`0.2em`**: at 0.45em the mark clears the new outline
+  by 0.24pt, which is to say it touches it. 0.2em restores the clearance
+  the hairline gave (2.3pt at 10pt) and, unlike any deeper value, holds it
+  across sizes -- 2.3pt from 10pt to 20pt, where 0.3em falls from 1.3pt to
+  0.3pt, because the pen scales with the font and `\AltBraceAmplitude`
+  does not. The cost is the other half of the tuck's bargain: a judged
+  stack's words now sit about 3pt further in than an unjudged stack's,
+  where at 0.45em they sat within half a point. `tests/altn-phantomalign`
+  measures the air between mark and brace, which is the one fault neither
+  the compiler nor the text layer can see.
 - The brace of `\altn` and `\altg` is drawn as a filled **outline**, and
   with a typographic weight. It was TikZ's `brace` decoration stroked at
   0.4pt -- a hairline beside the type it stands next to, and one width
