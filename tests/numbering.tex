@@ -11,4 +11,20 @@
 \ex.[(x)] Custom.
 
 \ex. Zeta.
+
+% The same optional argument on the glossed shorthand.  It used to be
+% impossible: \exg. puts \lx@glosshead in front of the body, so the
+% bracket was no longer the first thing the label peek saw, and the label
+% came out as the first word of the object line while the example took a
+% number of its own.
+\exg.[(xx)] Der Hund bellte.\\
+     the dog barked\\
+
+% ... and a bracket a SPACE separates from \exg. is NOT a label: it is
+% the first word of the object line, which is what "[" is doing among the
+% openers of \GlossPhantomChars.  This is where \exg. parts company with
+% \ex., whose optional argument follows the LaTeX convention of skipping
+% spaces because it has no object line to compete with.
+\exg. [DP der Hund] bellte.\\
+      [DP the  dog] barked\\
 \end{document}

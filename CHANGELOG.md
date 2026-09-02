@@ -556,6 +556,23 @@ version string.
   after a control sequence, and `\lpzgcheck` warned about a key the author
   cannot find in the source. The label is purified before it is parsed;
   printing is unaffected.
+- Fix: `\exg.[label]` takes the custom label `\ex.[label]` takes. `\exg.`
+  expands to `\ex.` plus the gloss head, so the bracket was no longer the
+  first thing the label peek saw: the label came out as the first word of
+  the object line and the example took a number of its own -- which made
+  `\exg.[\ref{ex:1}]`, the way one repeats a glossed example under the
+  number it had, unwritable. The bracket is now read before `\ex.` is and
+  handed on in the one position that peek looks at.
+
+  **It must be written against the command.** After `\exg.` a bracket that
+  a space separates is the first word of the object line -- `[` is one of
+  the openers `\GlossPhantomChars` lists, and phantom alignment exists to
+  hang it in the gutter -- so the space is the only thing that tells
+  `\exg.[(7')] Der Hund ...` from `\exg. [DP der Hund] bellte.`, and a
+  space-skipping `\@ifnextchar` would take the constituent bracket of every
+  such gloss for a label. `\ex.` keeps `\@ifnextchar`: it has no object
+  line for a bracket to open, and its spaced form is documented behaviour.
+  `tests/numbering.tex` pins both halves.
 - Fix: an abbreviation key that is not ASCII is typeset as the character it
   is. A key is stored and compared as a string, and under pdflatex a string
   is BYTES, so `\lpzgadd{abß}` printed `abÃ§` -- the two UTF-8 bytes of `ß`

@@ -175,6 +175,15 @@
 %%          /ActualText under tagging.  The label is also purified
 %%          before it is parsed, so the markup no longer reaches the
 %%          Leipzig table as a key.
+%%          Fix: \exg.[label] takes the custom label \ex.[label]
+%%          takes.  \exg. expands to \ex. plus the gloss head, so the
+%%          bracket was no longer the first thing \lx@exstart peeked
+%%          at: it came out as the first word of the object line and
+%%          the example took a number of its own.  Written against the
+%%          command, deliberately: after \exg. a SPACED bracket is the
+%%          object line's first word ("[" is one of the openers
+%%          \GlossPhantomChars lists), which a space-skipping
+%%          \@ifnextchar could not tell from a label.
 %%          Fix: an abbreviation key that is not ASCII is typeset as
 %%          the character it is.  A key is stored as a string, and
 %%          under pdflatex a string is BYTES, so \lpzgadd{abß}
@@ -1749,7 +1758,7 @@
 %% taken -- so [lazy,langsci] would have lost \z. depending on load order.
 \def\lx@claim@shorthands{%
   \iflx@langsci\else\lx@claim@shorthand{z}{\lx@zpop}\fi
-  \lx@claim@shorthand{exg}{\ex.\lx@glosshead}%
+  \lx@claim@shorthand{exg}{\lx@exg@start}%
   \lx@claim@shorthand{ag}{\a.\lx@glosshead}%
   \lx@claim@shorthand{bg}{\b.\lx@glosshead}%
   \lx@claim@shorthand{cg}{\c.\lx@glosshead}%
@@ -1843,6 +1852,38 @@
 %% front of the gloss so that "\exg. *Das ist ..." hangs the star left
 %% of the first column:
 \def\lx@glosshead{\lx@scanjudgeto{\lx@emitjudge\gll}}
+%% \exg.[label] takes the custom label \ex.[label] takes -- and it has to
+%% be spelt out, because the plain expansion cannot deliver it: \exg. puts
+%% \lx@glosshead in front of the body, so the "[" that \lx@exstart peeks
+%% for is no longer the first thing it sees, and the label came out as the
+%% first word of the object line while the example took a number of its
+%% own.  Here the bracket is read BEFORE \ex. is, and handed on in the one
+%% position \lx@exstart looks at.
+%%
+%% GLUED, and deliberately not \@ifnextchar: after \exg. a bracket that a
+%% space separates is the first word of the object line, which is a thing
+%% this package documents and supports -- "[" is one of the openers
+%% \GlossPhantomChars lists, and phantom alignment exists to hang it in
+%% the gutter.  \@ifnextchar skips spaces, so it cannot tell
+%% "\exg.[(7')] Der Hund ..." from "\exg. [DP der Hund] bellte.", and
+%% would take the constituent bracket of every such gloss for a label,
+%% leaving the example unnumbered and its tiers a word out of step.  So
+%% the two are told apart the one way they differ: an optional argument is
+%% written against the command it belongs to, as in \ex.[(7')] and in the
+%% manual's every example of one.  \ex. itself keeps \@ifnextchar (it has
+%% no object line for a bracket to open, and its spaced form is old
+%% documented behaviour); this is the difference between them, and it is
+%% in the manual.
+\let\lx@bracketchar=[
+\def\lx@exg@start{\futurelet\lx@peeked\lx@exg@peek}
+\def\lx@exg@peek{%
+  \ifx\lx@peeked\lx@bracketchar
+    \expandafter\lx@exg@opt
+  \else
+    \expandafter\lx@exg@plain
+  \fi}
+\def\lx@exg@opt[#1]{\ex.[#1]\lx@glosshead}
+\def\lx@exg@plain{\ex.\lx@glosshead}
 
 \def\lx@subpush{%
   \ifcase\lx@subdepth

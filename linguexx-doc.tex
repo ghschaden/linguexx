@@ -386,7 +386,7 @@ A new, ordinarily indented paragraph.
 
 \afterex
 
-\subsection{Custom labels}
+\subsection{Custom labels}\label{sec:customlabels}
 
 An optional argument replaces the number, without advancing the counter ---
 useful for repeating an earlier example, or for primed variants:
@@ -399,6 +399,11 @@ useful for repeating an earlier example, or for primed variants:
 \ex.[(7$'$)] A repeated or modified example.
 
 \afterex
+\noindent A \cs{ref} to the example being repeated is the usual argument:
+\cs{ex.}\texttt{[\textbackslash ref\{ex:hund\}]} gives the repetition the
+number the original carries, whatever that turns out to be.
+\cs{exg.}\ takes the same argument, with one difference in how it is
+written, described where it is documented (section~\ref{sec:exgabbrev}).
 
 \subsection{An environment interface}\label{sec:envs}
 
@@ -1381,7 +1386,7 @@ so a document that sets neither is unaffected in its output and in its
 tagging alike.
 
 
-\subsection{Abbreviations: \cs{exg.}\ and \cs{ag.}}
+\subsection{Abbreviations: \cs{exg.}\ and \cs{ag.}}\label{sec:exgabbrev}
 
 \cs{exg.}\ abbreviates \cs{ex.}\ \cs{gll}, and \cs{ag.}\ through
 \cs{fg.}\ abbreviate \cs{a.}\ \cs{gll} and so on, for glossed
@@ -1399,6 +1404,22 @@ sub-examples. Judgments still work in front of the gloss:
 \glt (intended: `The example works.')
 
 \afterex
+\noindent So does the custom label of section~\ref{sec:customlabels},
+which is what repeats a glossed example under the number it had:
+
+\begin{code}
+\exg.[\ref{ex:hund}] Der Hund bellte. \\
+     the dog  bark.PST                \\
+\end{code}
+
+\noindent With one difference from \cs{ex.}: the bracket must follow
+\cs{exg.}\ immediately. A bracket that a \emph{space} separates from it is
+the first word of the object line --- \texttt{[} is one of the openers
+\cs{GlossPhantomChars} lists, and phantom alignment (section
+\ref{sec:phantomalign}) exists to hang it in the gutter --- so
+\cs{exg.}~\texttt{[DP der Hund] bellte.} glosses a bracketed constituent
+and takes a number of its own. \cs{ex.}\ has no object line for a bracket
+to open and follows the \LaTeX\ convention of skipping the space.
 
 % ===========================================================================
 \section{Cross-references}\label{sec:refs}
@@ -2563,7 +2584,9 @@ readable in \cs{l\_lx\_mode\_tl}.
 \textbackslash b. -- \textbackslash f. & Next item at the level currently open. \\
 \textbackslash z. & Leave one level; from the letter level or an example without sub-examples, end it. \\
 exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package option \opt{gb4e}); items via \cs{ex}, \cs{ex}\oarg{judgment}\marg{text}, or plain \cs{item}. \\
-\textbackslash exg. & \cs{ex.}\ followed by \cs{gll}. \\
+\textbackslash exg. & \cs{ex.}\ followed by \cs{gll}.
+  \cs{exg.}\oarg{label} takes a custom label too, written against the
+  command: a bracket after a space is the object line's first word. \\
 \textbackslash ag. -- \textbackslash fg. & \cs{a.}--\cs{f.}\ followed by \cs{gll}. \\
 \addlinespace
 \multicolumn{2}{@{}l}{\itshape Judgments} \\

@@ -365,10 +365,21 @@ def a_numbering(p: Page):
     letters = [w.text for w in p.words if w.text in ("a.", "b.", "i.", "ii.")]
     r.append(check(letters == ["a.", "b.", "i.", "ii."],
                    f"sub-levels run a,b then i,ii; got {letters}"))
-    # custom label does not step the counter: (x) then (3)
-    r.append(check("(x)" in got, f"custom label (x) present; got {got}"))
-    r.append(check(got[-1] == "(3)",
-                   f"counter continues at (3) after custom label; got {got[-1]}"))
+    # A custom label replaces the number and steps no counter, in the
+    # glossed shorthand as well as in \ex.: (x) then (3), (xx) then (4).
+    # \exg.[...] used to be unreachable -- the bracket reached the gloss
+    # instead of the label peek -- so the run would read (1),(2),(x),(3),(4)
+    # with the label printed as the first word of the object line.
+    want = ["(1)", "(2)", "(x)", "(3)", "(xx)", "(4)"]
+    r.append(check(got == want,
+                   f"custom labels replace the number and step nothing, in "
+                   f"\\ex. and in \\exg.: {got} != {want}"))
+    # ... and a bracket a space separates from \exg. stays the first word
+    # of the object line, on both tiers, rather than being eaten as one.
+    r.append(check(len(p.find_all("[DP")) == 2,
+                   f"a spaced bracket after \\exg. is the object line's "
+                   f"first word, not a label; found "
+                   f"{[w.text for w in p.find_all('[DP')]}"))
     return r
 
 
