@@ -556,6 +556,15 @@ version string.
   after a control sequence, and `\lpzgcheck` warned about a key the author
   cannot find in the source. The label is purified before it is parsed;
   printing is unaffected.
+- `graphicx` is no longer required. The line was annotated "`\scalebox`
+  etc." and the package calls `\scalebox` nowhere -- nor `\resizebox`,
+  `\rotatebox`, `\reflectbox` or `\includegraphics`, in this version or in
+  any committed one: the first commit already carries the requirement and
+  already has no caller. Nothing changes for a document, because `tikz`
+  loads `graphicx` itself, which is why it went unnoticed; what changes is
+  that the package's declared dependencies are now the ones it has. They
+  are `tikz` (with `decorations.pathreplacing`, for the drawn brace of
+  `\altn` and `\altg`), `xspace`, and the expl3 layer in the kernel.
 - `\lpzg` may stand in a section title. A heading is expanded into a PDF
   string for the bookmark, and a command hyperref has not been told about
   is dropped there with "Token not allowed in a PDF string (Unicode):

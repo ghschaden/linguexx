@@ -313,7 +313,18 @@
      geometry.}%
 \fi\fi
 
-\RequirePackage{graphicx}%          \scalebox etc.
+%% graphicx is NOT required here, and the line that required it is gone.
+%% It was annotated "\scalebox etc." and the package calls \scalebox
+%% nowhere -- nor \resizebox, \rotatebox, \reflectbox or
+%% \includegraphics, in this version or in any committed one: the first
+%% commit already carries the requirement and already has no caller.  (The
+%% v0.13 note in the history above says "graphicx + tikz instead of
+%% amsmath"; the tikz half is true and load-bearing, the graphicx half was
+%% not true of anything in the repository.)  It survived because tikz
+%% loads graphicx itself, so nothing a document could do would show the
+%% difference -- the only way to see it was to look for the callers.
+%% Should the TikZ brace ever be replaced, whatever replaces it declares
+%% its own dependencies; that is the point of not declaring them here.
 \RequirePackage{tikz}%              drawn brace for \lxAltn (no math mode)
 \RequirePackage{xspace}%            space after \Last & co. (see below)
 \usetikzlibrary{decorations.pathreplacing}
