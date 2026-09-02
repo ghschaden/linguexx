@@ -694,6 +694,17 @@ def a_altn(p: Page):
     r.append(check(lgap[1] - lgap[0] > 4.0 and rgap[1] - rgap[0] > 4.0,
                    f"both braces have room ({lgap[1]-lgap[0]:.1f}pt left, "
                    f"{rgap[1]-rgap[0]:.1f}pt right)"))
+    # The pen.  A brace drawn at a hairline reads as a wire beside the type
+    # it stands next to, which is what the tikz brace decoration drew here
+    # until v1.2: 0.4pt against Computer Modern's own 1.2pt brace stem at
+    # 11pt.  The shaft is measured a quarter of the way down, where the
+    # curve is straight and the horizontal run is the pen itself.
+    quarter = top + (bot - top) / 4
+    for gap, side in ((lgap, "left"), (rgap, "right")):
+        pen = stroke_width(p.path, gap[0], gap[1], quarter - 1, quarter + 1)
+        r.append(check(pen > 0.9,
+                       f"the {side} brace is drawn with a typographic pen, "
+                       f"not a hairline ({pen:.2f}pt at the shaft)"))
     lbulge = brace_bulge(p.path, lgap[0], lgap[1], top, bot)
     rbulge = brace_bulge(p.path, rgap[0], rgap[1], top, bot)
     r.append(check(lbulge < -5.0,
@@ -3624,6 +3635,35 @@ def glyph_ink(pdf: Path, w, dpi=600):
     if not rows:
         raise AssertionError(f"no ink in the box of {w!r}")
     return (max(rows) - min(rows) + 1) / s, dark / (s * s)
+
+
+def stroke_width(pdf: Path, x0, x1, y0, y1, dpi=1200):
+    """The typical horizontal ink run in a box, in points.
+
+    For a brace's shaft -- which is near vertical over the stretch this is
+    handed -- that run IS the stroke width, and a stroke width is the one
+    thing a brace has that neither its position nor its curl records.  The
+    median row is taken rather than the mean: the band may catch a row or
+    two of the corner, where the curve turns and the horizontal run is
+    longer than the pen.
+
+    At 1200dpi one pixel is 0.06pt, so a pen of 0.4pt and one of 1.2pt are
+    twenty pixels apart -- far outside anything anti-aliasing moves.
+    """
+    px, width, height = _render_gray(pdf, dpi)
+    s = dpi / 72.0
+    cx0, cx1 = max(0, int(x0 * s)), min(width, int(x1 * s) + 1)
+    runs = []
+    for y in range(max(0, int(y0 * s)), min(height, int(y1 * s) + 1)):
+        base = y * width
+        dark = [x for x in range(cx0, cx1) if px[base + x] < 160]
+        if dark:
+            runs.append((dark[-1] - dark[0] + 1) / s)
+    if not runs:
+        raise AssertionError(
+            f"no ink in ({x0:.1f},{y0:.1f})-({x1:.1f},{y1:.1f})")
+    runs.sort()
+    return runs[len(runs) // 2]
 
 
 def ink_bbox(pdf: Path, x0, y0, x1, y1, dpi=600, threshold=200):

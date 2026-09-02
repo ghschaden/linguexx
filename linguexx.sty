@@ -190,6 +190,14 @@
 %%          object line's first word ("[" is one of the openers
 %%          \GlossPhantomChars lists), which a space-skipping
 %%          \@ifnextchar could not tell from a label.
+%%          The brace of \altn and \altg is drawn as a filled
+%%          OUTLINE with a typographic weight, instead of tikz's
+%%          brace decoration stroked at a hairline: Computer Modern's
+%%          own brace stem measures 1.20pt at 11pt, which is the
+%%          0.11em default of the new \AltBracePen, and the outline
+%%          tapers at the terminals and the tip as CM's does.  Same
+%%          skeleton, cached by height; decorations.pathreplacing is
+%%          no longer loaded.
 %%          Fix: an abbreviation key that is not ASCII is typeset as
 %%          the character it is.  A key is stored as a string, and
 %%          under pdflatex a string is BYTES, so \lpzgadd{abß}
@@ -327,7 +335,9 @@
 %% its own dependencies; that is the point of not declaring them here.
 \RequirePackage{tikz}%              drawn brace for \lxAltn (no math mode)
 \RequirePackage{xspace}%            space after \Last & co. (see below)
-\usetikzlibrary{decorations.pathreplacing}
+%% No decorations.pathreplacing: the brace was its "brace" decoration
+%% until v1.2 and is now drawn as an outline of its own (see
+%% \__lxp_brace:nnn), which needs nothing but a filled path.
 % The only other dependency is the expl3 programming layer, part of the
 % LaTeX kernel since 2020.  In particular, ulem is NOT loaded: if you
 % want struck-through alternatives (\sout inside \altn), load ulem
@@ -4650,18 +4660,240 @@
 %% baseline sits at the bounding box's bottom edge -- which is where a
 %% tikzpicture puts it by default anyway, hence no change there.  \altg
 %% hands it -depth..height and needs the baseline on y=0, in the middle.
+%% The brace is FILLED, not stroked, and that is the whole point of it.
+%% A stroke has one width everywhere; a real brace has not.  Measured off
+%% Computer Modern's \left\{ at 11pt: the stem is a constant 1.20pt (which
+%% is 0.11em, hence \AltBracePen), it tapers to 0.42pt at the two
+%% terminals, and the middle narrows to 0.72pt at the cusp.  Stroked at
+%% one width the shape is recognisably a brace and unmistakably not a
+%% typographic one -- which is what tikz's brace decoration drew here
+%% until v1.2, at 0.4pt, a third of the weight of the type it stands next
+%% to.
+%%
+%% So the outline is drawn instead: the same skeleton as before (pgf's
+%% brace decoration, four cubics and two lines, transcribed), offset to
+%% either side by half the pen width, with the width tapering at the four
+%% places CM tapers.  \AltBraceAmplitude and \AltBraceWidth keep their
+%% meanings, and \AltBracePen is the new one.
+%%
+%% Offsetting is done at the SEGMENT ENDS, and the control points are
+%% carried along the endpoint normals.  Exact Bezier offsets are not
+%% Beziers at all, but these curves are shallow -- an amplitude of a few
+%% points over a corner of a few points -- and the approximation is
+%% invisible: measured against the true offset it stays inside a tenth of
+%% a point.  Two normals are not axis-aligned and have to be computed (the
+%% terminals and the tip); everywhere else the skeleton is tangent to the
+%% straight run, so the normal is horizontal and the offset is a signed
+%% amplitude.
+%%
+%% The geometry is CACHED, keyed by everything it depends on.  Building it
+%% is some thirty floating-point evaluations -- 15ms a brace, five times
+%% what the old decoration cost -- and a document draws the same few
+%% heights over and over: two rows, three rows, four.  With the cache a
+%% run pays for each distinct height once and the drawing itself costs
+%% what the decoration did.  The path is built in the brace's own frame,
+%% with its foot at the origin, so the same entry serves every brace of
+%% that height wherever it stands; the caller's #2 becomes a shift.
+\newcommand \AltBracePen {0.11em}
+\prop_new:N \g__lxp_brace_cache_prop
+\tl_new:N  \l__lxp_brace_key_tl
+\tl_new:N  \l__lxp_brace_path_tl
+\fp_new:N  \l__lxp_brace_amp_fp   % amplitude: how far the tip protrudes
+\fp_new:N  \l__lxp_brace_len_fp   % the span the brace is drawn along
+\fp_new:N  \l__lxp_brace_mid_fp   % half of it: where the tip sits
+\fp_new:N  \l__lxp_brace_c_fp     % corner length (pgf's, clamped)
+\fp_new:N  \l__lxp_brace_h_fp     % half the pen width
+\fp_new:N  \l__lxp_brace_ht_fp    % ... at the terminals, tapered
+\fp_new:N  \l__lxp_brace_hp_fp    % ... at the tip
+\fp_new:N  \l__lxp_brace_x_fp     % the shaft's own abscissa
+\fp_new:N  \l__lxp_brace_s_fp     % which way the tip points: -1 or +1
+\fp_new:N  \l__lxp_brace_nt_fp    % terminal normal, along the brace
+\fp_new:N  \l__lxp_brace_na_fp    % terminal normal, across it
+\fp_new:N  \l__lxp_brace_qt_fp    % tip normal, along
+\fp_new:N  \l__lxp_brace_qa_fp    % tip normal, across
+%% one point of the outline: #1 along the brace from its foot, #2 across
+%% it, away from the stack.  Each argument is used ONCE -- they arrive as
+%% expressions, and a second mention would evaluate the expression twice.
+\cs_new_protected:Npn \__lxp_brace_pt:nn #1#2
+  {
+    \tl_put_right:Nx \l__lxp_brace_path_tl
+      {
+        ( \fp_to_decimal:n { \l__lxp_brace_x_fp + \l__lxp_brace_s_fp * (#2) } ,
+          \fp_to_decimal:n { #1 } )
+      }
+  }
+\cs_new_protected:Npn \__lxp_brace_line:nn #1#2
+  {
+    \tl_put_right:Nn \l__lxp_brace_path_tl { ~ -- ~ }
+    \__lxp_brace_pt:nn {#1} {#2}
+  }
+\cs_new_protected:Npn \__lxp_brace_curve:nnnnnn #1#2#3#4#5#6
+  {
+    \tl_put_right:Nn \l__lxp_brace_path_tl { ~ .. ~ controls ~ }
+    \__lxp_brace_pt:nn {#1} {#2}
+    \tl_put_right:Nn \l__lxp_brace_path_tl { ~ and ~ }
+    \__lxp_brace_pt:nn {#3} {#4}
+    \tl_put_right:Nn \l__lxp_brace_path_tl { ~ .. ~ }
+    \__lxp_brace_pt:nn {#5} {#6}
+  }
+\cs_new_protected:Npn \__lxp_brace_build:n #1
+  {
+    \fp_set:Nn \l__lxp_brace_amp_fp
+      { \dim_to_decimal:n { \AltBraceAmplitude } }
+    \fp_set:Nn \l__lxp_brace_c_fp
+      { min ( \l__lxp_brace_amp_fp , 0.25 * \l__lxp_brace_len_fp ) }
+    \fp_set:Nn \l__lxp_brace_mid_fp { 0.5 * \l__lxp_brace_len_fp }
+    \fp_set:Nn \l__lxp_brace_h_fp
+      { 0.5 * \dim_to_decimal:n { \AltBracePen } }
+    \fp_set:Nn \l__lxp_brace_ht_fp { 0.35 * \l__lxp_brace_h_fp }
+    \fp_set:Nn \l__lxp_brace_hp_fp { 0.62 * \l__lxp_brace_h_fp }
+    %% the two normals that are not horizontal.  The terminal leaves along
+    %% (0.45c, 0.9A) and the tip arrives along (0.15c, 0.3A) -- the
+    %% skeleton's own tangents, normalised and turned a quarter turn.
+    \fp_set:Nn \l_tmpa_fp
+      {
+        sqrt ( ( 0.45 * \l__lxp_brace_c_fp ) ^ 2
+               + ( 0.9 * \l__lxp_brace_amp_fp ) ^ 2 )
+      }
+    \fp_set:Nn \l__lxp_brace_nt_fp
+      { -0.9 * \l__lxp_brace_amp_fp / \l_tmpa_fp }
+    \fp_set:Nn \l__lxp_brace_na_fp
+      { 0.45 * \l__lxp_brace_c_fp / \l_tmpa_fp }
+    \fp_set:Nn \l_tmpa_fp
+      {
+        sqrt ( ( 0.15 * \l__lxp_brace_c_fp ) ^ 2
+               + ( 0.3 * \l__lxp_brace_amp_fp ) ^ 2 )
+      }
+    \fp_set:Nn \l__lxp_brace_qt_fp
+      { -0.3 * \l__lxp_brace_amp_fp / \l_tmpa_fp }
+    \fp_set:Nn \l__lxp_brace_qa_fp
+      { 0.15 * \l__lxp_brace_c_fp / \l_tmpa_fp }
+    \str_if_eq:nnTF {#1} { L }
+      {
+        \fp_set:Nn \l__lxp_brace_x_fp
+          { \dim_to_decimal:n { \AltBraceWidth - 1pt } }
+        \fp_set:Nn \l__lxp_brace_s_fp { -1 }
+      }
+      {
+        \fp_set:Nn \l__lxp_brace_x_fp { \dim_to_decimal:n { 1pt } }
+        \fp_set:Nn \l__lxp_brace_s_fp { 1 }
+      }
+    \tl_clear:N \l__lxp_brace_path_tl
+    %% up the far side: foot, corner, tip, corner, head
+    \__lxp_brace_pt:nn
+      { \l__lxp_brace_ht_fp * \l__lxp_brace_nt_fp }
+      { \l__lxp_brace_ht_fp * \l__lxp_brace_na_fp }
+    \__lxp_brace_curve:nnnnnn
+      { 0.15 * \l__lxp_brace_c_fp }
+      { 0.3 * \l__lxp_brace_amp_fp + \l__lxp_brace_h_fp }
+      { 0.5 * \l__lxp_brace_c_fp }
+      { 0.5 * \l__lxp_brace_amp_fp + \l__lxp_brace_h_fp }
+      { \l__lxp_brace_c_fp }
+      { 0.5 * \l__lxp_brace_amp_fp + \l__lxp_brace_h_fp }
+    \__lxp_brace_line:nn
+      { \l__lxp_brace_mid_fp - \l__lxp_brace_c_fp }
+      { 0.5 * \l__lxp_brace_amp_fp + \l__lxp_brace_h_fp }
+    \__lxp_brace_curve:nnnnnn
+      { \l__lxp_brace_mid_fp - 0.5 * \l__lxp_brace_c_fp }
+      { 0.5 * \l__lxp_brace_amp_fp + \l__lxp_brace_h_fp }
+      { \l__lxp_brace_mid_fp - 0.15 * \l__lxp_brace_c_fp
+        + \l__lxp_brace_hp_fp * \l__lxp_brace_qt_fp }
+      { 0.7 * \l__lxp_brace_amp_fp
+        + \l__lxp_brace_hp_fp * \l__lxp_brace_qa_fp }
+      { \l__lxp_brace_mid_fp + \l__lxp_brace_hp_fp * \l__lxp_brace_qt_fp }
+      { \l__lxp_brace_amp_fp + \l__lxp_brace_hp_fp * \l__lxp_brace_qa_fp }
+    \__lxp_brace_curve:nnnnnn
+      { \l__lxp_brace_mid_fp + 0.15 * \l__lxp_brace_c_fp
+        - \l__lxp_brace_hp_fp * \l__lxp_brace_qt_fp }
+      { 0.7 * \l__lxp_brace_amp_fp
+        + \l__lxp_brace_hp_fp * \l__lxp_brace_qa_fp }
+      { \l__lxp_brace_mid_fp + 0.5 * \l__lxp_brace_c_fp }
+      { 0.5 * \l__lxp_brace_amp_fp + \l__lxp_brace_h_fp }
+      { \l__lxp_brace_mid_fp + \l__lxp_brace_c_fp }
+      { 0.5 * \l__lxp_brace_amp_fp + \l__lxp_brace_h_fp }
+    \__lxp_brace_line:nn
+      { \l__lxp_brace_len_fp - \l__lxp_brace_c_fp }
+      { 0.5 * \l__lxp_brace_amp_fp + \l__lxp_brace_h_fp }
+    \__lxp_brace_curve:nnnnnn
+      { \l__lxp_brace_len_fp - 0.5 * \l__lxp_brace_c_fp }
+      { 0.5 * \l__lxp_brace_amp_fp + \l__lxp_brace_h_fp }
+      { \l__lxp_brace_len_fp - 0.15 * \l__lxp_brace_c_fp }
+      { 0.3 * \l__lxp_brace_amp_fp + \l__lxp_brace_h_fp }
+      { \l__lxp_brace_len_fp - \l__lxp_brace_ht_fp * \l__lxp_brace_nt_fp }
+      { \l__lxp_brace_ht_fp * \l__lxp_brace_na_fp }
+    %% across the head and back down the near side
+    \__lxp_brace_line:nn
+      { \l__lxp_brace_len_fp + \l__lxp_brace_ht_fp * \l__lxp_brace_nt_fp }
+      { - \l__lxp_brace_ht_fp * \l__lxp_brace_na_fp }
+    \__lxp_brace_curve:nnnnnn
+      { \l__lxp_brace_len_fp - 0.15 * \l__lxp_brace_c_fp }
+      { 0.3 * \l__lxp_brace_amp_fp - \l__lxp_brace_h_fp }
+      { \l__lxp_brace_len_fp - 0.5 * \l__lxp_brace_c_fp }
+      { 0.5 * \l__lxp_brace_amp_fp - \l__lxp_brace_h_fp }
+      { \l__lxp_brace_len_fp - \l__lxp_brace_c_fp }
+      { 0.5 * \l__lxp_brace_amp_fp - \l__lxp_brace_h_fp }
+    \__lxp_brace_line:nn
+      { \l__lxp_brace_mid_fp + \l__lxp_brace_c_fp }
+      { 0.5 * \l__lxp_brace_amp_fp - \l__lxp_brace_h_fp }
+    \__lxp_brace_curve:nnnnnn
+      { \l__lxp_brace_mid_fp + 0.5 * \l__lxp_brace_c_fp }
+      { 0.5 * \l__lxp_brace_amp_fp - \l__lxp_brace_h_fp }
+      { \l__lxp_brace_mid_fp + 0.15 * \l__lxp_brace_c_fp
+        + \l__lxp_brace_hp_fp * \l__lxp_brace_qt_fp }
+      { 0.7 * \l__lxp_brace_amp_fp
+        - \l__lxp_brace_hp_fp * \l__lxp_brace_qa_fp }
+      { \l__lxp_brace_mid_fp - \l__lxp_brace_hp_fp * \l__lxp_brace_qt_fp }
+      { \l__lxp_brace_amp_fp - \l__lxp_brace_hp_fp * \l__lxp_brace_qa_fp }
+    \__lxp_brace_curve:nnnnnn
+      { \l__lxp_brace_mid_fp - 0.15 * \l__lxp_brace_c_fp
+        - \l__lxp_brace_hp_fp * \l__lxp_brace_qt_fp }
+      { 0.7 * \l__lxp_brace_amp_fp
+        - \l__lxp_brace_hp_fp * \l__lxp_brace_qa_fp }
+      { \l__lxp_brace_mid_fp - 0.5 * \l__lxp_brace_c_fp }
+      { 0.5 * \l__lxp_brace_amp_fp - \l__lxp_brace_h_fp }
+      { \l__lxp_brace_mid_fp - \l__lxp_brace_c_fp }
+      { 0.5 * \l__lxp_brace_amp_fp - \l__lxp_brace_h_fp }
+    \__lxp_brace_line:nn
+      { \l__lxp_brace_c_fp }
+      { 0.5 * \l__lxp_brace_amp_fp - \l__lxp_brace_h_fp }
+    %% ... and the last corner closes the path back onto the foot
+    \tl_put_right:Nn \l__lxp_brace_path_tl { ~ .. ~ controls ~ }
+    \__lxp_brace_pt:nn
+      { 0.5 * \l__lxp_brace_c_fp }
+      { 0.5 * \l__lxp_brace_amp_fp - \l__lxp_brace_h_fp }
+    \tl_put_right:Nn \l__lxp_brace_path_tl { ~ and ~ }
+    \__lxp_brace_pt:nn
+      { 0.15 * \l__lxp_brace_c_fp }
+      { 0.3 * \l__lxp_brace_amp_fp - \l__lxp_brace_h_fp }
+    \tl_put_right:Nn \l__lxp_brace_path_tl { ~ .. ~ cycle }
+  }
+%% One brace, side #1 (L or R), between the ordinates #2 (bottom) and #3
+%% (top).  The box contract is what it always was, and both callers depend
+%% on it: width \AltBraceWidth, spanning #2 to #3, baseline on y = 0.
+%% \altn hands 0pt..height and raises the picture itself; \altg hands
+%% -depth..height and needs the baseline in the middle.
 \cs_new_protected:Npn \__lxp_brace:nnn #1#2#3
   {
-    \begin { tikzpicture } [ baseline = 0pt ]
+    \fp_set:Nn \l__lxp_brace_len_fp { \dim_to_decimal:n { #3 - #2 } }
+    \tl_set:Nx \l__lxp_brace_key_tl
+      {
+        #1 / \fp_to_decimal:n { \l__lxp_brace_len_fp }
+           / \dim_to_decimal:n { \AltBraceAmplitude }
+           / \dim_to_decimal:n { \AltBraceWidth }
+           / \dim_to_decimal:n { \AltBracePen }
+      }
+    \prop_get:NVNF \g__lxp_brace_cache_prop \l__lxp_brace_key_tl
+        \l__lxp_brace_path_tl
+      {
+        \__lxp_brace_build:n {#1}
+        \prop_gput:NVV \g__lxp_brace_cache_prop \l__lxp_brace_key_tl
+          \l__lxp_brace_path_tl
+      }
+    \begin { tikzpicture } [ baseline = 0pt , x = 1pt , y = 1pt ]
       \useasboundingbox ( 0pt , #2 ) rectangle ( \AltBraceWidth , #3 ) ;
-      \str_if_eq:nnTF {#1} { L }
-        { \draw [ decorate ,
-                  decoration = { brace , amplitude = \AltBraceAmplitude } ]
-            ( \dim_eval:n { \AltBraceWidth - 1pt } , #2 )
-            -- ( \dim_eval:n { \AltBraceWidth - 1pt } , #3 ) ; }
-        { \draw [ decorate ,
-                  decoration = { brace , amplitude = \AltBraceAmplitude } ]
-            ( 1pt , #3 ) -- ( 1pt , #2 ) ; }
+      \begin { scope } [ shift = { ( 0pt , #2 ) } ]
+        \exp_args:NV \fill \l__lxp_brace_path_tl ;
+      \end { scope }
     \end { tikzpicture }
   }
 \ExplSyntaxOff

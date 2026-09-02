@@ -556,6 +556,29 @@ version string.
   after a control sequence, and `\lpzgcheck` warned about a key the author
   cannot find in the source. The label is purified before it is parsed;
   printing is unaffected.
+- The brace of `\altn` and `\altg` is drawn as a filled **outline**, and
+  with a typographic weight. It was TikZ's `brace` decoration stroked at
+  0.4pt -- a hairline beside the type it stands next to, and one width
+  everywhere, which a real brace does not have. Measured off Computer
+  Modern's own `\left\{` at 11pt: the stem is a constant **1.20pt**
+  (`0.11em`, the new `\AltBracePen`), tapering to 0.42pt at the two
+  terminals and narrowing to 0.72pt at the cusp. The outline follows the
+  same skeleton as before -- pgf's brace decoration, four cubics and two
+  lines -- offset to either side by half the pen and tapered at those four
+  places.
+
+  It costs what it draws: the geometry is some thirty floating-point
+  evaluations, so it is **cached** by side, span, amplitude, width and
+  pen, and a document draws the same few stack heights over and over.
+  Measured on 300 braces under pdflatex: 1.52s with the cache warm against
+  0.87s for the old decoration, and 2.47s when every brace is a different
+  height. The `decorations.pathreplacing` library is no longer loaded --
+  a filled path needs nothing but `tikz` itself.
+
+  `\AltBraceWidth` and `\AltBraceAmplitude` are unchanged and still
+  reshape both commands' braces; `\AltBracePen` joins them.
+  `tests/altn.tex` measures the pen off the rendered shaft, where a
+  hairline reads 0.4pt and the default reads 1.20pt.
 - `graphicx` is no longer required. The line was annotated "`\scalebox`
   etc." and the package calls `\scalebox` nowhere -- nor `\resizebox`,
   `\rotatebox`, `\reflectbox` or `\includegraphics`, in this version or in

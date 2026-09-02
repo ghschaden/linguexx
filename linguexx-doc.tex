@@ -95,7 +95,7 @@ A further new feature is that the package tags the whole example
 apparatus, from numbered examples to interlinear glosses, for a
 PDF/UA-2-conformant result (checked with \texttt{veraPDF}).
 
-The package's only dependencies are \pkg{graphicx} and \pkg{tikz},
+The package's only dependencies are \pkg{tikz} and \pkg{xspace},
 plus the \pkg{expl3} layer, part of the \LaTeX{} kernel since 2020,
 and it works identically under \hologo{pdfLaTeX}, \hologo{XeLaTeX} and
 \hologo{LuaLaTeX}. This manual is self-contained and assumes no
@@ -1729,20 +1729,25 @@ For a light word-level alternation inside a glossed line a slash
 of its own, use \cs{altg} (section~\ref{sec:altg}).
 
 \cs{altn} is set in text mode: the alternatives are the rows of a
-\pkg{tabular}, braced on both sides with braces drawn with Ti\emph{k}Z, so
-no mathematics is involved (the package needs \pkg{graphicx} and
-\pkg{tikz}, not \pkg{amsmath}). The braces are tunable through six
-macros, redefined with \cs{renewcommand}. Two govern the drawn shape of
-the bracket itself: \cs{AltBraceWidth} (default \texttt{0.9ex}) is the
-horizontal box reserved for one brace glyph --- the vertical spine of the
+\pkg{tabular}, braced on both sides with drawn braces, so no mathematics
+is involved (the package needs \pkg{tikz}, not \pkg{amsmath}). The brace
+is drawn as a filled outline rather than a stroke, because a typographic
+brace does not have one width everywhere: like the \texttt{\{} of a maths
+font it carries its weight in the spine and tapers at the two ends and at
+the tip. The braces are tunable through seven macros, redefined with
+\cs{renewcommand}. Three govern the drawn shape of the bracket itself:
+\cs{AltBraceWidth} (default \texttt{0.9ex}) is the horizontal box
+reserved for one brace glyph --- the vertical spine of the
 \texttt{\{}/\texttt{\}} is drawn close to the edge of this box that faces
 the stack, so widening \cs{AltBraceWidth} leaves more room on the far
-side for the curl to bulge into; and \cs{AltBraceAmplitude}
-(\texttt{4pt}) is passed straight through as Ti\emph{k}Z's own
-\texttt{brace} decoration \texttt{amplitude} key --- how far the small
-pointed tip at mid-height projects sideways from that spine, so a larger
-value draws a more pronounced curl and a smaller one flattens the
-bracket toward a plain vertical stroke. The other four govern
+side for the curl to bulge into; \cs{AltBraceAmplitude} (\texttt{4pt}) is
+how far the small pointed tip at mid-height projects sideways from that
+spine, so a larger value draws a more pronounced curl and a smaller one
+flattens the bracket toward a plain vertical stroke; and
+\cs{AltBracePen} (\texttt{0.11em}) is the weight of the spine --- the
+figure is Computer Modern's own, whose brace stem measures
+\texttt{1.20pt} at 11\,pt, so the default puts the brace at the colour of
+the type around it. The other four govern
 placement, not shape: \cs{AltBraceSep} (\texttt{0.15em}, the gap between
 brace and stack), \cs{AltBraceOuterSep} (\texttt{0.7em}, the gap between
 the brace and whatever precedes or follows it --- wider than
@@ -1751,8 +1756,8 @@ only on that side), \cs{AltBraceRaise} (\texttt{0pt}, a vertical nudge),
 and \cs{AltJdgTuck} (\texttt{0.45em}, how far a stack carrying a hanging
 judgment tucks toward its opening brace --- see above).
 \cs{altg} (section~\ref{sec:altg}) draws its braces with the same
-\cs{AltBraceWidth} and \cs{AltBraceAmplitude}, so changing either one
-here reshapes both commands' brackets together.
+\cs{AltBraceWidth}, \cs{AltBraceAmplitude} and \cs{AltBracePen}, so
+changing any of them here reshapes both commands' brackets together.
 
 Because the alternatives are ordinary text rather than a formula, they are
 read sensibly in a tagged PDF. Under active tagging \cs{altn} wraps the stack
@@ -1866,8 +1871,8 @@ Two settings of its own, redefined with \cs{renewcommand}:
 \cs{AltgColSep} (default \texttt{1.2em}), the gap between the object and
 gloss stacks, and \cs{AltgTransFont} (default \cs{normalfont}), the font
 of the gloss stack. The braces are drawn with the \cs{altn} tunables
-(\cs{AltBraceWidth}, \cs{AltBraceAmplitude}, \cs{AltBraceSep},
-\cs{AltBraceOuterSep}). If some
+(\cs{AltBraceWidth}, \cs{AltBraceAmplitude}, \cs{AltBracePen},
+\cs{AltBraceSep}, \cs{AltBraceOuterSep}). If some
 other package owns \cs{altg}, the package leaves it alone and only
 \cs{lxAltg} is available, as with \cs{altn}/\cs{lxAltn}.
 

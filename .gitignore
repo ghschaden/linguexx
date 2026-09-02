@@ -51,3 +51,12 @@ benchmarks/
 # pattern: a plan file put in doc/ will not be picked up by "git add" until
 # this line is narrowed.
 doc/*-PLAN.md
+
+# the brace-look comparison: the renderings and timings behind the v1.2
+# brace (tikz decoration against pict2e, hairline against a typographic
+# pen, the tapered outline against Computer Modern's own \left\{).  What
+# it concluded is in the CHANGELOG and in the comments of
+# \__lxp_brace:nnn, where it belongs; the PDFs and the milliseconds are
+# true of one laptop on one afternoon, like benchmarks/ above, and the
+# patched copy of linguexx.sty in it is a copy nobody should ever load.
+experiments/brace-look/

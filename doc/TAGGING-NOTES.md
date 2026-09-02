@@ -239,15 +239,16 @@ package.
 
 ## Stacked alternatives (\altn)
 
-`\altn` is set in text mode -- a `tabular` stack with a TikZ-drawn brace, no
+`\altn` is set in text mode -- a `tabular` stack with a drawn brace, no
 math -- so the alternatives are ordinary tagged text and there is no
 `Formula`. Under active tagging the stack is wrapped in a `Span` carrying a
 spoken `/Alt` ("A, B, or C"), built from the alternatives with
 `\text_purify:n` so formatting (`\sout`, ...) is stripped for speech. This
 replaces the earlier math implementation, whose `Formula` could not be given
 an accessible reading without breaking PDF/UA-2 (a `Span` may not contain the
-`Part`/`P` the math tagging built). Requires `graphicx`+`tikz` instead of
-`amsmath`. Verified: no `Formula`, valid `Span`, `/Alt` present, no untagged
+`Part`/`P` the math tagging built). Requires `tikz` instead of `amsmath`
+(the brace is a filled path of the package's own; `graphicx` went in 1.2,
+and the `decorations.pathreplacing` library with it). Verified: no `Formula`, valid `Span`, `/Alt` present, no untagged
 content; the `tagged` test asserts the `/Alt`.
 
 
