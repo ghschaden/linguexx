@@ -164,6 +164,32 @@
 %%          expansion known for" nothing at all and the /E carried a
 %%          trailing space.  Blank segments are skipped; the real
 %%          pieces beside them are recorded exactly as before.
+%%          Fix: a modifier INSIDE a \lpzg label adds to the small
+%%          caps instead of replacing them.  Latin Modern has no bold
+%%          small caps in any encoding, so NFSS kept the series and
+%%          dropped the shape and \lpzg{\textbf{m}.pl} came out as a
+%%          bold lowercase m.  The choice is now made per leaf, by
+%%          asking the font that was selected (\lx@sc@real:); where
+%%          the shape is real nothing changes, where it is missing the
+%%          caps are made at \LpzgCapsScale of the size, with an
+%%          /ActualText under tagging.  The label is also purified
+%%          before it is parsed, so the markup no longer reaches the
+%%          Leipzig table as a key.
+%%          Fix: an abbreviation key that is not ASCII is typeset as
+%%          the character it is.  A key is stored as a string, and
+%%          under pdflatex a string is BYTES, so \lpzgadd{abß}
+%%          printed the two UTF-8 bytes of ß in the T1 slots they
+%%          happen to name.  The bytes are re-tokenised where the key
+%%          is SET (and measured), nowhere else: identity, sorting and
+%%          the .aux keep the string.  All spellings of a key are also
+%%          normalised the same way now -- \SetLeipzig{f\'em} and
+%%          \lpzg{fém} are one key, in either order.
+%%          Fix: punctuation glued to the object call of an \altg is
+%%          set after the paradigm's closing brace, and level with
+%%          the middle of it, instead of inside the braces between
+%%          the object and gloss columns.  The object call takes it
+%%          along; the gloss call, which draws the closing brace,
+%%          sets it down.
 %% Package options come in two independent groups.
 %%
 %% SYNTAX:
@@ -3274,6 +3300,7 @@
 %% tagging; the printed output is unaffected either way.
 \prop_new:N \g_lx_lpzg_prop
 \tl_new:N  \l__lx_lpzg_tl
+\str_new:N \l__lx_lpzg_key_str   % scratch: one key in its normal form
 \prop_gset_from_keyval:Nn \g_lx_lpzg_prop
   {
     1 = first~person ,
@@ -3360,6 +3387,30 @@
     tr = transitive ,
     voc = vocative ,
   }
+%% The normal form of a key: purified, then a string.  Everything that
+%% stores or compares one goes through this -- the table, the recorder,
+%% the .aux, the lists, the ignore lists -- so that all of it agrees.
+%%
+%% A string alone is not enough, and a label reaches the package in more
+%% spellings than it looks.  Its own letters are catcode 11, a piece
+%% peeled off a compound one comes out of a str variable at catcode 12,
+%% and the keys read back from the .aux are letters again: three
+%% spellings of "sg" that a seq takes for three different entries.  Above
+%% ASCII there is a fourth, which is what \text_purify:n is here for: an
+%% accented letter can be written as a character or as an accent command,
+%% and under pdflatex only purifying maps both to the same bytes.
+%% \SetLeipzig{f\'em} and \lpzg{fém} are one key, in either order, on
+%% every engine -- and \lpzg{\textbf{m}} is the key m, which is what the
+%% purification was first needed for.
+%% The \tl_to_str:n is not decoration: \text_purify:n hands back LETTERS
+%% where the recorder, the .aux and the seqs all hold catcode-12
+%% characters, and a seq compares token lists catcode and all.  Without
+%% it, every site that goes through a str variable keeps working and the
+%% two that compare seqs quietly stop matching -- \lpzgcheck{ignore={...}}
+%% reports the very key it was told to exempt, and the "no list accounts
+%% for this key" check asks for a rerun that changes nothing.
+\cs_new:Npn \lx@lpzg@key:n #1
+  { \exp_args:Ne \tl_to_str:n { \text_purify:n {#1} } }
 %% Declarations are recorded as well as stored, so that \lpzgcheck can
 %% report one that is never used.  Only what the DOCUMENT declares is
 %% recorded: the built-in table below has ~100 entries, and reporting the
@@ -3367,9 +3418,10 @@
 \seq_new:N \g__lx_lpzg_declared_seq
 \NewDocumentCommand \SetLeipzig { m m }
   {
-    \prop_gput:Nnn \g_lx_lpzg_prop {#1} {#2}
-    \seq_if_in:NeF \g__lx_lpzg_declared_seq { \tl_to_str:n {#1} }
-      { \seq_gput_right:Ne \g__lx_lpzg_declared_seq { \tl_to_str:n {#1} } }
+    \str_set:Ne \l__lx_lpzg_key_str { \lx@lpzg@key:n {#1} }
+    \prop_gput:NVn \g_lx_lpzg_prop \l__lx_lpzg_key_str {#2}
+    \seq_if_in:NVF \g__lx_lpzg_declared_seq \l__lx_lpzg_key_str
+      { \seq_gput_right:NV \g__lx_lpzg_declared_seq \l__lx_lpzg_key_str }
   }
 %% \lpzg accepts a compound gloss label as a single argument, following the
 %% Leipzig convention: a leading person digit is written flush against the
@@ -3429,13 +3481,141 @@
     \seq_map_inline:Nn \l__lx_lpzg_seg_seq
       { \tl_if_blank:nF {##1} { \lx@lpzg@seg {##1} } }
   }
+%% A modifier written INSIDE the label -- \lpzg{\textbf{m}.pl}, to pick one
+%% cell of a paradigm out of the line around it -- must ADD its feature to
+%% the small caps, not replace them.  \textsc{\textbf{m}.pl} says exactly
+%% that, and NFSS obliges wherever the family HAS the shape: pdflatex's
+%% default T1/cmr does, and so does any OpenType face carrying smcp in its
+%% bold weight (the TeX Gyre families do).  Latin Modern does not --
+%% lmromancaps exists in regular and oblique only, in every encoding --
+%% and NFSS's fallback there keeps the series and drops the SHAPE, so the
+%% label came out as a bold lowercase "m" with the small caps gone.  That
+%% is the one feature a gloss label cannot lose: the small caps are what
+%% marks it as a category rather than a word.  It is silent, too: the log
+%% says "Font shape `TU/lmr/bx/sc' undefined", which reads like a remark
+%% about a font, and the page still looks deliberate.
+%%
+%% So the choice is made per LEAF, and made by asking the font that was
+%% actually selected rather than by keeping a list of families:
+%% \lx@sc@real: compares the font \scshape lands on with the one in force
+%% without it.  A substitution is invisible in \f@shape (which stays "sc"
+%% either way) and plain in \fontname.  Shape real: \textsc, exactly as
+%% before, byte for byte -- which is why nothing about the pdflatex output
+%% of any existing document moves.  Shape missing: the caps are MADE --
+%% the letters uppercased and set at \LpzgCapsScale of the current size in
+%% whatever font the modifier chose, so the boldface survives and the
+%% height still matches the real small caps beside it (Latin Modern's sit
+%% at 0.7526 of its cap height; the default is that figure, rounded).
+%%
+%% The modifiers reach the leaves because \lpzg redefines them, locally
+%% and for the length of its own argument only, to re-enter \lx@sc:n
+%% inside their own font change.  That is what makes the decision per leaf
+%% instead of per label: in \lpzg{\textbf{m}.pl} the ".pl" is real medium
+%% small caps and only the "m" is made.  \l__lx_sc_made_bool stops a
+%% nested modifier from making caps twice -- uppercasing is idempotent,
+%% scaling by 0.75 twice is not.
+\newcommand \LpzgCapsScale {0.75}
+\tl_new:N   \g__lx_sc_up_tl
+\tl_new:N   \g__lx_sc_sc_tl
+\tl_new:N   \l__lx_sc_caps_tl
+\tl_new:N   \l__lx_sc_keys_tl
+\bool_new:N \l__lx_sc_made_bool
+%% Upright against small caps, at whatever series and family are in force
+%% -- NOT the current font against the small-caps one.  The two differ
+%% exactly where this matters: inside a \textsc the current font ALREADY
+%% is the small-caps one, so comparing against it reports the shape
+%% present in the one place it can be missing (\textsc{\bfseries ...}: the
+%% shape is "sc", the font is the plain bold one).  \f@shape is no use
+%% either, for the same reason -- it says "sc" whether or not a font
+%% answered to it.  \selectfont in both probes, because LaTeX defers font
+%% selection: \font on its own may still be whatever ran last.
+\prg_new_protected_conditional:Npnn \lx@sc@real: { TF }
+  {
+    \group_begin:
+      \upshape \selectfont \tl_gset:Ne \g__lx_sc_up_tl { \fontname \font }
+    \group_end:
+    \group_begin:
+      \scshape \selectfont \tl_gset:Ne \g__lx_sc_sc_tl { \fontname \font }
+    \group_end:
+    \tl_if_eq:NNTF \g__lx_sc_up_tl \g__lx_sc_sc_tl
+      { \prg_return_false: } { \prg_return_true: }
+  }
+%% Made caps are uppercase letters, so the text layer would hand out "M"
+%% where the source says "m".  Under active tagging they therefore carry
+%% marked content of their own with an /ActualText of the letters as
+%% written, which is what copy-and-paste and a screen reader get; the
+%% end_push/begin_pop idiom is the usual one, because this MC opens inside
+%% the abbreviation's own Span and must not nest in its MC.
+\cs_new_protected:Npn \lx@sc@made:n #1
+  {
+    \group_begin:
+      \bool_set_true:N \l__lx_sc_made_bool
+      \fontsize { \fp_eval:n { \LpzgCapsScale * \f@size } } { \f@baselineskip }
+      \selectfont
+      \tl_set:Ne \l__lx_sc_caps_tl { \text_uppercase:n {#1} }
+      \lx@tag@if@active:TF
+        {
+          %% The keyvals are expanded HERE, into a token list, and the list
+          %% is handed over whole.  \tag_mc_begin:n does not expand what it
+          %% is given far enough for a \text_purify:n written into the
+          %% value to run, and the /ActualText then reads out the expl3
+          %% internals of the call instead of the letters -- which
+          %% copy-and-paste and a screen reader would both hand on.
+          %% Inside the guard, though, exactly like the /E of the Span
+          %% around it: an untagged run must not expand it at all.
+          \tl_set:Ne \l__lx_sc_keys_tl
+            { tag = Span , actualtext = { \text_purify:n {#1} } }
+          \tag_mc_end_push:
+          \exp_args:NV \tag_mc_begin:n \l__lx_sc_keys_tl
+          \l__lx_sc_caps_tl
+          \tag_mc_end: \tag_mc_begin_pop:n {}
+        }
+        { \l__lx_sc_caps_tl }
+    \group_end:
+  }
+\cs_new_protected:Npn \lx@sc:n #1
+  {
+    \bool_if:NTF \l__lx_sc_made_bool
+      { #1 }
+      { \lx@sc@real:TF { \textsc {#1} } { \lx@sc@made:n {#1} } }
+  }
+%% The redefinitions.  Local to the label, and deliberately not a patch of
+%% \textbf & co.: outside \lpzg they are the kernel's, unchanged.  A
+%% command NOT in this list (\textcolor, say) keeps its own meaning and
+%% its argument stays inside whatever small caps are in force around it,
+%% which is what \textsc did for everything before.
+\cs_new_protected:Npn \lx@sc@modifiers:
+  {
+    \cs_set_protected:Npn \textbf     ##1 { \group_begin: \bfseries   \lx@sc:n {##1} \group_end: }
+    \cs_set_protected:Npn \textmd     ##1 { \group_begin: \mdseries   \lx@sc:n {##1} \group_end: }
+    \cs_set_protected:Npn \textit     ##1 { \group_begin: \itshape    \lx@sc:n {##1} \group_end: }
+    \cs_set_protected:Npn \textsl     ##1 { \group_begin: \slshape    \lx@sc:n {##1} \group_end: }
+    \cs_set_protected:Npn \textup     ##1 { \group_begin: \upshape    \lx@sc:n {##1} \group_end: }
+    \cs_set_protected:Npn \textrm     ##1 { \group_begin: \rmfamily   \lx@sc:n {##1} \group_end: }
+    \cs_set_protected:Npn \textsf     ##1 { \group_begin: \sffamily   \lx@sc:n {##1} \group_end: }
+    \cs_set_protected:Npn \texttt     ##1 { \group_begin: \ttfamily   \lx@sc:n {##1} \group_end: }
+    \cs_set_protected:Npn \textnormal ##1 { \group_begin: \normalfont \lx@sc:n {##1} \group_end: }
+    \cs_set_protected:Npn \emph       ##1 { \group_begin: \em         \lx@sc:n {##1} \group_end: }
+  }
+%% Printing one label: the modifiers, then the label itself.  The group is
+%% the reason \lpzg can redefine anything at all.
+\cs_new_protected:Npn \lx@lpzg@print:n #1
+  { \group_begin: \lx@sc@modifiers: \lx@sc:n {#1} \group_end: }
+%% The label is PURIFIED before it is parsed.  \text_purify:n takes the
+%% markup off and leaves the letters, so \lpzg{\textbf{m}.pl} looks up m
+%% and pl exactly as \lpzg{m.pl} does.  Without it the first segment
+%% reached the table as "\textbf {m}", which expands to nothing: no /E for
+%% that piece, a \lpzglist entry named after a control sequence, and a
+%% \lpzgcheck warning about a key the author cannot find in the source.
+\cs_new_protected:Npn \lx@lpzg@parse:n #1
+  { \exp_args:Ne \lx@lpzg@build { \lx@lpzg@key:n {#1} } }
 \NewDocumentCommand \lpzg { m }
   {
-    \lx@lpzg@build {#1}
+    \lx@lpzg@parse:n {#1}
     \bool_if:NTF \l__lx_lpzg_any_bool
       { \lx@tag@span@exp:nn { tag = Span , E = { \l__lx_lpzg_exp_tl } }
-          { \textsc {#1} } }
-      { \textsc {#1} }
+          { \lx@lpzg@print:n {#1} } }
+      { \lx@lpzg@print:n {#1} }
   }
 
 %% \lpzglist: the list of abbreviations the document actually uses.
@@ -3455,21 +3635,17 @@
 %% and not declared with \SetLeipzig) are omitted and reported once; ask
 %% for unexplained=keep to list them with an empty explanation instead.
 %%
-%% Every key is normalised to a STRING before it is stored or compared.
-%% It has to be: a label reaches \lpzg as letters, but the piece peeled
-%% off a compound one comes out of a str variable (catcode 12), and the
-%% keys read back from the .aux are letters again -- three spellings of
-%% "sg" that a seq would take for three different entries.
+%% Every key is stored and compared in the normal form of
+%% \lx@lpzg@key:n, which is where the reason for it is written out.
 \seq_new:N  \g__lx_lpzg_used_seq   % keys seen on THIS run, in order of use
 \prop_new:N \g__lx_lpzg_used_prop  % the same, as a set: the duplicate guard
 \seq_new:N  \g__lx_lpzg_aux_seq    % keys read back from the .aux (last run)
 \bool_new:N \g__lx_lpzg_doc_bool   % true once the .aux is open for writing
 \bool_new:N \g__lx_lpzg_rerun_bool % a key the .aux did not know about
-\str_new:N  \l__lx_lpzg_key_str
 \AtBeginDocument { \bool_gset_true:N \g__lx_lpzg_doc_bool }
 %% written to and read from the .aux
 \cs_new_protected:Npn \lx@lpzg@used #1
-  { \seq_gput_right:Ne \g__lx_lpzg_aux_seq { \tl_to_str:n {#1} } }
+  { \seq_gput_right:Ne \g__lx_lpzg_aux_seq { \lx@lpzg@key:n {#1} } }
 \bool_new:N \l__lx_lpzg_norecord_bool % true while \lpzglist typesets itself
 \cs_new_protected:Npn \lx@lpzg@record #1
   {
@@ -3478,7 +3654,7 @@
   }
 \cs_new_protected:Npn \lx@lpzg@record@ #1
   {
-    \str_set:Nn \l__lx_lpzg_key_str {#1}
+    \str_set:Ne \l__lx_lpzg_key_str { \lx@lpzg@key:n {#1} }
     \prop_if_in:NVF \g__lx_lpzg_used_prop \l__lx_lpzg_key_str
       {
         \prop_gput:NVn \g__lx_lpzg_used_prop \l__lx_lpzg_key_str { }
@@ -3592,7 +3768,7 @@
 \cs_generate_variant:Nn \seq_remove_all:Nn { NV }
 \cs_new_protected:Npn \lx@lpzglist@put #1
   {
-    \str_set:Nn \l__lx_lpzg_key_str {#1}
+    \str_set:Ne \l__lx_lpzg_key_str { \lx@lpzg@key:n {#1} }
     \seq_if_in:NVF \l__lx_lpzglist_seq \l__lx_lpzg_key_str
       { \seq_put_right:NV \l__lx_lpzglist_seq \l__lx_lpzg_key_str }
   }
@@ -3611,7 +3787,7 @@
     \clist_map_inline:Nn \l__lx_lpzglist_add_clist { \lx@lpzglist@put {##1} }
     \clist_map_inline:Nn \l__lx_lpzglist_ignore_clist
       {
-        \str_set:Nn \l__lx_lpzg_key_str {##1}
+        \str_set:Ne \l__lx_lpzg_key_str { \lx@lpzg@key:n {##1} }
         \seq_remove_all:NV \l__lx_lpzglist_seq \l__lx_lpzg_key_str
       }
     \seq_set_eq:NN \l__lx_lpzglist_tmp_seq \l__lx_lpzglist_seq
@@ -3635,23 +3811,68 @@
           }
       }
   }
-%% One entry, expansion looked up (empty for an unknown key kept on request).
+%% A key is stored as a string, and a string is BYTES.  On the unicode
+%% engines that is the same thing as the character; under pdflatex it is
+%% not, and a key with anything outside ASCII in it was typeset one byte
+%% at a time: \lpzgadd{abß} printed "abÃ§", because the two bytes of ß
+%% went to the T1 slots of Ã and §.  Only the printing was ever wrong --
+%% the .aux round trip, the /E expansion text (tagpdf reads the bytes as
+%% UTF-8, which is what they are) and the warnings in the log all come out
+%% right, which is why this survived so long: everything ABOUT the key was
+%% correct except the key on the page.
+%%
+%% So the bytes are turned back into characters where they are set, and
+%% nowhere else -- identity, comparison, sorting and the .aux keep the
+%% string they have always had.  Re-tokenising is what does it: under
+%% pdflatex the bytes above 127 are active (that is inputenc's utf8
+%% machinery) and reassemble themselves into one character; under xelatex
+%% and lualatex the character is already one token and rescanning gives it
+%% back unchanged.  Everything else is forced to catcode 12 first: a key
+%% is text, not markup, and a stray % or \ in one is a printing problem,
+%% not a licence to run code the author did not write.  Spaces stay
+%% spaces, since this is called from expl3 code, where they would be
+%% dropped.
+\tl_new:N \l__lx_lpzglist_show_tl
+\cs_new_protected:Npn \lx@lpzglist@textcat:
+  {
+    \char_set_catcode_other:N \\  \char_set_catcode_other:N \{
+    \char_set_catcode_other:N \}  \char_set_catcode_other:N \$
+    \char_set_catcode_other:N \&  \char_set_catcode_other:N \#
+    \char_set_catcode_other:N \^  \char_set_catcode_other:N \_
+    \char_set_catcode_other:N \~  \char_set_catcode_other:N \%
+    \char_set_catcode_space:n { 32 }
+  }
+\cs_new_protected:Npn \lx@lpzglist@show:n #1
+  {
+    \tl_set_rescan:Nnn \l__lx_lpzglist_show_tl
+      { \lx@lpzglist@textcat: } {#1}
+  }
+%% One entry, expansion looked up (empty for an unknown key kept on
+%% request).  The expansion is looked up under the STRING key and the
+%% entry is handed the readable one, so a redefined \lpzglistentry (or a
+%% format= of one list) receives text it can set, uppercase or measure.
 \cs_new_protected:Npn \lx@lpzglist@item #1
   {
+    \lx@lpzglist@show:n {#1}
     \prop_get:NnNTF \g_lx_lpzg_prop {#1} \l__lx_lpzg_tl
-      { \exp_args:NnV \lpzglistentry {#1} \l__lx_lpzg_tl }
-      { \lpzglistentry {#1} { } }
+      { \exp_args:NVV \lpzglistentry \l__lx_lpzglist_show_tl \l__lx_lpzg_tl }
+      { \exp_args:NV \lpzglistentry \l__lx_lpzglist_show_tl { } }
   }
 %% The label column is as wide as the widest abbreviation.  Measured with
 %% \textsc, which is what \lpzg prints, and NOT with \lpzg itself: \lpzg
 %% opens structure elements, and a box that is measured and thrown away
-%% would leave them behind in the tree.
+%% would leave them behind in the tree.  Measured from the readable form
+%% because that is what gets set: measuring the byte spelling and printing
+%% the character would reserve a column wider than the labels in it, by
+%% one glyph per byte above 127.
 \cs_new_protected:Npn \lx@lpzglist@widest
   {
     \dim_zero:N \l__lx_lpzglist_wd_dim
     \seq_map_inline:Nn \l__lx_lpzglist_seq
       {
-        \hbox_set:Nn \l__lx_lpzglist_box { \textsc {##1} }
+        \lx@lpzglist@show:n {##1}
+        \hbox_set:Nn \l__lx_lpzglist_box
+          { \textsc { \l__lx_lpzglist_show_tl } }
         \dim_set:Nn \l__lx_lpzglist_wd_dim
           { \dim_max:nn \l__lx_lpzglist_wd_dim { \box_wd:N \l__lx_lpzglist_box } }
       }
@@ -3723,7 +3944,8 @@
       \seq_map_inline:Nn \l__lx_lpzglist_unknown_seq
         { \seq_gput_right:Nn \g__lx_lpzglist_printed_seq {##1} }
       \clist_map_inline:Nn \l__lx_lpzglist_ignore_clist
-        { \seq_gput_right:Ne \g__lx_lpzglist_printed_seq { \tl_to_str:n {##1} } }
+        { \seq_gput_right:Ne \g__lx_lpzglist_printed_seq
+            { \lx@lpzg@key:n {##1} } }
       \seq_if_empty:NF \l__lx_lpzglist_seq { \lx@lpzglist@render }
       \bool_lazy_and:nnT
         { ! \l__lx_lpzglist_keepun_bool }
@@ -3804,12 +4026,14 @@
     %% the two checks are independent, but saying it twice is not a service.
     \bool_if:NT \g__lx_lpzgcheck_unknown_bool
       {
-        %% The recorded keys are STRINGS (catcode 12); the ignore list
-        %% arrives as letters, and comparing the two spellings would never
-        %% match -- the same normalisation \lpzglist's own ignore= needs.
+        %% The recorded keys are in the normal form of \lx@lpzg@key:n;
+        %% the ignore list arrives as the author typed it, and comparing
+        %% the two spellings would never match -- the same normalisation
+        %% \lpzglist's own ignore= needs.
         \seq_clear:N \l__lx_lpzgcheck_ign_seq
         \clist_map_inline:Nn \g__lx_lpzgcheck_ignore_clist
-          { \seq_put_right:Ne \l__lx_lpzgcheck_ign_seq { \tl_to_str:n {##1} } }
+          { \seq_put_right:Ne \l__lx_lpzgcheck_ign_seq
+              { \lx@lpzg@key:n {##1} } }
         \seq_clear:N \l__lx_lpzgcheck_tmp_seq
         \seq_map_inline:Nn \g__lx_lpzg_used_seq
           {
@@ -4095,6 +4319,11 @@
         \int_compare:nNnT { \g__lxp_altg_role_int } = { 1 }
           {
             \int_gset:Nn \g__lxp_altg_role_int { 0 }
+            %% and whatever punctuation that object call took along comes
+            %% back here rather than vanishing with the paradigm that was
+            %% never completed: the run is stopping on an error either
+            %% way, and an error is not a reason to eat the author's text.
+            \g__lxp_altg_pending_tl \tl_gclear:N \g__lxp_altg_pending_tl
             \PackageError { linguexx }
               { \string\altg\space in~gloss~column~##1~has~no~partner }
               { An~\string\altg\space in~a~gloss~must~be~written~TWICE~in~
@@ -4640,6 +4869,8 @@
 \seq_new:N \l__lxp_altg_seq
 \box_new:N \l__lxp_altg_stack_box
 \box_new:N \l__lxp_altg_out_box
+\box_new:N \l__lxp_altg_punct_box
+\dim_new:N \l__lxp_altg_punct_dim
 \dim_new:N \l__lxp_altg_ht_dim
 \dim_new:N \l__lxp_altg_bxht_dim
 \dim_new:N \l__lxp_altg_bxdp_dim
@@ -4649,6 +4880,7 @@
 \int_new:N \g__lxp_altg_role_int   % 0 = the next in-gloss \altg is the object call
 \int_new:N \g__lxp_altg_count_int  % alternatives announced by the object call
 \dim_new:N \g__lxp_altg_indent_dim % width of the object emit, for the gloss call
+\tl_new:N  \g__lxp_altg_pending_tl % punctuation the object call took along
 \bool_new:N \l_lx_gl_inside_bool   % true while \gll/\gl cells are typeset
 
 %% \lxAltg{alt}{alt}... : one stacked column of alternatives.  Inside an
@@ -4699,7 +4931,8 @@
 \cs_new_protected:Npn \__lxp_altg_setstack:nN #1#2
   {
     \__lxp_alt_build:NNnnN \l__lxp_altg_stack_box \l__lxp_altg_seq { l }
-      { #1 \renewcommand \lpzg [1] { \lx@lpzg@build {##1} \textsc {##1} } }
+      { #1 \renewcommand \lpzg [1]
+          { \lx@lpzg@parse:n {##1} \lx@lpzg@print:n {##1} } }
       #2
     \dim_set:Nn \l__lxp_altg_bxht_dim { \box_ht:N \l__lxp_altg_stack_box }
     \dim_set:Nn \l__lxp_altg_bxdp_dim { \box_dp:N \l__lxp_altg_stack_box }
@@ -4713,6 +4946,111 @@
   {
     \__lxp_brace:nnn {#1}
       { \dim_eval:n { - \l__lxp_altg_bxdp_dim } } { \l__lxp_altg_bxht_dim }
+  }
+%% Punctuation glued to the object call travels to the end of the
+%% paradigm.  A paradigm is ONE block spanning both tiers, and its closing
+%% brace is drawn by the gloss call, half a line lower and a whole gloss
+%% column further right; but a sentence-final period is written where a
+%% period is written, right after the object \altg that ends the object
+%% line:
+%%
+%%     \exg. On-i su se \altg{posvadjal-i}{*posvadjal-e}.\\
+%%           they  are refl \altg{argued.m.pl}{argued.f.pl}\\
+%%
+%% Typeset where it stands, that period lands immediately after the object
+%% STACK -- inside the braces, in the gutter between the object column and
+%% the gloss column, reading as though it belonged to the first
+%% alternative.  Nothing on the object line can be placed after the
+%% closing brace, either, because the width of the paradigm is not known
+%% until the gloss call has run.  So the object call takes the punctuation
+%% with it and the gloss call sets it down, past the brace and level with
+%% the middle of it -- the one height that belongs to both tiers, since
+%% the sentence the period ends is not the first alternative's.
+%%
+%% Only punctuation is taken, and only what is glued to the call with no
+%% space: a space ends the gloss column anyway, so anything after one is a
+%% column of its own and already lands past the paradigm.  \altn needs
+%% none of this -- it draws both of its braces in the one call.
+%% One peek, then a test against the candidates -- not a peek per
+%% candidate inside a map.  A peek reads what comes next in the INPUT, and
+%% inside a mapping what comes next is the mapping's own continuation, so
+%% a loop of \peek_charcode_remove: over the candidates never sees the
+%% document at all: it reports no punctuation on a line ending in a period.
+\tl_const:Ne \c__lxp_altg_punct_tl { \tl_to_str:n { .,;:!?)] } }
+\cs_new_protected:Npn \__lxp_altg_takepunct:
+  { \peek_after:Nw \__lxp_altg_punct_if: }
+%% The candidates are compared to the peeked token by CHARACTER CODE, and
+%% the loop over them runs after the peek rather than around it.
+%% \token_to_str:N is no use here: \l_peek_token is a control sequence LET
+%% to the token ahead, so \string gives back its own name, not the
+%% character it stands for, and every comparison against the set succeeds
+%% or fails on the wrong string.
+\cs_new_protected:Npn \__lxp_altg_punct_if:
+  {
+    \token_if_cs:NF \l_peek_token
+      {
+        \tl_map_inline:Nn \c__lxp_altg_punct_tl
+          {
+            \token_if_eq_charcode:NNT \l_peek_token ##1
+              { \tl_map_break:n { \__lxp_altg_punct_take:N } }
+          }
+      }
+  }
+\cs_new_protected:Npn \__lxp_altg_punct_take:N #1
+  {
+    \tl_gput_right:Nn \g__lxp_altg_pending_tl {#1}
+    \__lxp_altg_takepunct:
+  }
+%% Level with the MIDDLE of the closing brace, not with either line.  The
+%% period ends the sentence the whole paradigm stands in, so it belongs to
+%% both tiers; set on the object line it reads as the first alternative's,
+%% which is the very thing that was wrong with leaving it where it stood.
+%%
+%% \AltBraceSep in front of it, the same clearance the brace keeps from
+%% the stack on its other side.  At this height it is not optional: the
+%% brace's TIP is what points at the punctuation, it reaches the right
+%% edge of the brace's own box, and a period set flush against it comes
+%% out looking like a blob on the end of the brace rather than a period.
+%%
+%% The raise is three terms, all measured rather than guessed:
+%%
+%%   0.5\baselineskip   the gloss baseline up to the paradigm's own
+%%                      baseline -- the y=0 the two braces are drawn
+%%                      about, half a line above the tier this box sits on
+%%   (ht-dp)/2          that baseline up to the middle of the brace, which
+%%                      spans exactly [-dp,+ht] of the gloss stack: the
+%%                      stack is a [c] tabular, so its box is centred on
+%%                      the math axis and not on its own middle, and the
+%%                      two differ by the axis height
+%%   -(ht-dp)/2 of the  the punctuation's own baseline, so that its INK is
+%%   punctuation        centred on that height and not hung from it.  A
+%%                      period would otherwise sit half a dot's height
+%%                      low, and a comma would hang lower still
+%%
+%% Set down flat afterwards -- no height, no depth -- so the gloss line
+%% keeps the baseline grid it was clamped onto, and outside the /Alt Span,
+%% because the period is not one of the alternatives it speaks.
+\cs_new_protected:Npn \__lxp_altg_putpunct:
+  {
+    \tl_if_empty:NF \g__lxp_altg_pending_tl
+      {
+        \hbox_set:Nn \l__lxp_altg_punct_box
+          { \hspace { \AltBraceSep } \g__lxp_altg_pending_tl }
+        \dim_set:Nn \l__lxp_altg_punct_dim
+          {
+            0.5 \baselineskip
+            + ( \l__lxp_altg_bxht_dim - \l__lxp_altg_bxdp_dim ) / 2
+            - ( \box_ht:N \l__lxp_altg_punct_box
+                - \box_dp:N \l__lxp_altg_punct_box ) / 2
+          }
+        \hbox_set:Nn \l__lxp_altg_punct_box
+          { \raisebox { \l__lxp_altg_punct_dim }
+              { \box_use:N \l__lxp_altg_punct_box } }
+        \box_set_ht:Nn \l__lxp_altg_punct_box { 0pt }
+        \box_set_dp:Nn \l__lxp_altg_punct_box { 0pt }
+        \box_use:N \l__lxp_altg_punct_box
+        \tl_gclear:N \g__lxp_altg_pending_tl
+      }
   }
 %% the three printed shapes.  Object cell: left brace + stack, dropped
 %% half a baseline; natural height kept (reserves the protrusion above),
@@ -4740,6 +5078,10 @@
         \raisebox { \dim_eval:n { 0.5 \baselineskip } }
           { \box_use:N \l__lxp_altg_stack_box \hspace { \AltBraceSep }
             \__lxp_altg_brace:n { R } }
+        %% against the brace, INSIDE \AltBraceOuterSep: that separator
+        %% holds the paradigm off the words around it, and a period is not
+        %% one of them -- it belongs to the brace it follows.
+        \__lxp_altg_putpunct:
         \hspace { \AltBraceOuterSep } }
     \box_set_ht:Nn \l__lxp_altg_out_box { 0pt }
     \box_use:N \l__lxp_altg_out_box
@@ -4777,6 +5119,7 @@
               { \seq_count:N \l__lxp_altg_seq }
             \__lxp_altg_setstack:nN { } \c_true_bool
             \__lxp_altg_emit:n { \__lxp_altg_shape_obj: }
+            \__lxp_altg_takepunct:
           }
           { % gloss call
             \int_gset:Nn \g__lxp_altg_role_int { 0 }

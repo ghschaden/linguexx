@@ -1,5 +1,13 @@
 \input{_preamble}
 \SetLeipzig{obv}{obviative}
+% A key that is not ASCII.  Its normal form is a STRING, which under
+% pdflatex is the two UTF-8 bytes of the e acute -- and those used to be
+% what got typeset, one T1 slot each, so the list printed a key the
+% source does not contain.  Spelt three ways on purpose: DECLARED with an
+% accent command here, USED as the character below, and exempted from the
+% CUSTOMLIST as an accent command again.  All three are one key, or this
+% list comes out with a missing entry, an unexplained one, or two.
+\SetLeipzig{f\'em}{f\'eminin}
 \begin{document}
 % The list stands BEFORE every use it reports on: it must be complete all
 % the same (that is what the .aux round trip is for).
@@ -20,10 +28,11 @@ FRONTLIST
 
 % declared with \SetLeipzig, so it is explained; NOWHERE is unknown and
 % must be dropped from the list without a trace.
-Prose: \lpzg{obv} and \lpzg{NOWHERE}.  \lpzgadd{voc}
+Prose: \lpzg{obv} and \lpzg{fém} and \lpzg{NOWHERE}.  \lpzgadd{voc}
 
 INLINELIST \lpzglist[style=inline,sort=false,title={},ignore={3,def,nom}]
 
 CUSTOMLIST
-\lpzglist[format={\item[\textsc{#1}] = #2},ignore={3,acc,def,nom,obv,pl,prs,pst,voc}]
+\lpzglist[format={\item[\textsc{#1}] = #2},
+          ignore={3,acc,def,f\'em,nom,obv,pl,prs,pst,voc}]
 \end{document}

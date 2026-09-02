@@ -1,0 +1,30 @@
+\input{_preamble}
+
+% Two things a modified gloss label is about.
+%
+% (1) A modifier written INSIDE \lpzg -- \lpzg{\textbf{m}.pl}, to pick one
+%     cell of a paradigm out of the line -- ADDS its feature to the small
+%     caps.  Latin Modern has no bold small caps in any encoding, so under
+%     xelatex and lualatex NFSS used to drop the shape and keep the
+%     series, and the label came out as a bold lowercase "m".  Measured
+%     from the ink: MODBOLD's letter is as TALL as MODPLAIN's (the small
+%     caps survived) and carries more ink than it (the boldface arrived).
+%     pdflatex's cmr has the shape and takes the plain \textsc path, which
+%     is the same assertion from the other side.
+%
+% (2) Punctuation glued to the object call of an \altg belongs to the
+%     whole paradigm, not to the first alternative: it is set after the
+%     closing brace, on the object line.
+\begin{document}
+\noindent MODPLAIN \lpzg{m} MODBOLD \lpzg{\textbf{m}} MODEND
+
+\exg. On-i star-e vladik-e su se \altg{posvadjal-i}{*posvadjal-e} na ulici.\\
+    Those-\lpzg{\textbf{m}.pl} old-\lpzg{\textbf{f}.pl} bishop-\lpzg{\textbf{f}.pl}
+    are \lpzg{refl} \altg{argued-\lpzg{\textbf{m}.pl}}{argued-\lpzg{\textbf{f}.pl}}
+    on street.\\
+    `Those old bishops argued in the streets.'
+
+\exg. DOTOBJ \altg{DOTALTA}{DOTALTB}.\\
+    dotobj \altg{dotalta}{dotaltb}\\
+    `Those old bishops argued.'
+\end{document}

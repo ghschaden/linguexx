@@ -524,6 +524,75 @@ version string.
   the author could not find in the source -- and the `/E` expansion carried
   a trailing space. Blank segments are now skipped; the real pieces beside
   them are recorded exactly as before.
+- Fix: a modifier inside a `\lpzg` label now *adds* to the small capitals
+  instead of replacing them. `\lpzg{\textbf{m}.pl}` -- the way one picks the
+  cell of a paradigm the surrounding discussion is about -- came out as a
+  bold *lowercase* "m" under xelatex and lualatex: Latin Modern has no bold
+  small capitals in any encoding (there is no bold `lmromancaps`, and
+  `lmodern` under pdflatex has the same gap), and NFSS's fallback keeps the
+  series and drops the shape. Silently: the log says "Font shape
+  `TU/lmr/bx/sc' undefined", which reads like a remark about a font, while
+  what is lost is the one feature that marks a category label as a label.
+  `\lpzg` now decides per *leaf* of the label, and by asking the font that
+  was actually selected rather than by keeping a list of families: it
+  compares the font `\scshape` lands on with the upright one, a
+  substitution being invisible in `\f@shape` and plain in `\fontname`. Where
+  the shape is real -- pdflatex's default `cmr`, any OpenType face with
+  `smcp` in its bold weight -- the label is set with `\textsc` exactly as
+  before, byte for byte. Where it is not, the capitals are made: uppercased
+  and set at `\LpzgCapsScale` (new, default `0.75`) of the size, in the font
+  the modifier chose, so the boldface survives and the height still matches
+  the real small capitals beside it. Under active tagging the made capitals
+  carry their own marked content with an `/ActualText` of the letters as
+  written, so the text layer still says `m.pl`; `tests/ua.tex` has such a
+  label now, and veraPDF passes it on all three engines. `\textbf`,
+  `\textit`, `\textsl`, `\textup`, `\textmd`, `\textrm`, `\textsf`,
+  `\texttt`, `\textnormal` and `\emph` are recognised inside a label.
+  Measured from the ink in `tests/lpzg-mod.tex`: the modified label is as
+  tall as the plain one and carries half as much ink again.
+- Fix: the same label is now parsed *through* its markup. The first piece
+  of `\lpzg{\textbf{m}.pl}` reached the Leipzig table as `\textbf {m}`,
+  which expands to nothing, so the `/E` spoke the markup, `\lpzglist` had an entry named
+  after a control sequence, and `\lpzgcheck` warned about a key the author
+  cannot find in the source. The label is purified before it is parsed;
+  printing is unaffected.
+- Fix: an abbreviation key that is not ASCII is typeset as the character it
+  is. A key is stored and compared as a string, and under pdflatex a string
+  is BYTES, so `\lpzgadd{abß}` printed `abÃ§` -- the two UTF-8 bytes of `ß`
+  sent to the T1 slots of `Ã` and `§`. Only the *printing* was ever wrong:
+  the `.aux` round trip, the `/E` expansion text (tagpdf reads the bytes as
+  the UTF-8 they are) and the warnings in the log were all correct, which is
+  how it survived. The bytes are now turned back into characters where they
+  are set, and nowhere else -- identity, comparison, sorting and the `.aux`
+  keep the string they have always had. Re-tokenising is what does it, with
+  every ASCII special forced to catcode 12 first: a key is text, not markup.
+  The label column of the list is measured from the same readable form, so
+  it no longer reserves a glyph per byte. Unchanged for ASCII keys, to the
+  pixel.
+- Fix: the spellings of such a key agree. `\SetLeipzig{f\'em}`, `\lpzg{fém}`
+  and `ignore={f\'em}` are one key now, in any combination: every key is
+  normalised the same way (purified, then a string), where `\SetLeipzig`
+  used to store what it was handed. Two spellings of one abbreviation gave
+  a list with an unexplained entry beside an unused declaration, and no
+  warning that named the reason. `tests/lpzglist.tex` carries the key in
+  all three spellings.
+- Fix: punctuation glued to the object call of an `\altg` is set after the
+  paradigm instead of inside it. A paradigm is one block spanning both
+  tiers and its closing brace is drawn by the *gloss* call, so a
+  sentence-final period written where a period is written --
+  `\altg{posvadjal-i}{*posvadjal-e}.` at the end of the object line --
+  landed immediately after the object stack: inside the braces, in the
+  gutter between the object and gloss columns, reading as a period on the
+  first alternative. The object call now takes the punctuation with it and
+  the gloss call sets it down past the brace and level with the middle of
+  it -- the one height that belongs to both tiers, the sentence it ends
+  being the paradigm's rather than the first alternative's -- with the
+  brace's own `\AltBraceSep` in front of it, since the tip points straight
+  at it and a period flush against that reads as part of the brace.
+  Only characters from `.,;:!?)]` and only with no space between: anything
+  after a space is a gloss column of its own and already fell past the
+  paradigm. `\altn` needs none of this -- it draws both braces itself.
+  Covered by `tests/lpzg-mod.tex`.
 
 ## 1.1
 - `\lpzglist`: the list of the abbreviations the document actually uses, each

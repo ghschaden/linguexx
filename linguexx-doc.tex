@@ -993,6 +993,63 @@ knows, are described in section~\ref{sec:leipzigtag}. \cs{lpzg} is
 self-contained and does not require, or interact with, the \pkg{leipzig}
 package.
 
+\paragraph{Modified labels.} A label, or a piece of one, may be marked up
+inside the call --- to pick the cell of a paradigm the surrounding
+discussion is about:
+
+\begin{code}
+\gll On-i star-e vladik-e su se posvadjal-i.\\
+     those-\lpzg{\textbf{m}.pl} old-\lpzg{f.pl} bishop-\lpzg{f.pl}
+       are \lpzg{refl} argued-\lpzg{\textbf{m}.pl}\\
+\glt `Those old bishops argued.'
+\end{code}
+
+\rendered
+\gll On-i star-e vladik-e su se posvadjal-i.\\
+     those-\lpzg{\textbf{m}.pl} old-\lpzg{f.pl} bishop-\lpzg{f.pl}
+       are \lpzg{refl} argued-\lpzg{\textbf{m}.pl}\\
+\glt `Those old bishops argued.'
+
+\afterex
+\noindent The modifier \emph{adds} to the small capitals: what it marks
+comes out bold \emph{and} small, and the rest of the label is unaffected.
+That is not automatic. Latin Modern has no bold small capitals in any
+encoding --- there is no bold companion to \texttt{lmromancaps} --- and
+plain \texttt{\textbackslash textsc\{\textbackslash textbf\{m\}\}} in such a font loses the
+shape and keeps the weight, silently: the label comes out as a bold
+lowercase ``m'', which is the one thing a category label must not
+look like. \cs{lpzg} therefore asks the font, for each piece of the label
+separately, whether its small capitals are real. Where they are ---
+pdf\LaTeX's default \pkg{cmr} has them, and so does any \textsc{OpenType}
+face carrying \texttt{smcp} in its bold weight --- nothing changes and the
+label is set with \cs{textsc} as before. Where they are not, the capitals
+are made: the letters are set as capitals at \cs{LpzgCapsScale} (default
+\texttt{0.75}) of the current size, in the font the modifier asked for, so
+the boldface survives and the height matches the real small capitals
+beside it. Under active tagging the made capitals carry an
+\texttt{/ActualText} of the letters as written, so a screen reader and
+copy-and-paste still get \texttt{m.pl}; in an untagged document they
+extract as capitals, as made small capitals always do.
+
+\cs{textbf}, \cs{textit}, \cs{textsl}, \cs{textup}, \cs{textmd},
+\cs{textrm}, \cs{textsf}, \cs{texttt}, \cs{textnormal} and \cs{emph} are
+recognised inside a label; other commands are left to themselves and their
+argument stays in whatever small capitals surround it. The markup is
+invisible to everything else \cs{lpzg} does: the label is read through it,
+so \texttt{\textbackslash lpzg\{\textbackslash textbf\{m\}.pl\}} expands, records and lists
+exactly as \cs{lpzg}\marg{m.pl} does.
+
+\paragraph{Labels beyond ASCII.} A key may be any text ---
+\cs{SetLeipzig}\marg{fém}\marg{féminin} for a paper written in French, say
+--- and it may be spelt either way its language allows, as the character
+(\texttt{fém}) or as an accent command
+(\texttt{f\textbackslash'em}). Both are the same key: keys are compared in
+one normal form, so a label written one way finds a declaration written
+the other, and \cs{lpzglist} lists one entry rather than two. That normal
+form is a byte string, which is why the lists set the key through the same
+step that reads it back: what you typed is what is printed, on all three
+engines.
+
 \subsection{The list of abbreviations used: \cs{lpzglist}}
 \label{sec:lpzglist}
 A paper that glosses its examples owes the reader a list of the
@@ -1716,6 +1773,29 @@ position --- the $n$-th gloss glosses the $n$-th object word.
 
 Outside a gloss, a single \cs{altg} sets one both-braced stack on the
 current baseline --- \cs{altn} with a closing brace, in effect.
+
+\paragraph{Punctuation after a paradigm.} A paradigm is one block spanning
+both tiers, and its closing brace is drawn by the gloss call --- half a
+line lower and a gloss column further right than the object call. A
+sentence-final period, though, is written where a period is written: right
+after the object \cs{altg} that ends the object line. Punctuation glued to
+the object call (no space between) therefore travels with the paradigm and
+is set after the closing brace, level with the middle of it --- the
+sentence it ends is the paradigm's, not the first alternative's:
+
+\rendered
+\exg. On-i su se \altg{posvadjal-i}{*posvadjal-e}.\\
+      they are \lpzg{refl} \altg{argued.\lpzg{m.pl}}{argued.\lpzg{f.pl}}\\
+
+\afterex
+\noindent Typeset where it stands it would land immediately after the
+object stack --- inside the braces, in the gutter between the two columns,
+reading as a period on the first alternative. It keeps \cs{AltBraceSep}
+from the brace, the clearance the brace keeps from the stack on its other
+side: the tip points straight at the punctuation at this height, and a
+period flush against it reads as part of the brace. Anything separated
+from the call by a space is a gloss column of its own and needs none of
+this.
 
 \paragraph{Judgment marks: the object tier only.} With
 \cs{GlossPhantomAlign} in force (or the package option \opt{phantomalign};

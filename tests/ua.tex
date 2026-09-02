@@ -57,6 +57,15 @@ UAINTRO ordinary running text precedes the first example.
 \z.
 \b. UAZAFTER a sub-example after the pop.
 
+%% A modified label.  Where the font has no bold small caps (Latin
+%% Modern under the unicode engines; T1/cmr under pdflatex has them and
+%% takes the plain \textsc path), the caps are made from uppercase
+%% letters, and marked content of their own carries the /ActualText that
+%% keeps the text layer saying "m" -- a second MC inside the
+%% abbreviation's Span, which is exactly the kind of nesting veraPDF is
+%% here to judge.
+UAMOD a modified abbreviation \lpzg{\textbf{m}.pl} in running text.
+
 %% stacked alternatives, text-mode: no Formula element may appear (that is
 %% the PDF/UA-2 failure which forced the 0.12 removal of \altg)
 \ex. UAALTN I saw \altn{the cat}{a dog} here.

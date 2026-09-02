@@ -1768,8 +1768,19 @@ def a_ua(p: Page):
     # the document really did typeset, so a compliant-but-empty PDF cannot
     # pass this case by accident
     for tok in ("UAMAIN", "UAALPHA", "UAOBJ", "UATRANS", "UAALTN", "UAALTG",
-                "UAEXE", "UALIST", "UAREL", "UAZTRANS", "UAZAFTER"):
+                "UAEXE", "UALIST", "UAREL", "UAZTRANS", "UAZAFTER", "UAMOD"):
         r.append(check(p.find(tok) is not None, f"typeset: {tok}"))
+    # The modified abbreviation reads back as it was written.  Where the
+    # font has no bold small caps the glyphs on the page are capitals, so
+    # what is read here is the /ActualText of the made caps and nothing
+    # else -- and that is not decoration: it is what a screen reader
+    # announces and what copy-and-paste yields.  Taken from the whole line
+    # rather than from one word, because made caps are set at a size of
+    # their own and pdftotext -bbox splits a word at the size change (its
+    # plain output joins the pieces again, with no space between them).
+    mod = "".join(w.text for w in p.line_of(p.find("UAMOD")))
+    r.append(check("m.pl" in mod,
+                   f"the modified abbreviation extracts as written: {mod!r}"))
     return r
 
 
@@ -3532,6 +3543,64 @@ def brace_bulge(pdf: Path, x0, x1, y0, y1, dpi=300):
     return max((rows[y] for y in ys), key=lambda c: abs(c - ends)) - ends
 
 
+def glyph_ink(pdf: Path, w, dpi=600):
+    r"""(ink height in pt, ink area in pt^2) of the glyphs inside word `w`.
+
+    A word box is line-height and says nothing about the letters in it, so
+    neither the SIZE nor the WEIGHT of a glyph shows up in the text layer:
+    a bold lowercase "m" and a small-cap "M" occupy the same box and
+    extract as the same word.  Both are exactly what \lpzg's modified
+    labels are about, and both are plain in the rendered ink -- the height
+    tells small caps from lowercase, the area tells bold from medium.
+
+    Measured against a hard threshold rather than brace_bulge's generous
+    one: a glyph is solid ink, not a hairline, and counting anti-aliasing
+    would make the area depend on the resolution.
+    """
+    px, width, height = _render_gray(pdf, dpi)
+    s = dpi / 72.0
+    x0, x1 = max(0, int(w.x0 * s)), min(width, int(w.x1 * s) + 1)
+    y0, y1 = max(0, int(w.y0 * s)), min(height, int(w.y1 * s) + 1)
+    rows, dark = [], 0
+    for y in range(y0, y1):
+        base = y * width
+        n = sum(1 for x in range(x0, x1) if px[base + x] < 128)
+        if n:
+            rows.append(y)
+            dark += n
+    if not rows:
+        raise AssertionError(f"no ink in the box of {w!r}")
+    return (max(rows) - min(rows) + 1) / s, dark / (s * s)
+
+
+def ink_bbox(pdf: Path, x0, y0, x1, y1, dpi=600, threshold=200):
+    """(left, top, right, bottom) in PDF points of the ink inside a box.
+
+    Where glyph_ink asks how big and how heavy a glyph is, this asks where
+    it is -- and asks it of ink rather than of a text-layer box, so that a
+    drawn brace and a period can be compared with each other at all.  The
+    threshold sits between brace_bulge's generous 224 (a hairline survives
+    mostly as anti-aliasing) and glyph_ink's strict 128: both things
+    measured here have a solid core, and the edge pixels either way move
+    the answer by less than the tolerances that read it.
+    """
+    px, width, height = _render_gray(pdf, dpi)
+    s = dpi / 72.0
+    cx0, cx1 = max(0, int(x0 * s)), min(width, int(x1 * s) + 1)
+    cy0, cy1 = max(0, int(y0 * s)), min(height, int(y1 * s) + 1)
+    xs, ys = [], []
+    for y in range(cy0, cy1):
+        base = y * width
+        row = [x for x in range(cx0, cx1) if px[base + x] < threshold]
+        if row:
+            ys.append(y)
+            xs += (row[0], row[-1])
+    if not ys:
+        raise AssertionError(
+            f"no ink in ({x0:.1f},{y0:.1f})-({x1:.1f},{y1:.1f})")
+    return min(xs) / s, min(ys) / s, max(xs) / s, max(ys) / s
+
+
 # --- PDF structure-tree inspection (uncompressed output only) -------------
 
 def struct_elems(raw: bytes):
@@ -3699,16 +3768,27 @@ def a_lpzglist(p: Page):
     an \\altg stack (where \\lpzg prints plain) and voc only via \\lpzgadd,
     so both entries prove their own recording path.  NOWHERE has no
     expansion and must be dropped without a trace.
+
+    "fem" with an accent is the key that is not ASCII.  A key is stored
+    and compared as a string, and under pdflatex a string is BYTES: the
+    entry used to be typeset one byte at a time, so the list printed a key
+    the document does not contain (and, being consistent about it,
+    reserved a label column that wide as well).  It is declared as the
+    character and exempted from the CUSTOMLIST as an accent command, so
+    the two spellings have to reach the same key for that list to come out
+    with one entry.
     """
     r = []
     lines = _band_lines(p, p.find("FRONTLIST").y1, p.find("(1)").y0)
     labels = [l[0].text for l in lines]
-    expected = ["3", "acc", "def", "nom", "obv", "pl", "prs", "pst", "sg", "voc"]
+    expected = ["3", "acc", "def", "f\u00e9m", "nom", "obv", "pl", "prs",
+                "pst", "sg", "voc"]
     r.append(check(labels == expected,
                    f"front list is complete and alphabetical: {labels} != {expected}"))
     texts = {l[0].text: " ".join(w.text for w in l[1:]) for l in lines}
     for key, meaning in (("3", "third person"), ("acc", "accusative"),
-                         ("obv", "obviative"), ("voc", "vocative")):
+                         ("obv", "obviative"), ("voc", "vocative"),
+                         ("f\u00e9m", "f\u00e9minin")):
         r.append(check(texts.get(key) == meaning,
                        f"{key} is explained as {meaning!r} (got {texts.get(key)!r})"))
     # labels flush left in a column of their own: same origin for all of
@@ -3739,12 +3819,92 @@ def a_lpzglist(p: Page):
         words += [w.text for w in line]
     got = " ".join(words)
     want = ("INLINELIST sg singular; pst past; pl plural; prs present; "
-            "acc accusative; obv obviative; voc vocative")
+            "acc accusative; obv obviative; f\u00e9m f\u00e9minin; "
+            "voc vocative")
     r.append(check(got == want, f"inline list, order of first use: {got!r} != {want!r}"))
     # a custom entry format replaces the default one entirely
     tail = _band_lines(p, custom.y1, max(w.y1 for w in p.words) + 1)
     r.append(check(bool(tail) and " ".join(w.text for w in tail[0]) == "sg = singular",
                    f"format= drives the entry: {tail[0] if tail else None}"))
+    return r
+
+
+def a_lpzg_mod(p: Page):
+    r"""A modifier inside \lpzg adds to the small caps; \altg keeps its dot.
+
+    Both halves are invisible to the text layer.  The first is measured
+    from the ink of two labels set side by side, \lpzg{m} and
+    \lpzg{\textbf{m}}: the modified one must be exactly as TALL (the small
+    caps survived the modifier) and carry distinctly more ink (the
+    modifier survived the small caps).  Latin Modern has no bold small
+    caps in any encoding, so before the per-leaf decision was made xelatex
+    and lualatex dropped the shape and set a bold lowercase "m" -- same
+    word, same box, 14% shorter.  pdflatex's cmr has the shape and takes
+    the unchanged \textsc path, which is the same assertion from the other
+    side and the reason it is not engine-specific.
+
+    The second is a coordinate: a period glued to the object call of an
+    \altg used to be set where it stands, immediately after the object
+    stack -- inside the braces, in the gutter between the object column
+    and the gloss column.  It belongs to the paradigm as a whole, so it is
+    set after the closing brace and on the object line.
+    """
+    r = []
+    line = p.line_of(p.find("MODPLAIN"))
+    texts = [w.text for w in line]
+    plain = line[texts.index("MODPLAIN") + 1]
+    bold = line[texts.index("MODBOLD") + 1]
+    hp, ap = glyph_ink(p.path, plain)
+    hb, ab = glyph_ink(p.path, bold)
+    r.append(check(abs(hb - hp) < 0.35,
+                   f"the modified label keeps the small caps: it is "
+                   f"{hb:.2f}pt tall, the plain one {hp:.2f}pt"))
+    r.append(check(ab > 1.2 * ap,
+                   f"and gains the boldface: {ab:.2f} against {ap:.2f} "
+                   f"square points of ink"))
+    # ... and the unmodified label is untouched by any of this: a real
+    # small-caps font keeps the letters it was given, so the text layer
+    # still hands out "m".  This is what pins the decision to the fonts
+    # that need it -- caps made where a real shape exists would look the
+    # same on the page and extract as "M".
+    r.append(check(plain.text == "m",
+                   f"the plain label is set in the font's own small caps "
+                   f"and extracts as written; got {plain.text!r}"))
+    # the label is parsed through its markup, not as markup: \textbf{m}
+    # used to reach the Leipzig table verbatim, and be reported as a key
+    # with no expansion (and listed under that name by \lpzglist).
+    r.append(check("No expansion known for" not in p.log,
+                   "the markup is off the label before the table sees it: "
+                   + warning_body(p.log, "Package linguexx Warning: No "
+                                         "expansion known for")))
+    # the period of the second example
+    dot = p.find(".")
+    gloss = p.find("dotaltb")
+    top = min(p.find("DOTALTA").y0, p.find("DOTALTB").y0) - 6
+    bottom = max(p.find("DOTALTA").y1, p.find("DOTALTB").y1) + 6
+    r.append(check(dot.x0 > gloss.x1,
+                   f"the period is set past the paradigm, not inside it "
+                   f"({dot.x0:.1f} against a gloss column ending at "
+                   f"{gloss.x1:.1f})"))
+    # Level with the middle of the CLOSING BRACE, which is the one thing in
+    # the neighbourhood that belongs to both tiers -- so the two are
+    # compared to each other, ink to ink: the brace has no text layer at
+    # all, and the period's box is line-height and says nothing about where
+    # the dot inside it sits.  On the object line, which is where this
+    # started, the two centres are a good half line apart.
+    brace = ink_bbox(p.path, gloss.x1 + 0.5, top, dot.x0, bottom)
+    ink = ink_bbox(p.path, dot.x0, top, dot.x1 + 0.5, bottom)
+    mid_brace = (brace[1] + brace[3]) / 2
+    mid_dot = (ink[1] + ink[3]) / 2
+    r.append(check(abs(mid_dot - mid_brace) < 0.35,
+                   f"the period is level with the middle of the closing "
+                   f"brace ({mid_dot:.2f} vs {mid_brace:.2f})"))
+    # ... and clear of its tip.  The tip is what points at the punctuation
+    # and it reaches the edge of the brace's own box, so a period set flush
+    # against it reads as a blob on the end of the brace.
+    r.append(check(ink[0] - brace[2] > 0.8,
+                   f"and clear of the brace's tip "
+                   f"({ink[0] - brace[2]:.2f}pt of daylight)"))
     return r
 
 
@@ -3789,6 +3949,7 @@ ASSERTIONS = {
     "gloss": a_gloss,
     "glt": a_glt,
     "lpzgcheck": a_lpzgcheck,
+    "lpzg-mod": a_lpzg_mod,
     "lpzglist": a_lpzglist,
     "lpzgsetup": a_lpzgsetup,
     "phantomalign": a_phantomalign,
