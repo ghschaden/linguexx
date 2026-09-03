@@ -3,7 +3,7 @@
 All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
-## 1.5
+## 1.2
 - New: `\SetAltSpoken{word}` sets the connector a screen reader hears between
   the alternatives of a stack — `\altn{aa}{bb}` was announced "aa or bb" in
   every document, whatever its language, and there was no way to say "aa ou
@@ -36,8 +36,6 @@ version string.
   the manual; the judgment phrases and the Leipzig expansions were already
   overridable. Which sets a non-English document *should* use remains an open
   question — see `doc/DEFERRED-DECISIONS.md`.
-
-## 1.4
 - New: `\GlossTransSide` sets `\glt`'s free translation in a column **beside**
   the interlinear grid instead of underneath it; `\GlossTransBelow` restores
   the default. It saves height when the translation is short beside a gloss of
@@ -80,8 +78,6 @@ version string.
   paragraph that puts them down — 19 records logged by veraPDF while every
   one of its profiles still called the file compliant. `tests/glt-side.tex`
   and `tests/ua.tex` have a mutation for each.
-
-## 1.3
 - New: `\exannot[⟨spoken⟩]{⟨text⟩}` — a structural label (`[CP]`, `[TP]`, a
   language name, a reading) set in a **column** beside the examples. `\exsource`
   is the flush-right member of the family and is for a source, which belongs at
@@ -155,8 +151,6 @@ version string.
   its letters), rather than `/ActualText` (which would take the brackets out of
   copy-and-paste), and rather than `Aside` (a block element, which cannot sit
   inside the paragraph the annotation shares with its example).
-
-## 1.2
 - New: `[langsci]`, the `\ea` … `\z` front-end of `langsci-gb4e` (Language
   Science Press's fork of `gb4e`). `\ea` opens an example or, inside one, the
   next level down; `\z` closes whatever the matching `\ea` opened; the depth is

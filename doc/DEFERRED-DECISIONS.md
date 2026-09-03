@@ -630,7 +630,7 @@ only ever one document language to speak in.
 Until then the package ships English and says so, which is the one answer
 that cannot be mistaken for a promise. Related: the spoken judgment marks and the
 connector `\altn` builds have the same shape of problem. Both are
-overridable — `\SetJudgmentSpoken` and, since 1.5, `\SetAltSpoken` — so
+overridable — `\SetJudgmentSpoken` and `\SetAltSpoken` — so
 what is undecided for them is only which sets to ship, exactly as here.
 
 ---

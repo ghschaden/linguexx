@@ -5,7 +5,7 @@
 %%%% This program can be redistributed and/or modified under the terms
 %%%% of the LaTeX Project Public License
 \NeedsTeXFormat{LaTeX2e}[2020/10/01]% expl3 in kernel required
-\ProvidesPackage{linguexx}[2026/09/03 Standalone linguistic examples, linguex-compatible interface v. 1.5]
+\ProvidesPackage{linguexx}[2026/09/03 Standalone linguistic examples, linguex-compatible interface v. 1.2]
 %% v. 0.1: [legacy] option; empty \firstrefdash by default.
 %% v. 0.2: tagging-safe under \DocumentMetadata (PDF tagging testphase):
 %%         lists opened/closed through the environment interface; no TeX
@@ -58,10 +58,6 @@
 %%         SG.  Built-in standard Leipzig table, keyed by short form;
 %%         \SetLeipzig{key}{expansion} extends/overrides; unknown keys
 %%         print with no expansion.  Tag-guarded; self-contained.
-%% v. 1.5: \SetAltSpoken{word} sets the connector spoken between stacked
-%%         alternatives, for \altn and \altg; optional argument sets the
-%%         punctuation, starred form keeps it before the connector (the
-%%         English default).  Local, so it can be scoped to one example.
 %% v. 0.9: \lpzg accepts a whole compound label in one call (3sg.pst):
 %%         split on periods, a leading person digit peeled off, each piece
 %%         expanded and joined into one /E ("third person singular past").
@@ -231,7 +227,7 @@
 %%          the object and gloss columns.  The object call takes it
 %%          along; the gloss call, which draws the closing brace,
 %%          sets it down.
-%% v. 1.3: \exannot[<spoken>]{<text>}: a structural label set in a
+%%          \exannot[<spoken>]{<text>}: a structural label set in a
 %%          COLUMN beside the examples rather than at the margin, where
 %%          \exsource puts a source.  \ExAnnotColumn says where the
 %%          column is, measured from the left edge of the text block, so
@@ -272,7 +268,7 @@
 %%          .aux is the DIFFERENCE of two positions taken on one line, so
 %%          it is a width and carries no page origin -- comparable across
 %%          a page break, a twoside document and a two-column one.
-%% v. 1.4: \GlossTransSide sets \glt's free translation in a column
+%%          \GlossTransSide sets \glt's free translation in a column
 %%          BESIDE the interlinear grid instead of under it, which is
 %%          where the vertical space on a slide comes from;
 %%          \GlossTransBelow restores the default.  A declaration and
@@ -294,6 +290,14 @@
 %%          comes from \columnwidth, which says nothing once the grid
 %%          is half of it.  doc/EXPEX-GAPS.md records both, and what
 %%          would reopen the first.
+%%          \SetAltSpoken{word} sets the connector a screen reader hears
+%%          between stacked alternatives -- "aa or bb" was English in
+%%          every document -- for \altn and \altg alike.  The optional
+%%          argument sets the punctuation and the starred form keeps it
+%%          before the connector, so the default is expressible as
+%%          \SetAltSpoken*{or}[,]; both arguments are trimmed, so
+%%          {ou} and { ou } are one setting.  LOCAL, unlike \SetLeipzig:
+%%          a French example can be fenced in a group.
 %% Package options come in two independent groups.
 %%
 %% SYNTAX:
