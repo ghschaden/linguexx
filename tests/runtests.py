@@ -2352,6 +2352,54 @@ def a_customise(p: Page):
     return r
 
 
+def a_altspoken(p: Page):
+    r"""\SetAltSpoken: the connector between spoken alternatives.
+
+    Everything here is invisible on the page -- the /Alt strings are the
+    whole subject -- so the geometry is not the check; the exact strings
+    are.  They are matched WHOLE rather than by substring, because the
+    interesting failures are all about spacing and punctuation ("aa orbb",
+    "dd, ee, ou ff") and a substring test passes straight through them.
+    """
+    r = []
+    alts = struct_alts(getattr(p, "raw", b""))
+    got = sorted(set(alts))
+
+    def has(s, why):
+        r.append(check(s in alts, f"{why}: expected {s!r}, got {got}"))
+
+    # the default, untouched by the hook existing at all
+    has("aa or bb", "default connector, two alternatives")
+    has("cc, dd, or ee", "default keeps the serial comma at three")
+    # the word is replaced, and the author writes it bare
+    has("ff ou gg", "\\SetAltSpoken{ou} replaces the connector")
+    # the point of the whole exercise: French does not take the comma
+    has("hh, ii ou jj", "and drops the serial comma at three")
+    has("kk, ll oder mm", "German likewise")
+    # the starred form must reproduce the default exactly
+    has("nn, oo, or pp", "\\SetAltSpoken*{or} restores the default form")
+    # the punctuation itself is settable
+    has("qq; rr y ss", "the optional argument replaces the punctuation")
+    # \altg shares the builder, on both tiers of the gloss
+    has("tt ou uu", "the setting reaches \\altg (object tier)")
+    has("vv ou ww", "the setting reaches \\altg (gloss tier)")
+    # a word written with spaces is the same setting, not a wider one
+    has("c1 ou d1", "\\SetAltSpoken{ ou } is the same setting as {ou}")
+    r.append(check("c1  ou  d1" not in alts,
+                   f"the padded form does not double the spaces (got {got})"))
+    has("e1; f1 y g1", "the optional argument is trimmed too")
+    # an empty connector gives ONE space, not the two of naive spacing
+    has("a1 b1", "an empty connector collapses to a single space")
+    r.append(check("a1  b1" not in alts,
+                   f"and not to two spaces (got {got})"))
+    # and it is a setting, not a table: it respects grouping
+    has("xx, yy, or zz", "the setting does not leak past its group")
+    # a leak would show up as the French form surviving to the last example
+    r.append(check("xx, yy ou zz" not in alts,
+                   f"no French connector after the group closed (got {got})"))
+    return r
+
+
 def a_judgments(p: Page):
     r"""\DeclareJudgment and \SetJudgmentSpoken, including their tagging.
 
@@ -4625,6 +4673,7 @@ ASSERTIONS = {
     "phantommarks": a_phantommarks,
     "altg": a_altg,
     "altn": a_altn,
+    "altspoken": a_altspoken,
     "altn-phantomalign": a_altn_phantomalign,
     "altg-phantomalign": a_altg_phantomalign,
     "alttuck": a_alttuck,

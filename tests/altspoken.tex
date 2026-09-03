@@ -1,0 +1,62 @@
+%% \SetAltSpoken: the connector \altn and \altg put between alternatives in
+%% their spoken form.  It was hardcoded English until now -- "A, B, or C"
+%% with no way to say "A, B ou C" -- which made a French or German document
+%% announce an English word in the middle of its own alternatives.
+%%
+%% Three things vary and all three are asserted here: the word, the
+%% punctuation between the earlier items, and whether that punctuation is
+%% repeated before the connector (English does; French and German do not).
+%% The default must come through UNCHANGED, and the starred form must be
+%% able to reproduce it -- a hook that cannot express the default it
+%% replaces hides one of the two behaviours from the author.
+%%
+%% Tagged preamble, so the /Alt strings are in the PDF.
+\input{_preamble-tagged}
+
+\ex. ALTDEFTWO \altn{aa}{bb} end.
+\ex. ALTDEFTHREE \altn{cc}{dd}{ee} end.
+
+%% The setting is global, so each variant is fenced in its own group; the
+%% last one must not leak into the next.
+{\SetAltSpoken{ou}
+ \ex. ALTFRTWO \altn{ff}{gg} end.
+ \ex. ALTFRTHREE \altn{hh}{ii}{jj} end.}
+
+{\SetAltSpoken{oder}
+ \ex. ALTDETHREE \altn{kk}{ll}{mm} end.}
+
+%% The starred form asks for the serial comma back: this is the default
+%% spelled out, and must match the default above exactly.
+{\SetAltSpoken*{or}
+ \ex. ALTSTARRED \altn{nn}{oo}{pp} end.}
+
+%% The optional argument replaces the punctuation itself.
+{\SetAltSpoken{y}[;]
+ \ex. ALTPUNCT \altn{qq}{rr}{ss} end.}
+
+%% \altg shares the builder with \altn, so the setting must reach a gloss
+%% too -- and on BOTH tiers, since the stack is written twice.
+{\SetAltSpoken{ou}
+ \ex. \gll ALTGLOSS \altg{tt}{uu}\\
+      objectword \altg{vv}{ww}\\
+ \glt `a gloss whose stacks are spoken in French'}
+
+%% Spacing is the package's business, so a word written with spaces around
+%% it is the SAME setting -- otherwise the stored " ou " speaks as two
+%% spaces a side, which shows up neither on the page nor in the log.
+{\SetAltSpoken{ ou }
+ \ex. ALTPADDED \altn{c1}{d1} end.}
+
+%% The optional argument is trimmed for the same reason as the word.
+{\SetAltSpoken{ y }[ ; ]
+ \ex. ALTPADPUNCT \altn{e1}{f1}{g1} end.}
+
+%% An empty connector is not an error: it collapses to a SINGLE space
+%% rather than the two the naive spacing would give, which is how a list
+%% joined by punctuation alone is written.
+{\SetAltSpoken{}
+ \ex. ALTEMPTY \altn{a1}{b1} end.}
+
+%% Back outside every group: the default is still in force.
+\ex. ALTAFTER \altn{xx}{yy}{zz} end.
+\end{document}

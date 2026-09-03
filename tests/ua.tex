@@ -70,6 +70,14 @@ UAMOD a modified abbreviation \lpzg{\textbf{m}.pl} in running text.
 %% the PDF/UA-2 failure which forced the 0.12 removal of \altg)
 \ex. UAALTN I saw \altn{the cat}{a dog} here.
 
+%% The same stack with a connector of its own: \SetAltSpoken rewrites the
+%% /Alt string, and an /Alt is exactly the kind of thing that satisfies a
+%% validator whatever it says, so the point of putting it HERE is only that
+%% the rewritten string still sits in a well-formed Span.  What it says is
+%% asserted in the altspoken case, which veraPDF never sees.
+{\SetAltSpoken{ou}
+\ex. UAALTFR I saw \altn{the cat}{a dog}{a bird} here.}
+
 \exg. UAALTG \altg{Socke}{Tonne} bellte.\\
       altg \altg{sock.\lpzg{sg}}{ton.\lpzg{sg}} bark.\lpzg{pst}\\
 \glt `UAALTGT The sock or the ton barked.'

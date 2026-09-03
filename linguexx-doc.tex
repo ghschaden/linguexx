@@ -2483,6 +2483,50 @@ spoken form as an optional argument:
 \end{code}
 
 
+\subsection{Stacked alternatives, and the word between them}
+\label{sec:altspoken}
+A stack set by \cs{altn} or \cs{altg} is a vertical arrangement on the
+page, and a screen reader cannot see that the rows are alternatives rather
+than lines. Under active tagging \pkg{linguexx} therefore gives the stack
+an alternate text that says so in words: \cs{altn}\marg{aa}\marg{bb} is
+announced ``aa or bb'', and three alternatives become ``aa, bb, or~cc''.
+
+That word is English, and so is the punctuation convention around it ---
+English puts a comma before the final connector and most other languages
+do not. \cs{SetAltSpoken}\marg{word} replaces the connector:
+
+\begin{code}
+\SetAltSpoken{ou}      % "aa ou bb",   "aa, bb ou cc"
+\SetAltSpoken{oder}    % "aa oder bb", "aa, bb oder cc"
+\end{code}
+
+\noindent Write the word bare, without spaces: the spacing around it is
+the package's business, so \verb|\SetAltSpoken{ou}| and
+\verb|\SetAltSpoken{ ou }| are the same setting. Dropping the comma before
+the connector is part of the same change, because that is what these
+languages do.
+
+To keep it --- the English convention, and the package's default --- use
+the starred form. An optional argument replaces the punctuation itself:
+
+\begin{code}
+\SetAltSpoken*{or}     % "aa, bb, or cc"   <- the default, spelled out
+\SetAltSpoken{y}[;]    % "aa; bb y cc"
+\SetAltSpoken{}        % "aa bb"           <- no connector at all
+\end{code}
+
+\noindent The setting respects grouping, like the \pkg{xlist} variants and
+unlike \cs{SetLeipzig}, so one example may be spoken in another language
+without disturbing the rest of the document:
+
+\begin{code}
+{\SetAltSpoken{ou} \ex. \altn{aa}{bb} }
+\end{code}
+
+\noindent It applies to \cs{altg} as well as \cs{altn}, and as with
+everything in this section it changes nothing on the page and nothing at
+all in a document compiled without active tagging.
+
 \subsection{Gloss abbreviations and their expansions}
 \label{sec:leipzigtag}
 Under active tagging, \cs{lpzg}\marg{label} does more than set small
@@ -2642,7 +2686,8 @@ than markup, and all three are written in English:
 
 \noindent
 The first two can be replaced entry by entry, with \cs{SetJudgmentSpoken}
-and \cs{SetLeipzig}. The third cannot: the connector has no hook today.
+and \cs{SetLeipzig}, and the third with \cs{SetAltSpoken}
+(section~\ref{sec:altspoken}).
 
 So setting \verb|lang=fr| in \cs{DocumentMetadata} is not enough to make a
 French document read properly. The tree would then declare French while its
@@ -3086,6 +3131,7 @@ exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package opt
 \multicolumn{2}{@{}l}{\itshape Further apparatus} \\
 \textbackslash altn\marg{$\dots$}\marg{$\dots$} & Stacked alternatives; \oarg{c/l/r} alignment. Fallback: \cs{lxAltn}. \\
 \textbackslash altg\marg{alt}\marg{alt}$\dots$ & Glossed alternatives: written in both lines of \textbackslash exg. (objects, then glosses); both-braced, centred. Also \cs{lxAltg}. \\
+\textbackslash SetAltSpoken\marg{word} & The word spoken between stacked alternatives, for \cs{altn} and \cs{altg} alike: \cs{SetAltSpoken}\marg{ou} gives ``aa, bb ou cc''. The starred form keeps the comma before the connector, which is English usage and the default; an optional \oarg{punct} replaces the punctuation. Respects grouping (section~\ref{sec:altspoken}). \\
 \textbackslash exsource\marg{text} & Flush-right attribution. \\
 \textbackslash exannot\oarg{spoken}\marg{text} & Structural label, set in a column at \cs{ExAnnotColumn}; on the object line in a gloss. \cs{SetAnnotSpoken}\marg{text}\marg{phrase} registers a spoken form for a label used throughout (section~\ref{sec:exannot}). \\
 \textbackslash ExAnnotFit & Measure that column from the examples instead: one column per example, past the longest of them. Costs an \texttt{.aux} round trip; \cs{ExAnnotNoFit} turns it off again. \\

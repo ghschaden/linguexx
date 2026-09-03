@@ -3,6 +3,31 @@
 All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
+## 1.5
+- New: `\SetAltSpoken{word}` sets the connector a screen reader hears between
+  the alternatives of a stack — `\altn{aa}{bb}` was announced "aa or bb" in
+  every document, whatever its language, and there was no way to say "aa ou
+  bb". It applies to `\altg` as well, since both build their spoken form
+  through the same code.
+- The punctuation goes with it. English puts a comma before the final
+  connector ("aa, bb, or cc") and most other languages do not, so
+  `\SetAltSpoken{ou}` drops it: "aa, bb ou cc". The starred form keeps it,
+  and the optional argument replaces the punctuation itself, so the package's
+  own default is exactly `\SetAltSpoken*{or}[,]`. A hook that cannot express
+  the default it replaces would hide one of the two behaviours from the
+  author.
+- Write the word bare: spacing is the package's business, so
+  `\SetAltSpoken{ou}` and `\SetAltSpoken{ ou }` are one setting. An empty
+  connector joins with punctuation alone.
+- The setting is **local**, like the `xlist` variants and unlike
+  `\SetLeipzig`: a French example can be fenced in a group without the rest
+  of the document following it. A preamble setting is made at top level and
+  so still applies throughout.
+- This closes one of the three English-bound spoken forms named in §9.4 of
+  the manual; the judgment phrases and the Leipzig expansions were already
+  overridable. Which sets a non-English document *should* use remains an open
+  question — see `doc/DEFERRED-DECISIONS.md`.
+
 ## 1.4
 - New: `\GlossTransSide` sets `\glt`'s free translation in a column **beside**
   the interlinear grid instead of underneath it; `\GlossTransBelow` restores

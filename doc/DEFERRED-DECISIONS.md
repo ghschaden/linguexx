@@ -628,9 +628,10 @@ only ever one document language to speak in.
   option 1 is already most of the benefit for none of the scoping cost.
 
 Until then the package ships English and says so, which is the one answer
-that cannot be mistaken for a promise. Related: the spoken judgment marks
-and the connector `\altn` builds have the same shape of problem, and the
-connector has no override at all — see §9.4.
+that cannot be mistaken for a promise. Related: the spoken judgment marks and the
+connector `\altn` builds have the same shape of problem. Both are
+overridable — `\SetJudgmentSpoken` and, since 1.5, `\SetAltSpoken` — so
+what is undecided for them is only which sets to ship, exactly as here.
 
 ---
 

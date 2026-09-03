@@ -5,7 +5,7 @@
 %%%% This program can be redistributed and/or modified under the terms
 %%%% of the LaTeX Project Public License
 \NeedsTeXFormat{LaTeX2e}[2020/10/01]% expl3 in kernel required
-\ProvidesPackage{linguexx}[2026/09/03 Standalone linguistic examples, linguex-compatible interface v. 1.4]
+\ProvidesPackage{linguexx}[2026/09/03 Standalone linguistic examples, linguex-compatible interface v. 1.5]
 %% v. 0.1: [legacy] option; empty \firstrefdash by default.
 %% v. 0.2: tagging-safe under \DocumentMetadata (PDF tagging testphase):
 %%         lists opened/closed through the environment interface; no TeX
@@ -58,6 +58,10 @@
 %%         SG.  Built-in standard Leipzig table, keyed by short form;
 %%         \SetLeipzig{key}{expansion} extends/overrides; unknown keys
 %%         print with no expansion.  Tag-guarded; self-contained.
+%% v. 1.5: \SetAltSpoken{word} sets the connector spoken between stacked
+%%         alternatives, for \altn and \altg; optional argument sets the
+%%         punctuation, starred form keeps it before the connector (the
+%%         English default).  Local, so it can be scoped to one example.
 %% v. 0.9: \lpzg accepts a whole compound label in one call (3sg.pst):
 %%         split on periods, a leading person digit peeled off, each piece
 %%         expanded and joined into one /E ("third person singular past").
@@ -5042,7 +5046,16 @@
     \__lxp_grab:NN #1#2
   }
 %% Spoken /Alt: "A", "A or B", "A, B, or C".  #1 = the seq, #2 = the tl to
-%% receive it.  \text_purify:n strips formatting (\sout, \textbf, ...) for
+%% receive it.
+%%
+%% The three joining strings are NOT hardcoded.  \SetAltSpoken{<word>}
+%% replaces the connector, so a French document says "A ou B" and a German
+%% one "A oder B"; the optional argument replaces the punctuation between
+%% the earlier items, and the starred form puts that punctuation before the
+%% connector as well, which is what English does and most other languages
+%% do not.  The package's own default is exactly \SetAltSpoken*{or}[,] --
+%% a hook that cannot express the default it replaces is a hook that hides
+%% one of the two behaviours from the author.  \text_purify:n strips formatting (\sout, \textbf, ...) for
 %% speech, and \lpzg is reduced to its Leipzig expansion, so
 %% \altn{\lpzg{sg}}{\lpzg{pl}} speaks "singular or plural" rather than
 %% "SG or PL".  Only SIMPLE keys are expanded here: a compound
@@ -5055,6 +5068,73 @@
 %% which straddled the scope and broke the expl3 naming contract at once.
 \tl_new:N \g__lxp_alt_build_tl
 \int_new:N \l__lxp_alt_n_int
+%% The joining strings, and the one command that sets them.  Spacing is the
+%% package's business rather than the author's: \SetAltSpoken{~ou~} and
+%% \SetAltSpoken{ou} must not be two different settings, so the word is
+%% stored bare and the spaces are put around it here.
+%%
+%% The three are LOCAL, like \GlossTransRatio and the xlist variants and
+%% unlike \SetLeipzig -- setting one is choosing a behaviour for a stretch
+%% of document, not extending a table, so it has to be possible to fence a
+%% French example inside an English document and have the next example go
+%% back.  A preamble setting is made at top level and so applies throughout
+%% either way, which is why global would have looked correct for as long as
+%% nobody scoped it.
+\tl_new:N   \l__lxp_alt_word_tl
+\tl_new:N   \l__lxp_alt_punct_tl
+\bool_new:N \l__lxp_alt_serial_bool
+\tl_set:Nn  \l__lxp_alt_word_tl  { or }
+\tl_set:Nn  \l__lxp_alt_punct_tl { , }
+\bool_set_true:N \l__lxp_alt_serial_bool
+\NewDocumentCommand \SetAltSpoken { s m O{,} }
+  {
+    \tl_set:Nn \l__lxp_alt_word_tl  {#2}
+    \tl_set:Nn \l__lxp_alt_punct_tl {#3}
+    %% Braces keep the spaces inside them, so \SetAltSpoken{ ou } would
+    %% otherwise store " ou " and speak "aa  ou  bb" -- two spaces at each
+    %% side of the word, invisible on the page and invisible in the log.
+    %% Spacing is this command's business rather than the author's, which
+    %% only holds if the two spellings are one setting.
+    \tl_trim_spaces:N \l__lxp_alt_word_tl
+    \tl_trim_spaces:N \l__lxp_alt_punct_tl
+    \IfBooleanTF {#1}
+      { \bool_set_true:N  \l__lxp_alt_serial_bool }
+      { \bool_set_false:N \l__lxp_alt_serial_bool }
+  }
+%% The two readers below take the values with :NV rather than :Nn.  No test
+%% can currently tell them apart -- both were tried as mutations and both
+%% survive -- because the build list is emitted through \lx@tag@span@begin:e,
+%% whose e-expansion turns a stored variable token into its value anyway.
+%% Keep :NV regardless: the build list is GLOBAL and these three are LOCAL,
+%% so storing the token rather than the value would make a global list hold
+%% a reference that is only correct while the local is still in scope. That
+%% is the same straddle the comment on \g__lxp_alt_build_tl above records
+%% having already cost this code once, and it would come back the moment
+%% the expansion point moved rather than at the commit that caused it.
+%%
+%% Between two earlier alternatives: the punctuation, then a space.
+\cs_new_protected:Npn \__lxp_alt_separate:
+  {
+    \tl_gput_right:NV \g__lxp_alt_build_tl \l__lxp_alt_punct_tl
+    \tl_gput_right:Nn \g__lxp_alt_build_tl { ~ }
+  }
+%% Before the last one: the connector, preceded by the punctuation only
+%% when this is a list of three or more AND the serial comma is wanted.  An
+%% empty connector collapses to a single space rather than two, so
+%% \SetAltSpoken{} is a way to join with punctuation alone.
+\cs_new_protected:Npn \__lxp_alt_connect:
+  {
+    \bool_lazy_and:nnT
+      { \l__lxp_alt_serial_bool }
+      { \int_compare_p:nNn { \l__lxp_alt_n_int } > { 2 } }
+      { \tl_gput_right:NV \g__lxp_alt_build_tl \l__lxp_alt_punct_tl }
+    \tl_gput_right:Nn \g__lxp_alt_build_tl { ~ }
+    \tl_if_empty:NF \l__lxp_alt_word_tl
+      {
+        \tl_gput_right:NV \g__lxp_alt_build_tl \l__lxp_alt_word_tl
+        \tl_gput_right:Nn \g__lxp_alt_build_tl { ~ }
+      }
+  }
 \cs_new_protected:Npn \__lxp_buildalt:NN #1#2
   {
     \tl_gclear:N \g__lxp_alt_build_tl
@@ -5068,10 +5148,8 @@
           \int_compare:nNnT { ##1 } > { 1 }
             {
               \int_compare:nNnTF { ##1 } = { \l__lxp_alt_n_int }
-                { \int_compare:nNnTF { \l__lxp_alt_n_int } = { 2 }
-                    { \tl_gput_right:Nn \g__lxp_alt_build_tl { ~or~ } }
-                    { \tl_gput_right:Nn \g__lxp_alt_build_tl { ,~or~ } } }
-                { \tl_gput_right:Nn \g__lxp_alt_build_tl { ,~ } }
+                { \__lxp_alt_connect: }
+                { \__lxp_alt_separate: }
             }
           \tl_gput_right:Ne \g__lxp_alt_build_tl
             { \text_purify:n { \seq_item:Nn #1 {##1} } }
