@@ -1,10 +1,21 @@
 # Run the linguexx regression suite on a current TeX Live.
 #
-# The official texlive/texlive image is large but ships all three engines and
-# the tagging support; we add poppler-utils (pdftotext, pdfinfo) and python3,
-# which the suite needs. The suite exits non-zero on any real failure; the one
-# known pdftotext artifact is marked expected-fail, so a green pipeline means
-# every layout and structure assertion passed on pdflatex, xelatex and lualatex.
+# Kept in step with .github/workflows/ci.yml, which is the workflow the suite
+# itself checks (runtests.py: REQUIRED_TOOLS against WORKFLOW): a tool named
+# there and missing from that file is a suite-integrity error.  Nothing checks
+# THIS file, so it is the one that drifts -- and it did, installing only
+# poppler-utils and python3 long after qpdf and veraPDF had become
+# requirements, so the pipeline could not start the suite at all.  When the
+# two disagree, the GitHub one is right by construction; mirror it here.
+#
+# Written out flat rather than shared through YAML anchors: an anchor on a
+# sequence spliced into before_script gives a list of lists, which GitLab
+# flattens and a reader does not.  The duplication is three lines.
+#
+# The official texlive/texlive image ships all three engines and the tagging
+# code; everything else is installed here.  A green pipeline means every
+# layout and structure assertion passed on pdflatex, xelatex and lualatex,
+# and that veraPDF called the tagged build conformant.
 image: texlive/texlive:latest
 
 stages:
@@ -13,8 +24,29 @@ stages:
 regression:
   stage: test
   before_script:
+    # qpdf is not decoration: one assertion resolves a named destination to
+    # the page it lands on, which is the whole question for a beamer frame
+    # (the same example is set on every slide and only one of them is the
+    # slide it becomes visible on) and which no poppler tool reports.  Its
+    # absence stops the suite before anything runs, so leaving it out costs
+    # a pipeline rather than an assertion.
     - apt-get update -qq
-    - apt-get install -y -qq --no-install-recommends python3 poppler-utils
+    - apt-get install -y -qq --no-install-recommends python3 poppler-utils qpdf default-jre-headless curl unzip
+    # The suite's `ua` case validates the tagged output with veraPDF, the only
+    # authoritative oracle for PDF/UA: it is what catches a structure element
+    # opened at the wrong moment, which no geometric or flat-structure
+    # assertion can see.  Taken from the stable release rather than pinned,
+    # deliberately -- a change in the oracle's verdict is something to find
+    # out about here.  If this or the `ua` case breaks out of nowhere, check
+    # for a new veraPDF release first.  The installer's answer file is the
+    # one the GitHub workflow uses; only the checkout variable differs.
+    - curl -sSL --retry 3 -o /tmp/verapdf.zip https://software.verapdf.org/releases/verapdf-installer.zip
+    - unzip -q /tmp/verapdf.zip -d /tmp/verapdf
+    - installer=$(find /tmp/verapdf -name 'verapdf-izpack-installer-*.jar' | head -n1)
+    - test -n "$installer" || { echo "veraPDF installer jar not found"; exit 1; }
+    - java -jar "$installer" "$CI_PROJECT_DIR/.github/verapdf-auto-install.xml"
+    - ln -s /opt/verapdf/verapdf /usr/local/bin/verapdf
+    - verapdf --version
   script:
     - cd tests
     - python3 runtests.py
@@ -24,6 +56,7 @@ regression:
 # experiments/altmath/). Run it from the GitLab pipeline UI ("play" button);
 # it prints, from the CI's current TeX Live, which math-tagging commands exist
 # and how an \alt-style formula is tagged. Paste its log back for analysis.
+# It does not run the suite, so it needs neither qpdf nor veraPDF.
 alt-recon:
   stage: test
   when: manual

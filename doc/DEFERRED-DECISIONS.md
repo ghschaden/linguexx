@@ -568,3 +568,67 @@ family, `\gl`…`\endgl`, `\glt`). `\lx@glosshead`, which is what the `\exg.`
 shorthands go through, is the one that decides (1). Note that `\altg`'s
 two-call protocol reads `\g__lxp_altg_role_int` across tiers of the same
 gloss and would have nothing to synchronise against.
+
+---
+
+## Whether `\ExAnnotSep` is a hard minimum
+
+*Raised on 2026-09-03, while building `\exannot`; decided one way for now
+and recorded here rather than left to be met as a surprise.*
+
+**Current behaviour.** `\ExAnnotSep` (default `1em`) is the least gap
+between an example and its annotation column, and it is a *hard* minimum: an
+example whose text comes within `\ExAnnotSep` of the column takes the
+`\penalty` instead, and its annotation drops to the next line, in the same
+column. The gap is rigid glue, so nothing can squeeze it.
+
+That is right when the shortfall is large. It is arguable when it is small.
+Measured while sweeping annotation widths in a beamer frame: one case had
+4.6pt of clear space between the end of the object line and where the
+annotation would have to start, needed 11.2pt, and wrapped. On the page that
+reads as an annotation going to its own line with a visible gap beside it —
+and "there is enough room there" was the first reaction of the person who
+met it, which is the evidence that the rule is not self-evident.
+
+**Why nothing was changed.** Not because it is hard: letting the gap shrink
+to some floor is one edit to `\lx@annot@fill:n`. What is undecided is
+whether the package should have a floor at all, and there are three
+defensible answers rather than an obviously right one:
+
+1. **Hard minimum, as now.** `\ExAnnotSep` means what it says, and a
+   document that wants the annotation closer says so by setting it smaller.
+   One number, one meaning, and the author is in charge of it.
+2. **A soft minimum with a floor** — shrinkable to, say, half its value.
+   Fewer annotations wrap, at the cost of `\ExAnnotSep` no longer being a
+   distance anybody can point at: two annotations on one page would sit at
+   two different distances from their examples, which is the sort of thing
+   this command exists to prevent one level up.
+3. **Shrinkable to zero.** The annotation then never wraps for want of a
+   gap, and can end up touching the example text. This is what `\jambox`
+   does, and it is why its column does not hold; see the note above
+   `\jambox` in the `.sty`.
+
+Note that shrink here does NOT move the column: the annotation rides in a
+box of fixed width ending at the right margin, so the column is held by the
+box and the gap only decides whether the annotation shares the line. The
+choice is therefore about the *gap*, not about the alignment, and (2) and
+(3) buy lines rather than tidiness.
+
+**What would decide it.** A document where wrapping for want of a few points
+is actually the wrong output — a deck or a handout with the vertical space
+to spare and an annotation that visibly should have fitted — together with
+the author saying what gap they would have accepted instead. That number is
+the floor in (2), and without it any floor is invented. Until then the
+behaviour is documented (manual §7.4) rather than tuned, and
+`tests/exannot.tex` pins it: ANNTIGHT is built with `\settowidth` to end
+`.4em` short of its own column, so it is inside the gap by construction on
+every engine, and its annotation must wrap.
+
+**If it is ever changed:** the gap is the `\hskip \ExAnnotSep` in
+`\lx@annot@fill:n`, and it is rigid on purpose — see the token-by-token note
+there. Anything with shrink in it makes ANNTIGHT fail, which is the point of
+that example; whoever settles this should expect to rewrite it, and should
+not simply relax the assertion to make room. Note also that `\ExAnnotSep` is
+a `\newlength`, so an author can already give it stretch and shrink of their
+own; the package does not stop them, and that is the cheapest way to try
+answer (2) on a real document before deciding anything.

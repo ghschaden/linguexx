@@ -252,6 +252,51 @@ and the `decorations.pathreplacing` library with it). Verified: no `Formula`, va
 content; the `tagged` test asserts the `/Alt`.
 
 
+## Annotation labels (\exannot)
+
+`\exannot{[CP]}` sets a structural label in a column beside an example.
+`[CP]` is an abbreviation a screen reader can neither expand nor usefully
+spell, so under active tagging the label is wrapped in a `Span` carrying
+`/Alt`, exactly as a judgment mark is: the page still shows `[CP]`,
+copy-and-paste still yields `[CP]`, and the reader hears the phrase.
+`\SetAnnotSpoken{<text>}{<phrase>}` registers a form for a label used
+throughout (`\g_lx_annot_alt_prop`, the counterpart of
+`\g_lx_judge_alt_prop`), and `\exannot[<phrase>]{<text>}` carries a one-off
+form.
+
+**An annotation with no spoken form gets no `Span` at all.** An `/Alt` that
+repeats the text it replaces is noise in the tree, and an element emitted
+unconditionally is the kind of thing that passes veraPDF while making the
+document worse. `tests/exannot-ua.tex` asserts the absence as well as the
+presence: the unannotated label has to stay inside its paragraph's own text
+run.
+
+`/Alt` rather than the alternatives, and the reasons are worth recording
+because each looks plausible:
+
+- `/E` is PDF's *expansion text for an abbreviation*, which is what `\lpzg`
+  uses (objective 6). `[CP]` is not quite one: the brackets are not part of
+  the abbreviation, and what wants saying is a gloss of the label rather
+  than its letters written out.
+- `/ActualText` would announce the phrase and take the brackets out of
+  copy-and-paste with it -- a real loss for something a reader may quote.
+- `Aside` is semantically the strongest answer, the annotation being
+  genuinely set apart from the example, but it is a BLOCK element and
+  cannot sit inside the paragraph the annotation shares with its example.
+
+In a gloss the annotation is emitted from inside the grid's own paragraph,
+after the last word-bundle `Span` rather than inside one -- it labels the
+example, not the word it happens to follow. `tests/exannot-ua.tex` asserts
+that by depth in `pdfinfo -struct-text`, since a `Span` nested one level
+deeper reads as an annotation on the last gloss column and looks identical
+on the page.
+
+`\ExAnnotFit` writes two positions per annotation to the `.aux` and changes
+nothing in the tree; the `\write` whatsits sit inside marked content the
+tagging code has open, which is why `examples/ua-demo.tex` carries a fitted
+block and veraPDF is run on it.
+
+
 ## Caveats
 
 - The text-unit compensation is matched to the 2023 testphase

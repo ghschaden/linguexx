@@ -64,6 +64,14 @@ By linguexx (objectives 1-6), verified with `pdfinfo -struct-text`:
       are capitals -- carries an `/ActualText` of the letters as written,
       so the text layer still says `m.pl`. Checked by `tests/ua.tex`,
       which reads it back on every run.
+- [x] Structural labels set beside an example (`\exannot{[CP]}`) carry a
+      spoken `/Alt` via `\SetAnnotSpoken` or the command's optional
+      argument, so a reader hears "complementizer phrase" while the page
+      still shows `[CP]` and copy-and-paste still yields it. A label with
+      no spoken form registered carries no `Span`: an `/Alt` repeating the
+      text it replaces is noise in the tree. In a gloss the label's `Span`
+      sits beside the word bundles rather than inside the last one -- it
+      labels the example, not the word it follows.
 
 
 ## What you must do
