@@ -1,0 +1,13 @@
+%% \exannot on a gloss with a side translation.  Refused: \exannot's column
+%% is measured from \columnwidth, which says nothing once the grid has been
+%% narrowed to half of it, and making the two agree is design work for a
+%% combination nobody has asked for.  Without the guard the annotation is
+%% placed against a measure the grid no longer occupies.  See EXPECT_ERROR.
+\input{_preamble}
+\begin{document}
+{\GlossTransSide
+\ex. \gll il mio libro\exannot{[DP]}\\
+          the my book\\
+     \glt `my book'
+}
+\end{document}

@@ -110,6 +110,8 @@ EXPECT_ERROR = {
     "langsci-retired": "has never worked",
     "judgment-badarg": "needs one command here",
     "exannot-gloss": "belongs at the end of the OBJECT",
+    "glt-side-sub": "for top-level examples only",
+    "glt-side-annot": "cannot go on a gloss with a side",
     "straysub": "no example to attach it to",
     # Not a package error but TeX's own, and deliberately so: a dot-syntax
     # body is collected before it is typeset, so \verb cannot protect
@@ -2283,7 +2285,8 @@ def a_ua(p: Page):
     # the document really did typeset, so a compliant-but-empty PDF cannot
     # pass this case by accident
     for tok in ("UAMAIN", "UAALPHA", "UAOBJ", "UATRANS", "UAALTN", "UAALTG",
-                "UAEXE", "UALIST", "UAREL", "UAZTRANS", "UAZAFTER", "UAMOD"):
+                "UAEXE", "UALIST", "UAREL", "UAZTRANS", "UAZAFTER", "UAMOD",
+                "UASIDEOBJ", "UASIDETRANS"):
         r.append(check(p.find(tok) is not None, f"typeset: {tok}"))
     # The modified abbreviation reads back as it was written.  Where the
     # font has no bold small caps the glyphs on the page are capitals, so
@@ -4495,6 +4498,79 @@ def a_lpzg_mod(p: Page):
     return r
 
 
+def a_glt_side(p: Page):
+    r"""\GlossTransSide: the free translation beside the grid, not under it.
+
+    Every assertion here is about a box's reference point or about what mode
+    TeX was in, and three of the four failed during implementation.  None of
+    them is an error and all of them look like a deliberate layout, which is
+    why they are measured rather than looked at.
+    """
+    r = []
+    # --- the default is untouched: translation UNDER the grid, same left edge
+    btier, btrans = p.find("BELOWTIER"), p.find("BELOWTRANS")
+    r.append(check(btrans.y0 > btier.y0 + 1,
+                   f"below: the translation is under the gloss tier "
+                   f"({btrans.y0:.2f} vs {btier.y0:.2f})"))
+    r.append(check(abs(btrans.x0 - btier.x0) < TOL,
+                   f"below: it starts at the grid's left edge "
+                   f"({btrans.x0:.2f} vs {btier.x0:.2f})"))
+    # --- beside: clear of the grid's rightmost ink, level with its TOP
+    sobj, stier = p.find("SIDEOBJ"), p.find("SIDETIER")
+    strans = p.find("SIDETRANS")
+    grid_right = max(w.x1 for w in p.line_of(sobj) + p.line_of(stier)
+                     if w.x0 < strans.x0)
+    r.append(check(strans.x0 > grid_right,
+                   f"beside: the translation is clear of the grid "
+                   f"({strans.x0:.2f} vs {grid_right:.2f})"))
+    # \vtop and not \vbox: the boxes align on their FIRST baselines.  The
+    # translation is deliberately the taller of the two, so a \vbox -- whose
+    # reference point is its LAST baseline -- would pull its top above the
+    # grid's, and the two could not agree by accident.
+    r.append(check(abs(strans.y0 - sobj.y0) < 4,
+                   f"beside: translation and object tier start on one line "
+                   f"({strans.y0:.2f} vs {sobj.y0:.2f}); a \\\\vbox would "
+                   f"align their last lines instead"))
+    # the grid stays on ONE row of columns.  Losing \leavevmode inside the
+    # box leaves TeX in internal vertical mode, so the first column becomes
+    # a line of its own -- at ANY width, which is why a wider column hides
+    # this instead of fixing it.
+    objline = [w.text for w in p.line_of(sobj)]
+    for word in ("il", "mio", "libro"):
+        r.append(check(word in objline,
+                       f"beside: the grid keeps '{word}' on the object row "
+                       f"instead of wrapping after the first column "
+                       f"(row reads {objline})"))
+    # the example number is level with the grid's first line.  \parskip glue
+    # at the top of the \vtop makes the box's height zero, dropping all of
+    # it below the baseline and so a line under its own number.
+    r.append(check(any(re.fullmatch(r"\(\d+\)", w.text) for w in p.line_of(sobj)),
+                   f"beside: the example number sits on the grid's first "
+                   f"line (that line reads {objline})"))
+    # --- a nonzero \parskip must not eat the boxes' height.  article's
+    # default is "0pt plus 1pt", natural size zero, so no other block here
+    # can tell whether the box zeroes it; this one sets a real length.
+    pobj, ptrans = p.find("PSKOBJ"), p.find("PSKTRANS")
+    r.append(check(abs(ptrans.y0 - pobj.y0) < 4,
+                   f"a nonzero \\parskip does not drop the boxes below "
+                   f"their baseline ({ptrans.y0:.2f} vs {pobj.y0:.2f})"))
+    r.append(check(any(re.fullmatch(r"\(\d+\)", w.text)
+                       for w in p.line_of(pobj)),
+                   "... and the example number stays level with the grid"))
+    # --- a side gloss with no \glt at all is still put down
+    r.append(check(p.find("NOGLT") is not None
+                   and p.find("NOGLTTIER") is not None,
+                   "a side gloss with no \\\\glt is still placed"))
+    # --- no room: falls back to the below position, and says so
+    ntier, ntrans = p.find("NARROWTIER"), p.find("NARROWTRANS")
+    r.append(check(ntrans.y0 > ntier.y0 + 1,
+                   f"no room: the translation falls back underneath "
+                   f"({ntrans.y0:.2f} vs {ntier.y0:.2f})"))
+    r.append(check("No room for a side translation" in p.log,
+                   "no room: and the log says why"))
+    return r
+
+
 #: Case files that are deliberately NOT assertion-driven: the two smoke
 #: tests the Makefile builds under all three engines, whose only assertion
 #: is that they compile.  Listed here so that the integrity check below can
@@ -4537,6 +4613,7 @@ ASSERTIONS = {
     "exannot-fit": a_exannot_fit,
     "exannot-fitbody": a_exannot_fitbody,
     "exannot-beamer": a_exannot_beamer,
+    "glt-side": a_glt_side,
     "zpop": a_zpop,
     "gloss": a_gloss,
     "glt": a_glt,

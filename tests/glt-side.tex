@@ -1,0 +1,78 @@
+%% \GlossTransSide: the free translation set in a column beside the
+%% interlinear grid instead of underneath it.
+%%
+%% Four things here fail silently, and three of them did during
+%% implementation.  Every one is about a box's reference point or about what
+%% mode TeX was in, which is to say: none of them shows up as an error and
+%% all of them look like a deliberate layout.
+%%
+%%   * SIDEOBJ's grid must stay on ONE row of columns.  The grid is a
+%%     PARAGRAPH of column boxes, so opening the side box leaves TeX in
+%%     internal vertical mode, where the first column is contributed as a
+%%     vertical item of its own and only the \hskip after it starts a
+%%     paragraph.  The grid then comes out with its first column alone on
+%%     one line and the rest on the next -- at ANY width, so a wider column
+%%     hides it instead of fixing it.  Measured during implementation: a
+%%     60pt gloss wrapping inside a 222pt column.  \leavevmode inside the
+%%     box is the fix, and this is the assertion that catches its loss.
+%%   * The example NUMBER must sit level with the grid's first line.  A
+%%     paragraph starting in vertical mode has \parskip glue put before it,
+%%     and inside a fresh \vtop that glue is the box's first item -- so the
+%%     box's height is zero and everything real hangs below the baseline,
+%%     putting the gloss one line lower than its own number.
+%%   * The two boxes must be \vtop and not \vbox.  A \vbox's reference point
+%%     is its LAST baseline, so a two-line grid beside a three-line
+%%     translation lines up on their bottom lines and drifts apart at the
+%%     top by however many lines they differ.  SIDETRANS is deliberately
+%%     taller than SIDEOBJ's grid so that the two cannot agree by accident.
+%%   * BELOW must be unaffected.  The default is the whole installed base,
+%%     so the below layout is asserted here too, in the same document.
+%%
+%% NOGLT is a side gloss with no \glt at all: the grid is pending when the
+%% example ends and has to be put down anyway.
+%%
+%% The tagging half is tests/ua.tex, which is the case veraPDF is run on --
+%% and it has to be, because the naive placement of these two boxes nests
+%% their marked content and every veraPDF PROFILE calls that compliant.
+\input{_preamble}
+\begin{document}
+\ex. \gll BELOWOBJ il mio libro\\
+          BELOWTIER the my book\\
+     \glt `BELOWTRANS my book'
+
+{\GlossTransSide
+\ex. \gll SIDEOBJ il mio libro\\
+          SIDETIER the my book\\
+     \glt `SIDETRANS my book, and a translation long enough to run to
+           three lines in a column of its own so that a \string\vbox\space
+           and a \string\vtop\space cannot agree by accident'
+}
+
+{\GlossTransSide
+\ex. \gll NOGLT il mio libro\\
+          NOGLTTIER the my book\\
+}
+
+%% A document with a NONZERO \parskip.  Not a test of the box, which sets
+%% no \parskip of its own: a gloss is always inside an example list, and
+%% LaTeX's \list sets \parskip from \parsep, which the example lists zero --
+%% measured, 0.0pt inside the box with \parskip=2\baselineskip outside it.
+%% This block guards THAT.  Should the example lists ever stop zeroing
+%% \parsep, the glue would become the \vtop's first item, the box's height
+%% would go to zero, and everything here would hang a line below its own
+%% example number.  Nothing else in this case would notice.
+{\GlossTransSide\setlength{\parskip}{2\baselineskip}
+\ex. \gll PSKOBJ il mio libro\\
+          PSKTIER the my book\\
+     \glt `PSKTRANS my book'
+}
+
+%% The fallback: no room for a side translation, so it goes underneath and
+%% says so in the log.  \GlossTransMinWidth is set past the whole measure,
+%% which is the only way to be sure of triggering it on every engine.
+{\GlossTransSide\setlength{\GlossTransMinWidth}{40em}
+\ex. \gll NARROWOBJ il mio libro\\
+          NARROWTIER the my book\\
+     \glt `NARROWTRANS my book'
+}
+\end{document}

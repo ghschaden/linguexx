@@ -108,6 +108,17 @@ Ordinary running text precedes the first example.
 \b. Pierre est fatigué\exannot{[TP]}
 \z.}
 
+% The free translation set BESIDE the grid rather than under it.  Here for
+% the veraPDF gate: the grid and the translation are two boxes, each with
+% marked content of its own, put down inside a paragraph that has already
+% opened some -- and nesting them there is what every veraPDF profile calls
+% compliant while its log does not.  Reading order stays grid-then-
+% translation, which is what a screen reader needs.
+{\GlossTransSide
+\exg. il mio libro\\ the my book\\
+\glt `my book, with a translation given a column of its own so that the
+      gloss above it need not give up the width.'}
+
 % Phantom bracket alignment: the gloss word under a bracketed constituent
 % lines up with the constituent, not with the bracket.  The \phantom ships
 % no ink and no marked content, so the tagging tree is unchanged.

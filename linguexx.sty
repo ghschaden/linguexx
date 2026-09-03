@@ -5,7 +5,7 @@
 %%%% This program can be redistributed and/or modified under the terms
 %%%% of the LaTeX Project Public License
 \NeedsTeXFormat{LaTeX2e}[2020/10/01]% expl3 in kernel required
-\ProvidesPackage{linguexx}[2026/09/03 Standalone linguistic examples, linguex-compatible interface v. 1.3]
+\ProvidesPackage{linguexx}[2026/09/03 Standalone linguistic examples, linguex-compatible interface v. 1.4]
 %% v. 0.1: [legacy] option; empty \firstrefdash by default.
 %% v. 0.2: tagging-safe under \DocumentMetadata (PDF tagging testphase):
 %%         lists opened/closed through the environment interface; no TeX
@@ -268,6 +268,28 @@
 %%          .aux is the DIFFERENCE of two positions taken on one line, so
 %%          it is a width and carries no page origin -- comparable across
 %%          a page break, a twoside document and a two-column one.
+%% v. 1.4: \GlossTransSide sets \glt's free translation in a column
+%%          BESIDE the interlinear grid instead of under it, which is
+%%          where the vertical space on a slide comes from;
+%%          \GlossTransBelow restores the default.  A declaration and
+%%          not something on \glt, because the decision has to be made
+%%          while the grid is still being built: by the time \glt is
+%%          reached the grid is a finished paragraph contributed to the
+%%          enclosing list, and there is nothing left to set beside.
+%%          \glt is unchanged and still takes no argument.
+%%          \GlossTransRatio (.6) divides the measure and
+%%          \GlossTransSep (2em) separates the columns -- both expex's
+%%          own values, so that one example set with either package
+%%          comes out in the same proportions.  And
+%%          \GlossTransMinWidth (6em) is the width below which the side
+%%          position is abandoned for the below one, with a warning.
+%%          Top-level examples only, and no \exannot on the same gloss:
+%%          both package errors.  Below the top level the measure is
+%%          already reduced twice and a split taken from it puts every
+%%          sibling's translation somewhere else; \exannot's column
+%%          comes from \columnwidth, which says nothing once the grid
+%%          is half of it.  doc/EXPEX-GAPS.md records both, and what
+%%          would reopen the first.
 %% Package options come in two independent groups.
 %%
 %% SYNTAX:
@@ -650,6 +672,9 @@
   \setlength{\SubSubExleftmargin}{\dimexpr\SubSubExlabelwidth+\Exlabelsep\relax}%
   \setlength{\JdgSep}{0.15em}%
   \lx@setannotcol \setlength{\ExAnnotSep}{1em}%
+  \setlength{\GlossTransSep}{2em}%
+  \setlength{\GlossTransMinWidth}{6em}%
+  \setlength{\GlossTransRightSkip}{0pt plus 2em}%
   \def\firstrefdash{}%
   \def\secondrefdash{-}%
   \def\SubExLBr{}\def\SubExRBr{.}%
@@ -676,6 +701,9 @@
   \setlength{\Exlabelwidth}{4em}% recomputed per example; see \lx@calc@Exlabelwidth
   \setlength{\JdgSep}{0pt}%
   \lx@setannotcol \setlength{\ExAnnotSep}{1em}%
+  \setlength{\GlossTransSep}{2em}%
+  \setlength{\GlossTransMinWidth}{6em}%
+  \setlength{\GlossTransRightSkip}{0pt plus 2em}%
   \def\firstrefdash{-}%
   \def\secondrefdash{-}%
   \def\SubExLBr{}\def\SubExRBr{.}%
@@ -3414,6 +3442,50 @@
 % \raggedright every break is badness 0, so a feasible one always exists.
 \def\lx@gl@colpenalty{200}
 
+%% ---- the free translation beside the grid, not under it ------------------
+%% \GlossTransSide asks for the translation to be set in a column beside the
+%% interlinear grid; \GlossTransBelow (the default) puts it under, as it has
+%% always been.  Group-scoped declarations, like \ExAnnotFit,
+%% \ExRaggedRight and \GlossPhantomAlign, and deliberately NOT self-resetting
+%% at the end of an example: three neighbours behave that way, TeX grouping
+%% is the documented idiom, and a declaration cancelled by the machinery
+%% would be the surprising one.  The risk that buys -- a flag left set
+%% changing later glosses -- is the \altg toggle's shape, so it is worth
+%% knowing about; see doc/EXPEX-GAPS.md, which records the argument on both
+%% sides.
+%%
+%% The decision has to be made BEFORE the grid is set, which is why it is a
+%% declaration and not something on \glt: by the time \glt is reached the
+%% grid is already a finished paragraph contributed to the enclosing list,
+%% and there is nothing left to set beside.  See the same file.
+\newif\iflx@glside
+\newcommand\GlossTransSide{\lx@glsidetrue}
+\newcommand\GlossTransBelow{\lx@glsidefalse}
+%% How the measure is divided.  \GlossTransRatio is a factor, not a length,
+%% because it multiplies one: the grid gets that fraction of what is left
+%% after \GlossTransSep, and the translation the rest.
+%%
+%% .6 and 2em are expex's own values (its ssratio and sssep), so that the
+%% same example set with either package comes out in the same proportions --
+%% the gloss is the thing being read closely and wants the room.  Taken from
+%% expex.tex's own \lingset line and not from its manual, whose parameter
+%% table (§12.2, printed p. 52) says sssep is 3em; the source is what runs.
+%% The arithmetic is expex's too: the ratio applies to what is left AFTER
+%% the separator, not to the whole measure (compare \ep@setssdims there).
+\newcommand\GlossTransRatio{.6}
+\newlength{\GlossTransSep}
+%% Below this, the side position stops being one -- two columns too narrow
+%% to read are worse than the arrangement they replaced -- and the gloss
+%% falls back to putting the translation underneath, saying so in the log.
+\newlength{\GlossTransMinWidth}
+%% A little stretch at the right of the translation's column, which is
+%% expex's ssrightskip and is there for the same reason: a narrow measure
+%% gives TeX lines it cannot break any shorter, and a justified column then
+%% overflows rather than ending short.  Seen at 1.11pt in this package's own
+%% manual before this was added -- small, silent, and on every side gloss
+%% narrow enough to produce it.
+\newlength{\GlossTransRightSkip}
+
 %% Per-tier fonts: tier n is set with the one-argument command declared
 %% by \GlossTierFont{n}{cmd}.  Tiers 1--3 are pre-declared to dispatch
 %% through \eachwordone/\eachwordtwo/\eachwordthree, so redefining those
@@ -4546,6 +4618,128 @@
     \group_end:
     \parfillskip \c_zero_dim
   }
+%% ---- the grid and the translation as two columns -------------------------
+%% Under \GlossTransSide the grid is set into a box of its own instead of
+%% straight into the list, \glt opens a second box beside it, and both are
+%% set down together at the example's exit.  Three things this arrangement
+%% has to get right, all of them found by probing rather than by reasoning
+%% (doc/EXPEX-GAPS.md records the numbers):
+%%
+%%   * The placement must SUSPEND the ambient marked content.  Both boxes
+%%     carry marked content of their own, and the paragraph that puts them
+%%     down has already opened some; dropping them inside it is "nested
+%%     marked content", which every veraPDF profile still calls compliant.
+%%     Measured: 17 records logged while parsing, against 0 for an ordinary
+%%     gloss, with all three verdicts passing in both cases.  Only reading
+%%     veraPDF's log as well as its verdict tells them apart, which is what
+%%     the suite's `ua` case does.
+%%   * Reading order follows PLACEMENT, not typesetting: the BDC/EMC
+%%     operators travel inside the box and reach the page's content stream
+%%     when the box is shipped.  The two are put down grid-then-translation,
+%%     which is the reading order wanted; swapping the placement for a
+%%     typographic reason would silently reverse it and leave the page
+%%     identical.
+%%   * The \glt language Span has to be closed INSIDE the translation box,
+%%     before the \egroup.  That is free here, because the flush lives in
+%%     \lx@glt@langend itself, which closes the Span first -- and it is the
+%%     one of the three that announces itself if got wrong (a hard TeX
+%%     error, not a silent tagging defect).
+\box_new:N \l__lx_gl_gridbox
+\box_new:N \l__lx_gl_transbox
+\dim_new:N \l__lx_gl_gridwd
+\dim_new:N \l__lx_gl_transwd
+\bool_new:N \g__lx_gl_sidepending_bool
+\bool_new:N \g__lx_gl_transbox_bool
+
+\msg_new:nnnn { linguexx } { side-sub }
+  { \iow_char:N \\GlossTransSide~is~for~top-level~examples~only. }
+  {
+    A~side~translation~is~refused~below~the~top~level.~The~measure~there~
+    is~already~reduced~twice,~so~both~columns~come~out~narrow~and~the~
+    grid~starts~wrapping;~and~a~split~taken~from~the~indented~measure~
+    puts~every~sibling's~translation~at~a~different~place.~Put~the~
+    declaration~round~a~top-level~example,~or~use~\iow_char:N
+    \\GlossTransBelow~here.
+  }
+\msg_new:nnnn { linguexx } { side-annot }
+  { \iow_char:N \\exannot~cannot~go~on~a~gloss~with~a~side~translation. }
+  {
+    \iow_char:N \\exannot's~column~is~measured~from~\iow_char:N
+    \\columnwidth,~which~says~nothing~once~the~grid~has~been~narrowed~to~
+    half~of~it.~Drop~one~or~the~other.
+  }
+\msg_new:nnn { linguexx } { side-narrow }
+  {
+    No~room~for~a~side~translation~here~(#1pt~left~for~it,~\iow_char:N
+    \\GlossTransMinWidth~is~#2pt);~setting~it~underneath~instead.
+  }
+
+%% Decide, and divide the measure.  Returns with \l__lx_gl_side_bool saying
+%% whether it is really happening -- the declaration asks, this answers.
+%% expl3 has \vbox_set:Nw / \vbox_set_end: but no \vtop counterpart, and a
+%% \vbox is the wrong box here: its reference point is its LAST baseline, so
+%% two of them beside each other line up on their bottom lines and the grid
+%% and the translation would drift apart by however many lines they differ.
+%% A \vtop's reference point is its FIRST baseline, which is the alignment
+%% wanted.  Same idiom as \vbox_set:Nw, with \tex_vtop:D in place of
+%% \tex_vbox:D.
+\cs_new_protected:Npn \lx@gl@vtop_set:Nw #1
+  {
+    \tex_setbox:D #1 \tex_vtop:D
+      \c_group_begin_token
+        \color_group_begin:
+        %% No \parskip reset here, and that is a deliberate absence.  A
+        %% paragraph beginning in vertical mode has \parskip glue put before
+        %% it, and inside a fresh \vtop that glue would be the box's first
+        %% item -- making the box's HEIGHT zero, so that everything real
+        %% hangs below the baseline and the gloss sits a line under its own
+        %% example number.  Which would matter if \parskip could be nonzero
+        %% here, and it cannot: a gloss is always inside an example list,
+        %% LaTeX's \list sets \parskip from \parsep, and the example lists
+        %% set \parsep to zero.  Measured, with a document-level
+        %% \parskip=2\baselineskip: 0.0pt inside the box.  A reset was
+        %% written here first and no mutation could kill it.
+        %% tests/glt-side.tex keeps that document (PSKOBJ) as a guard on the
+        %% list's \parsep rather than on this box.
+        \parindent \c_zero_dim
+  }
+\cs_new_protected:Npn \lx@gl@vtop_set_end:
+  {
+        \par
+      \color_group_end:
+    \c_group_end_token
+  }
+
+\bool_new:N \l__lx_gl_side_bool
+\cs_new_protected:Npn \lx@gl@side@decide:
+  {
+    \bool_set_false:N \l__lx_gl_side_bool
+    \legacy_if:nT { lx@glside }
+      {
+        \int_compare:nNnTF { \lx@subdepth } > { 0 }
+          { \msg_error:nn { linguexx } { side-sub } }
+          {
+            \tl_if_empty:NF \l__lx_gl_annot_tl
+              { \msg_error:nn { linguexx } { side-annot } }
+            %% In two steps, and through a register.  \GlossTransRatio is a
+            %% factor and TeX wants a <unit of measure> after one: a real
+            %% dimen is that, a \dimexpr is not reliably, and writing it in
+            %% one line earns "Illegal unit of measure".
+            \dim_set:Nn \l__lx_gl_transwd
+              { \linewidth - \GlossTransSep }
+            \dim_set:Nn \l__lx_gl_gridwd
+              { \GlossTransRatio \l__lx_gl_transwd }
+            \dim_sub:Nn \l__lx_gl_transwd { \l__lx_gl_gridwd }
+            \dim_compare:nNnTF { \l__lx_gl_transwd } < { \GlossTransMinWidth }
+              {
+                \msg_warning:nnee { linguexx } { side-narrow }
+                  { \dim_to_decimal_in_unit:nn { \l__lx_gl_transwd } { 1pt } }
+                  { \dim_to_decimal_in_unit:nn { \GlossTransMinWidth } { 1pt } }
+              }
+              { \bool_set_true:N \l__lx_gl_side_bool }
+          }
+      }
+  }
 \cs_gset_protected:Npn \lx@gloss@multi #1
   {
     \seq_set_split:Nnn \l__lx_gl_lines_seq { \\ } {#1}
@@ -4568,8 +4762,21 @@
               { \seq_count:c
                   { l__lx_gl_tier_ \int_use:N \l__lx_gl_ntiers_int _seq } } }
       }
-    \leavevmode
+    \lx@gl@side@decide:
+    \bool_if:NT \l__lx_gl_side_bool
+      { \lx@gl@vtop_set:Nw \l__lx_gl_gridbox }
     \group_begin:
+    \bool_if:NT \l__lx_gl_side_bool
+      { \hsize \l__lx_gl_gridwd \linewidth \l__lx_gl_gridwd }
+    %% \leavevmode unconditionally, and it is not decoration.  The grid is a
+    %% PARAGRAPH of column boxes; opening the side box leaves us in internal
+    %% vertical mode, where the first column is contributed as a vertical
+    %% item of its own and only the \hskip after it starts a paragraph.  The
+    %% grid then comes out with its first column alone on one line and the
+    %% rest on the next, at any width, which reads as a wrap and is not one:
+    %% it happened with a 60pt gloss in a 222pt column, and a wider column
+    %% hid it rather than fixing it.
+    \leavevmode
     \raggedright
     \lx@glossfont
     \bool_set_true:N \l_lx_gl_inside_bool
@@ -4647,6 +4854,13 @@
     \tl_if_empty:NF \l__lx_gl_annot_tl { \__lx_gl_annot_emit: }
     \par
     \group_end:
+    %% The box is closed here and PLACED at the example's exit, because the
+    %% translation that goes beside it has not been read yet.
+    \bool_if:NT \l__lx_gl_side_bool
+      {
+        \lx@gl@vtop_set_end:
+        \bool_gset_true:N \g__lx_gl_sidepending_bool
+      }
   }
 \ExplSyntaxOff
 
@@ -4738,13 +4952,68 @@
         \lx@tag@span@end:
         \bool_gset_false:N \g__lx_gl_transopen_bool
       }
+    %% ... and, in the same breath, put down a side gloss that is waiting.
+    %% Here rather than anywhere else because this is the one macro every
+    %% example exit already runs -- all nine of them -- and because the Span
+    %% above has to be closed while the translation paragraph, and so the
+    %% box holding it, is still open.  Doing it in this order is not a
+    %% convention: the other order is a hard TeX error.
+    \lx@gl@side@flush:
+  }
+
+%% Opened by \glt when a side grid is waiting for it.  A box, so that the
+%% translation's own width is the column's and not the item's; \glt's
+%% \everypar hook then fires inside it exactly as it does outside.
+\cs_new_protected:Npn \lx@gl@side@transopen
+  {
+    \bool_if:NT \g__lx_gl_sidepending_bool
+      {
+        \lx@gl@vtop_set:Nw \l__lx_gl_transbox
+        \hsize \l__lx_gl_transwd \linewidth \l__lx_gl_transwd
+        \skip_set_eq:NN \tex_rightskip:D \GlossTransRightSkip
+        \parindent \c_zero_dim
+        \bool_gset_true:N \g__lx_gl_transbox_bool
+      }
+  }
+
+%% The flush.  Idempotent and a no-op for every example that has no side
+%% gloss, which is what lets it sit in a macro nine exits already call.
+%% \tag_mc_end_push: / \tag_mc_begin_pop:n suspend the marked content of
+%% the paragraph doing the placing: both boxes carry their own, and nesting
+%% them inside it is what every veraPDF profile calls compliant and the log
+%% does not (17 records against 0, measured).
+\cs_new_protected:Npn \lx@gl@side@flush:
+  {
+    \bool_if:NT \g__lx_gl_sidepending_bool
+      {
+        \bool_if:NT \g__lx_gl_transbox_bool
+          {
+            \lx@gl@vtop_set_end:
+            \bool_gset_false:N \g__lx_gl_transbox_bool
+          }
+        \bool_gset_false:N \g__lx_gl_sidepending_bool
+        \noindent
+        \lx@tag@if@active:T { \tag_mc_end_push: }
+        \box_use_drop:N \l__lx_gl_gridbox
+        \skip_horizontal:N \GlossTransSep
+        \box_use_drop:N \l__lx_gl_transbox
+        \lx@tag@if@active:T { \tag_mc_begin_pop:n { } }
+        \par
+      }
   }
 \ExplSyntaxOff
 %% The \everypar hook fires once, for the translation's first paragraph, and
 %% clears itself: \glt is followed by ordinary text, not by a construct that
 %% starts further paragraphs of its own.
 \newcommand\glt{%
+  %% AFTER the \par\nobreak, not before it.  \nobreak is a penalty, and a
+  %% \vtop whose first item is not a box has height zero -- so opening the
+  %% translation box first put a penalty at the top of it, gave it no
+  %% height, and hung the whole translation half a line below the grid it
+  %% is supposed to start level with.  Same shape as the \parskip glue that
+  %% \lx@gl@vtop_set:Nw zeroes, and the second time this bug appeared.
   \par\nobreak
+  \lx@gl@side@transopen
   \GlossTransStyle
   \everypar{\everypar{}\lx@glt@langbegin}%
   \ignorespaces}

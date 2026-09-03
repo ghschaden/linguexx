@@ -51,12 +51,16 @@ never had to ask, and for items 1 and 4 that question is the hard part.
 
 | | Feature | Cost | Blocking decision |
 |---|---|---|---|
-| 1 | Free translation *beside* the gloss | medium | settled: a declaration, and no new syntax — see the probe |
+| 1 | Free translation *beside* the gloss | **done, v1.4** | — |
 | 2 | Key-value façade and named styles | medium | the key names, which become API forever |
 | 3 | Reference checking | medium | whether `\ref` itself is in scope |
 | 4 | Named label types | medium | whether a type may change the *reference* format |
 
-Suggested order: **2, 1, 3, 4**. Item 2 is the cheapest and the only one
+**Item 1 is implemented** as of v1.4 (`\GlossTransSide`); this section is
+kept for the reasoning, and the block at its end records what the
+implementation added to what was planned. Remaining order: **2, 3, 4**.
+
+Original order: **2, 1, 3, 4**. Item 2 is the cheapest and the only one
 that cannot touch the structure tree, and its key table is what item 1's
 syntax question needs answering against. Item 1 is the one a reader would
 notice every time, and on a slide it buys vertical space, which is the
@@ -327,6 +331,40 @@ one of these three that announces itself.
 **What the probe did not answer**, and was not asked to: page-breaking a
 boxed pair, the no-room fallback, `\altg`, and the two cases that are
 refused by decision anyway (sub-examples, `\exannot`).
+
+### What implementing it added, v1.4
+
+Shipped as `\GlossTransSide` / `\GlossTransBelow` exactly as designed above:
+a declaration before the example, boxed layout, `\glt` unchanged, top level
+only, no `\exannot`, fallback with a warning below `\GlossTransMinWidth`.
+Four bugs on the way, and the reason to write them down is that all four are
+the same *kind* — a box's reference point, or what mode TeX was in — and none
+of them was an error:
+
+1. **The grid wrapped after its first column, at any width.** The grid is a
+   *paragraph* of column boxes; opening the side box leaves TeX in internal
+   vertical mode, where the first column is contributed as a vertical item of
+   its own and only the `\hskip` after it starts a paragraph. Seen first with
+   a 60pt gloss in a 222pt column, and a wider column *hid* it — which sent
+   the diagnosis off after a width problem that was not there. `\leavevmode`
+   inside the box.
+2. **The translation hung half a line low.** `\glt` begins `\par\nobreak`,
+   and `\nobreak` is a penalty; a `\vtop` whose first item is not a box has
+   height zero. Opening the translation box before the penalty put the
+   penalty at the top of it. Fixed by opening it after.
+3. **A `\vbox` would have been wrong** and looked right in easy cases: its
+   reference point is its last baseline, so two columns of unequal length
+   line up at the bottom and drift apart at the top. expl3 has no
+   `\vbox_set_top:Nw`, so the `\vtop` counterpart is written out.
+4. **The placement had to suspend the ambient marked content**, exactly as
+   the probe said. 19 records logged with all three verdicts passing.
+
+And one line that was written, could not be killed by any mutation, and was
+removed: a `\parskip` reset at the top of the box. A gloss is always inside
+an example list, LaTeX's `\list` sets `\parskip` from `\parsep`, and the
+example lists zero it — measured at 0.0pt inside the box with
+`\parskip=2\baselineskip` outside. `tests/glt-side.tex` keeps that document
+as a guard on the list's `\parsep` instead.
 
 ### Sub-examples, and short ones: why the restriction
 

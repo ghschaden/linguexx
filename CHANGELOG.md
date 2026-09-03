@@ -3,6 +3,50 @@
 All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
+## 1.4
+- New: `\GlossTransSide` sets `\glt`'s free translation in a column **beside**
+  the interlinear grid instead of underneath it; `\GlossTransBelow` restores
+  the default. It saves height when the translation is short beside a gloss of
+  some height — the short column then costs nothing, hiding inside the tall
+  one — and *costs* height when the translation is the longer of the two,
+  because narrowing the measure makes both columns taller. Measured: a
+  one-line translation goes from 71.1pt to 57.6pt, a three-line one from
+  84.7pt to 94.1pt. The manual says so rather than leaving it to be found.
+  `\GlossTransRatio` (`.6`) divides the measure, `\GlossTransSep` (`2em`)
+  separates the columns — both `expex`'s own values, so the same example set
+  with either package comes out in the same proportions. Manual §7.4; `tests/glt-side.tex` for the geometry
+  and `tests/ua.tex` for the tagging.
+
+  **A declaration, and not something on `\glt`.** The decision has to be made
+  while the grid is still being built: by the time `\glt` is reached the grid
+  is a finished paragraph contributed to the enclosing list, and there is
+  nothing left to set beside. `\glt` is therefore unchanged — it still takes
+  no argument — and a document that does not ask for the side position is
+  unaffected. It respects grouping, like `\ExAnnotFit` and `\ExRaggedRight`.
+
+  **Two refusals, both package errors.** Top-level examples only: below that
+  the measure is already reduced twice, so both columns come out narrow and
+  the grid starts wrapping, and a split taken from the indented measure would
+  put every sibling's translation at a different place. And no `\exannot` on
+  the same gloss: its column is measured from `\columnwidth`, which says
+  nothing once the grid has been narrowed to half of it. If there is simply no
+  room, the translation goes underneath after all and the log says why
+  (`\GlossTransMinWidth`, default `6em`).
+
+  Four bugs during implementation, every one of them a box's reference point
+  or a question of what mode TeX was in, and every one of them silent. The
+  grid is a *paragraph* of column boxes, so opening the side box left TeX in
+  internal vertical mode and the first column became a line of its own — at
+  any width, so a wider column hid it rather than fixing it. `\glt`'s
+  `\nobreak` is a penalty, and a `\vtop` whose first item is not a box has
+  height zero, so opening the translation box before it hung the whole
+  translation half a line low. A `\vbox` would have aligned the two columns
+  on their last baselines rather than their first. And the placement has to
+  suspend the ambient marked content, or the two boxes nest theirs inside the
+  paragraph that puts them down — 19 records logged by veraPDF while every
+  one of its profiles still called the file compliant. `tests/glt-side.tex`
+  and `tests/ua.tex` have a mutation for each.
+
 ## 1.3
 - New: `\exannot[⟨spoken⟩]{⟨text⟩}` — a structural label (`[CP]`, `[TP]`, a
   language name, a reading) set in a **column** beside the examples. `\exsource`

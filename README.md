@@ -38,6 +38,8 @@ into the PDF structure tree as genuine, accessible objects:
   word-bundle in the right order (not as loose text, and not as a table, which
   screen readers read in the wrong order);
 - a gloss tier's language can be recorded (`\GlossTierLang{1}{de}` → `/Lang`);
+- a free translation set beside the gloss rather than under it
+  (`\GlossTransSide`) keeps its place in the reading order, grid first;
 - structural labels set beside the examples (`\exannot{[CP]}`) carry a spoken
   form too (`\SetAnnotSpoken` → `/Alt`), so a reader hears "complementizer
   phrase" while the page still shows `[CP]`

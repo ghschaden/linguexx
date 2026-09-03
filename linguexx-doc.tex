@@ -1899,6 +1899,173 @@ It works in every part of a multipart example, and after a gloss. The font
 is the hook \cs{ExSourceFont} (default \cs{normalfont}\cs{footnotesize});
 the argument may contain a \cs{cite}.
 
+\subsection{A free translation beside the gloss:
+  \cs{GlossTransSide}}\label{sec:transside}
+
+By default \cs{glt} sets the free translation under the interlinear grid.
+\cs{GlossTransSide} puts it in a column beside the grid instead, which on a
+slide buys the thing there is least of:
+
+\begin{code}
+{\GlossTransSide
+\ex. \gll il mio libro\\
+          the my book\\
+     \glt `my book, and a translation with room of its own'
+}
+\end{code}
+
+\rendered
+\begingroup
+{\GlossTransSide
+\ex. \gll il mio libro\\
+          the my book\\
+     \glt `my book, and a translation with room of its own'
+}
+\endgroup
+
+\afterex
+It is a declaration and it respects grouping, like \cs{ExAnnotFit} and
+\cs{ExRaggedRight}; \cs{GlossTransBelow} turns it off again. \cs{glt}
+itself is unchanged --- it still takes no argument, and no document that
+does not ask for the side position is affected in any way.
+
+The declaration has to come \emph{before} the example, and that is not a
+style preference. By the time \cs{glt} is reached the grid is already a
+finished paragraph contributed to the enclosing list, and there is nothing
+left to set beside it; the decision has to be made while the grid is still
+being built.
+
+The share of the measure the grid gets is \cs{GlossTransRatio}
+(default \texttt{.6}), and the gap between the two columns is
+\cs{GlossTransSep} (default \texttt{2em}). Both are ordinary parameters,
+settable for one example or for the whole document. The two defaults are
+\pkg{expex}'s own, so that one example set with either package comes out in
+the same proportions; the gloss is what is being read closely, and it gets
+the room.
+
+Two restrictions, each a package error rather than a silent
+reinterpretation:
+
+\begin{itemize}[leftmargin=*]
+\item \textbf{Top-level examples only.} Below the top level the measure has
+  already been reduced twice, so both columns come out narrow and the grid
+  starts wrapping between columns; and a split taken from the indented
+  measure would put every sibling's translation at a different place. The
+  restriction is cheap to lift if a document turns up wanting it ---
+  \texttt{doc/EXPEX-GAPS.md} records what such a design would have to
+  answer.
+\item \textbf{No \cs{exannot} on the same gloss.} Its column is measured
+  from \cs{columnwidth}, which says nothing once the grid has been narrowed
+  to half of it.
+\end{itemize}
+
+If there is no room --- a narrow measure, a \texttt{twocolumn} paper --- the
+translation goes underneath after all and the log says so. The threshold is
+\cs{GlossTransMinWidth} (default \texttt{6em}), measured on the
+translation's column.
+
+A side-by-side gloss is one unbreakable block: the two columns are boxes,
+and a box does not break across a page. A tall one therefore wants a page
+with room for it, and will say so as an overfull \verb|\vbox| if it does
+not get one --- which is the loud half of the trade that made this the
+chosen design (see \texttt{doc/EXPEX-GAPS.md}). The example below is tall
+enough to have done exactly that while this manual was being written, hence
+the \cs{goodbreak} in front of it.
+
+\goodbreak
+Where it earns its keep is a gloss that already runs to several lines. This
+is \pkg{expex}'s own illustration of the same feature, from §12.2 of its
+manual (printed p.~52), reproduced here so that the two can be compared on
+one example:
+
+\begin{code}
+{\GlossTransSide
+\renewcommand\GlossTransRatio{.69}  % this gloss wants the room
+\newcommand\gc[1]{\textsc{#1}}
+\ex. \gll Homâo sa čô pô tha ñu nao ngă hmua. Ñu djă gă, ñu djă
+          čŏng ñu, laih gui rêo ñu. Todang bboi rôk jolan ñu nao
+          hma, ñu bbôh sa droi mră dŏ bboi gah, a, hruh ñu.\\
+          \gc{exist} one \gc{clf} person old \gc{3s} go do field
+          \gc{3s} hold machete \gc{3s} hold hoe \gc{3s} and
+          carry.on.back back.basket \gc{3s} while at along trail
+          \gc{3s} go field \gc{3s} see one \gc{clf} peacock stay
+          at \gc{drct} -- nest \gc{3s}\\
+     \glt `There was an old person who went to work in the field.
+           He took along his machete, he took along his hoe, and he
+           carried his basket on his back. While he was on his way
+           to the farm, he saw a peacock beside its nest.'
+}
+\end{code}
+
+\rendered
+\begingroup
+\GlossTransSide
+\renewcommand\GlossTransRatio{.69}
+\newcommand\gc[1]{\textsc{#1}}
+\ex. \gll Homâo sa čô pô tha ñu nao ngă hmua. Ñu djă gă, ñu djă čŏng ñu, laih gui rêo ñu. Todang bboi rôk jolan ñu nao hma, ñu bbôh sa droi mră dŏ bboi gah, a, hruh ñu.\\
+          \gc{exist} one \gc{clf} person old \gc{3s} go do field \gc{3s} hold machete \gc{3s} hold hoe \gc{3s} and carry.on.back back.basket \gc{3s} while at along trail \gc{3s} go field \gc{3s} see one \gc{clf} peacock stay at \gc{drct} -- nest \gc{3s}\\
+     \glt `There was an old person who went to work in the field. He took
+           along his machete, he took along his hoe, and he carried his
+           basket on his back. While he was on his way to the farm, he saw
+           a peacock beside its nest.'
+\endgroup
+
+\afterex
+\cs{GlossTransRatio} is raised to \texttt{.69} here, which is what the
+parameter is for. A gloss of nine words to a row wants width more than
+running prose does, so the \texttt{.6} default leaves this one cramped. The
+value is worth a moment's tuning rather than a formula: between
+\texttt{.66} and \texttt{.70} the gloss keeps the same six rows, while the
+translation goes from eight lines to nine and its last line shrinks to the
+single word \texttt{nest.'} --- so \texttt{.69} costs the gloss nothing and
+spares the translation both. Two or three tries and a look at the result is
+the whole method, and it is a fair description of the feature: this is a
+typesetting decision, and the parameter is there so one example can make it
+differently from the rest of the document.
+
+\paragraph{When the side position actually saves space.} Less often than one
+would think, and it is worth being plain about. Narrowing the measure makes
+\emph{both} columns taller, so the arrangement pays only when one of them
+would have been much shorter than the other --- the short one then costs
+nothing, because it hides inside the tall one's height. Measured on this
+package's own examples:
+
+\begin{center}\small
+\begin{tabular}{@{}lrrl@{}}
+\toprule
+translation & underneath & beside & \\
+\midrule
+one line   & 71.1pt & 57.6pt & saves a line \\
+three lines & 84.7pt & 94.1pt & costs most of one \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+(Measured on a two-tier gloss of three words in a 25\,mm-margin
+\pkg{article}; the point is the direction, not the millimetre.)
+
+\noindent
+So: reach for it when the translation is short beside a gloss of some
+height, which is the common case in a slide, and leave it alone when the
+translation is the longer of the two. The Jarai example above is worth
+setting this way not because it saves height --- it saves about four points,
+a quarter of a line --- but because the translation stays \emph{beside} the
+gloss it belongs to instead of arriving after eight lines of it. \cs{gc} is a local shorthand for this example only:
+\pkg{expex} writes \verb|\\{exist}| for it, which is not available here
+because \verb|\\| separates the gloss tiers. In a linguexx document the
+Leipzig abbreviations would be \cs{lpzg}\marg{clf} and so on, which sets the
+small caps \emph{and} gives a screen reader the expansion to speak
+(section~\ref{sec:leipzig}); they are left plain here only to keep the example
+the one \pkg{expex} prints, since three of its glosses are not Leipzig
+abbreviations at all.
+
+A long gloss in a narrowed column may of course wrap between columns, as
+one in a full-width measure would; the side position makes that more likely
+rather than less. If it happens, the vertical space the arrangement was
+supposed to buy is what pays for it, and \cs{GlossTransBelow} for that
+example is the answer.
+
 \subsection{Structural labels: \cs{exannot}}\label{sec:exannot}
 
 \cs{exsource} puts its argument at the right margin, which is where a
@@ -2167,6 +2334,12 @@ anywhere in the document:
   Where \cs{exannot}'s column is, measured from the \emph{left} edge of the
   text block, so it does not move with the nesting level
   (section~\ref{sec:exannot}). \\
+\textbackslash GlossTransSep & \texttt{2em} &
+  Gap between the gloss and a side translation
+  (section~\ref{sec:transside}); \cs{GlossTransRatio} (\texttt{.6}, a
+  factor) is the share of the measure the gloss gets, and
+  \cs{GlossTransMinWidth} (\texttt{6em}) the width below which the side
+  position is abandoned. \\
 \textbackslash ExAnnotSep & \texttt{1em} &
   Least gap between an example and that column. Give it no stretch or
   shrink: it is what makes an example that comes within it take its
@@ -2853,6 +3026,7 @@ exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package opt
 \textbackslash altn\marg{$\dots$}\marg{$\dots$} & Stacked alternatives; \oarg{c/l/r} alignment. Fallback: \cs{lxAltn}. \\
 \textbackslash altg\marg{alt}\marg{alt}$\dots$ & Glossed alternatives: written in both lines of \textbackslash exg. (objects, then glosses); both-braced, centred. Also \cs{lxAltg}. \\
 \textbackslash exsource\marg{text} & Flush-right attribution. \\
+\textbackslash GlossTransSide & Set \textbackslash glt's translation in a column beside the gloss rather than under it; \textbackslash GlossTransBelow restores the default. Top-level examples only. \\
 \textbackslash exannot\oarg{spoken}\marg{text} & Structural label, in a column at \textbackslash ExAnnotColumn. On the object line in a gloss. \textbackslash SetAnnotSpoken\marg{text}\marg{phrase} registers a spoken form. \\
 \textbackslash ExAnnotFit & Measure that column from the examples instead: one column per example, past the longest of them. Costs an \texttt{.aux} round trip. \\
 \addlinespace

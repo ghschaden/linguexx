@@ -86,6 +86,21 @@ UAREL relative reference \Last\ resolves too.
 \ex[??]{UAEXE an item in a batch.}
 \end{exe}
 
+%% A free translation set BESIDE the grid rather than under it.  Here rather
+%% than in tests/glt-side.tex because this is the case veraPDF is run on,
+%% and only veraPDF can answer the question this construct raises: the grid
+%% and the translation are two boxes, each carrying marked content of its
+%% own, put down inside a paragraph that has already opened some.  Nesting
+%% them there is what every veraPDF PROFILE calls compliant -- measured
+%% during implementation, 17 records logged against 0 for an ordinary gloss,
+%% all three verdicts passing in both cases.  What separates them is the
+%% second read of veraPDF's output, which a_ua does.
+{\GlossTransSide
+\exg. UASIDEOBJ Der Hund bellte.\\ the dog bark.\lpzg{pst}\\
+\glt `UASIDETRANS The dog barked, with a translation long enough to take a
+      line or two in a column of its own.'
+}
+
 %% the abbreviation list is itself a tagged list
 UALIST follows.
 \lpzglist

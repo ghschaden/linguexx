@@ -1,0 +1,16 @@
+%% \GlossTransSide below the top level.  Refused, and the refusal is the
+%% assertion: the measure at sub-example depth is already reduced twice, so
+%% both columns come out narrow and the grid starts wrapping, and a split
+%% taken from the indented measure puts every sibling's translation at a
+%% different place.  doc/EXPEX-GAPS.md records the reasoning and what would
+%% reopen it.  Without the guard this renders -- narrowly, raggedly, and
+%% looking like a choice.  See EXPECT_ERROR.
+\input{_preamble}
+\begin{document}
+{\GlossTransSide
+\ex.
+\a. \gll il mio libro\\
+         the my book\\
+    \glt `my book'
+\z.}
+\end{document}
