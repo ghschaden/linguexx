@@ -40,7 +40,7 @@ never had to ask, and for items 1 and 4 that question is the hard part.
 
 | | Feature | Cost | Blocking decision |
 |---|---|---|---|
-| 1 | Free translation *beside* the gloss | medium–high | the syntax for the translation body |
+| 1 | Free translation *beside* the gloss | medium–high | the syntax, and whether sub-examples may have one |
 | 2 | Key-value façade and named styles | medium | the key names, which become API forever |
 | 3 | Reference checking | medium | whether `\ref` itself is in scope |
 | 4 | Named label types | medium | whether a type may change the *reference* format |
@@ -85,37 +85,85 @@ ends it with `\par`. `\glt` is a separate command issued afterwards:
 
 It takes no argument. Its body runs to the end of the paragraph.
 
-**That is the whole difficulty.** By the time `\glt` runs, the grid's
-paragraph has been broken and contributed to the enclosing list; there is
-nothing left to set beside. `expex` avoids this because *its* free
-translation is delimited — `\gl@wrap@right@ft #1//` — so the translation is
-an argument and both halves can be boxed. Three ways out:
+**That is the difficulty.** By the time `\glt` runs, the grid's paragraph
+has been broken and contributed to the enclosing list; there is nothing left
+to set beside. `expex` avoids it because *its* free translation is
+delimited — `\gl@wrap@right@ft #1//` — so the translation is an argument and
+both halves can be boxed. Four ways out:
 
 1. **Delimit the translation**, `expex`-style: `\glt ... //`. Cheapest
    mechanically, and the ugliest — it changes what `\glt` means for every
-   existing document, and `\glt` is inherited from `cgloss4e`.
-2. **An environment**, e.g. `\begin{glosstrans}...\end{glosstrans}`, or a
-   `\gltside{...}` variant used *instead* of `\glt` when the side position
-   is wanted. Additive; nothing existing changes; two names for one thing.
-3. **Tell `\gll` in advance** — a key or option on the gloss — so that
-   `\lx@gloss@multi` sets the grid into a box of reduced width and *defers*
-   its `\par`, leaving `\glt` to land in a parallel `\vtop`. This is what
-   `expex` does structurally, and it still needs the translation's extent to
-   be known, so it collapses into (1) or (2) unless `\glt` is made to
-   scan ahead.
+   existing document, and `\glt` is inherited from `cgloss4e`, so the blast
+   radius is wider than this package. There are 75 uses in this repo alone.
+2. **An environment or a second command**, e.g. `\gltside{...}`, used
+   *instead* of `\glt` when the side position is wanted. Additive; nothing
+   existing changes; two names for one concept, and the argument must be
+   `\long` to admit a `\par` — `expex` had to make exactly that fix ("made
+   `\glft` a long definition to allow `\par`", its changelog, 2011).
+3. **Tell `\gll` in advance** — a key on the gloss. It only chooses the
+   layout; the translation's extent still has to be found, so underneath it
+   collapses into (2) or (4). Worth having as a *spelling* on top of
+   whichever is chosen, not as an answer.
+4. **Shape the translation around a boxed grid**, requiring no new syntax at
+   all: box the *grid* (which `\lx@gloss@multi` already knows the end of),
+   place it, and let `\glt` set `\hangindent`/`\hangafter` so its paragraph
+   hangs past it. `\glt` keeps taking no argument. A scratch probe got the
+   two halves side by side with the short case degrading cleanly, which is
+   what put this option on the list.
 
-**What it does to the structure tree.** Reading order is unchanged: left
-then right *is* grid then translation, so `LBody → Part(grid) ,
-Part(translation)` still describes it. What must be checked is that the two
-`\vtop`s do not become an untagged two-column artifact, and that the
-translation's `/Lang` (`\GlossTransLang`) still lands on the right element.
-`examples/ua-demo.tex` would need a side-by-side gloss and veraPDF run on
-it; `struct_label_depths` would catch a `Part` left open.
+**Why (4) is not the answer, although it looked like it.** The probe's
+appeal was "no new syntax", and an earlier draft of this section claimed for
+it that the structure tree would be unchanged. That claim was wrong, and the
+reason is the one thing this package cannot be relaxed about.
+
+Under shaping the grid is a box placed *inside the translation's paragraph*.
+The grid builds `Part → P → Span`s of its own, so that block structure ends
+up inside the translation's `P`. This is the shape recorded in the version
+history at v0.10/v0.11 — "a Span may not contain the Part/P that the math
+tagging then builds", rejected by veraPDF — and it is the single entry in
+CLAUDE.md's **Do Not** list. It may be escapable: `\tag_mc_end_push:` /
+`\tag_mc_begin_pop:n` exists precisely to suspend an open MC around
+something like this, and the package uses it everywhere. But "escapable with
+the idiom that has broken compliance before" is not free, and only veraPDF
+can say whether it worked.
+
+The rest of shaping's fragility is ordinary but silent:
+
+| | fails how | loud? |
+|---|---|---|
+| line count `⌈height/baselineskip⌉` | `\singlegloss`, `\small`, beamer's leading — off by one, so the box overlaps a line or an indent is wasted | **silent** |
+| paragraph breaks across a page | the box stays on the first page, the indent continues on the next | **silent** |
+| another user of `\hangindent` in the same paragraph | one parameter, last setter wins | silent |
+
+In its favour, the package uses `\hangindent` and `\parshape` **nowhere**
+(zero occurrences), so there is no internal conflict to inherit.
+
+Option (2) fails differently: a boxed pair **cannot break across a page at
+all**, which is an overfull vbox and therefore loud, and its argument needs
+`\long`, which is a known and already-solved problem. Its tagging is clean —
+two boxes, two sibling elements, emitted in reading order, the same shape
+the gloss columns already have.
+
+**So the trade is silent failures in the tagging and line-count layers
+against loud ones in page-breaking, and for this package loud wins.** The
+suite exists because every real bug in it compiled with zero errors. The
+recommendation is (2), with (3) as its spelling if a key reads better than a
+second command name.
+
+**What it does to the structure tree.** With (2): reading order is
+unchanged, because left-then-right *is* grid-then-translation, so
+`LBody → Part(grid) , Part(translation)` still describes it. What must be
+checked is that the two boxes do not become an untagged two-column artifact
+and that the translation's `/Lang` (`\GlossTransLang`) still lands on the
+right element. `examples/ua-demo.tex` would need a side-by-side gloss with
+veraPDF run on it; `struct_label_depths` would catch a `Part` left open.
 
 **What must be decided first.**
 
-- The syntax (above). This is new user syntax, so CLAUDE.md's rule applies:
-  not "by default", and not without prior explicit validation.
+- The syntax (above). New user syntax, so CLAUDE.md's rule applies: not "by
+  default", and not without prior explicit validation.
+- **Whether sub-examples may have a side translation at all** — see the
+  next block, which is the part with the most in it.
 - What happens when the translation is *taller* than the gloss. `expex`
   simply lets the `\vtop` grow. Fine, but it should be stated.
 - The interaction with `\exannot`, whose column is measured from
@@ -128,14 +176,55 @@ it; `struct_label_depths` would catch a `Part` left open.
   that, but the brace geometry is measured from the stack's extents and
   should be checked rather than assumed.
 
+### Sub-examples, and short ones
+
+Raised 2026-09-03, and left open deliberately. `expex`'s own demo puts the
+side position on a *long* top-level example, which is where it obviously
+pays; whether it makes sense one or two indents down is a different
+question, and the honest answer today is that nobody knows.
+
+What is not a matter of taste is *why* it is doubtful:
+
+- **The saving only exists when the gloss is tall or the translation long.**
+  A short sub-example gives a short gloss, a wide gap and a short
+  translation: horizontal space spent, no vertical space saved.
+- **The measure is already reduced twice.** Split what is left `.6/.4` and
+  both halves are narrow, and the gloss may start wrapping between columns —
+  the exact failure `\lx@gl@colpenalty` was added to prevent.
+- **Siblings would not line up.** If the split is a ratio of the local
+  `\linewidth`, then (a), (b) and (c) each put their translation at a
+  different x. This is the `\ExAnnotColumn` lesson word for word: a column
+  measured from `\linewidth` drifts one indent step per level and looks
+  deliberate. It has to come from `\columnwidth`.
+
+So *if* it is allowed below the top level, three things follow and should be
+decided together, not one at a time:
+
+1. the split is measured from `\columnwidth`, so sibling translations align;
+2. there is a minimum width below which it falls back to the below-position,
+   and the fallback is **announced** rather than silent;
+3. it is a **per-gloss** decision, not a document-wide mode — whether it
+   pays depends on the shape of the individual example, and a paper full of
+   short sub-examples set globally to `glftpos=right` would be worse off
+   than without the feature.
+
+**The conservative option, and the recommended one:** restrict it to
+top-level examples to begin with, and lift the restriction when a document
+asks. That is where `expex` puts it, it is where the evidence of need is,
+and it costs nothing to lift later while inventing the semantics now costs
+whatever the guess turns out to be wrong about. `doc/DEFERRED-DECISIONS.md`
+exists for exactly the state this is in.
+
 **How it would be tested.** Geometry: the translation's `x0` is right of the
-grid's rightmost ink and shares its vertical band; the split honours
-`ssratio`. Tagging: reading order in `pdfinfo -struct-text`, plus veraPDF on
-a UA build. Mutation that must kill it: swap `ssleftwd` and `ssrightwd` —
-if no assertion notices, the case is only checking that two boxes exist.
+grid's rightmost ink and shares its vertical band; the split honours the
+ratio; two sibling sub-examples put their translations at one x (the check
+that would have caught the `\linewidth` mistake). Tagging: reading order in
+`pdfinfo -struct-text`, plus veraPDF on a UA build. Mutation that must kill
+it: swap the two widths — if no assertion notices, the case is only checking
+that two boxes exist.
 
 **Cost.** Medium–high. The width arithmetic is an afternoon; the syntax
-question and the tagging check are the work.
+decision, the sub-example question and the tagging check are the work.
 
 ---
 
