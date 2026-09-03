@@ -40,7 +40,7 @@ never had to ask, and for items 1 and 4 that question is the hard part.
 
 | | Feature | Cost | Blocking decision |
 |---|---|---|---|
-| 1 | Free translation *beside* the gloss | medium–high | the syntax, and whether sub-examples may have one |
+| 1 | Free translation *beside* the gloss | medium–high | mostly settled; whether `\glt` needs an argument awaits a probe |
 | 2 | Key-value façade and named styles | medium | the key names, which become API forever |
 | 3 | Reference checking | medium | whether `\ref` itself is in scope |
 | 4 | Named label types | medium | whether a type may change the *reference* format |
@@ -158,30 +158,120 @@ and that the translation's `/Lang` (`\GlossTransLang`) still lands on the
 right element. `examples/ua-demo.tex` would need a side-by-side gloss with
 veraPDF run on it; `struct_label_depths` would catch a `Part` left open.
 
-**What must be decided first.**
+### Decisions taken, 2026-09-03
 
-- The syntax (above). New user syntax, so CLAUDE.md's rule applies: not "by
-  default", and not without prior explicit validation.
-- **Whether sub-examples may have a side translation at all** — see the
-  next block, which is the part with the most in it.
-- What happens when the translation is *taller* than the gloss. `expex`
-  simply lets the `\vtop` grow. Fine, but it should be stated.
-- The interaction with `\exannot`, whose column is measured from
-  `\columnwidth` (see `\lx@annot@width:`). In a narrowed grid, either the
-  annotation column must be measured against the left box instead, or an
-  annotation on a side-by-side gloss is refused. Refusing is defensible and
-  much cheaper.
-- The interaction with `\altg`, whose two-call protocol runs across tiers of
-  one grid (`\g__lxp_altg_role_int`). Narrowing the grid does not disturb
-  that, but the brace geometry is measured from the stack's extents and
+Three settled in conversation, and one thing that turned out not to be a
+choice at all. Recorded so the next reader inherits the reasoning and not
+just the outcome.
+
+**Top-level examples only.** A side translation is refused below the top
+level — `\lx@subdepth > 0` is a package error. The reasoning is under
+"Sub-examples, and short ones" below; the short version is that the saving
+does not exist there, the
+measure is already reduced twice, and a split taken from the local
+`\linewidth` puts every sibling's translation at a different x.
+
+**`\exannot` is illegal on a gloss with a side translation.** Its column is
+measured from `\columnwidth` (`\lx@annot@width:`), which is meaningless once
+the grid has been narrowed, and making the two agree is real design for a
+combination nobody has asked for. A package error, not a silent
+reinterpretation.
+
+**The layout is boxed, not shaped** — option (4) above, for the tagging
+reason given there.
+
+**And the thing that is not a choice: the decision has to be known BEFORE
+the grid is typeset.** A first pass proposed `\gltrans{...}` as both the
+translation *and* the signal — the command being the switch, so that there
+is no separate state to leak. That cannot work, and the reason is worth
+writing down because it is invisible from outside the engine:
+
+> By the time `\gltrans` is read, `\lx@gloss@multi` has already set the grid
+> as a full-width paragraph and `\par`-ed it into the enclosing list. There
+> is nothing left to set beside.
+
+`expex` knows early too, and the resemblance to its `\glft ... //` is what
+misled the first pass: the delimiter there is about **capturing the
+translation**, while the layout is chosen by `glftpos` on `\begingl`, and
+`\gl@wrap@right@begin` sets `\hsize=\ssleftwd` *before* the grid is set.
+Two different jobs that look like one.
+
+The alternative — box the grid speculatively and hold it pending until
+something says where it goes — means flushing a pending box at every exit an
+example has. `\lx@glt@langend` is called from **nine** sites for exactly
+that kind of obligation (`\lx@bodyend`, `\lx@zpop@one`, the `exe` and
+`xlist` ends, and the five `xlist` variants), and the history records one of
+them being missed: a `\glt` language Span "left the Span open across the
+list close and failed veraPDF on all three profiles. Nothing showed on the
+page and no structure assertion saw it." Nine flush points is nine chances
+to repeat that.
+
+Deciding early pays for itself elsewhere too. The `\exannot` prohibition can
+then fire at the lift, inside `\gll`, naming the annotation — instead of a
+flag that has to survive to the translation command and be cleared per
+gloss, which is precisely the stale-stash bug `\l__lx_gl_annot_tl` produced
+this week and that took a mutation to find. The top-level check happens at
+the same moment, and the tagging emission point is known when the box is
+built rather than when it is placed.
+
+### Where the switch lives
+
+| | | |
+|---|---|---|
+| (a) a key on the gloss, `\gll[side]` | the family is **eight** grid commands (`\gl`, `\gll`, `\glll`, `\gllll` … `\gllllllll`). Add it to one and it is inconsistent; add it to eight and every delimited signature grows a peek | weak |
+| (b) **a declaration before the example** | no signature changes at all, applies to whichever gloss command was used, and matches the existing precedent — `\ExAnnotFit`, `\ExRaggedRight` and `\GlossPhantomAlign` are all group-scoped layout declarations | **chosen** |
+| (c) a separate gloss command, `\gllside` | multiplies by eight | out |
+
+So a declaration:
+
+```latex
+{\GlossTransSide   % name not settled
+ \ex. ...
+ \z.}
+```
+
+**Still open: whether it auto-resets at example end.** Leaving it to TeX
+grouping is what every other layout declaration here does, and it is
+predictable. Auto-resetting makes a leak impossible — and a leaked layout
+flag is a silent defect, the shape of the `\altg` role toggle that "leaves
+the toggle set, and every later `\altg` in the gloss takes the opposite
+role". Against it: an explicit declaration cancelled by the machinery is
+surprising, and it would make this switch behave unlike its three
+neighbours.
+
+### Still open
+
+- **Whether the translation needs to be an argument at all.** With the
+  switch known early, `\glt` may not need one: it could open a `\vtop` of
+  the remaining width, closed by machinery that already exists —
+  `\lx@glt@langbegin` opens from `\everypar`, `\lx@glt@langend` closes at
+  all nine exits. That pattern is present, tested and load-bearing today. If
+  it works, item 1 needs **no new user syntax**: `\glt` keeps its signature
+  and the declaration carries everything. Worth a probe with veraPDF in the
+  loop before committing, because this is exactly where the Span-left-open
+  bug lived. `\gltrans{...}` (or `\gltside{...}`) is the fallback if the
+  probe fails.
+- **The name, if a translation command is needed after all.** `\gltrans`
+  does not say "beside"; a reader meeting it cannot tell it from `\glt`.
+  `\gltside` is uglier and self-documenting. Permanent either way.
+- **What happens when there is no room** at top level — a slide, a
+  `twocolumn` paper. Falling back to the below position with a warning is
+  the recommendation: the author gets a document and the log says why it is
+  not the one they asked for. Erroring is the alternative.
+- **What happens when the translation is taller than the gloss.** `expex`
+  lets its `\vtop` grow. Fine, but it should be stated rather than
+  discovered.
+- **`\altg`**, whose two-call protocol runs across tiers of one grid
+  (`\g__lxp_altg_role_int`). Narrowing the grid does not disturb the
+  protocol, but the brace geometry is measured from the stack's extents and
   should be checked rather than assumed.
 
-### Sub-examples, and short ones
+### Sub-examples, and short ones: why the restriction
 
-Raised 2026-09-03, and left open deliberately. `expex`'s own demo puts the
-side position on a *long* top-level example, which is where it obviously
-pays; whether it makes sense one or two indents down is a different
-question, and the honest answer today is that nobody knows.
+Decided 2026-09-03, against `expex`, which allows it anywhere. `expex`'s own
+demo puts the side position on a *long* top-level example, which is where it
+obviously pays; one or two indents down it is doubtful, and the reasons are
+mechanical rather than a matter of taste.
 
 What is not a matter of taste is *why* it is doubtful:
 
@@ -208,12 +298,13 @@ decided together, not one at a time:
    short sub-examples set globally to `glftpos=right` would be worse off
    than without the feature.
 
-**The conservative option, and the recommended one:** restrict it to
-top-level examples to begin with, and lift the restriction when a document
-asks. That is where `expex` puts it, it is where the evidence of need is,
-and it costs nothing to lift later while inventing the semantics now costs
-whatever the guess turns out to be wrong about. `doc/DEFERRED-DECISIONS.md`
-exists for exactly the state this is in.
+**What was decided:** top-level only, a package error below that. Not
+because a sub-example side translation is wrong, but because nobody yet
+knows what it should look like, and the three points above are what a design
+would have to answer. Lifting the restriction later is free; guessing now
+costs whatever the guess turns out to be wrong about. If a document does
+turn up wanting one, those three points are the agenda and
+`doc/DEFERRED-DECISIONS.md` is where the question should move.
 
 **How it would be tested.** Geometry: the translation's `x0` is right of the
 grid's rightmost ink and shares its vertical band; the split honours the
@@ -223,8 +314,11 @@ that would have caught the `\linewidth` mistake). Tagging: reading order in
 it: swap the two widths — if no assertion notices, the case is only checking
 that two boxes exist.
 
-**Cost.** Medium–high. The width arithmetic is an afternoon; the syntax
-decision, the sub-example question and the tagging check are the work.
+**Cost.** Medium–high, and less unknown than it was: the syntax and the
+sub-example question are settled above. What remains is the width
+arithmetic (an afternoon), the probe on whether `\glt` needs an argument,
+and the tagging check — which is the one that decides whether the estimate
+holds, since it is the half `expex` never had to do.
 
 ---
 
