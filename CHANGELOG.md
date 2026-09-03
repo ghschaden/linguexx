@@ -23,8 +23,11 @@ version string.
   `\SetLeipzig`: a French example can be fenced in a group without the rest
   of the document following it. A preamble setting is made at top level and
   so still applies throughout.
-- Test suite: cases now compile in parallel, one per core, which takes a full
-  run from 383s to 69s on twelve of them (`-j1` for the old behaviour). Cases
+- Test suite: cases now compile in parallel, one per logical CPU, which takes
+  a full run from 383s to 69s on a six-core machine with two threads a core
+  (`-j1` for the old behaviour). Six cores put the floor at about 64s, so
+  that is most of what is available; `-j16` is slower than `-j12`, and the
+  default of `os.cpu_count()` is already the useful maximum. Cases
   were already independent — each builds its own temporary directory and
   compiles there — so serial execution was only buying ordered output, and
   that is now recovered by printing along a plan built before the work
