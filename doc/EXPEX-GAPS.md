@@ -11,6 +11,17 @@ Code is cited by NAME, never by line number — the same rule as
 `CORE-API-PLAN.md`, and for the same reason: the numbers rot within an
 afternoon and the names do not.
 
+A **probe**, where the word is used below, is a throwaway document that
+answers one question about behaviour: built outside the package, kept only
+until it has answered, and never correct about anything it was not asked.
+It is not a test case — a test lives in `tests/`, is wired into
+`ASSERTIONS`, runs on every commit and must have a mutation that kills it —
+and it is not a prototype, because none of it is meant to survive. It is
+cheap precisely because it will be thrown away. Its failure mode is
+over-reading one: a probe answers the question it was given, not the
+question that should have been asked, and item 1 below records a case of
+exactly that.
+
 ## Where the comparison came from
 
 `expex` v4.x as installed on this machine:
@@ -40,7 +51,7 @@ never had to ask, and for items 1 and 4 that question is the hard part.
 
 | | Feature | Cost | Blocking decision |
 |---|---|---|---|
-| 1 | Free translation *beside* the gloss | medium–high | mostly settled; whether `\glt` needs an argument awaits a probe |
+| 1 | Free translation *beside* the gloss | medium | settled: a declaration, and no new syntax — see the probe |
 | 2 | Key-value façade and named styles | medium | the key names, which become API forever |
 | 3 | Reference checking | medium | whether `\ref` itself is in scope |
 | 4 | Named label types | medium | whether a type may change the *reference* format |
@@ -241,19 +252,10 @@ neighbours.
 
 ### Still open
 
-- **Whether the translation needs to be an argument at all.** With the
-  switch known early, `\glt` may not need one: it could open a `\vtop` of
-  the remaining width, closed by machinery that already exists —
-  `\lx@glt@langbegin` opens from `\everypar`, `\lx@glt@langend` closes at
-  all nine exits. That pattern is present, tested and load-bearing today. If
-  it works, item 1 needs **no new user syntax**: `\glt` keeps its signature
-  and the declaration carries everything. Worth a probe with veraPDF in the
-  loop before committing, because this is exactly where the Span-left-open
-  bug lived. `\gltrans{...}` (or `\gltside{...}`) is the fallback if the
-  probe fails.
-- **The name, if a translation command is needed after all.** `\gltrans`
-  does not say "beside"; a reader meeting it cannot tell it from `\glt`.
-  `\gltside` is uglier and self-documenting. Permanent either way.
+- ~~Whether the translation needs to be an argument at all.~~ **Answered by
+  probe, 2026-09-03: it does not.** See "What the probe settled" below.
+- ~~The name, if a translation command is needed after all.~~ Moot: no new
+  command is needed.
 - **What happens when there is no room** at top level — a slide, a
   `twocolumn` paper. Falling back to the below position with a warning is
   the recommendation: the author gets a document and the log says why it is
@@ -265,6 +267,66 @@ neighbours.
   (`\g__lxp_altg_role_int`). Narrowing the grid does not disturb the
   protocol, but the brace geometry is measured from the stack's extents and
   should be checked rather than assumed.
+
+### What the probe settled, 2026-09-03
+
+**Question.** With the switch known early, does `\glt` still need its
+translation as an argument — or can it open a `\vtop` of the remaining
+width, closed by the machinery that already closes things at every example
+exit?
+
+**Answer: it does not need an argument.** A throwaway document faked the
+early switch by hand — the grid boxed at `\gll`, `\glt` opening a second
+box, both set down at `\lx@bodyend` — under
+`\DocumentMetadata{tagging=on}`, with veraPDF as the oracle rather than the
+page. The layout came out right, the reading order came out right
+(`Part`(grid) then `Part`(translation), matching what the page shows), and
+veraPDF passed all three profiles with nothing logged.
+
+So **item 1 needs no new user syntax**: `\glt` keeps its signature, the
+declaration carries the decision, and `\gltrans{...}` is not wanted after
+all. That is the whole of what the probe was for.
+
+Three things it turned up on the way, all of which an implementation has to
+know.
+
+**The box placement must suspend the ambient marked content.** Setting the
+two boxes down inside the paragraph that places them nests their marked
+content inside its own, and the first version of the probe did exactly that.
+The numbers are the point:
+
+| | veraPDF verdicts | records logged while parsing |
+|---|---|---|
+| baseline, ordinary gloss | 3/3 pass | 0 |
+| boxes placed naively | **3/3 pass** | **17** (`Nested MCID`) |
+| placed inside `\tag_mc_end_push:` … `\tag_mc_begin_pop:n {}` | 3/3 pass | 0 |
+
+Every profile calls the naive version compliant. Only the second read of
+veraPDF's output tells the two apart — which `a_ua` does, and which exists
+because "some malformed nesting is only logged, and a run that logs it still
+reports compliant". The remedy is this package's own idiom, the same
+suspend-and-resume that `\lx@tag@span@open:n` performs everywhere else, and
+it costs two lines.
+
+**Reading order follows PLACEMENT, not typesetting.** The BDC/EMC operators
+travel inside the box and reach the page's content stream when the box is
+shipped, not when its contents were set. The probe's own comment claimed the
+opposite and was wrong. It happens not to matter here, because both boxes
+are placed in the order they were built — but anything that ever placed them
+in the other order would reverse the reading order while leaving the page
+identical, which is worth knowing before somebody reorders the placement for
+a good typographic reason.
+
+**The exit order is enforced by TeX, not by veraPDF.** `\lx@glt@langend` has
+to run *inside* the box, before the `\egroup` that closes it, because the
+language Span is opened from `\everypar` in there. Getting it backwards was
+tried: it is a hard TeX error at compile time ("Missing number, treated as
+zero"), not a silent tagging defect. One less thing to guard, and the only
+one of these three that announces itself.
+
+**What the probe did not answer**, and was not asked to: page-breaking a
+boxed pair, the no-room fallback, `\altg`, and the two cases that are
+refused by decision anyway (sub-examples, `\exannot`).
 
 ### Sub-examples, and short ones: why the restriction
 
@@ -314,11 +376,13 @@ that would have caught the `\linewidth` mistake). Tagging: reading order in
 it: swap the two widths — if no assertion notices, the case is only checking
 that two boxes exist.
 
-**Cost.** Medium–high, and less unknown than it was: the syntax and the
-sub-example question are settled above. What remains is the width
-arithmetic (an afternoon), the probe on whether `\glt` needs an argument,
-and the tagging check — which is the one that decides whether the estimate
-holds, since it is the half `expex` never had to do.
+**Cost.** Medium, down from medium–high: the syntax, the sub-example
+question and the tagging risk are all settled above, and the probe showed
+the tagging works with two lines of the package's own suspend-and-resume.
+What remains is the width arithmetic, the declaration and its reset
+question, the no-room fallback, and the test case — which has to assert on
+veraPDF's *log* and not only its verdict, since that is the only thing that
+told the working version from the broken one.
 
 ---
 
