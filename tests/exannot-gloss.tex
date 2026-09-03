@@ -1,0 +1,19 @@
+%% \exannot in a gloss, on a tier that is not the object line.  A gloss is a
+%% translation: an annotation on a gloss tier has nothing to align with, and
+%% the object line is the only tier whose baseline the annotation can share.
+%%
+%% Without the check this renders: the annotation becomes a WORD of the
+%% gloss tier -- a column of the grid, with the object word above it pushed
+%% aside to make room -- and nothing on the page says the label was meant
+%% for the example rather than for "tired".  See EXPECT_ERROR.
+%%
+%% Written GLUED to the last gloss word, which is the spelling that used to
+%% earn this error for a correct object-line annotation as well.  Now that
+%% the glued form is read on the object line, this case is about the tier
+%% and nothing else -- and it has to stay glued, or it would stop testing
+%% the branch it is named for.
+\input{_preamble}
+\begin{document}
+\ex. \gll que Pierre est fatigu\'e\\
+          that Pierre is tired\exannot{[CP]}\\
+\end{document}

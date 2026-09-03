@@ -3,6 +3,81 @@
 All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
+## 1.3
+- New: `\exannot[⟨spoken⟩]{⟨text⟩}` — a structural label (`[CP]`, `[TP]`, a
+  language name, a reading) set in a **column** beside the examples. `\exsource`
+  is the flush-right member of the family and is for a source, which belongs at
+  the margin; this one is for a label that belongs next to the example it
+  labels, and next to several examples it has to line up or the eye cannot use
+  it. `\ExAnnotColumn` says where the column is, measured from the left edge of
+  the text block (default `.75\columnwidth`); `\ExAnnotSep` is the least gap
+  (default `1em`); `\ExAnnotFont` the font. Manual §7.4; `tests/exannot.tex`
+  measures the geometry and `tests/exannot-ua.tex` the structure tree.
+
+  **Why not `\jambox`.** `[langsci]` already carries `\jambox`, which measures
+  from the right margin, and its gutter can be widened to bring the column
+  nearer the examples. It does not survive that: it sets its box at its natural
+  width behind glue that shrinks to nothing, so an example long enough to reach
+  the column pushes the annotation aside instead of wrapping — silently, with no
+  overfull warning. Four sub-examples of increasing length at one gutter came
+  out aligned to 0.01pt at 3cm and at 7cm, and at 212.6 / 212.6 / 234.1 /
+  288.9pt at 11cm. A column set *near* the examples is exactly the regime where
+  it stops holding, which is why this is a new command and not a wrapper.
+  `\jambox` is untouched: under `[langsci]` it is what `langsci-gb4e` has.
+
+  `\exannot` instead carries the annotation in a box of **fixed width** ending
+  at the right margin, so nothing on the line can move its left edge, and the
+  column holds across nesting levels (measured from `\columnwidth`, not
+  `\linewidth`, which has already lost the indentation — a `\linewidth` column
+  drifts one indent step per level and looks deliberate on the page). An
+  example that would come within `\ExAnnotSep` of the column takes the break
+  instead: its annotation drops to the next line, in the same column.
+
+  **`\ExAnnotFit`** measures the column instead of taking it. Each annotated
+  example records where its text ended, and the column of an example — one
+  `\ex.` and everything under it — is put `\ExAnnotSep` past the longest of
+  them. The unit is the example, not the document, so a block of short
+  examples gets its own column; footnote examples are their own examples in
+  this sense too. The widest *annotation* of a block counts as well and the
+  column is never narrower than it, which is what keeps a long label in line
+  with its neighbours instead of letting it step out to the left on its own.
+  When the two pull against each other, the column wins and the annotation of
+  the example it had to move past goes onto the next line.
+
+  Off by default, and off means off: nothing is recorded and no round trip
+  happens unless it is asked for. When it is, the two measurements per
+  annotation go through the `.aux` (`\pdfsavepos` on pdfTeX/XeTeX,
+  `\savepos` on LuaTeX — no new package), so a fresh document's first run
+  falls back to `\ExAnnotColumn` and says "Annotation columns are not
+  settled. Rerun". The second is right and silent: the warning fires on an
+  unmeasured run, and afterwards only when a width actually moves, so an
+  ordinary two-run build is not told to run a third time for nothing. What
+  is recorded is the *difference* between the two positions, never a
+  position on its own — so it is a width, carrying no page origin, and it
+  stays comparable across a page break, a `twoside` document and a
+  two-column one.
+
+  **In a gloss** it goes at the end of the *object* line — with a space in
+  front of it or glued to the last word, either reads — and is set level with
+  the object tier at the same column — not under
+  the free translation, and not as a column of the grid, which would push the
+  gloss tier beneath it. On any other tier it is an error: a gloss is a
+  translation, and a label on a gloss tier has nothing to align with; so is
+  one in the middle of a line, which has nowhere to go.
+
+  **Spoken form.** `[CP]` is an abbreviation a screen reader can neither expand
+  nor usefully spell. `\SetAnnotSpoken{[CP]}{complementizer phrase}` registers
+  one for a label used throughout, and `\exannot[⟨phrase⟩]{…}` gives one to a
+  single annotation; under tagging it reaches the structure tree as a `Span`
+  carrying `/Alt`, so the page still shows `[CP]` and copy-and-paste still
+  yields `[CP]`. Same arrangement as `\DeclareJudgment[spoken=]`. An annotation
+  with no spoken form gets **no** `Span`: an `/Alt` repeating the text it
+  replaces is noise in the tree. `/Alt` rather than `/E` (the brackets are not
+  part of the abbreviation, and what wants saying is a gloss of the label, not
+  its letters), rather than `/ActualText` (which would take the brackets out of
+  copy-and-paste), and rather than `Aside` (a block element, which cannot sit
+  inside the paragraph the annotation shares with its example).
+
 ## 1.2
 - New: `[langsci]`, the `\ea` … `\z` front-end of `langsci-gb4e` (Language
   Science Press's fork of `gb4e`). `\ea` opens an example or, inside one, the

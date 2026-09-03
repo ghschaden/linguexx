@@ -1,0 +1,47 @@
+%% \exannot under beamer, which is where this was reported from -- and where
+%% a good deal else in this package has been, for a reason worth writing
+%% down rather than mis-reading: beamer is not fragile, it is where the
+%% author works.  Decks for a class are what gets written, so a new feature
+%% meets real use in a frame before it meets it anywhere else, and a case
+%% that only ever ran in article has not yet been where its users are.
+%%
+%% Two things about beamer make it its own case rather than a duplicate of
+%% exannot.tex, and both are about the frame being typeset ONCE PER OVERLAY
+%% SLIDE with the counters restored:
+%%
+%%   * an annotated example that spans slides is measured, and recorded,
+%%     once per slide.  Its group key is the same every time -- the counter
+%%     is restored -- so \ExAnnotFit sees the same reading two or three
+%%     times over.  It has to be idempotent: BEAMOVER appears on both
+%%     slides of its frame and its annotation must be at ONE x, not drifting
+%%     as the minimum is taken again over its own output.
+%%   * the glued spelling, which is what the report came in as.  Nothing
+%%     about it is beamer-specific -- it reproduces in article -- but the
+%%     deck is where it was met, and a case that only ever ran in article
+%%     is not what says it works where it was reported.
+%%
+%% beamer also sets sans-serif and its own font sizes, so the annotation's
+%% box is measured in a font no other case here uses.
+\input{_preamble-beamer}
+\ExAnnotFit
+\begin{document}
+\begin{frame}{BEAMHEAD}
+\ex.
+\a. BEAMA que Pierre est fatigué\exannot{[CP]}
+\b. BEAMB Pierre est fatigué\exannot{[TP]}
+\z.
+
+\ex.
+\a. BEAMPLAIN le livre / mon livre
+\b. \gll BEAMGL il mio libro\exannot{(italien)}\\
+         BEAMGLTIER le mon livre\\
+    \glt `mon livre'
+\z.
+\end{frame}
+
+\begin{frame}{BEAMHEADTWO}
+\ex. BEAMOVER an example that is on both slides\exannot{[XP]}
+\pause
+\ex. BEAMLATE and one that arrives on the second\exannot{[YP]}
+\end{frame}
+\end{document}

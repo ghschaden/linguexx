@@ -1,0 +1,191 @@
+%% \exannot: the annotation column.  Four things fail silently here, and
+%% each has its own examples.
+%%
+%%   * The column is ONE column across NESTING DEPTHS.  \linewidth has lost
+%%     the indentation by the time an example body is set, so a column
+%%     measured from it drifts one indent step per level -- 247 / 271 / 295pt
+%%     for the three levels here, which looks entirely deliberate on the
+%%     page.  ANNTOP / ANNSUB / ANNDEEP.
+%%   * The column is ONE column across TEXT LENGTHS.  This is where \jambox
+%%     gives way: it sets its box at its natural width behind glue that
+%%     shrinks to nothing, so an example that reaches the column pushes the
+%%     annotation right rather than wrapping, with no overfull warning to
+%%     say so.  ANNLONG does reach it: its annotation must be on a line of
+%%     its own AND still in the column.
+%%   * \ExAnnotSep is a LEAST gap, and is rigid so as to be one.  ANNTIGHT
+%%     is built to end .4em short of the column -- \settowidth, so it is
+%%     .4em short under every engine and not by luck of the metrics.  Its
+%%     annotation must wrap.  With shrink in that gap it would not: it
+%%     would stay on the line, still in the column (the fixed-width box
+%%     sees to that), but nearer the example text than \ExAnnotSep, up to
+%%     touching it.  So this is the one example that tells a rigid gap from
+%%     a rubber one, and nothing else in the suite does.
+%%   * A gloss annotation belongs on the OBJECT line, level with the
+%%     language it labels -- not under the free translation, and not as a
+%%     column of the grid, which would push the gloss tier beneath it.
+%%     ANNGLOSS must share a line with the object tier and not with
+%%     ANNGLOSSTIER, which is the gloss directly under it.
+%%   * The filler is a fill and not a fil.  A gloss is set \raggedright, so
+%%     \rightskip is already 0pt plus 1fil; an \hfil filler would share the
+%%     slack with it instead of taking it, and the gloss annotation would
+%%     come to rest partway to the column.  That mutation is invisible in
+%%     every example above -- \rightskip is zero in all of them -- and is
+%%     caught by ANNGLOSS alone.  \ExRaggedRight ([langsci]) is the same
+%%     path with the same filler.
+%%
+%%   * \exannot ends its paragraph, and a blank line ends a dot-syntax
+%%     example: ANNHEAD pins that the one is not the other.
+%%
+%% Spoken forms and the structure tree are exannot-ua.tex; this case is
+%% untagged and about the geometry alone.
+\input{_preamble}
+\setlength{\ExAnnotColumn}{9cm}
+\begin{document}
+\ex. ANNTOP a top-level example\exannot{[XP]}
+
+%% An annotated HEAD with sub-examples under it.  \exannot ends the
+%% paragraph -- it has to, or \parfillskip could not hold the last line to
+%% the column -- and a blank line is what ends a dot-syntax example, so the
+%% \par is one token away from closing the example instead of the line.
+%% If it ever does, the \a. below has no example to attach itself to and
+%% the case stops compiling; the numbering is asserted too, since an
+%% example closed early would take a number of its own.
+\ex. ANNHEAD an annotated head\exannot{[HP]}
+\a. ANNUNDER a sub-example under it\exannot{[IP]}
+\z.
+
+\ex.
+\a. ANNSUB a sub-example\exannot{[CP]}
+\b. ANNSIB and its sibling\exannot{[TP]}
+\a. ANNDEEP one level deeper\exannot{[DP]}
+\b. ANNLONG a sub-example long enough to reach the column and then some\exannot{[VP]}
+\z.
+
+\newlength{\anntightw}
+\begingroup
+\settowidth{\anntightw}{ANNTIGHT a snug example}
+\setlength{\ExAnnotColumn}{\dimexpr\Exindent+\Exlabelwidth+\Exlabelsep
+                                  +\anntightw+.4em\relax}
+\ex. ANNTIGHT a snug example\exannot{[QP]}
+\endgroup
+
+\ex. \gll ANNGLOSS Pierre est fatigu\'e \exannot{[WP]}\\
+          ANNGLOSSTIER Pierre is tired\\
+     \glt `Pierre is tired'
+
+%% \exannot GLUED to the last object word, with no space in front of it.
+%% Both spellings of a glossed sub-example, because they reach \gll by
+%% different routes: \b. followed by \gll, and the \bg. shorthand, which is
+%% \b. plus the gloss head.
+%%
+%% Two things fail here and only one of them is loud.
+%%
+%% Loud: without the space "libro\exannot{...}" is ONE word of tier 1 and
+%% its head token is "l", so a rule that looks only at the head of the word
+%% never sees the annotation, \exannot runs where it stands, and the run
+%% stops on an error about where annotations have to go -- which is not
+%% what was wrong with it.  Reported from a beamer deck.
+%%
+%% Silent, and worse: the word is split at the token, and a DELIMITED
+%% argument that is exactly one brace group has its braces removed by TeX.
+%% So the tail came back as "(italien)" rather than "{(italien)}", the
+%% annotation was rebuilt as "\exannot (italien)", its mandatory argument
+%% was the single token "(", and the page carried "(" in the column with
+%% "italien)" flung to the right margin.  Zero errors, zero warnings.
+%% GLUEA and GLUEB are asserted to sit in the column WHOLE, which is the
+%% only way to tell that apart from a correct one.
+\ex.
+\a. GLUEPLAIN le livre / mon livre / *le mon livre
+\b. \gll GLUEA il mio libro\exannot{(italien)}\\
+         GLUEATIER le mon livre\\
+    \glt `mon livre'
+\z.
+
+\ex.
+\a. GLUEPLAINB le livre / mon livre / *le mon livre
+\bg. GLUEB il mio libro\exannot{(italien)}\\
+     GLUEBTIER le mon livre\\
+\glt `mon livre'
+\z.
+
+%% An annotation whose ARGUMENT CONTAINS SPACES, which is what prose does:
+%% "(cf. \emph{le mien livre})" has three of them.  \gll splits the object
+%% line on spaces, so an annotation still sitting in that line when the
+%% splitter runs is not one thing by the time anyone looks: it becomes the
+%% words "libro\exannot{(cf.", "\emph{le", "mien", "livre})", each of them a
+%% COLUMN of the grid, with gloss cells appearing underneath the pieces.
+%%
+%% What that looks like on the page is not "my annotation came apart" but
+%% "the gloss has a line break in it", because the extra columns stop
+%% fitting and the grid wraps -- which is how it was reported, from a class
+%% deck.  Nothing errors.  SPCA is asserted to reach the page as ONE word at
+%% the column, which is the only thing that tells it from a gloss that
+%% happens to have more words in it.
+\ex.
+\a. SPCPLAIN le livre / mon livre / *le mon livre
+\b. \gll SPCOBJ il mio libro\exannot{(cf. \emph{le mien livre})}\\
+         SPCTIER le mon livre\\
+    \glt `mon livre'
+\z.
+
+%% A gloss with NO annotation, standing right after one that has it.  The
+%% lifted annotation is stashed in a token list, and a token list that is
+%% not cleared between glosses is re-emitted by the next one: an annotation
+%% appears against an example that never asked for it, in the right column
+%% and the right font, looking entirely deliberate.  SPCNONE must carry
+%% nothing.
+%% In the SAME example as an annotated one, deliberately: the stash is a
+%% local assignment, so a plain gloss in a LATER example is protected by
+%% the group boundary between them and shows nothing.  Two sub-examples of
+%% one example share a group, and that is where a stale stash surfaces.
+\ex.
+\a. \gll SPCKEEP il mio libro\exannot{(voir \emph{le mien livre})}\\
+         SPCKEEPTIER le mon livre\\
+\b. \gll SPCNONE il mio libro\\
+         SPCNONETIER le mon livre\\
+\z.
+
+%% An annotation too wide to share the object line must move ITSELF down.
+%% It must not make room by breaking the GRID -- which is what it did, and
+%% what was reported from a class deck:
+%%
+%%     il  mio                            il  mio  libro molto lungo
+%%     le  mon               instead of   le  mon  livre tres long
+%%     libro molto lungo                      (a ; cf. a. fr. ...)
+%%     livre tres long
+%%
+%% A gloss is set \raggedright, so every way of breaking it has badness
+%% zero and the penalty is the only thing telling one from another.  The
+%% glue between two columns used to be a FREE breakpoint while \exannot
+%% offers its own at \penalty50, so TeX took the free one and split the
+%% object line between two words.  \lx@gl@colpenalty is what makes the grid
+%% dearer than the annotation.
+%%
+%% Whether it triggers is a WINDOW and not a threshold, which is why it went
+%% unnoticed for so long: the annotation has to be too wide for the room the
+%% column leaves AND not so wide that breaking the grid stops making room
+%% for it either.  The width of that window is the width of the LAST gloss
+%% column, so the column here is deliberately a long braced one -- with a
+%% short last column the window is a few points across and which side of it
+%% a given annotation falls on is luck.  An earlier version of this case had
+%% exactly that, sat outside the window, and passed with the penalty
+%% removed.  Two annotation widths, so one lucky width cannot carry it.
+\ex.
+\a. BRKA le livre
+\b. \gll BRKB il mio {libro molto lungo veramente} \exannot{(a ; cf. a. fr. le mien livre)}\\
+         gl le {mon livre vraiment tres long}\\
+\z.
+
+\ex.
+\a. BRKAC le livre
+\b. \gll BRKC il mio {libro molto lungo veramente} \exannot{(b ; cf. a. fr. le mien livre, bien plus long que cela)}\\
+         gl le {mon livre vraiment tres long}\\
+\z.
+
+%% ... and a braced multi-word object item immediately before a glued
+%% annotation.  The braces there are the word splitter's, and losing them
+%% at the split would turn one object word into two and pull the gloss out
+%% of line under it.
+\ex. \gll GLUEC ein {ganz kurzes} GOBJ\exannot{(gebraucht)}\\
+          GLUECT a {very short} GGLOSS\\
+\end{document}

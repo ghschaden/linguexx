@@ -38,6 +38,11 @@ into the PDF structure tree as genuine, accessible objects:
   word-bundle in the right order (not as loose text, and not as a table, which
   screen readers read in the wrong order);
 - a gloss tier's language can be recorded (`\GlossTierLang{1}{de}` → `/Lang`);
+- structural labels set beside the examples (`\exannot{[CP]}`) carry a spoken
+  form too (`\SetAnnotSpoken` → `/Alt`), so a reader hears "complementizer
+  phrase" while the page still shows `[CP]`
+  (and `\ExAnnotFit` puts that column where the examples themselves say it
+  belongs, one column per example);
 - Leipzig category abbreviations carry their expansion (`\lpzg{sg}` → `/E`
   "singular"), so they are spoken in full while the page still shows SG, and
   `\lpzglist` prints the list of those actually used, as a tagged list;

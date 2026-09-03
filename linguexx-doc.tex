@@ -1899,6 +1899,201 @@ It works in every part of a multipart example, and after a gloss. The font
 is the hook \cs{ExSourceFont} (default \cs{normalfont}\cs{footnotesize});
 the argument may contain a \cs{cite}.
 
+\subsection{Structural labels: \cs{exannot}}\label{sec:exannot}
+
+\cs{exsource} puts its argument at the right margin, which is where a
+source belongs. A label \emph{about} an example --- the category of a
+constituent, the reading intended, the language --- belongs beside the
+example instead, and beside several examples it has to form a column, or
+the eye cannot use it. \cs{exannot} does that:
+
+\begin{code}
+\setlength{\ExAnnotColumn}{9cm}
+\ex.
+\a. que Pierre est fatigu\'e\exannot{[CP]}
+\b. Pierre est fatigu\'e\exannot{[TP]}
+\z.
+\end{code}
+
+\rendered
+\begingroup
+\setlength{\ExAnnotColumn}{9cm}
+\ex.
+\a. que Pierre est fatigu\'e\exannot{[CP]}
+\b. Pierre est fatigu\'e\exannot{[TP]}
+\z.
+\endgroup
+
+\afterex
+\cs{ExAnnotColumn} is where the column is, measured from the \emph{left}
+edge of the text block --- so ``9cm'' means what it says on the page, and
+does not move when the example does. The default is
+\texttt{.75}\cs{columnwidth}. \cs{ExAnnotSep} (default \texttt{1em}) is the
+least gap between an example and the column; give it no stretch or shrink.
+The font is \cs{ExAnnotFont}, \cs{normalfont} by default.
+
+The column holds across nesting levels, because it is measured from the
+text block and not from the indented line; and it holds however long the
+examples are, because an example that would come within \cs{ExAnnotSep} of
+the column takes its annotation onto the next line rather than pushing the
+column right:
+
+\rendered
+\begingroup
+\setlength{\ExAnnotColumn}{9cm}
+\ex.
+\a. a short one\exannot{[CP]}
+\b. one long enough that its annotation has to go somewhere else\exannot{[TP]}
+\a. and one a level deeper\exannot{[DP]}
+\z.
+\endgroup
+
+\afterex
+\cs{exannot} closes the example's paragraph, as it must in order to hold
+the last line to the column, so it comes last in its example.
+
+In a gloss, write it at the end of the \emph{object} line --- with a space
+in front of it or glued to the last word, whichever reads better. It is set
+level with the object tier, at the same column as everywhere else --- not
+under the free translation, and not as a column of the grid:
+
+\begin{code}
+\ex. \gll que Pierre est fatigu\'e \exannot{[CP]}\\
+          that Pierre is tired\\
+     \glt `that Pierre is tired'
+\end{code}
+
+\rendered
+\begingroup
+\setlength{\ExAnnotColumn}{9cm}
+\ex. \gll que Pierre est fatigu\'e \exannot{[CP]}\\
+          that Pierre is tired\\
+     \glt `that Pierre is tired'
+\endgroup
+
+\afterex
+On any other tier it is an error, and so is one in the middle of a line: a
+gloss is a translation, so a label on a gloss tier has nothing to align
+with, and one between two object words has nowhere to go.
+
+\paragraph{What a screen reader says.} ``\texttt{[CP]}'' is an
+abbreviation a reader cannot expand and a synthesiser will not usefully
+spell. Give \cs{exannot} a spoken form and, under tagging, the annotation
+reaches the structure tree as a \texttt{Span} carrying \texttt{/Alt}: the
+page still shows \texttt{[CP]}, copy-and-paste still yields
+\texttt{[CP]}, and the reader hears the phrase. Either per annotation, or
+once for a label used throughout:
+
+\begin{code}
+\SetAnnotSpoken{[CP]}{complementizer phrase}
+\ex. que Pierre est fatigu\'e\exannot{[CP]}          % from the table
+\ex. Pierre est fatigu\'e\exannot[tense phrase]{[TP]} % just this one
+\end{code}
+
+\noindent
+This is the same arrangement as \cs{DeclareJudgment}\texttt{[spoken=]} and
+\cs{SetJudgmentSpoken} (\S\ref{sec:judgments} if you have met those
+already). An annotation with no spoken form gets no \texttt{Span} at all:
+an \texttt{/Alt} that repeats the text it replaces is noise in the tree.
+
+\texttt{/Alt} rather than the alternatives, deliberately. \texttt{/E} is
+PDF's expansion text for an abbreviation, and \texttt{[CP]} is not quite
+one --- the brackets are not part of it, and what wants saying is a gloss
+of the label rather than its letters written out. \texttt{/ActualText}
+would announce the phrase but take the brackets out of copy-and-paste with
+it, which is a real loss for something a reader may want to quote. And an
+\texttt{Aside}, semantically the strongest answer --- the annotation is
+genuinely set apart from the example --- is a block element, so it cannot
+sit inside the paragraph the annotation shares with its example.
+
+\paragraph{Letting the examples choose the column: \cs{ExAnnotFit}.}
+\cs{ExAnnotColumn} is a number you have to find, and the number that looks
+right depends on the examples underneath it. \cs{ExAnnotFit} finds it
+instead. Each annotated example records where its text ended, and the column
+of an example --- one \cs{ex.} and everything under it --- is put
+\cs{ExAnnotSep} past the longest of them:
+
+\begin{code}
+\ExAnnotFit
+\ex.
+\a. que Pierre est fatigu\'e depuis mardi\exannot{[CP]}
+\b. Pierre est fatigu\'e\exannot{[TP]}
+\z.
+\ex.
+\a. short\exannot{[DP]}
+\b. brief\exannot{[VP]}
+\z.
+\end{code}
+
+\rendered
+\begingroup
+\ExAnnotFit
+\ex.
+\a. que Pierre est fatigu\'e depuis mardi\exannot{[CP]}
+\b. Pierre est fatigu\'e\exannot{[TP]}
+\z.
+\ex.
+\a. short\exannot{[DP]}
+\b. brief\exannot{[VP]}
+\z.
+\endgroup
+
+\afterex
+The unit is the \emph{example}, not the document: the second block above
+gets a column of its own, because its examples are shorter. Footnote
+examples are their own examples in this sense too.
+
+The widest \emph{annotation} of a block counts as well, and the column is
+never narrower than it. That is what keeps a long label in line with its
+neighbours instead of letting it step out to the left on its own:
+
+\rendered
+\begingroup
+\ExAnnotFit
+\ex.
+\a. que Pierre est fatigu\'e\exannot{[CP]}
+\b. Pierre est fatigu\'e\exannot{[an annotation wider than that column]}
+\c. Pierre dort\exannot{[TP]}
+\z.
+\endgroup
+
+\afterex
+When the two pull against each other --- a label so wide that the column has
+to move left of where some example's text ends --- the column wins and that
+one annotation goes onto the next line. It is the column that has to hold;
+a line is only a line.
+
+This costs an \texttt{.aux} round trip, so a fresh document's first run sets
+\cs{ExAnnotColumn} and says
+\begin{quote}\small\ttfamily
+Package linguexx Warning: Annotation columns\\
+are not settled. Rerun to get\\
+\textbackslash ExAnnotFit right
+\end{quote}
+\noindent
+The second run is right, and silent. If the warning comes back on a later
+run, something is still moving: the one way that happens is an example whose
+own text breaks across lines, where the annotation is part of what the
+paragraph breaker is fitting. Set \cs{ExAnnotColumn} for that block and turn
+the fitting off inside it (\cs{ExAnnotNoFit}); both are ordinary switches
+and respect \TeX\ grouping.
+
+Nothing is recorded and no round trip happens unless \cs{ExAnnotFit} is
+asked for.
+
+\paragraph{Compared with \cs{jambox}.} \cs{jambox}, which \opt{langsci}
+provides (\S\ref{sec:langsci}), measures from the \emph{right} margin and
+holds a column only while that column is far enough right that no example
+can reach it: it sets its box at its natural width behind glue that
+shrinks to nothing, so an example that reaches the column pushes the
+annotation aside instead of wrapping --- with no warning. Four
+sub-examples of increasing length, at one \cs{jambox} gutter, came out
+aligned to 0.01pt at 3\,cm and at 7\,cm and at
+212.6 / 212.6 / 234.1 / 288.9\,pt at 11\,cm. Near the examples is exactly
+the regime where it stops working, which is why \cs{exannot} is not a
+wrapper over it. \cs{jambox} is unchanged: under \opt{langsci} it is what
+\pkg{langsci-gb4e} has.
+
 % ===========================================================================
 \section{Example and glossing layout}\label{sec:layout}
 % ===========================================================================
@@ -1968,12 +2163,23 @@ anywhere in the document:
   \cs{SubExlabelwidth}, so the two sub-levels share one box width. \\
 \textbackslash JdgSep & \texttt{0.15em} &
   Gap between a hanging judgment and the text. \\
+\textbackslash ExAnnotColumn & \texttt{.75\textbackslash columnwidth} &
+  Where \cs{exannot}'s column is, measured from the \emph{left} edge of the
+  text block, so it does not move with the nesting level
+  (section~\ref{sec:exannot}). \\
+\textbackslash ExAnnotSep & \texttt{1em} &
+  Least gap between an example and that column. Give it no stretch or
+  shrink: it is what makes an example that comes within it take its
+  annotation onto the next line rather than crowd in. \\
+  & & Under \cs{ExAnnotFit} the same length is the distance the fitted
+  column keeps past the longest example of its block. \\
 \bottomrule
 \end{tabular}
 \end{center}
 
 \noindent A few further knobs are macros, not lengths, and are changed with
-\cs{renewcommand}: \cs{GlossSep} (glue between gloss columns) and the three
+\cs{renewcommand}: \cs{GlossSep} (glue between gloss columns),
+\cs{ExAnnotFont} (default \cs{normalfont}) and the three
 reference dashes. \cs{rangedash} (default \texttt{-\/-}) separates the two
 ends of a range; \cs{firstrefdash} sits between an example number and a
 sub-example letter in a reference such as ``(3a)'', and
@@ -2647,6 +2853,8 @@ exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package opt
 \textbackslash altn\marg{$\dots$}\marg{$\dots$} & Stacked alternatives; \oarg{c/l/r} alignment. Fallback: \cs{lxAltn}. \\
 \textbackslash altg\marg{alt}\marg{alt}$\dots$ & Glossed alternatives: written in both lines of \textbackslash exg. (objects, then glosses); both-braced, centred. Also \cs{lxAltg}. \\
 \textbackslash exsource\marg{text} & Flush-right attribution. \\
+\textbackslash exannot\oarg{spoken}\marg{text} & Structural label, in a column at \textbackslash ExAnnotColumn. On the object line in a gloss. \textbackslash SetAnnotSpoken\marg{text}\marg{phrase} registers a spoken form. \\
+\textbackslash ExAnnotFit & Measure that column from the examples instead: one column per example, past the longest of them. Costs an \texttt{.aux} round trip. \\
 \addlinespace
 \multicolumn{2}{@{}l}{\itshape Layout and options} \\
   \opt{lazy}, \opt{gb4e} & Package options: dot syntax (default), \pkg{gb4e} environment syntax; combinable. \\

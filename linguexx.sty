@@ -5,7 +5,7 @@
 %%%% This program can be redistributed and/or modified under the terms
 %%%% of the LaTeX Project Public License
 \NeedsTeXFormat{LaTeX2e}[2020/10/01]% expl3 in kernel required
-\ProvidesPackage{linguexx}[2026/07/31 Standalone linguistic examples, linguex-compatible interface v. 1.2]
+\ProvidesPackage{linguexx}[2026/09/03 Standalone linguistic examples, linguex-compatible interface v. 1.3]
 %% v. 0.1: [legacy] option; empty \firstrefdash by default.
 %% v. 0.2: tagging-safe under \DocumentMetadata (PDF tagging testphase):
 %%         lists opened/closed through the environment interface; no TeX
@@ -227,6 +227,47 @@
 %%          the object and gloss columns.  The object call takes it
 %%          along; the gloss call, which draws the closing brace,
 %%          sets it down.
+%% v. 1.3: \exannot[<spoken>]{<text>}: a structural label set in a
+%%          COLUMN beside the examples rather than at the margin, where
+%%          \exsource puts a source.  \ExAnnotColumn says where the
+%%          column is, measured from the left edge of the text block, so
+%%          it does not move with the nesting level; \ExAnnotSep is the
+%%          least gap and is rigid, so an example that would come within
+%%          it takes its annotation onto the next line rather than
+%%          crowding it.  The annotation is carried in a box of fixed
+%%          width ending at the right margin, which is what holds the
+%%          column: \jambox ([langsci]) sets its box at its natural width
+%%          behind glue that shrinks to nothing, so it holds a column only
+%%          while no example can reach it (measured: four sub-examples of
+%%          increasing length aligned to 0.01pt at a 3cm and a 7cm gutter,
+%%          212.6/212.6/234.1/288.9pt at 11cm).  \jambox is unchanged.
+%%          In a gloss the annotation goes at the end of the OBJECT line
+%%          -- with a space in front of it or glued to the last word,
+%%          either reads -- and is set level with it, at the same column;
+%%          on any other tier, or in the middle of a line, it is an error.
+%%          The glued spelling is what people write, and it used to stop
+%%          the run with an error about where annotations go: without a
+%%          space "libro\exannot{...}" is one word of the object tier and
+%%          a rule reading only its head token never sees the annotation.
+%%          Reported from a beamer deck.  Under tagging a spoken form --
+%%          \SetAnnotSpoken{<text>}{<phrase>}, or the optional argument --
+%%          reaches a Span as /Alt, so a reader hears "complementizer
+%%          phrase" while the page still shows [CP] and copy-and-paste
+%%          still yields it; with no spoken form there is no Span.
+%%          \ExAnnotFit measures that column instead of taking it: each
+%%          annotated example records where its text ended, through the
+%%          .aux, and the column of ONE EXAMPLE and everything under it
+%%          is put \ExAnnotSep past the longest of them.  The widest
+%%          annotation of the block counts too, so a label too wide for
+%%          the column moves the whole block's column rather than
+%%          stepping left on its own -- which is what it did, and one
+%%          label out of line is the failure \exannot exists to prevent.
+%%          Off by default: nothing is recorded and no round trip
+%%          happens unless it is asked for.  \pdfsavepos on pdftex and
+%%          xetex, \savepos on luatex; no new package.  What crosses the
+%%          .aux is the DIFFERENCE of two positions taken on one line, so
+%%          it is a width and carries no page origin -- comparable across
+%%          a page break, a twoside document and a two-column one.
 %% Package options come in two independent groups.
 %%
 %% SYNTAX:
@@ -608,6 +649,7 @@
   \setlength{\SubExleftmargin}{\dimexpr\SubExlabelwidth+\Exlabelsep\relax}%
   \setlength{\SubSubExleftmargin}{\dimexpr\SubSubExlabelwidth+\Exlabelsep\relax}%
   \setlength{\JdgSep}{0.15em}%
+  \lx@setannotcol \setlength{\ExAnnotSep}{1em}%
   \def\firstrefdash{}%
   \def\secondrefdash{-}%
   \def\SubExLBr{}\def\SubExRBr{.}%
@@ -633,6 +675,7 @@
   \setlength{\SubSubExlabelwidth}{\dimexpr\SubSubExleftmargin-\Exlabelsep\relax}%
   \setlength{\Exlabelwidth}{4em}% recomputed per example; see \lx@calc@Exlabelwidth
   \setlength{\JdgSep}{0pt}%
+  \lx@setannotcol \setlength{\ExAnnotSep}{1em}%
   \def\firstrefdash{-}%
   \def\secondrefdash{-}%
   \def\SubExLBr{}\def\SubExRBr{.}%
@@ -2701,8 +2744,22 @@
 %% guidelines use it (their section 12.3): line material up
 %% a fixed distance from the right margin, overflowing left or wrapping to
 %% the next line when it will not fit.  \exsource is this package's own
-%% version of the same idea and aligns flush right; \jambox is the more
-%% general one, with the gutter as a parameter.
+%% version of the same idea and aligns flush right.
+%%
+%% \exannot is the third, and it is not a spelling of this one: \jambox
+%% holds a column only while the gutter is wide enough that no example can
+%% reach it, because its box is set at its natural width behind glue that
+%% shrinks to nothing.  Widen the gutter to bring the column near the
+%% examples -- the case \exannot exists for -- and the column stops holding,
+%% silently.  Measured, four sub-examples of increasing length at one
+%% gutter: aligned to 0.01pt at 3cm and at 7cm, 212.6 / 212.6 / 234.1 /
+%% 288.9pt at 11cm.  See the \exannot section for what it does instead.
+%%
+%% Nothing here is changed on the strength of that.  Under [langsci] this
+%% is what langsci-gb4e has, and a document converting to linguexx one
+%% example at a time is checked by diffing its output against its own
+%% previous run: a \jambox that placed its box differently would show up in
+%% exactly the shape the migration promise is about.
 %%
 %% Upstream's note that it does not work in ragged-right mode holds here
 %% too, and matters more, because \ExRaggedRight can turn ragged setting on:
@@ -3332,6 +3389,30 @@
 \let\eachwordthree\textnormal
 % \GlossSep (the glue between gloss columns) is a macro, not a length, and
 % its value is set in the defaults block of the Layout section above.
+%
+% What it costs to break the grid there.  The glue between two columns used
+% to be a free breakpoint, and a gloss is set \raggedright, so every way of
+% breaking it has badness 0 and the penalty is the ONLY thing telling one
+% from another.  That is fine while nothing competes with it and wrong as
+% soon as something does: \exannot offers its own breakpoint at \penalty50
+% -- "put the annotation on the next line rather than crowd it" -- and
+% against a free one TeX took the free one, splitting
+%
+%     il  mio  libro        (italien ; cf. a. fr. le mien livre)
+%
+% between "mio" and "libro" to make room.  Reported from a class deck; it
+% needs a gloss whose annotation is too wide for the room left and not so
+% wide that the grid break stops helping, which is why it took a while to
+% see and why brk2 in the tests pins both sides of that window.
+%
+% 200 rather than 50-and-a-bit: the two numbers are compared as squares
+% (40000 against 2500), so the margin wants to be plain rather than exact.
+% It does not stop a long gloss wrapping -- with the penalty in front of
+% the glue the penalty IS the breakpoint, and every alternative way of
+% breaking the same gloss pays it the same number of times, so which one
+% TeX picks is unchanged.  It cannot cause an overfull line either: under
+% \raggedright every break is badness 0, so a feasible one always exists.
+\def\lx@gl@colpenalty{200}
 
 %% Per-tier fonts: tier n is set with the one-argument command declared
 %% by \GlossTierFont{n}{cmd}.  Tiers 1--3 are pre-declared to dispatch
@@ -3360,7 +3441,7 @@
     \seq_set_split:NnV #1 { \q__lx_sep } \l__lx_gl_tmp_tl
     \seq_remove_all:Nn #1 { }
   }
-\cs_generate_variant:Nn \__lx_split:Nn { cn }
+\cs_generate_variant:Nn \__lx_split:Nn { cn , cV }
 
 % tier font application: \lx@glfontuse{tier}{word}
 \cs_new_protected:Npn \lx@glfontuse #1#2
@@ -4383,19 +4464,105 @@
       { \int_compare:nNnT {##1} = {#3} { \tl_set:Nn #1 {##2} } }
   }
 \cs_generate_variant:Nn \__lx_gl_word_get:NNn { Ncn }
+%% An \exannot on the OBJECT line of a gloss.  It is lifted off tier 1
+%% before the columns are built and set after them, on the object tier's
+%% own baseline, at \ExAnnotColumn -- so a glossed example carries the same
+%% column as an unglossed one, and the label sits level with the language
+%% it labels rather than under the free translation.
+%%
+%% Lifted rather than typeset in place: as a word of tier 1 it would be a
+%% column of the grid, sharing \GlossSep with the object words and pushing
+%% the gloss beneath it, which is the one thing an annotation must not do.
+%% And it cannot be RUN where it stands -- \exannot closes its paragraph,
+%% and the gloss's paragraph is the grid.
+\tl_new:N \l__lx_gl_annot_tl
+\tl_new:N \l__lx_gl_annot_word_tl
+%% Lifted off the RAW LINE, before anything splits it into words.
+%%
+%% The annotation is not a word of the language being glossed and its
+%% argument is prose: "(cf. \str{le mien livre})" has three spaces in it.
+%% \gll splits the object line ON SPACES, so an annotation left in place
+%% until then does not survive as one thing -- it is torn into "libro\exannot{(cf.",
+%% "\str{le", "mien", "livre})", each of which becomes a COLUMN of the grid,
+%% with gloss cells appearing under the pieces.  Reported from a class deck
+%% as "a line break after mio", because that is what it looks like: the
+%% extra columns no longer fit and the grid wraps.  Nothing errors, and the
+%% pieces read as if the gloss simply had more words in it.
+%%
+%% Lifting first also settles what an annotation in the middle of a line
+%% means, by making the question go away: everything from \exannot to the
+%% end of the line IS the annotation call, which is right when it comes
+%% last and is the only reading available when the argument may contain
+%% anything at all.  There is no longer a mid-line case to diagnose, and
+%% the error below is about the TIER, which is a question the line-level
+%% split can still answer.
+%%
+%% \q_nil is a spacer and its whole job is to stop TeX helping.  A DELIMITED
+%% argument that consists of exactly one brace group has that group's braces
+%% removed, so "libro\exannot{(italien)}" handed #2 the tokens "(italien)"
+%% and not "{(italien)}"; the annotation was then rebuilt as
+%% "\exannot (italien)", whose mandatory argument is the single token "(",
+%% and the page came out with "(" in the column and "italien)" flush right.
+%% Compiled clean, of course.  With \q_nil after it the argument is not a
+%% lone group any more and the braces stay; it is taken off again below.
+\tl_new:N \l__lx_gl_line_tl
+\tl_new:N \l__lx_gl_annot_head_tl
+\cs_new_protected:Npn \__lx_gl_annot_split:w #1 \exannot #2 \q_stop
+  {
+    \tl_set:Nn \l__lx_gl_annot_head_tl {#1}
+    \tl_set:Nn \l__lx_gl_annot_tl { \exannot #2 }
+    \tl_remove_once:Nn \l__lx_gl_annot_tl { \q_nil }
+  }
+\cs_new_protected:Npn \__lx_gl_annot_lift:N #1
+  {
+    \tl_if_in:NnT #1 { \exannot }
+      {
+        %% A gloss is a translation, so a label on a gloss tier has nothing
+        %% to align with.  Lifted onto the object line even so: the run is
+        %% stopping on an error either way, and an error is not a reason to
+        %% shred the author's annotation into gloss columns as well.
+        \int_compare:nNnF { \l__lx_gl_ntiers_int } = { 1 }
+          { \msg_error:nn { linguexx } { annot-in-gloss } }
+        \exp_after:wN \__lx_gl_annot_split:w #1 \q_nil \q_stop
+        \tl_set_eq:NN #1 \l__lx_gl_annot_head_tl
+      }
+  }
+%% \hfill, not \hfil: the gloss paragraph is \raggedright, so \rightskip is
+%% already 0pt plus 1fil and an \hfil would merely share the slack with it,
+%% leaving the annotation halfway.  A fill outranks a fil and takes all of
+%% it.  \vtop puts the annotation on the FIRST tier's baseline, the way
+%% every other column's first row sits.
+%% The lifted \exannot is not executed as written -- \exannot ends its
+%% paragraph, and the paragraph here is the grid.  Inside this group it
+%% means the in-gloss placement instead, so the author's optional <spoken>
+%% argument is still read by the command that owns it rather than picked
+%% apart here.  \parfillskip is set OUTSIDE the group, or the group would
+%% restore it before \lx@gloss@multi reaches its \par.
+\cs_new_protected:Npn \__lx_gl_annot_emit:
+  {
+    \group_begin:
+      \cs_set_eq:NN \exannot \lx@annot@glossuse
+      \l__lx_gl_annot_tl
+    \group_end:
+    \parfillskip \c_zero_dim
+  }
 \cs_gset_protected:Npn \lx@gloss@multi #1
   {
     \seq_set_split:Nnn \l__lx_gl_lines_seq { \\ } {#1}
     \seq_remove_all:Nn \l__lx_gl_lines_seq { }
     \int_zero:N \l__lx_gl_ntiers_int
     \int_zero:N \l__lx_gl_maxwords_int
+    \tl_clear:N \l__lx_gl_annot_tl
     \seq_map_inline:Nn \l__lx_gl_lines_seq
       {
         \int_incr:N \l__lx_gl_ntiers_int
         \seq_clear_new:c
           { l__lx_gl_tier_ \int_use:N \l__lx_gl_ntiers_int _seq }
-        \__lx_split:cn
-          { l__lx_gl_tier_ \int_use:N \l__lx_gl_ntiers_int _seq } {##1}
+        \tl_set:Nn \l__lx_gl_line_tl {##1}
+        \__lx_gl_annot_lift:N \l__lx_gl_line_tl
+        \__lx_split:cV
+          { l__lx_gl_tier_ \int_use:N \l__lx_gl_ntiers_int _seq }
+          \l__lx_gl_line_tl
         \int_set:Nn \l__lx_gl_maxwords_int
           { \int_max:nn { \l__lx_gl_maxwords_int }
               { \seq_count:c
@@ -4468,9 +4635,16 @@
                 their~glosses.~A~column~with~only~one,~or~a~third~tier~
                 carrying~one~as~well,~cannot~be~paired~up. }
           }
-        \hskip \GlossSep \relax
+        \penalty \lx@gl@colpenalty \hskip \GlossSep \relax
       }
+    %% \unskip takes off the last column's \GlossSep and leaves the
+    %% \lx@gl@colpenalty in front of it standing.  Deliberately: an
+    %% \unpenalty here removes a breakpoint that costs 40000 demerits and
+    %% sits immediately before \exannot's own, which costs 2500, so it is
+    %% never the one taken -- and a line that cannot be shown to do
+    %% anything reads as though it did.
     \unskip
+    \tl_if_empty:NF \l__lx_gl_annot_tl { \__lx_gl_annot_emit: }
     \par
     \group_end:
   }
@@ -5724,6 +5898,502 @@
   \hskip1em plus 1fill\relax
   \hbox{}\nobreak\hskip0pt plus 1fill\relax
   \mbox{\ExSourceFont#1}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  The annotation column: \exannot                                    %%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% \exannot[<spoken>]{<text>} sets <text> in a COLUMN: the same horizontal
+%% position for every annotated example on the page, whatever its nesting
+%% depth and whatever its own length.
+%%
+%%   (1) a. que Pierre est fatigue      [CP]
+%%       b. Pierre est fatigue          [TP]
+%%
+%% \exsource is the flush-right member of the family and is for a source
+%% attribution, which belongs at the margin; this one is for a structural
+%% label, which belongs BESIDE the example it labels.  \ExAnnotColumn says
+%% where "beside" is, measured from the left edge of the text block.
+%%
+%% Two things make the column a column, and both are places where this
+%% differs from \jambox (which [langsci] carries, and which this does not
+%% replace -- see the note there):
+%%
+%%   * The column is measured from \columnwidth, NOT \linewidth.  Inside a
+%%     list \linewidth has already lost the indentation, so a \linewidth-
+%%     based column moves one indent step per nesting level: measured
+%%     247 / 271 / 295pt for \ex. / \a. / a sub-sub item on one page.
+%%     \columnwidth is the same for all three, and is also the right
+%%     measure in twocolumn (where \textwidth is both columns) and in a
+%%     minipage (which sets it along with \linewidth).
+%%
+%%   * The annotation is carried in a box of FIXED WIDTH, ending at the
+%%     right margin, so its left edge is at \ExAnnotColumn no matter what
+%%     else is on the line.  \jambox sets its box at its natural width and
+%%     follows it with a skip that shrinks to nothing (\hskip 1.2em minus
+%%     1.2em, and a second one of the size of the gutter), so where that
+%%     box lands is whatever the line's glue arithmetic makes it: as soon
+%%     as an example is long enough to reach the column, the shrink takes
+%%     up the difference and the box slides right.  Silently -- no overfull
+%%     warning, no error.  Measured, four sub-examples of increasing length
+%%     at one \jambox gutter: aligned to 0.01pt at 3cm and at 7cm, and
+%%     212.6 / 212.6 / 234.1 / 288.9pt at 11cm.  So \jambox holds a column
+%%     only while the column is far enough right that no example can reach
+%%     it, which is exactly what a column set NEAR the examples is not.
+%%
+%% The annotation ends the paragraph, as \jambox does, because
+%% \parfillskip has to be zero for the last line to hold the column.  So it
+%% comes last in the example PART it annotates -- which is not the same as
+%% last in the example: a dot-syntax example is ended by a blank line, not
+%% by a \par, so \a. and its siblings may follow an annotated head, and
+%% tests/exannot.tex pins that (ANNHEAD) rather than leaving it to be
+%% rediscovered.
+
+\newlength{\ExAnnotColumn}% where the column is, from the left text edge
+\newlength{\ExAnnotSep}   % least gap between the example and the column;
+                          % set it rigid -- see \lx@annot@fill:n below
+\newcommand{\ExAnnotFont}{\normalfont}
+
+%% \ExAnnotColumn is derived from \columnwidth, which a class or a geometry
+%% package loaded AFTER this one still changes.  Re-derived at
+%% \begin{document} if -- and only if -- it still holds the value computed
+%% at load time, which is exactly the guard \Extopsep and \Exredux use for
+%% their own late-changing basis (\baselineskip); a \setlength in the
+%% preamble therefore wins, as it does for those two.
+%%
+%% .75 rather than something tighter: a default that collides is worse than
+%% one that is merely far, because a collision costs a line.  The command
+%% exists to be given the value the document wants.
+\newlength{\lx@auto@annotcol}
+\newcommand\lx@setannotcol{%
+  \setlength{\ExAnnotColumn}{.75\columnwidth}%
+  \setlength{\lx@auto@annotcol}{\ExAnnotColumn}}
+\AtBeginDocument{%
+  \ifdim\ExAnnotColumn=\lx@auto@annotcol \lx@setannotcol \fi}
+
+\ExplSyntaxOn
+\box_new:N \l__lx_annot_box
+\dim_new:N \l__lx_annot_dim
+
+%% The room the column leaves for the annotation.  Clamped at zero: a
+%% \ExAnnotColumn past the right edge would otherwise make a box of
+%% negative width, which draws the annotation back over the example
+%% instead of complaining.
+\cs_new:Npn \lx@annot@width:
+  { \dim_max:nn { \c_zero_dim } { \columnwidth - \ExAnnotColumn } }
+
+%% Spoken forms, the same arrangement as the judgment marks': a table from
+%% the printed text to what a screen reader should say, consulted when
+%% \exannot is given no explicit <spoken>.  "[CP]" is an abbreviation a
+%% reader cannot expand and a synthesiser will not even spell out; /Alt on
+%% a Span replaces it for speech while the page still shows [CP] and
+%% copy-and-paste still yields [CP].
+\prop_new:N \g_lx_annot_alt_prop
+\cs_new_protected:Npn \lx@annot@setalt #1#2
+  { \prop_gput:Nnn \g_lx_annot_alt_prop {#1} {#2} }
+\NewDocumentCommand \SetAnnotSpoken { m m }
+  { \lx@annot@setalt {#1} {#2} }
+
+\msg_new:nnn { linguexx } { annot-too-wide }
+  {
+    \iow_char:N \\exannot~is~#1pt~wide,~and~\iow_char:N \\ExAnnotColumn~
+    leaves~only~#2pt;~this~one~starts~left~of~the~column.
+  }
+\msg_new:nnnn { linguexx } { annot-in-gloss }
+  {
+    \iow_char:N \\exannot~in~a~gloss~belongs~at~the~end~of~the~OBJECT~
+    line.
+  }
+  {
+    Put~it~after~the~last~object-language~word~--~with~a~space~or~without~
+    one,~either~reads~--~and~before~the~\iow_char:N \\\iow_char:N \\ ~that~
+    ends~that~line.~A~gloss~is~a~translation:~an~annotation~on~a~gloss~
+    tier~would~have~nothing~to~align~with,~and~one~in~the~middle~of~a~
+    line~has~no~room~to~go.
+  }
+
+%% The annotation itself, with no glue and no paragraph.
+\cs_new_protected:Npn \lx@annot@content:nn #1#2
+  {
+    \tl_if_blank:nTF {#1}
+      { { \ExAnnotFont #2 } }
+      { \lx@tag@span:nn { tag = Span , alt = {#1} } { { \ExAnnotFont #2 } } }
+  }
+
+%% Set the annotation and work out how wide the box that carries it to the
+%% column has to be.  An annotation too wide for the room the column leaves
+%% is set at its natural width instead -- it then starts LEFT of the column
+%% and the alignment is gone, which is a thing to be told about rather than
+%% to discover on the page, hence the warning.
+\cs_new_protected:Npn \lx@annot@setbox:nn #1#2
+  {
+    \hbox_set:Nn \l__lx_annot_box { \lx@annot@content:nn {#1} {#2} }
+    \legacy_if:nTF { lx@annotfit }
+      {
+        %% Under \ExAnnotFit the group's own measurements decide, and they
+        %% already account for the widest annotation in it -- so there is
+        %% nothing here to be too wide FOR, and no warning to give.
+        \lx@annot@setfitdim
+        \dim_set:Nn \l__lx_annot_dim { \lx@annot@fitdim }
+        \lx@annot@checkused { \l__lx_annot_dim }
+        \exp_args:Ne \lx@annot@recordused { \dim_use:N \l__lx_annot_dim }
+      }
+      {
+        \dim_set:Nn \l__lx_annot_dim { \lx@annot@width: }
+        \dim_compare:nNnT { \l__lx_annot_dim } < { \box_wd:N \l__lx_annot_box }
+          {
+            \msg_warning:nnee { linguexx } { annot-too-wide }
+              { \dim_to_decimal_in_unit:nn { \box_wd:N \l__lx_annot_box } { 1pt } }
+              { \dim_to_decimal_in_unit:nn { \l__lx_annot_dim } { 1pt } }
+            \dim_set:Nn \l__lx_annot_dim { \box_wd:N \l__lx_annot_box }
+          }
+      }
+  }
+
+%% The glue that carries #1 to the column, and the ONE place it is written.
+%% Every token has a job:
+%%
+%%   \unskip          drop the space that ended the example text;
+%%   \hfill \penalty  the breakpoint.  \hfill is a fill, so it outranks the
+%%                    fil of \rightskip under \raggedright (\ExRaggedRight,
+%%                    and every gloss) -- an \hfil would merely share the
+%%                    slack with it and leave the annotation halfway;
+%%   \hskip \ExAnnotSep   the least gap, and it has to be RIGID to be a
+%%                    LEAST gap: the box below already holds the column on
+%%                    its own, so shrink here would not move the annotation
+%%                    -- it would let an example come closer to it than
+%%                    \ExAnnotSep, up to touching, rather than take the
+%%                    break above.  Keep \ExAnnotSep rubber-free for the
+%%                    same reason;
+%%   \hbox:n{} \hfill the post-break half.  Without an empty box to make
+%%                    the second fill non-discardable, a broken line starts
+%%                    at the LEFT margin and the annotation lands nowhere
+%%                    near the column -- which is the whole point of
+%%                    breaking rather than shoving.
+%% The two \ExAnnotFit readings hang here, and nowhere else: L before the
+%% first \unskip, so it is the end of the example's own material and not of
+%% the glue this adds; R after the box, whose right edge IS the margin.
+%% Both are no-ops without the option.
+\cs_new_protected:Npn \lx@annot@fill:n #1
+  {
+    \lx@annot@measure:n { L }
+    \unskip \nobreak \hfill \penalty 50
+    \hskip \ExAnnotSep
+    \hbox:n { } \nobreak \hfill
+    #1
+    \lx@annot@measure:n { R }
+  }
+\cs_new_protected:Npn \lx@annot@measure:n #1
+  {
+    \legacy_if:nT { lx@annotfit }
+      {
+        \str_if_eq:nnTF {#1} { L }
+          { \exp_args:Ne \lx@annot@recordL
+              { \int_eval:n { \box_wd:N \l__lx_annot_box } } }
+          { \lx@annot@recordR }
+      }
+  }
+\cs_new_protected:Npn \lx@annot@usebox:
+  { \hbox_to_wd:nn { \l__lx_annot_dim } { \box_use:N \l__lx_annot_box \hfil } }
+
+%% Placed in an example: fill to the column, then close the paragraph --
+%% \parfillskip has to be zero or its fil would fight the fills above.
+\cs_new_protected:Npn \lx@annot@block:nn #1#2
+  {
+    \leavevmode
+    \lx@annot@setbox:nn {#1} {#2}
+    \lx@annot@fill:n { \lx@annot@usebox: }
+    \parfillskip \c_zero_dim
+    \par
+  }
+
+%% Placed on the object line of a gloss: the same glue, and an ordinary box
+%% -- nothing here has to reach for the object tier, because the gloss's
+%% columns are \vtop s, so the baseline of the paragraph the grid is set in
+%% IS the object tier's baseline and an inline box on it is level with the
+%% object words by construction.  (A \vtop of its own was tried and is
+%% indistinguishable: with a single row its reference point is the same
+%% baseline.  It is not here, because a box that does nothing reads as if
+%% it did.)  The \strut keeps the line's height where the object tier's
+%% own struts put it when the annotation is the tallest thing on it.
+%%
+%% No \par: the paragraph being closed is the gloss's own grid, and
+%% \lx@gloss@multi closes it.
+\cs_new_protected:Npn \lx@annot@gloss:nn #1#2
+  {
+    \lx@annot@setbox:nn {#1} {#2}
+    \lx@annot@fill:n { \hbox:n { \strut \lx@annot@usebox: } }
+  }
+
+%% Resolve <spoken>: an explicit one wins, otherwise the table is asked for
+%% one registered against the printed text.  #1 is the emitter to call.
+\cs_new_protected:Npn \lx@annot@resolve:Nnn #1#2#3
+  {
+    \tl_if_blank:nTF {#2}
+      {
+        \exp_args:Ne #1
+          { \prop_item:Ne \g_lx_annot_alt_prop { \tl_to_str:n {#3} } } {#3}
+      }
+      { #1 {#2} {#3} }
+  }
+
+\NewDocumentCommand \exannot { O{} m }
+  {
+    %% Inside a gloss the command is never RUN: \lx@gloss@multi lifts it off
+    %% the object line and emits its content itself (see there), whether it
+    %% stands as a word of its own or is glued to the last object word.
+    %% Reaching this branch means it was written somewhere a gloss cannot
+    %% place it -- in the middle of a line, where there is nowhere for it to
+    %% go -- and running it would end the gloss's paragraph in the middle of
+    %% the grid.  Say so instead.
+    \bool_if:NTF \l_lx_gl_inside_bool
+      { \msg_error:nn { linguexx } { annot-in-gloss } }
+      { \lx@annot@resolve:Nnn \lx@annot@block:nn {#1} {#2} }
+  }
+
+%% What \exannot means while \lx@gloss@multi emits the annotation it lifted
+%% off the object line (see there).
+\NewDocumentCommand \lx@annot@glossuse { O{} m }
+  { \lx@annot@resolve:Nnn \lx@annot@gloss:nn {#1} {#2} }
+\ExplSyntaxOff
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  \ExAnnotFit: the column measured from the examples themselves      %%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% \ExAnnotColumn is a number the author has to find, and the number that
+%% looks right depends on the examples underneath it.  \ExAnnotFit finds it
+%% instead: each annotated example records where its text ended, and the
+%% column of a GROUP -- one top-level example and everything under it -- is
+%% put \ExAnnotSep past the longest of them.  Nothing else changes; the
+%% column is still one column, still held by a fixed-width box.
+%%
+%% This costs a .aux round trip, so the first run of a fresh document sets
+%% the fallback column (\ExAnnotColumn) and the second one is right.  A
+%% third is not needed and the package says so: see the convergence note
+%% below.
+%%
+%% Two measurements per annotation, not one, and neither is a length this
+%% package could compute for itself:
+%%
+%%   L  where the example's text ENDED, taken at the \exannot itself, after
+%%      line breaking -- the thing no \settowidth can reach, because the
+%%      material has already been contributed to a paragraph by then.  (The
+%%      alternative, setting the body a second time into a scratch box, is
+%%      not open to this package at all: under tagging the second pass would
+%%      emit a second set of structure elements.)
+%%   R  the right margin, taken just past the annotation's own box, whose
+%%      right edge sits there by construction.
+%%
+%% It is R-L that is recorded and minimised, never L on its own, and that is
+%% what makes the arrangement safe across a page break, a twoside document
+%% and a two-column one: both readings come from the SAME line, so their
+%% difference is a width and carries no page origin with it.
+%%
+%% Checked on a twoside document (inner 20mm, outer 45mm) with one group
+%% deliberately split over an even and an odd page: the two annotations came
+%% out at x 363.59 and 292.72, which are the same 176.6pt from the right
+%% margin of their own page.  By hand, not in tests/: pinning it needs a
+%% three-page document built on \vspace* to place the break, and that is a
+%% brittle thing to assert on.  What the suite does pin is the differencing
+%% itself -- take R alone and tests/exannot-fit.tex fails at once.
+%%
+%% R-L is also what makes it converge, which L alone would not.  When an
+%% annotation wraps, L is still the end of the example's text and R is still
+%% the right margin -- of the next line, but the same margin -- so a
+%% measurement does not depend on whether the previous run's column happened
+%% to leave room for it.  The one case that does feed back is an example
+%% whose TEXT is long enough to break, since the annotation's box is part of
+%% what the paragraph breaker is fitting; the convergence check below is for
+%% that case, and it is why there is one rather than a promise.
+%%
+%% The widest ANNOTATION in the group is recorded alongside, and the column
+%% is never narrower than that.  Without it, an annotation too wide for the
+%% column is set at its natural width and starts left of the column on its
+%% own -- one label out of line, which is the failure this whole section
+%% exists to prevent.  Here the group's column moves left far enough for the
+%% widest of them and every annotation stays in line.
+
+\newif\iflx@annotfit
+\newcommand\ExAnnotFit{\lx@annotfittrue}
+\newcommand\ExAnnotNoFit{\lx@annotfitfalse}
+
+%% The three names the .aux will carry are \providecommand'd into it first,
+%% as the relative-reference anchors are and as hyperref does for its own
+%% label lines: a document that drops linguexx, or turns \ExAnnotFit off,
+%% still has last run's .aux, and reading it must not be an undefined
+%% control sequence.
+%%
+%% UNCONDITIONALLY, at \begin{document}, whether or not the fitting is ever
+%% asked for.  Three lines in an .aux is not a cost worth reasoning about,
+%% and every attempt to write them only when they are needed is wrong:
+%%
+%%   * hung on \iflx@annotfit at \begin{document}, it misses \ExAnnotFit
+%%     issued in the BODY -- which is a real spelling, since the switch
+%%     respects grouping and turning the fitting on for one block is the
+%%     natural way to use it.  The compile succeeds and leaves an .aux full
+%%     of records that nothing declares: a file that breaks the NEXT run.
+%%     examples/ua-demo.tex uses that spelling and did exactly this.
+%%   * written instead by \ExAnnotFit itself, it cannot be got ahead of the
+%%     records under \include.  \include{chapa} writes \@input{chapa.aux}
+%%     into the main .aux when it STARTS, so anything a later \ExAnnotFit
+%%     puts in the main .aux is read after chapa's records; and putting it
+%%     in chapa's own .aux fixes that file while leaving the ordering to
+%%     luck in the next one.  Measured on a two-file document: the
+%%     declaration landed at main.aux line 3 and \@input{chapa.aux} at
+%%     line 2.
+%%
+%% Here there is no ordering question left.  The main .aux is the first file
+%% read and these are its first lines, so they precede every record in every
+%% file, including an .aux an \includeonly has left over from a previous run.
+\if@filesw
+  \AtBeginDocument{%
+    \immediate\write\@mainaux{\string\providecommand\string\lxannotL[3]{}}%
+    \immediate\write\@mainaux{\string\providecommand\string\lxannotR[2]{}}%
+    \immediate\write\@mainaux{\string\providecommand\string\lxannotUsed[3]{}}}%
+\fi
+
+%% pdftex and xetex spell it \pdfsavepos, luatex \savepos.  Nothing else is
+%% needed -- no zref, no pdftexcmds: the position is written to the .aux by
+%% an ordinary \write whatsit, which is executed at shipout, when the value
+%% the preceding \pdfsavepos asked for is the one \pdflastxpos holds.  That
+%% pairing is the whole protocol, and it is why each measurement carries its
+%% own \write instead of the two sharing one.
+\ExplSyntaxOn
+\cs_if_exist:NTF \savepos
+  {
+    \cs_new_eq:NN \lx@annot@savepos \savepos
+    \cs_new_eq:NN \lx@annot@lastxpos \lastxpos
+  }
+  {
+    \cs_new_eq:NN \lx@annot@savepos \pdfsavepos
+    \cs_new_eq:NN \lx@annot@lastxpos \pdflastxpos
+  }
+
+%% The group.  One top-level example and everything under it, keyed by the
+%% counter rather than by \theExNo: \theExNo carries \theExLBr and
+%% \theExRBr, which an \edef writing the .aux expands to "(1)" and a
+%% \csname reading it back does not expand at all, so the two spellings of
+%% one key never met.  Footnote examples are their own series and get their
+%% own keys, or a footnote's group would be merged with the main-text
+%% example it hangs off.
+%% \if@noftnote is TRUE outside a footnote -- it reads "no footnote here",
+%% not "in a footnote".  Both branches were once the other way round, and
+%% the symptom was not an error: every group keyed itself "f0" and the
+%% whole document shared one column, which looks like a deliberate design
+%% rather than like a bug.
+\cs_new:Npn \lx@annot@group
+  { \if@noftnote m \int_use:N \c@ExNo \else f \int_use:N \c@FnExNo \fi }
+\ExplSyntaxOff
+
+%% ---- what the .aux carries ----------------------------------------------
+%% Written with @ and letters only: the .aux is read back with @ a letter
+%% but _ still a subscript, so an expl3 name could not be used here.
+%%
+%%   \lxannotL{group}{x}{annotation width}   at the end of the example text
+%%   \lxannotR{group}{x}                     at the right margin
+%%   \lxannotUsed{group}{width}              what that run actually set
+%%
+%% Accumulated into \lxannot@min@<group> (the smallest R-L: the room the
+%% LONGEST example in the group leaves) and \lxannot@wd@<group> (the widest
+%% annotation).  Both in sp, as integers, because that is what the engine
+%% reports and comparing integers needs no dimen registers.
+\newcount\lx@annot@lx
+\newcount\lx@annot@wd
+\def\lxannotL#1#2#3{\global\lx@annot@lx=#2\relax \global\lx@annot@wd=#3\relax
+  \@ifundefined{lxannot@wd@#1}%
+    {\expandafter\xdef\csname lxannot@wd@#1\endcsname{\the\lx@annot@wd}}%
+    {\ifnum\lx@annot@wd>\csname lxannot@wd@#1\endcsname\relax
+       \expandafter\xdef\csname lxannot@wd@#1\endcsname{\the\lx@annot@wd}\fi}}
+\def\lxannotR#1#2{%
+  \@tempcnta=#2\relax \advance\@tempcnta by-\lx@annot@lx
+  \@ifundefined{lxannot@min@#1}%
+    {\expandafter\xdef\csname lxannot@min@#1\endcsname{\the\@tempcnta}}%
+    {\ifnum\@tempcnta<\csname lxannot@min@#1\endcsname\relax
+       \expandafter\xdef\csname lxannot@min@#1\endcsname{\the\@tempcnta}\fi}}
+%% #3 is F when that run had measurements to go on and B when it fell back
+%% to \ExAnnotColumn, and the difference is the whole of the convergence
+%% check below.
+\def\lxannotUsed#1#2#3{%
+  \expandafter\xdef\csname lxannot@used@#1\endcsname{#2}%
+  \expandafter\xdef\csname lxannot@mode@#1\endcsname{#3}}
+
+%% ---- the fitted width ---------------------------------------------------
+%% max(room the longest example leaves - \ExAnnotSep, widest annotation),
+%% and never wider than the text block.  With no record for the group --
+%% the first run, a group whose examples have not shipped yet -- the
+%% fallback is \ExAnnotColumn, so an unconverged document is merely at the
+%% author's column rather than at some arbitrary width.
+%% A procedure, not an expandable width: it ASSIGNS, and an assignment
+%% cannot happen inside the \dimexpr that consuming it as a width would
+%% put it in ("You can't use \dimexpr in horizontal mode", from the
+%% \csname lookup rather than from anything about horizontal mode).  The
+%% answer is in \lx@annot@fitdim.
+\newdimen\lx@annot@fitdim
+\def\lx@annot@setfitdim{%
+  \global\lx@annot@fellbackfalse
+  \@ifundefined{lxannot@min@\lx@annot@group}%
+    {\global\lx@annot@fellbacktrue
+     \lx@annot@fitdim=\dimexpr\columnwidth-\ExAnnotColumn\relax}%
+    {\lx@annot@fitdim=\dimexpr
+       \csname lxannot@min@\lx@annot@group\endcsname sp-\ExAnnotSep\relax
+     \@tempdima=\csname lxannot@wd@\lx@annot@group\endcsname sp\relax
+     \ifdim\lx@annot@fitdim<\@tempdima \lx@annot@fitdim=\@tempdima \fi
+     \ifdim\lx@annot@fitdim>\columnwidth \lx@annot@fitdim=\columnwidth \fi}}
+
+%% ---- convergence --------------------------------------------------------
+%% Two states deserve the warning and they are not the same state:
+%%
+%%   * this run had no measurements for a group and used \ExAnnotColumn.
+%%     The column is not where it will end up; say so.  This is the whole of
+%%     a fresh document's first run.
+%%   * this run's width differs from what the LAST run used, and the last
+%%     run was itself fitted.  Something is still moving -- the one way that
+%%     can happen is an example whose own text breaks, where the annotation
+%%     box is part of what the paragraph breaker is fitting.
+%%
+%% What deserves NO warning, and got one in the first version, is the
+%% ordinary second run: it differs from the first precisely because the
+%% first fell back, and its own page is already right.  Warning there tells
+%% every two-run build to run a third time for nothing, which is how a
+%% rerun warning stops being read.
+\newif\iflx@annot@unsettled
+\newif\iflx@annot@fellback
+\def\lx@annot@checkused#1{%
+  \iflx@annot@fellback
+    \global\lx@annot@unsettledtrue
+  \else
+    \@ifundefined{lxannot@used@\lx@annot@group}{}%
+      {\if F\csname lxannot@mode@\lx@annot@group\endcsname
+         \ifdim#1=\csname lxannot@used@\lx@annot@group\endcsname\relax\else
+           \global\lx@annot@unsettledtrue\fi
+       \fi}%
+  \fi}
+\AtEndDocument{%
+  \iflx@annot@unsettled
+    \PackageWarning{linguexx}{Annotation columns are not settled.
+      Rerun to get \string\ExAnnotFit\space right}%
+  \fi}
+
+%% ---- recording ----------------------------------------------------------
+%% The group key is frozen by the \edef, because the \write is executed at
+%% SHIPOUT, by which time \lx@annot@group names whatever example is current
+%% there.  The position is the opposite case and must not be frozen -- it is
+%% not known until shipout either -- hence \noexpand\the.  Getting those two
+%% the same way round is the whole of the protocol.
+\def\lx@annot@recordL#1{%
+  \lx@annot@savepos
+  \edef\lx@annot@tmp{\write\@auxout{\string\lxannotL{\lx@annot@group}%
+      {\noexpand\the\noexpand\lx@annot@lastxpos}{#1}}}\lx@annot@tmp}
+\def\lx@annot@recordR{%
+  \lx@annot@savepos
+  \edef\lx@annot@tmp{\write\@auxout{\string\lxannotR{\lx@annot@group}%
+      {\noexpand\the\noexpand\lx@annot@lastxpos}}}\lx@annot@tmp}
+%% No savepos for this one: what the run USED is known here and now, and it
+%% is the only one of the three that is.
+\def\lx@annot@recordused#1{%
+  \edef\lx@annot@tmp{\write\@auxout{\string\lxannotUsed{\lx@annot@group}%
+      {#1}{\iflx@annot@fellback B\else F\fi}}}\lx@annot@tmp}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%  Install the defaults of the mode in force                          %%%%

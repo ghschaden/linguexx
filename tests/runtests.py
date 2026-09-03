@@ -83,7 +83,9 @@ ENGINES_FOR = {
     "utf8-unicode": ("xelatex", "lualatex"),
 }
 DEFAULT_PASSES = 2
-PASSES = {"ua": 3, "frontend": 3, "langsci-ua": 3}
+PASSES = {"ua": 3, "frontend": 3, "langsci-ua": 3, "exannot-ua": 3,
+          "exannot-fit": 2, "exannot-fitbody": 2,
+          "exannot-beamer": 2}
 #: Cases that must FAIL to compile, mapped to a substring their .log has to
 #: contain.  A package error is as much a feature as a rendering is -- it is
 #: what a silently wrong construct was turned into -- and without this it
@@ -107,6 +109,7 @@ EXPECT_ERROR = {
     "langsci-nojambox": "Undefined control sequence",
     "langsci-retired": "has never worked",
     "judgment-badarg": "needs one command here",
+    "exannot-gloss": "belongs at the end of the OBJECT",
     "straysub": "no example to attach it to",
     # Not a package error but TeX's own, and deliberately so: a dot-syntax
     # body is collected before it is typeset, so \verb cannot protect
@@ -254,6 +257,31 @@ def parse_pdf(pdf: Path) -> Page:
     return page
 
 
+def inflated(raw: bytes) -> bytes:
+    """The PDF's bytes with every Flate stream inflated and appended.
+
+    A tagged build puts almost everything a structure assertion wants --
+    link annotations, the name tree, /Alt and /E strings -- into compressed
+    object streams, where a search of the raw file finds nothing and reports
+    it as an absence rather than as a failure to look.  The original bytes
+    are kept in the result so a file with no compression reads the same way.
+
+    stdlib zlib only, deliberately: reading a structure element must not
+    cost the suite another external tool.
+    """
+    out = [raw]
+    for m in re.finditer(rb"stream\r?\n", raw):
+        start = m.end()
+        end = raw.find(b"endstream", start)
+        if end < 0:
+            continue
+        try:
+            out.append(zlib.decompress(raw[start:end]))
+        except zlib.error:              # not Flate: a font, an image, XRef
+            pass
+    return b"\n".join(out)
+
+
 def link_targets(raw: bytes):
     """The destination names of every GoTo link in a PDF, repeats kept.
 
@@ -269,17 +297,7 @@ def link_targets(raw: bytes):
     links.  A rule that folded them into one could not tell a reference that
     lost its link from one that acquired a second.
     """
-    text = [raw]
-    for m in re.finditer(rb"stream\r?\n", raw):
-        start = m.end()
-        end = raw.find(b"endstream", start)
-        if end < 0:
-            continue
-        try:
-            text.append(zlib.decompress(raw[start:end]))
-        except zlib.error:              # not Flate: a font, an image, XRef
-            pass
-    joined = b"\n".join(text).decode("latin-1")
+    joined = inflated(raw).decode("latin-1")
     # "/D (name)" is the GoTo action's destination.  "/Dest" is not matched:
     # the parenthesis has to follow the key immediately.
     return re.findall(r"/D\s*\(([^()]*)\)", joined)
@@ -481,6 +499,422 @@ def a_exsource(p: Page):
                    "inline source shares the line with the example text"))
     r.append(check(inline.x0 > p.width / 2,
                    f"inline source sits in the right half ({inline.x0:.1f})"))
+    return r
+
+
+def a_exannot(p: Page):
+    r"""The annotation column: ONE column, whatever the depth or the length.
+
+    Both halves fail silently, which is why they are measured here rather
+    than looked at.  A column derived from \linewidth drifts one indent step
+    per nesting level, and a drifting column looks entirely deliberate on
+    the page.  A column whose filler glue can SHRINK -- \jambox's can -- is
+    pushed right by any example long enough to reach it, with no overfull
+    warning and no error: measured on \jambox, four sub-examples of
+    increasing length came out aligned to 0.01pt at a 3cm and a 7cm gutter
+    and at 212.6 / 212.6 / 234.1 / 288.9pt at 11cm, which is the regime a
+    column set NEAR the examples lives in.
+    """
+    r = []
+    ann = {t: p.find(f"[{t}]") for t in ("XP", "CP", "TP", "DP", "VP", "WP")}
+    col = ann["XP"].x0
+    for tag, w in sorted(ann.items()):
+        r.append(check(abs(w.x0 - col) < TOL,
+                       f"[{tag}] is in the column ({w.x0:.2f} vs {col:.2f})"))
+    # ... and the examples really are at three different depths, or the
+    # assertions above would hold for a column that drifts with nothing to
+    # drift over.
+    top = p.find("ANNTOP").x0
+    sub = p.find("ANNSUB").x0
+    deep = p.find("ANNDEEP").x0
+    r.append(check(sub > top + TOL and deep > sub + TOL,
+                   f"the annotated examples sit at three different depths "
+                   f"({top:.2f} / {sub:.2f} / {deep:.2f}), so one column "
+                   f"across them is a real claim"))
+    # an example that reaches the column takes the break instead of pushing
+    long_ex = p.find("ANNLONG")
+    r.append(check(ann["VP"] not in p.line_of(long_ex),
+                   f"an example that reaches the column moves its annotation "
+                   f"to the NEXT line rather than moving the column "
+                   f"(annotation at y {ann['VP'].y0:.2f}, example line "
+                   f"{long_ex.y0:.2f})"))
+    # An annotation whose argument contains SPACES.  \gll splits the object
+    # line on spaces, so one left in place until then is torn into gloss
+    # COLUMNS -- and what that looks like is a line break in the gloss, not
+    # a broken annotation, which is how it was reported.  Asking for the
+    # whole phrase as one word is the assertion: the pieces would be
+    # separate words with gloss cells under them.
+    spc = [w for w in p.words if w.text == "(cf."]
+    r.append(check(len(spc) == 1,
+                   f"an annotation with spaces in its argument survives as "
+                   f"one thing (found {len(spc)} '(cf.')"))
+    if spc:
+        r.append(check(abs(spc[0].x0 - col) < TOL,
+                       f"... in the column ({spc[0].x0:.2f} vs {col:.2f})"))
+        r.append(check(spc[0] in p.line_of(p.find("SPCOBJ")),
+                       "... on the object line"))
+        r.append(check(spc[0] not in p.line_of(p.find("SPCTIER")),
+                       "... and not on the gloss tier"))
+    # The gloss tier is where a torn annotation shows: each piece would have
+    # become a column of the grid and picked up a cell under it.  The tier
+    # must read exactly its own four words -- the annotation's pieces sit on
+    # the object line either way (that is where the annotation belongs), so
+    # the object line cannot tell the two apart and the tier can.
+    tier = [w.text for w in p.line_of(p.find("SPCTIER"))]
+    r.append(check(tier == ["SPCTIER", "le", "mon", "livre"],
+                   f"the annotation's pieces did not become gloss columns "
+                   f"with cells of their own (the gloss tier reads {tier})"))
+    # ... and the gloss after it, which asked for no annotation, must not
+    # inherit one.  The lift stashes the annotation in a token list; left
+    # uncleared it is re-emitted by the next gloss, in the right column and
+    # the right font, against an example that never asked for it.
+    none_line = [w.text for w in p.line_of(p.find("SPCNONE"))]
+    r.append(check(not [t for t in none_line
+                        if t.startswith("(voir") or t == "mien"],
+                   f"a gloss with no annotation does not inherit the "
+                   f"previous one's (its object line reads {none_line})"))
+    # An annotation too wide for the object line moves ITSELF down; it must
+    # not make room by breaking the GRID.  The gloss is \raggedright, so
+    # every break there has badness zero and the penalty decides: a free
+    # breakpoint between columns beat \exannot's own \penalty50 and the
+    # object line came apart between two words.  Reported from a class deck.
+    #
+    # Whether it triggers is a WINDOW, not a threshold, and the window is as
+    # wide as the LAST gloss column -- hence the long braced one in the
+    # case.  An earlier version of this check used a short last column, sat
+    # outside the window, and passed with the penalty taken out.
+    for obj in ("BRKB", "BRKC"):
+        line = [w.text for w in p.line_of(p.find(obj))]
+        for word in ("il", "mio", "libro"):
+            r.append(check(word in line,
+                           f"{obj}: the gloss keeps '{word}' on the object "
+                           f"line rather than breaking the grid to make room "
+                           f"for the annotation (line reads {line})"))
+    # \exannot GLUED to the last object word, in both spellings of a glossed
+    # sub-example.  find() is exact-match-first, so asking for "(italien)"
+    # is itself the assertion that the annotation reached the page WHOLE:
+    # when the split lost the braces off its argument, the mandatory
+    # argument was the single token "(" and the page carried "(" in the
+    # column with "italien)" flung to the right margin -- no error, no
+    # warning, and every column assertion in this file still passing,
+    # because "(" was in the column.
+    glued = [w for w in p.words if w.text == "(italien)"]
+    r.append(check(len(glued) == 2,
+                   f"a glued annotation reaches the page whole, in both "
+                   f"spellings (found {len(glued)} '(italien)', and "
+                   f"{len([w for w in p.words if w.text == '('])} bare '(')"))
+    for w in glued:
+        r.append(check(abs(w.x0 - col) < TOL,
+                       f"a glued annotation is in the column "
+                       f"({w.x0:.2f} vs {col:.2f})"))
+    for obj, tier in (("GLUEA", "GLUEATIER"), ("GLUEB", "GLUEBTIER")):
+        o = p.find(obj)
+        hits = [w for w in glued if w in p.line_of(o)]
+        r.append(check(len(hits) == 1,
+                       f"{obj}'s glued annotation is on its object line"))
+        r.append(check(not [w for w in glued if w in p.line_of(p.find(tier))],
+                       f"... and not on {tier}"))
+    # A braced object item immediately before a glued annotation keeps its
+    # braces' effect: {ganz kurzes} stays ONE column over {very short}.
+    # Losing them at the split makes two words of it and pulls every gloss
+    # after it out from under its object word.
+    for a, b in (("ganz", "very"), ("GOBJ", "GGLOSS")):
+        wa, wb = p.find(a), p.find(b)
+        r.append(check(abs(wa.x0 - wb.x0) < TOL,
+                       f"a braced object item before a glued annotation is "
+                       f"still one column ({a} {wa.x0:.2f} / {b} "
+                       f"{wb.x0:.2f})"))
+    geb = p.find("(gebraucht)")
+    gluec = p.find("GLUEC")
+    r.append(check(abs(geb.x0 - col) < TOL,
+                   f"and its annotation is in the column "
+                   f"({geb.x0:.2f} vs {col:.2f})"))
+    r.append(check(geb in p.line_of(gluec),
+                   f"... on the object line (annotation y "
+                   f"{geb.y0:.2f}-{geb.y1:.2f}, object {gluec.y0:.2f}-"
+                   f"{gluec.y1:.2f})"))
+    # \exannot ends its paragraph; a blank line ends a dot-syntax example.
+    # If the \par did the second job as well, ANNUNDER would have no example
+    # to attach to (the case would not compile) or would take a number of its
+    # own -- so the labels are read off the page as well.
+    r.append(check(abs(p.find("[HP]").x0 - col) < TOL
+                   and abs(p.find("[IP]").x0 - col) < TOL,
+                   "an annotated head and the sub-example under it share "
+                   "the column"))
+    # \ExAnnotFit is off here, and off must mean off: no positions recorded,
+    # no .aux traffic, no rerun warning.  A round trip that ran for everyone
+    # would show up as neither a wrong column nor an error -- only as a
+    # document that has to be compiled twice for no reason anybody can see.
+    # The three \providecommand lines go into every .aux whether or not the
+    # fitting is asked for -- that is what leaves no ordering to get wrong
+    # under \include, see the .sty -- but a RECORD is written only when it is.
+    aux = getattr(p, "aux", "")
+    r.append(check("\\lxannotL{" not in aux and "\\lxannotUsed{" not in aux,
+                   "without \\ExAnnotFit no positions are recorded"))
+    r.append(check("Annotation columns" not in p.log,
+                   "... and no rerun is asked for"))
+    labels = p.labels()
+    r.append(check(labels[:4] == ["(1)", "(2)", "(3)", "(4)"],
+                   f"\\exannot's \\par does not close its example: four "
+                   f"numbered examples, not five (got {labels})"))
+    # \ExAnnotSep is a LEAST gap.  ANNTIGHT ends .4em short of its own
+    # column (\settowidth, so the margin is .4em on every engine), and its
+    # annotation must therefore wrap rather than crowd in.  Shrink in that
+    # gap would keep it on the line -- still in the column, because the
+    # fixed-width box holds that regardless -- and nearer the text than
+    # \ExAnnotSep allows.  This example is the only thing in the suite that
+    # tells the two apart, which is why it sets a column of its own.
+    tight = p.find("ANNTIGHT")
+    r.append(check(p.find("[QP]") not in p.line_of(tight),
+                   f"an example that ends inside \\ExAnnotSep of the column "
+                   f"wraps rather than crowding the annotation "
+                   f"(annotation at y {p.find('[QP]').y0:.2f}, example "
+                   f"{tight.y0:.2f})"))
+    # a gloss annotation is level with the OBJECT tier, not with the gloss
+    obj = p.find("ANNGLOSS")
+    tier2 = p.find("ANNGLOSSTIER")
+    r.append(check(tier2 not in p.line_of(obj),
+                   "object and gloss tiers are separate rendered lines "
+                   "(without which the two checks below are one check)"))
+    r.append(check(ann["WP"] in p.line_of(obj),
+                   f"the gloss annotation sits on the object line "
+                   f"(y {ann['WP'].y0:.2f} vs object {obj.y0:.2f})"))
+    r.append(check(ann["WP"] not in p.line_of(tier2),
+                   f"the gloss annotation is not on the gloss tier "
+                   f"(y {ann['WP'].y0:.2f} vs gloss {tier2.y0:.2f})"))
+    return r
+
+
+def a_exannot_ua(p: Page):
+    r"""\exannot's spoken form, and where its Span sits in the tree.
+
+    The /Alt is the whole subject: it changes nothing on the page, so a
+    spoken form that never reaches the file, or one attached to the wrong
+    element, is invisible to every geometric check in this suite.  The
+    printed text is asserted alongside it, because /Alt is chosen precisely
+    for leaving it alone -- /ActualText would announce the phrase and take
+    the brackets out of copy-and-paste with it.
+    """
+    r = []
+    alts = struct_alts(getattr(p, "raw", b""))
+    r.append(check(alts.count("complementizer phrase") == 1,
+                   f"\\SetAnnotSpoken reaches the /Alt exactly once "
+                   f"(got {sorted(alts)})"))
+    r.append(check(alts.count("tense phrase") == 1,
+                   f"\\exannot's optional argument reaches the /Alt "
+                   f"(got {sorted(alts)})"))
+    r.append(check(alts.count("complementizer phrase in a gloss") == 1,
+                   f"a gloss annotation carries its spoken form too "
+                   f"(got {sorted(alts)})"))
+    # the page still says what the author wrote
+    for tok in ("[CP]", "[TP]", "[ZP]", "[CPG]"):
+        r.append(check(p.find(tok) is not None, f"printed as written: {tok}"))
+    out = subprocess.run(["pdfinfo", "-struct-text", str(p.path)],
+                         capture_output=True, text=True,
+                         errors="replace").stdout
+    # An annotation with no spoken form registered gets NO Span: an /Alt
+    # equal to the text it replaces is noise, and a Span emitted
+    # unconditionally passes veraPDF while making the tree worse.  It
+    # staying inside its paragraph's own text run is what says so.
+    # Matched with the spaces taken out: xdvipdfmx writes the run without
+    # them ("ANNPLAINnospokenformatall[ZP]") where the other two engines
+    # keep them, and the subject here is which ELEMENT the text is in, not
+    # how the backend spaced it.
+    runs = [t.replace(" ", "")
+            for t in re.findall(r'(?m)^\s*"(.*)"\s*$', out)]
+    plain = [t for t in runs if "ANNPLAIN" in t]
+    r.append(check(plain and "[ZP]" in plain[0],
+                   f"an annotation with no spoken form stays plain text, "
+                   f"with no Span of its own (its run reads {plain[:1]})"))
+
+    def depth(tok):
+        m = re.search(r'(?m)^( *)"%s"' % re.escape(tok), out)
+        return len(m.group(1)) if m else None
+
+    r.append(check(depth("[CPG]") is not None
+                   and depth("[CPG]") == depth("ANNGLOSS"),
+                   f"the gloss annotation is a Span BESIDE the word bundles "
+                   f"rather than inside the last one -- it labels the "
+                   f"example, not the word it follows "
+                   f"(depths {depth('[CPG]')} vs {depth('ANNGLOSS')})"))
+    return r
+
+
+def a_exannot_fit(p: Page):
+    r"""\ExAnnotFit: the column measured from the examples, per example.
+
+    Everything here fails silently.  A column in the wrong place looks like
+    a column somebody chose, and the two ways of getting it wrong -- one
+    column for the whole document, and a column that ignores how wide the
+    annotations are -- both produce pages that a reader would not question.
+    """
+    r = []
+    ann = {n: p.find(f"[P{n}]") for n in (1, 2, 3, 4, 5, 7, 8)}
+    wide = p.find("[an")
+    b1 = ann[1].x0
+    b2 = ann[3].x0
+    b3 = ann[5].x0
+    # each block is one column ...
+    r.append(check(abs(ann[2].x0 - b1) < TOL,
+                   f"block 1 is one column ({ann[1].x0:.2f}, {ann[2].x0:.2f})"))
+    r.append(check(abs(ann[4].x0 - b2) < TOL,
+                   f"block 2 is one column ({ann[3].x0:.2f}, {ann[4].x0:.2f})"))
+    r.append(check(abs(ann[7].x0 - b3) < TOL and abs(wide.x0 - b3) < TOL,
+                   f"block 3 is one column, the wide annotation included "
+                   f"({ann[5].x0:.2f}, {wide.x0:.2f}, {ann[7].x0:.2f})"))
+    # ... and the blocks are NOT one column between them.  Block 2's
+    # examples are much shorter, so its column sits well left of block 1's;
+    # a document-wide fit would put both at one x.
+    r.append(check(b2 < b1 - 20,
+                   f"the fit is per example, not per document: a block of "
+                   f"short examples gets its own column "
+                   f"({b2:.2f} vs {b1:.2f})"))
+    # Block 3 repeats block 1's examples and differs only in carrying one
+    # annotation too wide for block 1's column.  Its column must therefore
+    # be strictly left of block 1's -- which is the widest-annotation term
+    # doing the work, since the examples are identical.
+    r.append(check(b3 < b1 - TOL,
+                   f"the widest annotation of a block moves that block's "
+                   f"column: identical examples, column at {b3:.2f} rather "
+                   f"than block 1's {b1:.2f}"))
+    # A fitted column is one every annotation of its block FITS on: each
+    # shares a rendered line with its own example, none has wrapped.  This
+    # is what tells the column from any other tidy column -- fit to the
+    # shortest example instead of the longest and the page still shows one
+    # column per block, clear of the margin, with the long examples'
+    # annotations quietly a line lower.
+    for tag, sentinel in ((1, "FITLONG"), (2, "FITLONGB"),
+                          (3, "FITSHORT"), (4, "FITSHORTB"),
+                          (7, "FITWIDEC")):
+        ex = p.find(sentinel)
+        r.append(check(ann[tag] in p.line_of(ex),
+                       f"[P{tag}] fits on {sentinel}'s own line "
+                       f"(annotation y {ann[tag].y0:.2f}, example "
+                       f"{ex.y0:.2f})"))
+    r.append(check(wide in p.line_of(p.find("FITWIDEB")),
+                   "the wide annotation fits on its own example's line"))
+    # The one that does NOT fit, and must not: block 3's widest annotation
+    # pulled the column left of where its LONGEST example ends, so that
+    # example's annotation has nowhere to go but the next line.  What must
+    # survive is the column, not the line -- [P5] is already asserted to be
+    # in it above.  Pinned rather than left out, because the alternative a
+    # future version might reach for is to let the column go back right for
+    # that one example, which is the out-of-line label again.
+    r.append(check(ann[5] not in p.line_of(p.find("FITWIDE")),
+                   f"the example the column had to move past keeps its "
+                   f"annotation in the column and loses the line "
+                   f"(annotation y {ann[5].y0:.2f}, example "
+                   f"{p.find('FITWIDE').y0:.2f})"))
+    # ... and it stays inside the text block.  The edge comes from the prose
+    # paragraph, never from the words of an annotation: an annotation that
+    # overflows its box is the rightmost ink on the page, so an edge taken
+    # from "the rightmost ink" is the overflow measuring itself.
+    body_right = max(w.x1 for w in p.line_of(p.find("FITRULE")))
+    r.append(check(wide.x1 <= body_right + TOL,
+                   f"the wide annotation stays within the text block "
+                   f"({wide.x1:.2f} vs the right edge {body_right:.2f})"))
+    # the gloss annotation is fitted too, and on the object line
+    gl = p.find("FITGLOSS")
+    r.append(check(ann[8] in p.line_of(gl),
+                   "a fitted gloss annotation is still on the object line"))
+    r.append(check(p.find("FITGLOSSTIER") not in p.line_of(gl),
+                   "object and gloss tiers are separate lines"))
+    # The rerun warning tells "not measured yet" from "settled".  The cold
+    # run has no measurements and must say so; the second must not, or every
+    # two-run build is told to run a third time for nothing.
+    r.append(check("Annotation columns are not settled" in p.first_log,
+                   "the first run asks for a rerun"))
+    r.append(check("Annotation columns are not settled" not in p.log,
+                   "the second run does not: its page is already right"))
+    # the .aux must be readable by a document that has dropped the package
+    aux = getattr(p, "aux", "")
+    for name, nargs in (("lxannotL", 3), ("lxannotR", 2), ("lxannotUsed", 3)):
+        decl = "\\providecommand\\%s[%d]{}" % (name, nargs)
+        r.append(check(0 <= aux.find(decl) < aux.find("\\%s{" % name),
+                       f"the .aux declares \\{name} before using it"))
+    return r
+
+
+def a_exannot_fitbody(p: Page):
+    r"""\ExAnnotFit switched on in the BODY, and off again by grouping.
+
+    The .aux assertions are the point.  A declaration that hangs on
+    \AtBeginDocument alone is already too late for this spelling, and what
+    it leaves behind is a file full of records that nothing declares --
+    which breaks the NEXT compile, if the package is taken out, and shows
+    nothing at all on this one's page.
+    """
+    r = []
+    aux = getattr(p, "aux", "")
+    for name, nargs in (("lxannotL", 3), ("lxannotR", 2), ("lxannotUsed", 3)):
+        decl = "\\providecommand\\%s[%d]{}" % (name, nargs)
+        r.append(check(0 <= aux.find(decl) < aux.find("\\%s{" % name),
+                       f"a body-level \\\\ExAnnotFit still declares "
+                       f"\\\\{name} in the .aux, before using it"))
+    # the fitting really did take effect from there ...
+    fitted = p.find("[Q1]").x0
+    plain = p.find("[Q3]").x0
+    r.append(check(abs(p.find("[Q2]").x0 - fitted) < TOL,
+                   f"the fitted block is one column "
+                   f"({fitted:.2f}, {p.find('[Q2]').x0:.2f})"))
+    r.append(check(abs(p.find("[Q4]").x0 - plain) < TOL,
+                   f"the unfitted block is one column too "
+                   f"({plain:.2f}, {p.find('[Q4]').x0:.2f})"))
+    # ... and \ExAnnotFit respects grouping: the block after the group is
+    # back at \ExAnnotColumn, which for these examples is well right of a
+    # fitted column.
+    r.append(check(fitted < plain - TOL,
+                   f"\\\\ExAnnotFit ends with its group: the fitted block is "
+                   f"at {fitted:.2f}, the one after it back at "
+                   f"\\\\ExAnnotColumn ({plain:.2f})"))
+    r.append(check("Annotation columns are not settled" not in p.log,
+                   "the second run is settled"))
+    return r
+
+
+def a_exannot_beamer(p: Page):
+    r"""\exannot in a beamer deck, which is where it was reported from.
+
+    A frame is typeset once per overlay slide with the counters restored,
+    so an annotated example that spans slides is measured and recorded
+    once per slide under one group key.  Taking the minimum again over a
+    reading the previous slide already contributed has to be idempotent,
+    and the page is where that shows: the annotation of BEAMOVER appears
+    on both slides and both must be at one x.
+    """
+    r = []
+    # the fitted column of an example that spans slides is one column
+    xp = p.find_all("[XP]")
+    r.append(check(len(xp) == 2,
+                   f"the overlaid example is set on both slides "
+                   f"(found {len(xp)} of its annotation)"))
+    if len(xp) == 2:
+        r.append(check(abs(xp[0].x0 - xp[1].x0) < TOL,
+                       f"and its annotation is at one x on both, so "
+                       f"recording a slide twice does not move the column "
+                       f"({xp[0].x0:.2f} vs {xp[1].x0:.2f})"))
+    # the glued spelling, whole and in its block's column, on the object row
+    glued = [w for w in p.words if w.text == "(italien)"]
+    r.append(check(len(glued) == 1,
+                   f"the glued annotation reaches the slide whole "
+                   f"(found {len(glued)})"))
+    if glued:
+        obj = p.find("BEAMGL")
+        r.append(check(glued[0] in p.line_of(obj),
+                       "... on the object line of its gloss"))
+        r.append(check(glued[0] not in p.line_of(p.find("BEAMGLTIER")),
+                       "... and not on the gloss tier"))
+    # the first frame's two blocks are each one column, and not the same
+    # column: beamer changes the font, not the arithmetic
+    a, b = p.find("[CP]"), p.find("[TP]")
+    r.append(check(abs(a.x0 - b.x0) < TOL,
+                   f"the first block is one column ({a.x0:.2f}, {b.x0:.2f})"))
+    if glued:
+        r.append(check(abs(glued[0].x0 - a.x0) > TOL,
+                       f"and the glossed block gets its own "
+                       f"({glued[0].x0:.2f} vs {a.x0:.2f})"))
+    r.append(check("Annotation columns are not settled" not in p.log,
+                   "the second run is settled"))
     return r
 
 
@@ -3877,8 +4311,15 @@ def struct_label_depths(pdf: Path):
 
 
 def struct_alts(raw: bytes):
-    """Decoded /Alt strings on Span elements (spoken judgment forms)."""
+    """Decoded /Alt strings on Span elements (spoken judgment forms).
+
+    Read from the INFLATED bytes: in a PDF/UA build the structure elements
+    live in compressed object streams, and a search of the raw file returns
+    an empty list there -- which reads exactly like a spoken form that never
+    reached the document.
+    """
     import re as _re
+    raw = inflated(raw)
     alts = []
     for m in _re.finditer(rb"/Alt\s*<([0-9A-Fa-f]+)>", raw):
         alts.append(bytes.fromhex(m.group(1).decode())
@@ -4091,6 +4532,11 @@ ASSERTIONS = {
     "judgment-align": a_judgment_align,
     "judgments": a_judgments,
     "exsource": a_exsource,
+    "exannot": a_exannot,
+    "exannot-ua": a_exannot_ua,
+    "exannot-fit": a_exannot_fit,
+    "exannot-fitbody": a_exannot_fitbody,
+    "exannot-beamer": a_exannot_beamer,
     "zpop": a_zpop,
     "gloss": a_gloss,
     "glt": a_glt,
@@ -4123,8 +4569,17 @@ ASSERTIONS = {
 # ---------------------------------------------------------------------------
 
 def discover_cases():
-    """Case-file stems present on disk (anything but the _preamble* helpers)."""
-    return {p.stem for p in CASES.glob("*.tex") if not p.name.startswith("_")}
+    """Case-file stems present on disk (anything but the _preamble* helpers).
+
+    Dotfiles are not cases.  An editor open on a case file leaves its lock
+    beside it -- Emacs writes a dangling symlink named ".#<case>.tex" -- and
+    the integrity check below reported that as an unwired case file, so the
+    whole suite refused to start while somebody had a case open.  Nothing
+    was wrong with the tree; the report just named a file the author could
+    see no reason for.
+    """
+    return {p.stem for p in CASES.glob("*.tex")
+            if not p.name.startswith(("_", "."))}
 
 
 def suite_integrity():

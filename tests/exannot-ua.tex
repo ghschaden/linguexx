@@ -1,0 +1,37 @@
+%% \exannot under tagging: the spoken form, and where the annotation lands
+%% in the structure tree.
+%%
+%% [CP] is an abbreviation a screen reader can neither expand nor usefully
+%% spell; \SetAnnotSpoken registers what it should say, and \exannot's
+%% optional argument overrides it for one annotation.  Both must reach the
+%% page as a Span carrying /Alt -- and the PRINTED text must stay "[CP]",
+%% which is what /Alt buys over the alternatives: /ActualText would take the
+%% brackets out of copy-and-paste too.
+%%
+%% ANNPLAIN has no spoken form registered and must therefore have no Span
+%% at all: an /Alt equal to the text it replaces is noise in the tree, and a
+%% Span emitted unconditionally is the kind of thing that passes veraPDF and
+%% still makes the document worse.
+%%
+%% The gloss case (ANNGLOSS) is here as well as in exannot.tex because its
+%% Span is emitted from inside the gloss's own paragraph, after the last
+%% word-bundle Span rather than inside one: the annotation labels the
+%% example, not the last word of it.
+\input{_preamble-ua}
+%% _preamble-ua opens the document itself, so these two are set here; a
+%% \setlength in the body is as good as one in the preamble for this
+%% length, and later than the \AtBeginDocument that derives its default.
+\setlength{\ExAnnotColumn}{9cm}
+\SetAnnotSpoken{[CP]}{complementizer phrase}
+\SetAnnotSpoken{[CPG]}{complementizer phrase in a gloss}
+\ex.
+\a. ANNTABLE a registered spoken form\exannot{[CP]}
+\b. ANNEXPLICIT an explicit one\exannot[tense phrase]{[TP]}
+\z.
+
+\ex. ANNPLAIN no spoken form at all\exannot{[ZP]}
+
+\ex. \gll ANNGLOSS Pierre est fatigu\'e \exannot{[CPG]}\\
+          Pierre is tired\\
+     \glt `Pierre is tired'
+\end{document}

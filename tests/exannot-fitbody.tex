@@ -1,0 +1,33 @@
+%% \ExAnnotFit asked for in the BODY rather than in the preamble.
+%%
+%% It is a switch and it respects grouping, so turning the fitting on for
+%% one block is a real spelling and not an abuse of one -- the manual shows
+%% it, and examples/ua-demo.tex uses it that way.  What that spelling
+%% misses, if the declaration of the .aux names hangs on \AtBeginDocument
+%% alone, is the declaration: the hook has already run by then, with the
+%% switch still off.  The compile succeeds, the columns come out right, and
+%% the .aux left behind carries records that nothing declares.
+%%
+%% That file breaks the NEXT compile, not this one, and only if the package
+%% is taken out or the option dropped -- which is why it is asserted on the
+%% .aux here rather than on the page: there is nothing to see on the page.
+%%
+%% BODYFIT/BODYFITB also pin that the fitting itself works from here: their
+%% column must sit past the longer of the two, not at the .75\columnwidth
+%% fallback that an \ExAnnotFit which never took effect would leave.
+\input{_preamble}
+\begin{document}
+{\ExAnnotFit
+\ex.
+\a. BODYFIT que Pierre est fatigué depuis mardi\exannot{[Q1]}
+\b. BODYFITB Pierre est fatigué\exannot{[Q2]}
+\z.}
+
+%% ... and outside that group the fitting is off again, so this block sits
+%% at \ExAnnotColumn.  Without the grouping claim the two blocks would be
+%% indistinguishable, both being "somewhere on the right".
+\ex.
+\a. BODYPLAIN que Pierre est fatigué depuis mardi\exannot{[Q3]}
+\b. BODYPLAINB Pierre est fatigué\exannot{[Q4]}
+\z.
+\end{document}

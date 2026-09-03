@@ -1,0 +1,70 @@
+%% \ExAnnotFit: the column measured from the examples instead of declared.
+%%
+%% Four things are on trial, and each has a block of its own.  All of them
+%% are silent failures -- a column in the wrong place looks like a column
+%% someone chose.
+%%
+%%   * The unit is the EXAMPLE, not the document.  Blocks 1 and 2 hold
+%%     examples of very different lengths and must therefore get different
+%%     columns; a mechanism that measured the document would give them one,
+%%     and one column over a whole paper is a perfectly plausible-looking
+%%     thing to ship by accident.  FITLONG / FITSHORT.
+%%   * Within a block the column is one column.  Every annotation of a block
+%%     shares an x, including the block whose examples differ in length.
+%%   * The widest ANNOTATION of a block counts too.  Block 3 repeats block
+%%     1's examples exactly and changes one thing: one annotation too wide
+%%     for the room block 1's column leaves.  Its column must therefore sit
+%%     strictly LEFT of block 1's, and all three of its annotations must
+%%     still share it.  Without that term the wide one is set at its natural
+%%     width and steps left ALONE -- one label out of line, which is the
+%%     failure the whole \exannot section exists to prevent.
+%%   * The rerun warning distinguishes "not measured yet" from "settled".
+%%     The first run has nothing to go on and must say so; the second must
+%%     not, because its own page is already right and a warning that fires
+%%     on every two-run build is a warning nobody reads.  PASSES is 2 for
+%%     this case so that both logs are visible to the assertions.
+%%
+%%   * A fitted column is one every annotation of the block FITS on.  That
+%%     is what distinguishes the column from any other column: each
+%%     annotation shares a rendered line with its own example, none has
+%%     wrapped.  Take the smallest room instead of the largest -- fit to the
+%%     SHORTEST example rather than the longest -- and every block is still
+%%     one tidy column, still one per example, still clear of the margin;
+%%     only the long examples' annotations have quietly dropped a line.
+%%
+%% Block 4 is a gloss, whose annotation is emitted from inside the grid's
+%% own paragraph: the measurements hang off the same shared filler, and
+%% this is where a version that took them somewhere else would show up.
+\input{_preamble}
+\ExAnnotFit
+\begin{document}
+%% A justified paragraph, purely so the assertions have a right text edge
+%% that is not an annotation's own.  Taking the edge from "the rightmost ink
+%% on the page" cannot catch an annotation that overflows its box: the
+%% overflowing annotation IS the rightmost ink, so the check measures itself
+%% and passes.  These lines end at the margin and nothing here can move them.
+FITRULE this paragraph exists to put ink at the right-hand text edge, and it
+is set justified over more than one line so that at least one of its lines
+ends exactly there, giving the assertions a margin to compare against that
+no annotation of this document has any part in fixing.
+
+\ex.
+\a. FITLONG que Pierre est fatigué depuis mardi\exannot{[P1]}
+\b. FITLONGB Pierre est fatigué\exannot{[P2]}
+\z.
+
+\ex.
+\a. FITSHORT short\exannot{[P3]}
+\b. FITSHORTB brief\exannot{[P4]}
+\z.
+
+\ex.
+\a. FITWIDE que Pierre est fatigué depuis mardi\exannot{[P5]}
+\b. FITWIDEB Pierre est fatigué\exannot{[an annotation wider than that column]}
+\c. FITWIDEC Pierre dort\exannot{[P7]}
+\z.
+
+\ex. \gll FITGLOSS Pierre est fatigué \exannot{[P8]}\\
+          FITGLOSSTIER Pierre is tired\\
+     \glt `Pierre is tired'
+\end{document}
