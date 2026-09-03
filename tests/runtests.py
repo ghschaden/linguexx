@@ -19,6 +19,7 @@ Usage:
     python3 runtests.py -e pdflatex      # one engine
     python3 runtests.py -k gloss         # cases matching a substring
     python3 runtests.py -v               # show every assertion, not just failures
+    python3 runtests.py -j1              # one case at a time (default: one per core)
 
 Requires: pdflatex / xelatex / lualatex, pdftotext and pdfinfo
 (poppler-utils), qpdf (to resolve a named destination to the page it lands
@@ -36,6 +37,8 @@ docstring and the workflow do not agree about) or when no case matches -k.
 """
 
 import argparse
+import concurrent.futures
+import os
 import re
 import shutil
 import subprocess
@@ -4906,6 +4909,9 @@ def main():
     ap.add_argument("-k", "--filter", help="only cases whose name contains this")
     ap.add_argument("-v", "--verbose", action="store_true",
                     help="print passing assertions too")
+    ap.add_argument("-j", "--jobs", type=int, default=os.cpu_count() or 1,
+                    help="cases to compile at once (default: one per core; "
+                         "-j1 runs them one at a time)")
     args = ap.parse_args()
 
     # Deliberately before -k filtering: a filtered run must still notice a
@@ -4936,15 +4942,48 @@ def main():
     # would be indistinguishable from one that no longer fires.
     exercised = set()
     fired = set()
+
+    # The plan, built before anything runs: for each engine either the cases
+    # it will run or None for "not installed".  Two things need it up front.
+    # The report must come out in this order however the work is scheduled,
+    # and a parallel run has to know the whole job list before starting.
+    plan = []
     for engine in engines:
         if not shutil.which(engine):
+            plan.append((engine, None))
+        else:
+            plan.append((engine, [n for n in names
+                                  if engine in ENGINES_FOR.get(n, ENGINES)]))
+    units = [(e, n) for e, ns in plan if ns for n in ns]
+
+    # A case is independent of every other one: run_case makes its own
+    # temporary directory, copies the package and the preambles into it, and
+    # compiles with cwd set there, so nothing outside is read or written and
+    # no two cases can meet.  Serial execution was therefore buying nothing
+    # but ordered output, which is recovered below by printing along `plan`
+    # rather than as results arrive.
+    #
+    # Threads rather than processes: every slow part here is a subprocess --
+    # the engine, pdftotext, pdfinfo, qpdf, veraPDF -- so the interpreter
+    # lock is released for almost the whole of a case, and threads keep the
+    # results as ordinary objects instead of pickling them back.
+    jobs = max(1, args.jobs)
+    if jobs > 1 and len(units) > 1:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as pool:
+            futures = {pool.submit(run_case, n, e, args.verbose): (e, n)
+                       for e, n in units}
+            done = {futures[f]: f.result()
+                    for f in concurrent.futures.as_completed(futures)}
+    else:
+        done = {(e, n): run_case(n, e, args.verbose) for e, n in units}
+
+    for engine, engine_names in plan:
+        if engine_names is None:
             print(f"SKIP {engine}: not installed")
             continue
         print(f"\n=== {engine} ===")
-        for name in names:
-            if engine not in ENGINES_FOR.get(name, ENGINES):
-                continue
-            results = run_case(name, engine, args.verbose)
+        for name in engine_names:
+            results = done[(engine, name)]
             ok = sum(1 for good, _ in results if good)
             total += len(results)
             passed += ok

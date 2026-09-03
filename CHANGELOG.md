@@ -23,6 +23,12 @@ version string.
   `\SetLeipzig`: a French example can be fenced in a group without the rest
   of the document following it. A preamble setting is made at top level and
   so still applies throughout.
+- Test suite: cases now compile in parallel, one per core, which takes a full
+  run from 383s to 69s on twelve of them (`-j1` for the old behaviour). Cases
+  were already independent — each builds its own temporary directory and
+  compiles there — so serial execution was only buying ordered output, and
+  that is now recovered by printing along a plan built before the work
+  starts. The report is byte-identical to a serial run.
 - This closes one of the three English-bound spoken forms named in §9.4 of
   the manual; the judgment phrases and the Leipzig expansions were already
   overridable. Which sets a non-English document *should* use remains an open
