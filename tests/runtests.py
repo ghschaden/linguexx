@@ -107,7 +107,7 @@ EXPECT_ERROR = {
     "langsci-exioutside": "outside an example",
     "langsci-easnest": "inside an example",
     "langsci-nojambox": "Undefined control sequence",
-    "langsci-retired": "has never worked",
+    "langsci-retired": "is not provided",
     "judgment-badarg": "needs one command here",
     "exannot-gloss": "belongs at the end of the OBJECT",
     "glt-side-sub": "for top-level examples only",

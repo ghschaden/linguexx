@@ -571,6 +571,69 @@ gloss and would have nothing to synchronise against.
 
 ---
 
+## What a non-English document's gloss abbreviations should be
+
+*Raised 2026-09-03, while writing the proof-of-concept caveats into §9.4 of
+the manual. The first draft of that section called extending the spoken
+forms "a translation job rather than a switch", which is wrong: it assumes
+the labels stay Leipzig, and that is itself the undecided part.*
+
+**Current behaviour.** The bundled table is the standard Leipzig list, 83
+entries, in English. The *printed* label is untouched by any of it:
+`\lx@lpzg@print:n` small-caps whatever the author typed and never consults
+the table, and `\lx@lpzg@key:n` normalises accents, so `\lpzg{fém}` prints
+FÉM today and `\SetLeipzig{fém}{féminin}` gives it an `/E`. An unknown key
+prints correctly with no expansion and no warning. A French document can
+therefore be glossed in French, entry by entry, with no change to the
+package. What is undecided is only what the package should *ship*.
+
+**Why this is not a translation job.** Three answers are defensible:
+
+1. **Leipzig labels stay; only the expansions are translated.** The page
+   still reads `3SG.ACC` in any document; a French reader hears
+   "troisième personne, singulier, accusatif". This preserves the
+   interchange value the Leipzig list exists for — the abbreviations are
+   English-derived but used internationally, including in publications
+   that are not in English. The cost is that the label stops being a
+   mnemonic for the word spoken. Latinate grammatical vocabulary mostly
+   absorbs this (ACC/accusatif, PL/pluriel); it is visible where the
+   traditions diverge (PST against Präteritum) and worse for traditions
+   that do not use Latin-derived terms at all.
+
+2. **Ship label-and-expansion sets per language.** Internally coherent and
+   matches house styles that require it, but the author's source stops
+   being portable between journals, and the package would be taking a
+   position on a house-style question that is not its business.
+
+3. **Ship nothing further; document the override.** The status quo, which
+   is where the package is by accident rather than by decision.
+
+**A consequence that constrains 2.** `\g_lx_lpzg_prop` is one global table.
+A document that glosses two object languages, or an English paper whose
+glosses follow a French convention, needs two sets live at once. Shipping
+per-language sets therefore implies a scoping mechanism — per tier, per
+example, or per group — that does not exist today and that nothing else in
+the package currently needs. Option 1 does not imply it, because there is
+only ever one document language to speak in.
+
+**What would decide it.** Not taste. Two things:
+
+- What non-English journals in the field actually require of a glossed
+  example — whether they print Leipzig abbreviations or a local list. This
+  is checkable in submission guidelines, and it decides between 1 and 2
+  without anybody having to have an opinion.
+- Whether a screen reader in a non-English document is even reached by this
+  question, which needs the testing §9.4 admits has not happened. If a
+  reader announces `/E` in the surrounding document language regardless,
+  option 1 is already most of the benefit for none of the scoping cost.
+
+Until then the package ships English and says so, which is the one answer
+that cannot be mistaken for a promise. Related: the spoken judgment marks
+and the connector `\altn` builds have the same shape of problem, and the
+connector has no override at all — see §9.4.
+
+---
+
 ## Whether `\ExAnnotSep` is a hard minimum
 
 *Raised on 2026-09-03, while building `\exannot`; decided one way for now

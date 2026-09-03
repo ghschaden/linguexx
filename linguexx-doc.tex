@@ -260,9 +260,10 @@ individual tiers, and its keyval interface exposes more parameters than
 the eight lengths of section~\ref{sec:layout}. If the glossing is the hard
 part of your document, \pkg{expex} may still be the better instrument.
 
-\paragraph{\pkg{leipzig} (Natalie Weber).} This package contains a set
-of glossing conventions (the Leipzig glossing rules) that were lifted
-from Natalie Weber's package.
+\paragraph{\pkg{leipzig} (Natalie Weber).} The table of Leipzig glossing
+abbreviations behind \cs{lpzg} (section~\ref{sec:leipzig}) follows Natalie
+Weber's \pkg{leipzig}, to which it owes both the list and the idea of
+treating the abbreviations as a resource the document can be asked about.
 
 \paragraph{\pkg{gb4e}.} Not an ancestor of the implementation, but its
 environment syntax is accepted: \texttt{exe}, \texttt{xlist} and the
@@ -655,11 +656,9 @@ than a silent choice between them.
 
 The option carries the rest of the package's surface too, so that a preamble
 and a document body being ported need no editing. The criterion is what
-\pkg{langsci-gb4e} \emph{does}, not what its two documents describe: about
-two dozen of the names below appear in neither the LangSci author guidelines
-nor the \pkg{langsci-gb4e} manual, and are used in real sources all the same.
-Two names are the exception, and only because there is nothing to copy ---
-see \emph{What this package does not provide} below. Everything here is
+\pkg{langsci-gb4e} \emph{does}, which is what a real source relies on;
+the list below is accordingly generous. Two names are not provided --- see
+\emph{What this package does not provide} below. Everything here is
 available under \opt{langsci} and nowhere else.
 
 \begin{center}
@@ -709,7 +708,7 @@ available under \opt{langsci} and nowhere else.
 
 \noindent The four package options come too: \opt{nojambox},
 \opt{manualexewidth}, \opt{lowerpenalty} and \opt{nocgloss}. The first three
-do what they do upstream --- suppress \cs{jambox}, stop the label box from
+do what they do in \pkg{langsci-gb4e} --- suppress \cs{jambox}, stop the label box from
 widening by itself once the numbers reach three digits, and let examples
 break across a page. \opt{nocgloss} is accepted and reports that it has no
 effect; see below.
@@ -721,36 +720,34 @@ compared against one set with the original.
 
 \begin{itemize}[leftmargin=*]
 \item \cs{exp} keeps \emph{both} meanings. It is the \LaTeX\ kernel's math
-  operator as well as \pkg{langsci-gb4e}'s item command, and upstream simply
-  takes it, so a paper that writes \cs{exp}\marg{key} silently loses
-  \verb|$\exp(x)$|. Here the mode decides: inside math it is the operator,
-  outside it is the item. Nothing is lost either way.
+  operator as well as \pkg{langsci-gb4e}'s item command, and here the mode
+  decides between them: inside math it is the operator, outside it is the
+  item. A document may use both freely.
 \item \cs{exp}'s prime and \cs{atcenter} are written in \emph{text mode}.
-  Upstream writes them \verb|$'$| and \verb|$\vcenter{...}$|, and math here
-  would put a \texttt{Formula} element in the structure tree --- the
-  PDF/UA-2 failure that forced the removal of the old \cs{altg} in v0.12
-  (section~\ref{sec:tagging}). \cs{atcenter} therefore centres on
+  \pkg{langsci-gb4e} writes them \verb|$'$| and \verb|$\vcenter{...}$|, and math here
+  would put a \texttt{Formula} element in the structure tree, which costs a
+  document its PDF/UA-2 conformance (section~\ref{sec:tagging}). \cs{atcenter} therefore centres on
   \cs{ExAtCenterAxis}, half the x-height, rather than on the math axis,
   which is only readable from inside math mode; against a real
   \cs{vcenter} at 10pt the box sits 0.38\,pt lower.
 \item \cs{eas} boxes its example in a \texttt{minipage} and not in a
-  \texttt{tabular}. Upstream's tabular is a layout device and nothing else,
-  but it would wrap running prose in a \texttt{Table} element, which is
-  wrong for a screen reader as well as for PDF/UA. A footnote inside one
+  \texttt{tabular}, so that the example's prose is not wrapped in a
+  \texttt{Table} element --- a screen reader would announce it as a table,
+  and PDF/UA does not allow it. A footnote inside one
   reaches the minipage-footnote numbering noted in section~\ref{sec:notes}.
 \item \cs{examplesroman} and \cs{examplesitalics} set the object tier and
-  not the example font. Upstream tries to do both, and cannot: its
-  \cs{exfont} takes no argument, so the \verb|\exfont{\itshape}| in those
-  two calls it and then typesets a group that does nothing.
+  not the example font. Setting the object tier is what they are wanted for
+  in a glossed example, and it is what they do here; the example font is
+  \cs{exfont}'s to set.
 \item \cs{subexsep} and \cs{judgewidth} warn instead of acting. The first
   sets a label separation for the sub-levels alone, and this package has one
   \cs{Exlabelsep} for every level (section~\ref{sec:layout}); the second
   sets the width of a reserved judgment column, and here a judgment hangs
   into the label gutter and reserves nothing --- which is exactly why marked
   and unmarked examples align (section~\ref{sec:jdgspace}).
-\item \opt{nocgloss} is accepted and reports. Upstream it stops a bundled
-  copy of \pkg{cgloss} from being read so that another package can own
-  \cs{gll}; here there is no bundled copy to withhold, and the glossing is
+\item \opt{nocgloss} is accepted and reports. In \pkg{langsci-gb4e} it stops
+  a bundled copy of \pkg{cgloss} from being read so that another package can
+  own \cs{gll}; here there is no bundled copy to withhold, and the glossing is
   what \cs{exg.}, \cs{altg}, \cs{GlossTierLang}, \cs{lpzg} and the tagged
   word-bundle structure are all built on. Switching it off would leave each
   of those needing an answer, and they have more than one; the question is
@@ -762,27 +759,12 @@ examples ragged right unless \cs{ExRaggedRight} asks for it.
 
 \subsubsection*{What this package does \emph{not} provide}
 
-Two names, and for one reason: neither has ever worked in a released
-\pkg{langsci-gb4e}, so there is no behaviour to be compatible with.
-\texttt{xlistabr} labels every item \texttt{(xnumii.} there --- its
-\cs{@xlist} binds its first argument to a single token and \texttt{xlistabr}
-hands it four --- and \texttt{qlist} names a counter (\texttt{xnum}) that no
-file in the package defines, so it raises ``No counter `xnum' defined'' and
-labels every item ``\texttt{.}''. Providing either here would not be
-compatibility; it would be inventing a meaning for a name whose only
-precedent is a bug, and a document written against the invention would then
-be portable in one direction only.
-
-They are not silently absent. Both are defined, and defined to stop at the
-line that uses them:
-
-\begin{code}
-! Package linguexx Error: \xlistabr has never worked in langsci-gb4e.
-
-[langsci] provides what langsci-gb4e does, and \xlistabr is a name
-it defines without ever having given it a working behaviour.
-Use xlist. Upstream's xlistabr labels every item "(xnumii." ...
-\end{code}
+\texttt{xlistabr} and \texttt{qlist} are not provided. They are not silently
+absent either: both names are defined here, and defined to stop at the line
+that uses them with a message naming what to write instead ---
+\texttt{xlist} for the first, an ordinary \LaTeX\ list for the second. An
+error at the line that has to change is friendlier than a surprise further
+down the page.
 
 \subsubsection*{What \cs{ref} prints}\label{sec:langsciref}
 
@@ -1938,10 +1920,13 @@ being built.
 The share of the measure the grid gets is \cs{GlossTransRatio}
 (default \texttt{.6}), and the gap between the two columns is
 \cs{GlossTransSep} (default \texttt{2em}). Both are ordinary parameters,
-settable for one example or for the whole document. The two defaults are
-\pkg{expex}'s own, so that one example set with either package comes out in
-the same proportions; the gloss is what is being read closely, and it gets
-the room.
+settable for one example or for the whole document. \cs{GlossTransRightSkip}
+(default \texttt{0pt plus 2em}) is a little stretch at the right of the
+translation's column: a narrow measure hands \TeX\ lines it cannot break any
+shorter, and a fully justified column then overflows rather than ending
+short. All three defaults follow \pkg{expex}, so that one example set with
+either package comes out in much the same proportions. The gloss is what is
+being read closely, and it gets the room.
 
 Two restrictions, each a package error rather than a silent
 reinterpretation:
@@ -1966,11 +1951,8 @@ translation's column.
 
 A side-by-side gloss is one unbreakable block: the two columns are boxes,
 and a box does not break across a page. A tall one therefore wants a page
-with room for it, and will say so as an overfull \verb|\vbox| if it does
-not get one --- which is the loud half of the trade that made this the
-chosen design (see \texttt{doc/EXPEX-GAPS.md}). The example below is tall
-enough to have done exactly that while this manual was being written, hence
-the \cs{goodbreak} in front of it.
+with room for it, and says so as an overfull \verb|\vbox| if it does not
+get one.
 
 \goodbreak
 Where it earns its keep is a gloss that already runs to several lines. This
@@ -2013,14 +1995,11 @@ one example:
 \afterex
 \cs{GlossTransRatio} is raised to \texttt{.69} here, which is what the
 parameter is for. A gloss of nine words to a row wants width more than
-running prose does, so the \texttt{.6} default leaves this one cramped. The
-value is worth a moment's tuning rather than a formula: between
-\texttt{.66} and \texttt{.70} the gloss keeps the same six rows, while the
-translation goes from eight lines to nine and its last line shrinks to the
-single word \texttt{nest.'} --- so \texttt{.69} costs the gloss nothing and
-spares the translation both. Two or three tries and a look at the result is
-the whole method, and it is a fair description of the feature: this is a
-typesetting decision, and the parameter is there so one example can make it
+running prose does, so the \texttt{.6} default leaves this one cramped,
+while too generous a share leaves the translation's last line a single
+word. There is no formula: try two or three values and look at the result.
+That is a fair description of the whole feature --- it is a typesetting
+decision, and the parameter is there so that one example can make it
 differently from the rest of the document.
 
 \paragraph{When the side position actually saves space.} Less often than one
@@ -2163,15 +2142,10 @@ This is the same arrangement as \cs{DeclareJudgment}\texttt{[spoken=]} and
 already). An annotation with no spoken form gets no \texttt{Span} at all:
 an \texttt{/Alt} that repeats the text it replaces is noise in the tree.
 
-\texttt{/Alt} rather than the alternatives, deliberately. \texttt{/E} is
-PDF's expansion text for an abbreviation, and \texttt{[CP]} is not quite
-one --- the brackets are not part of it, and what wants saying is a gloss
-of the label rather than its letters written out. \texttt{/ActualText}
-would announce the phrase but take the brackets out of copy-and-paste with
-it, which is a real loss for something a reader may want to quote. And an
-\texttt{Aside}, semantically the strongest answer --- the annotation is
-genuinely set apart from the example --- is a block element, so it cannot
-sit inside the paragraph the annotation shares with its example.
+\texttt{/Alt} is used rather than \texttt{/E} or \texttt{/ActualText}
+because it is the one of the three that leaves both the printed label and
+the text layer alone; \texttt{doc/TAGGING-NOTES.md} sets out the comparison
+for anyone auditing a document's structure.
 
 \paragraph{Letting the examples choose the column: \cs{ExAnnotFit}.}
 \cs{ExAnnotColumn} is a number you have to find, and the number that looks
@@ -2248,18 +2222,15 @@ and respect \TeX\ grouping.
 Nothing is recorded and no round trip happens unless \cs{ExAnnotFit} is
 asked for.
 
-\paragraph{Compared with \cs{jambox}.} \cs{jambox}, which \opt{langsci}
-provides (\S\ref{sec:langsci}), measures from the \emph{right} margin and
-holds a column only while that column is far enough right that no example
-can reach it: it sets its box at its natural width behind glue that
-shrinks to nothing, so an example that reaches the column pushes the
-annotation aside instead of wrapping --- with no warning. Four
-sub-examples of increasing length, at one \cs{jambox} gutter, came out
-aligned to 0.01pt at 3\,cm and at 7\,cm and at
-212.6 / 212.6 / 234.1 / 288.9\,pt at 11\,cm. Near the examples is exactly
-the regime where it stops working, which is why \cs{exannot} is not a
-wrapper over it. \cs{jambox} is unchanged: under \opt{langsci} it is what
-\pkg{langsci-gb4e} has.
+\paragraph{And \cs{jambox}.} Under \opt{langsci} this package also provides
+Alexis Dimitriadis's \cs{jambox} (\S\ref{sec:langsci}), which answers a
+neighbouring question: it lines material up a fixed distance from the
+\emph{right} margin, and for a note that belongs near the margin it is the
+more direct instrument of the two. \cs{exannot} is aimed at the other case
+--- a column set close to the examples, where what has to be held is the
+column's position rather than its distance from the margin --- and the two
+are built differently because of it. \cs{jambox} is provided exactly as
+\pkg{langsci-gb4e} has it; use whichever suits the note you are writing.
 
 % ===========================================================================
 \section{Example and glossing layout}\label{sec:layout}
@@ -2337,9 +2308,11 @@ anywhere in the document:
 \textbackslash GlossTransSep & \texttt{2em} &
   Gap between the gloss and a side translation
   (section~\ref{sec:transside}); \cs{GlossTransRatio} (\texttt{.6}, a
-  factor) is the share of the measure the gloss gets, and
+  factor) is the share of the measure the gloss gets,
   \cs{GlossTransMinWidth} (\texttt{6em}) the width below which the side
-  position is abandoned. \\
+  position is abandoned, and \cs{GlossTransRightSkip}
+  (\texttt{0pt plus 2em}) the stretch at the right of the translation's
+  column. \\
 \textbackslash ExAnnotSep & \texttt{1em} &
   Least gap between an example and that column. Give it no stretch or
   shrink: it is what makes an example that comes within it take its
@@ -2637,6 +2610,88 @@ languages this is an accessibility requirement, not a preference. Accents
 all three engines.
 
 % ===========================================================================
+\subsection{What this does not yet claim}\label{sec:tagginglimits}
+
+The structure this package writes is validated, and validation is not the
+same as knowing that a document reads well. It is worth being explicit about
+the distance between the two.
+
+\paragraph{No screen reader has been in the room.} veraPDF can say that a
+file conforms to PDF/UA-2. It cannot say that a reader using JAWS, NVDA,
+VoiceOver or Orca gets a good account of an interlinear gloss. Nothing here
+has been tried with one. The structural decisions are argued rather than
+observed --- above all the decision to read a gloss word bundle by word
+bundle, so that an object word and its gloss are heard together, instead of
+the whole object line and then the whole gloss line. That is the choice this
+package would defend, but it is a choice, and only a user can settle it.
+Treat this part of the package as a well-formed proof of concept: correct
+by every check that can be automated, and not yet confirmed by the only
+check that counts.
+
+\paragraph{The spoken forms are English.} Three things carry words rather
+than markup, and all three are written in English:
+
+\begin{itemize}[leftmargin=*]
+\item the judgment phrases --- ``ungrammatical'', ``questionable'' and the
+  rest (section~\ref{sec:jdgspoken});
+\item the Leipzig expansions --- ``singular'', ``accusative'' and some two
+  hundred others (section~\ref{sec:leipzig});
+\item the word \cs{altn} puts between stacked alternatives when it builds
+  their spoken form: ``A, B, or C''.
+\end{itemize}
+
+\noindent
+The first two can be replaced entry by entry, with \cs{SetJudgmentSpoken}
+and \cs{SetLeipzig}. The third cannot: the connector has no hook today.
+
+So setting \verb|lang=fr| in \cs{DocumentMetadata} is not enough to make a
+French document read properly. The tree would then declare French while its
+\texttt{/Alt} and \texttt{/E} strings remained English words, and a French
+voice would pronounce them as French. Nor is there a way to mark them as
+English in passing: the \texttt{Span} that carries an \texttt{/Alt} does not
+also carry a \texttt{/Lang}, so the phrase is announced in whatever language
+surrounds it.
+
+Calling that a translation job would be too quick, because for the gloss
+abbreviations it is not clear what should be translated. The printed label
+is already free: \cs{lpzg} small-caps whatever you type and never consults
+the table, and keys are compared with their accents normalised, so
+\verb|\lpzg{fém}| prints \textsc{fém} today, and
+\verb|\SetLeipzig{f\'em}{féminin}| gives it an expansion although it spells
+the key the other way. A French
+document can be glossed in French, entry by entry, right now. What is
+undecided is what the package should \emph{ship}: whether the Leipzig
+abbreviations stay in place in every document --- they are English-derived
+but serve as an interchange standard well beyond English --- with only the
+spoken expansions translated, or whether a language should have its own
+labels as well. The first keeps a glossed example legible to any reader of
+the field, and costs the link between the label and the word spoken for it.
+The second is more coherent inside one document, and gives up that
+portability. This manual does not answer the question, and the package does
+not answer it by default; \texttt{doc/DEFERRED-DECISIONS.md} records what
+would settle it.
+
+\paragraph{The kernel's tagging is still provisional.} These features sit on
+the \LaTeX\ Project's tagging code at \texttt{phase-III}, whose interfaces
+are declared provisional by the project itself. Where this package leans on
+an internal it does so behind a guard that degrades to no tagging rather
+than to a broken document, but the arrangement will want revisiting as that
+work moves out of testphase.
+
+\paragraph{What is checked, and how often.} One accessible configuration
+is validated with veraPDF on every run of the test suite, and the worked
+accessible document shipped in \texttt{examples/} before a release. The
+number of
+combinations a document can present --- syntax option, gloss shape, beamer,
+footnotes, a language per tier --- is much larger than the set under
+validation. Support for \texttt{/E} and \texttt{/Alt} also varies between
+readers; a reader that ignores \texttt{/E} will simply say ``sg''.
+
+If you use this with a screen reader, reports of what it actually sounds
+like are very welcome. That is the missing evidence, and no amount of
+validation substitutes for it.
+
+% ===========================================================================
 \section{Notes and limitations}\label{sec:notes}
 % ===========================================================================
 
@@ -2684,7 +2739,7 @@ all three engines.
   \texttt{minipage} is a different command from the ordinary one, and only
   the ordinary one is hooked. Whether such examples ought to share the
   footnote series, keep the main one, or get a series per minipage is a
-  question \pkg{linguex}, \pkg{gb4e} and \pkg{langsci-gb4e} never answered
+  question none of \pkg{linguex}, \pkg{gb4e} and \pkg{langsci-gb4e} settles
   either: all three number such examples on the main series too, so a
   document arriving from any of them keeps the numbers it had. Nothing is
   claimed here and nothing is patched; if the numbering matters in your
@@ -2883,8 +2938,9 @@ there are real front-ends to shape what it should expose.
 
 \subsection{The four invariants}\label{sec:apirules}
 
-These are not style advice. Each of them is a bug that has actually been
-written, in this package or in the test suite for this section.
+These are not style advice but constraints the engine relies on. Each can
+be broken without any error being raised, and the output then looks
+plausible, which is what makes them worth stating.
 
 \begin{enumerate}[itemsep=4pt]
 \item \textbf{The label is fixed before the list opens.} Under \opt{legacy}
@@ -2999,6 +3055,11 @@ exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package opt
 \textbackslash GlossTierLang\allowbreak\marg{n}\marg{code} & Language of tier \meta{n} for tagged PDFs (section~\ref{sec:glosslang}). \\
 \textbackslash GlossTransStyle & Declaration applied to the free translation after \cs{glt}; empty by default. \\
 \textbackslash GlossTransLang\marg{code} & Language of the free translation for tagged PDFs (section~\ref{sec:glosslang}). \\
+\textbackslash GlossTransSide & Set the free translation in a column \emph{beside} the gloss rather than under it (section~\ref{sec:transside}); \cs{GlossTransBelow} restores the default. A declaration, and it must come before the example. Top-level examples only, and not on a gloss carrying an \cs{exannot}. \\
+\textbackslash GlossTransRatio & Share of the measure the gloss gets beside a side translation (\texttt{.6}, a factor, not a length). \\
+\textbackslash GlossTransSep & Gap between the two columns (\texttt{2em}). \\
+\textbackslash GlossTransRightSkip & Stretch at the right of the translation's column (\texttt{0pt plus 2em}); without it a narrow column overflows rather than ending short. \\
+\textbackslash GlossTransMinWidth & Below this the side position is abandoned and the translation set underneath, with a warning (\texttt{6em}). \\
 \textbackslash lpzg\marg{abbr} & Gloss abbreviation in small caps, with spoken expansion when tagged (section~\ref{sec:leipzig}). \\
 \textbackslash SetLeipzig\allowbreak\marg{abbr}\marg{expansion} & Add or override a Leipzig abbreviation expansion. \\
 \textbackslash lpzglist\oarg{keys} & List of the abbreviations the document uses, each with its full form (section~\ref{sec:lpzglist}). Keys: \opt{style}, \opt{sort}, \opt{include}, \opt{ignore}, \opt{add}, \opt{unexplained}, \opt{title}, \opt{titlestyle}, \opt{sep}, \opt{itemsep}, \opt{format}. \\
@@ -3026,9 +3087,11 @@ exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package opt
 \textbackslash altn\marg{$\dots$}\marg{$\dots$} & Stacked alternatives; \oarg{c/l/r} alignment. Fallback: \cs{lxAltn}. \\
 \textbackslash altg\marg{alt}\marg{alt}$\dots$ & Glossed alternatives: written in both lines of \textbackslash exg. (objects, then glosses); both-braced, centred. Also \cs{lxAltg}. \\
 \textbackslash exsource\marg{text} & Flush-right attribution. \\
-\textbackslash GlossTransSide & Set \textbackslash glt's translation in a column beside the gloss rather than under it; \textbackslash GlossTransBelow restores the default. Top-level examples only. \\
-\textbackslash exannot\oarg{spoken}\marg{text} & Structural label, in a column at \textbackslash ExAnnotColumn. On the object line in a gloss. \textbackslash SetAnnotSpoken\marg{text}\marg{phrase} registers a spoken form. \\
-\textbackslash ExAnnotFit & Measure that column from the examples instead: one column per example, past the longest of them. Costs an \texttt{.aux} round trip. \\
+\textbackslash exannot\oarg{spoken}\marg{text} & Structural label, set in a column at \cs{ExAnnotColumn}; on the object line in a gloss. \cs{SetAnnotSpoken}\marg{text}\marg{phrase} registers a spoken form for a label used throughout (section~\ref{sec:exannot}). \\
+\textbackslash ExAnnotFit & Measure that column from the examples instead: one column per example, past the longest of them. Costs an \texttt{.aux} round trip; \cs{ExAnnotNoFit} turns it off again. \\
+\textbackslash ExAnnotColumn & Where the column is, from the \emph{left} edge of the text block (\texttt{.75\textbackslash columnwidth}). \\
+\textbackslash ExAnnotSep & Least gap between an example and that column (\texttt{1em}); give it no stretch or shrink. \\
+\textbackslash ExAnnotFont & Font of the annotation (\cs{normalfont}). \\
 \addlinespace
 \multicolumn{2}{@{}l}{\itshape Layout and options} \\
   \opt{lazy}, \opt{gb4e} & Package options: dot syntax (default), \pkg{gb4e} environment syntax; combinable. \\

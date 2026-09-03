@@ -2531,11 +2531,8 @@
 %% to complain: an undefined name says nothing about where it came from.
 \def\lx@ls@retire#1#2{%
   \expandafter\def\csname #1\endcsname{%
-    \PackageError{linguexx}{\@backslashchar#1\space has never worked in
-      langsci-gb4e}%
-     {[langsci] provides what langsci-gb4e does, and
-      \@backslashchar#1\space is a name it defines without ever having
-      given it a working behaviour.\MessageBreak #2}}}
+    \PackageError{linguexx}{\@backslashchar#1\space is not provided}%
+     {#2}}}
 %% The same for an environment.  \begin has already opened the group by the
 %% time the error fires, so the \end half has to exist and do nothing.
 \def\lx@ls@retire@env#1#2{%
@@ -2759,13 +2756,13 @@
 %% section was rewritten): xlistabr as \lx@xlist@env{\Exalph}{lxOLalpha}
 %% with parenthesis delimiters, qlist as a free-standing lettered list with
 %% symmetric margins built through \lx@openlist.
-\lx@ls@retire@env{xlistabr}{Use xlist. Upstream's xlistabr labels every item
-  "(xnumii." -- \string\@xlist\space \string\let's its first argument to a
-  single token and xlistabr hands it four -- so it has never produced the
-  parenthesised letters its name promises.}
-\lx@ls@retire@env{qlist}{Use an ordinary LaTeX list. Upstream's qlist names
-  the counter xnum, which no file in langsci-gb4e defines, so it raises
-  "No counter 'xnum' defined" and labels every item ".".}
+%% The message says what to write instead and stops there.  Diagnosing
+%% another package to its users is not this one's place, and a reader who
+%% has hit the line already has the only question that matters: what do I
+%% put here?  The reasoning behind the two names is a maintenance matter
+%% and stays in the repository's own notes.
+\lx@ls@retire@env{xlistabr}{Use the xlist environment instead.}
+\lx@ls@retire@env{qlist}{Use an ordinary LaTeX list instead.}
 
 %% ---- \jambox ------------------------------------------------------------
 %% Alexis Dimitriadis's jambox, as langsci-gb4e carries it and as the author
