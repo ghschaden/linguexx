@@ -60,3 +60,9 @@ doc/*-PLAN.md
 # true of one laptop on one afternoon, like benchmarks/ above, and the
 # patched copy of linguexx.sty in it is a copy nobody should ever load.
 experiments/brace-look/
+
+# hand-kept comparison copies of the manual (linguexx-doc-previous.tex/.pdf
+# and friends): a local before/after pair for reading a change on the page,
+# not a second source file.  The "!linguexx-doc.pdf" exception above keeps
+# the real manual tracked; this keeps its snapshots out.
+linguexx-doc-previous.*

@@ -1398,60 +1398,109 @@
 % \color@endgroup (footnote machinery), each pair-counted against its
 % opener inside the body.  \z is NOT handled here: it is an ordinary
 % body macro, interpreted at typesetting time (see \lx@zpop below).
+%
+%% The nine names fall into four behaviours, and each is written once:
+%%
+%%   \par              -- the boundary proper, nothing to weigh up
+%%   \begin & co.      -- an opener: count it and collect it
+%%   \end & co.        -- a closer: uncount and collect it if its opener
+%%                        was counted inside the body, otherwise it closes
+%%                        something opened OUTSIDE and the example ends
+%%   \ex, \exg         -- like a closer in its test, but with no counter of
+%%                        its own to move: legitimate inside an environment
+%%                        opened in the body, a forgotten blank line outside
+%%
+%% Anything else is body text and is collected.
+%%
+%% On \str_case:enF, which is load-bearing and not interchangeable with
+%% its neighbours.  The "e" is the contract, not a flourish: #1 is not the
+%% token itself.  \peek_analysis_map_inline:n hands over a wrapper that
+%% yields the token when e-expanded, which is what the "ee" of the previous
+%% \str_if_eq:eeTF chain was for and what the "e" here is for.  A variant
+%% without it compares the wrapper and matches nothing.
+%%
+%% This is also the token loop of every example body, so the shape was
+%% chosen with an eye on cost: the "e" variant expands #1 ONCE before the
+%% case list is walked, where the chain re-expanded it for each of the nine
+%% names tried.  Do not oversell that.  Measured under lualatex, 300
+%% examples of 48 macros each: 2.598s before, 2.499s after, a repeatable
+%% 4%.  On a document whose examples hold a handful of macros the
+%% difference is 0.5%, which is noise.  Legibility is the reason to keep
+%% this shape; the expansions are a bonus, and nobody should reach for a
+%% harder-to-read variant chasing the rest of them.
+%%
+%% Three neighbouring spellings are wrong, and none of them announces itself:
+%%
+%%  - the names on the left are written BARE, not as \exp_not:N \par.  Only
+%%    the test is expanded here; a case is compared under \exp_not:n, so an
+%%    \exp_not:N written in one is compared as itself and the case can never
+%%    match.  (The old chain used \str_if_eq:ee, which expanded BOTH sides,
+%%    and there the \exp_not:N was required.  Carrying it over is the
+%%    natural mistake, and it disables every case at once.)
+%%  - \str_case_e:enF re-expands the test for every case in the list, so it
+%%    reads the same and buys nothing.
+%%  - stringifying into a str first and dispatching with \str_case:VnF is
+%%    the version that looks fastest, and it silently matches NOTHING.
+%%    \str_set:Ne stringifies with \tl_to_str:n, which terminates a control
+%%    word with a space ("\par" becomes 5 characters); \str_case compares
+%%    with \str_if_eq:nn, which is \pdfstrcmp under \exp_not:n and follows
+%%    \string, with no such space (4 characters).  Every case misses, every
+%%    token is collected as body text, and the example never ends -- which
+%%    on the page is a paragraph that will not outdent and, in the tag
+%%    tree, the rest of the document nested inside the last example.  It
+%%    was caught by struct_label_depths, not by any rendering assertion.
+\cs_new_protected:Npn \__lx_body_keep:n #1
+  { \tl_put_right:Ne \l__lx_body_tl {#1} }
+\cs_new_protected:Npn \__lx_body_open:Nn #1#2
+  { \int_incr:N #1 \__lx_body_keep:n {#2} }
+%% #3 is what the log calls the token, #4 the token itself, put back into
+%% the stream ahead of whatever the boundary starts.  #4 is written out at
+%% the call rather than recovered from #2: #2 is the wrapper above, and it
+%% only survives being EXPANDED, whereas this one is re-emitted as code.
+\cs_new_protected:Npn \__lx_body_close:Nnnn #1#2#3#4
+  {
+    \int_compare:nNnTF { #1 } > { 0 }
+      { \int_decr:N #1 \__lx_body_keep:n {#2} }
+      { \peek_analysis_map_break:n { \lx@body@info {#3} \lx@runbody #4 } }
+  }
+%% \ex / \exg met inside the body.  In a \begin{...}\end{...} pair opened
+%% within the body -- an xlist, say -- it is a legitimate item command and
+%% is collected; at environment depth 0 it can only be a forgotten blank
+%% line, and starts a new example.  Either way there is no counter of its
+%% own to move, which is what separates this from \__lx_body_close:Nnnn.
+\cs_new_protected:Npn \__lx_body_nested:nnn #1#2#3
+  {
+    \int_compare:nNnTF { \l__lx_body_env_int } > { 0 }
+      { \__lx_body_keep:n {#1} }
+      { \peek_analysis_map_break:n { \lx@body@info {#2} \lx@runbody #3 } }
+  }
 \cs_new_protected:Npn \__lx_body_cs:n #1
   {
-    \str_if_eq:eeTF {#1} { \exp_not:N \par }
-      { \peek_analysis_map_break:n { \lx@runbody } }
+    \str_case:enF {#1}
       {
-    \str_if_eq:eeTF {#1} { \exp_not:N \ex }
-      { % inside a \begin{...}\end{...} pair within the body (an xlist,
-        % say), \ex is a legitimate item command and is collected; at
-        % environment depth 0 it can only be a forgotten blank line
-        \int_compare:nNnTF { \l__lx_body_env_int } > { 0 }
-          { \tl_put_right:Ne \l__lx_body_tl {#1} }
-          { \peek_analysis_map_break:n
-              { \lx@body@info{\string\ex.}\lx@runbody \ex } } }
-      {
-    \str_if_eq:eeTF {#1} { \exp_not:N \exg }
-      { \int_compare:nNnTF { \l__lx_body_env_int } > { 0 }
-          { \tl_put_right:Ne \l__lx_body_tl {#1} }
-          { \peek_analysis_map_break:n
-              { \lx@body@info{\string\exg.}\lx@runbody \exg } } }
-      {
-    \str_if_eq:eeTF {#1} { \exp_not:N \begin }
-      { \int_incr:N \l__lx_body_env_int
-        \tl_put_right:Ne \l__lx_body_tl {#1} }
-      {
-    \str_if_eq:eeTF {#1} { \exp_not:N \end }
-      { \int_compare:nNnTF { \l__lx_body_env_int } > { 0 }
-          { \int_decr:N \l__lx_body_env_int
-            \tl_put_right:Ne \l__lx_body_tl {#1} }
-          { \peek_analysis_map_break:n
-              { \lx@body@info{\string\end}\lx@runbody \end } } }
-      {
-    \str_if_eq:eeTF {#1} { \exp_not:N \begingroup }
-      { \int_incr:N \l__lx_body_grp_int
-        \tl_put_right:Ne \l__lx_body_tl {#1} }
-      {
-    \str_if_eq:eeTF {#1} { \exp_not:N \endgroup }
-      { \int_compare:nNnTF { \l__lx_body_grp_int } > { 0 }
-          { \int_decr:N \l__lx_body_grp_int
-            \tl_put_right:Ne \l__lx_body_tl {#1} }
-          { \peek_analysis_map_break:n
-              { \lx@body@info{\string\endgroup}\lx@runbody \endgroup } } }
-      {
-    \str_if_eq:eeTF {#1} { \exp_not:N \color@begingroup }
-      { \int_incr:N \l__lx_body_col_int
-        \tl_put_right:Ne \l__lx_body_tl {#1} }
-      {
-    \str_if_eq:eeTF {#1} { \exp_not:N \color@endgroup }
-      { \int_compare:nNnTF { \l__lx_body_col_int } > { 0 }
-          { \int_decr:N \l__lx_body_col_int
-            \tl_put_right:Ne \l__lx_body_tl {#1} }
-          { \peek_analysis_map_break:n
-              { \lx@body@info{\string\color@endgroup}\lx@runbody \color@endgroup } } }
-      { \tl_put_right:Ne \l__lx_body_tl {#1} }
-      } } } } } } } }
+        { \par }
+          { \peek_analysis_map_break:n { \lx@runbody } }
+        { \ex }
+          { \__lx_body_nested:nnn {#1} { \string\ex. } \ex }
+        { \exg }
+          { \__lx_body_nested:nnn {#1} { \string\exg. } \exg }
+        { \begin }
+          { \__lx_body_open:Nn \l__lx_body_env_int {#1} }
+        { \end }
+          { \__lx_body_close:Nnnn \l__lx_body_env_int {#1}
+              { \string\end } \end }
+        { \begingroup }
+          { \__lx_body_open:Nn \l__lx_body_grp_int {#1} }
+        { \endgroup }
+          { \__lx_body_close:Nnnn \l__lx_body_grp_int {#1}
+              { \string\endgroup } \endgroup }
+        { \color@begingroup }
+          { \__lx_body_open:Nn \l__lx_body_col_int {#1} }
+        { \color@endgroup }
+          { \__lx_body_close:Nnnn \l__lx_body_col_int {#1}
+              { \string\color@endgroup } \color@endgroup }
+      }
+      { \__lx_body_keep:n {#1} }
   }
 \cs_new_protected:Npn \lx@runbody
   { \exp_args:NV \lx@body@cont \l__lx_body_tl }
@@ -1895,6 +1944,24 @@
     {\expandafter\def\csname #1\endcsname.{#2}}%
     {\PackageInfo{linguexx}{\@backslashchar#1\space is already defined;
        \@backslashchar#1.\space is therefore not available}}}
+%% The same policy for a plain alias rather than a dot shorthand: \altn and
+%% \altg are offered as short names for \lxAltn and \lxAltg, and the long
+%% names always work.  Everything the block above says applies unchanged --
+%% deferred so that a package loaded after us gets there first, and
+%% conditional so that a name someone else owns is left alone rather than
+%% silently overwritten.  The \global is what makes the \let outlast the
+%% \AtBeginDocument hook's own grouping under some classes.
+%%
+%% Both are here, next to the shorthand claim, so that the two ways this
+%% package takes a user-visible name sit under one rationale.  They were
+%% written out separately at their own definitions, and the copies had
+%% already drifted to a different message.
+\def\lx@claim@alias#1#2{%
+  \AtBeginDocument{%
+    \@ifundefined{#1}%
+      {\expandafter\global\expandafter\let\csname #1\endcsname#2}%
+      {\PackageInfo{linguexx}{\@backslashchar#1\space is already defined;
+         \MessageBreak only \string#2\space is available}}}}
 %% Under [langsci] the name "z" is claimed by \lx@langsci@install instead,
 %% which installs a \z that dispatches on the period: bare \z closes an \ea
 %% level, \z. is the dot-syntax pop.  Claiming it twice would leave whichever
@@ -3848,18 +3915,26 @@
 %% command NOT in this list (\textcolor, say) keeps its own meaning and
 %% its argument stays inside whatever small caps are in force around it,
 %% which is what \textsc did for everything before.
+%%
+%% One redefinition: command #1 becomes "switch #2, then \lx@sc:n".  The
+%% shape is written once here rather than once per command, so that a
+%% modifier added below cannot get a different one by a slip of copying.
+%% The list itself stays one command per line, and not a mapped clist,
+%% so that \textbf is still greppable to the place that redefines it.
+\cs_new_protected:Npn \lx@sc@modifier:NN #1#2
+  { \cs_set_protected:Npn #1 ##1 { \group_begin: #2 \lx@sc:n {##1} \group_end: } }
 \cs_new_protected:Npn \lx@sc@modifiers:
   {
-    \cs_set_protected:Npn \textbf     ##1 { \group_begin: \bfseries   \lx@sc:n {##1} \group_end: }
-    \cs_set_protected:Npn \textmd     ##1 { \group_begin: \mdseries   \lx@sc:n {##1} \group_end: }
-    \cs_set_protected:Npn \textit     ##1 { \group_begin: \itshape    \lx@sc:n {##1} \group_end: }
-    \cs_set_protected:Npn \textsl     ##1 { \group_begin: \slshape    \lx@sc:n {##1} \group_end: }
-    \cs_set_protected:Npn \textup     ##1 { \group_begin: \upshape    \lx@sc:n {##1} \group_end: }
-    \cs_set_protected:Npn \textrm     ##1 { \group_begin: \rmfamily   \lx@sc:n {##1} \group_end: }
-    \cs_set_protected:Npn \textsf     ##1 { \group_begin: \sffamily   \lx@sc:n {##1} \group_end: }
-    \cs_set_protected:Npn \texttt     ##1 { \group_begin: \ttfamily   \lx@sc:n {##1} \group_end: }
-    \cs_set_protected:Npn \textnormal ##1 { \group_begin: \normalfont \lx@sc:n {##1} \group_end: }
-    \cs_set_protected:Npn \emph       ##1 { \group_begin: \em         \lx@sc:n {##1} \group_end: }
+    \lx@sc@modifier:NN \textbf     \bfseries
+    \lx@sc@modifier:NN \textmd     \mdseries
+    \lx@sc@modifier:NN \textit     \itshape
+    \lx@sc@modifier:NN \textsl     \slshape
+    \lx@sc@modifier:NN \textup     \upshape
+    \lx@sc@modifier:NN \textrm     \rmfamily
+    \lx@sc@modifier:NN \textsf     \sffamily
+    \lx@sc@modifier:NN \texttt     \ttfamily
+    \lx@sc@modifier:NN \textnormal \normalfont
+    \lx@sc@modifier:NN \emph       \em
   }
 %% Printing one label: the modifiers, then the label itself.  The group is
 %% the reason \lpzg can redefine anything at all.
@@ -4553,7 +4628,6 @@
 %% And it cannot be RUN where it stands -- \exannot closes its paragraph,
 %% and the gloss's paragraph is the grid.
 \tl_new:N \l__lx_gl_annot_tl
-\tl_new:N \l__lx_gl_annot_word_tl
 %% Lifted off the RAW LINE, before anything splits it into words.
 %%
 %% The annotation is not a word of the language being glossed and its
@@ -5802,12 +5876,7 @@
 \newcommand\AltJdgTuck{0.2em}
 
 % Alias \altn -> \lxAltn unless somebody already owns \altn.
-\AtBeginDocument{%
-  \@ifundefined{altn}%
-    {\global\let\altn\lxAltn}%
-    {\PackageInfo{linguexx}%
-      {\string\altn\space is already defined;\MessageBreak
-       only \string\lxAltn\space is available}}}
+\lx@claim@alias{altn}\lxAltn
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -6097,12 +6166,7 @@
 \newcommand\AltgTransFont{\normalfont}% font of the gloss stack
 
 % Alias \altg -> \lxAltg unless somebody already owns \altg.
-\AtBeginDocument{%
-  \@ifundefined{altg}%
-    {\global\let\altg\lxAltg}%
-    {\PackageInfo{linguexx}%
-      {\string\altg\space is already defined;\MessageBreak
-       only \string\lxAltg\space is available}}}
+\lx@claim@alias{altg}\lxAltg
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%  Explicit judgment markers: \jdg                                    %%%%
