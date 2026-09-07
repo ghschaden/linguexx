@@ -19,7 +19,7 @@ Usage:
     python3 runtests.py -e pdflatex      # one engine
     python3 runtests.py -k gloss         # cases matching a substring
     python3 runtests.py -v               # show every assertion, not just failures
-    python3 runtests.py -j1              # one case at a time (default: one per core)
+    python3 runtests.py -j1              # one case at a time (default: DEFAULT_JOBS)
 
 Requires: pdflatex / xelatex / lualatex, pdftotext and pdfinfo
 (poppler-utils), qpdf (to resolve a named destination to the page it lands
@@ -77,6 +77,37 @@ KNOWN_XFAIL = set()
 #: -interaction=nonstopmode and spins forever, so without a cap one bad case
 #: hangs the whole suite rather than failing it.
 CASE_TIMEOUT = 120
+#: Cases compiled at once by default.  The CPU count was the obvious number
+#: and is the wrong one: it counts SMT threads -- twelve on the six-core
+#: machine this is developed on -- and every extra concurrent case widens a
+#: race that is not this suite's to fix.  xdvipdfmx creates its temporary
+#: file in $TMPDIR with mkstemp, then REOPENS IT BY NAME, and unlinks it by
+#: name when it is done (strace: openat("/tmp/dvipdfmx.XXXXXX", O_EXCL),
+#: openat(same path), unlink(same path)).  Two concurrent runs that draw
+#: the same name inside that window remove each other's file, and the loser
+#: dies with "xelatex: dvipdfmx.XXXXXX: No such file or directory": exit 1,
+#: a log truncated at "(./case.tex", no TeX error, no signal, no coredump,
+#: and the same directory rebuilding cleanly a second later.  That is
+#: indistinguishable from a real regression except that it never reproduces
+#: -- which is exactly how it wasted an afternoon.
+#:
+#: Measured: one failure in 600 runs of a single xelatex case at twelve,
+#: none in 600 at six.  One in 600 sounds rare and is not: a full run
+#: compiles well over a hundred xelatex documents, so it poisons something
+#: like one run in five, which matches what was seen.  Six costs 10-15%
+#: more wall clock (83-88s against 74-76s) and buys a result that can be
+#: believed.  A pdflatex case failed the same way once and stayed
+#: unexplained (zero in 600 targeted runs); that one is NOT this race.
+#:
+#: run_case now gives each case its own TMPDIR, which takes that shared
+#: namespace away from the race entirely; six remains the default because
+#: the oversubscription it fixes is real on its own -- a case is not one
+#: process but a chain of them (the engine, then pdftotext, pdfinfo, qpdf, a
+#: 300-600 dpi pdftoppm render, and for `ua` a JVM), and twelve of those
+#: chains on six cores buys nothing.  Capped at the CPUs actually present:
+#: CI runners have two or four, and six jobs there would re-create on the
+#: runner exactly the oversubscription this number exists to avoid.
+DEFAULT_JOBS = min(6, os.cpu_count() or 1)
 #: Cases that only some engines can run.  Not a way to duck a failure: the
 #: entry is for input pdflatex CANNOT REPRESENT AT ALL -- T1 has no slot for
 #: a breve-below or a stacked Vietnamese vowel, and inputenc rejects it with
@@ -4827,13 +4858,25 @@ def run_case(name: str, engine: str, verbose: bool):
             shutil.copy(pre, tmp)
         shutil.copy(STY, tmp)
         first_log = ""
+        # A TMPDIR of this case's own.  xdvipdfmx creates its temporary file
+        # there with mkstemp, then reopens it BY NAME and unlinks it by name
+        # when it is done; with every concurrent case sharing /tmp, two runs
+        # that draw the same name inside that window delete each other's
+        # file and the loser dies with "No such file or directory", exit 1,
+        # a log truncated at "(./case.tex", no TeX error and no signal.  It
+        # never reproduces, which is what makes it expensive.  A private
+        # directory removes the shared namespace the race needs; see
+        # DEFAULT_JOBS for the measurement.  The assertion helpers below
+        # still use the system /tmp, and may: none of them reopens a
+        # temporary file by name.
+        env = dict(os.environ, TMPDIR=str(tmp))
         for npass in range(PASSES.get(name, DEFAULT_PASSES)):
             try:
                 proc = subprocess.run(
                     [engine, "-interaction=nonstopmode", "-halt-on-error",
                      src.name],
                     cwd=tmp, capture_output=True, text=True,
-                    timeout=CASE_TIMEOUT,
+                    timeout=CASE_TIMEOUT, env=env,
                 )
             except subprocess.TimeoutExpired:
                 # A TeX loop does not stop for -interaction=nonstopmode: it
@@ -4909,9 +4952,9 @@ def main():
     ap.add_argument("-k", "--filter", help="only cases whose name contains this")
     ap.add_argument("-v", "--verbose", action="store_true",
                     help="print passing assertions too")
-    ap.add_argument("-j", "--jobs", type=int, default=os.cpu_count() or 1,
-                    help="cases to compile at once (default: one per core; "
-                         "-j1 runs them one at a time)")
+    ap.add_argument("-j", "--jobs", type=int, default=DEFAULT_JOBS,
+                    help=f"cases to compile at once (default: {DEFAULT_JOBS}, "
+                         f"see DEFAULT_JOBS; -j1 runs them one at a time)")
     args = ap.parse_args()
 
     # Deliberately before -k filtering: a filtered run must still notice a

@@ -23,15 +23,31 @@ version string.
   `\SetLeipzig`: a French example can be fenced in a group without the rest
   of the document following it. A preamble setting is made at top level and
   so still applies throughout.
-- Test suite: cases now compile in parallel, one per logical CPU, which takes
-  a full run from 383s to 69s on a six-core machine with two threads a core
-  (`-j1` for the old behaviour). Six cores put the floor at about 64s, so
-  that is most of what is available; `-j16` is slower than `-j12`, and the
-  default of `os.cpu_count()` is already the useful maximum. Cases
-  were already independent — each builds its own temporary directory and
-  compiles there — so serial execution was only buying ordered output, and
-  that is now recovered by printing along a plan built before the work
-  starts. The report is byte-identical to a serial run.
+- Test suite: cases now compile in parallel, which takes a full run from 383s
+  to about 85s on a six-core machine with two threads a core — 69s at twelve
+  jobs, but see the next entry for why that is not the default (`-j1` for the
+  old behaviour). Six cores put the floor at about 64s, so that is most of
+  what is available. Cases were already independent — each builds its own
+  temporary directory and compiles there — so serial execution was only
+  buying ordered output, and that is now recovered by printing along a plan
+  built before the work starts. The report is byte-identical to a serial run.
+- The default is six jobs capped at the CPUs present, not `os.cpu_count()` as
+  it first was, and each case now compiles with a `TMPDIR` of its own. That
+  count is of logical threads, and running twelve of them exposed a race that
+  is nobody's fault here: xdvipdfmx creates its scratch file in `$TMPDIR` with
+  `mkstemp`, then reopens it **by name** and unlinks it by name, so two
+  concurrent runs that draw the same name remove each other's file. The loser
+  exits 1 with its log truncated mid-preamble — no TeX error, no signal, no
+  coredump, and the same directory rebuilding cleanly a second later, which is
+  indistinguishable from a real regression except that it never reproduces.
+  Measured at one failure in 600 runs of a single case, which across the
+  xelatex half of a full run is roughly one poisoned run in five. A private
+  `TMPDIR` takes away the shared namespace the race needs: no
+  `/tmp/dvipdfmx.*` file appears during a full xelatex run any more (31 did in
+  60 unisolated compiles), and the suite is green at `-j24`. Six survives the
+  fix because the oversubscription is real on its own — a case is an engine
+  followed by pdftotext, pdfinfo, qpdf, a render, and for the PDF/UA case a
+  JVM — and the cap keeps a two-core CI runner from re-creating it.
 - This closes one of the three English-bound spoken forms named in §9.4 of
   the manual; the judgment phrases and the Leipzig expansions were already
   overridable. Which sets a non-English document *should* use remains an open
