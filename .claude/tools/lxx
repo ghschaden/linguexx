@@ -1,0 +1,988 @@
+#!/usr/bin/env python3
+r"""lxx -- the agent-facing harness for linguexx.
+
+Everything here exists to make ONE of two things cheaper: a debugging loop
+(compile this, look at that) or a context window (a 40 kB .log, a 190 kB
+veraPDF report and a 250-line suite run all say about five useful things).
+Nothing here decides whether the package is correct -- tests/runtests.py
+does that, and this file IMPORTS it rather than restating any of it, so a
+helper cannot drift away from the assertion that relies on it.
+
+    lxx test [-k F] [-e E]     the suite, failures only, and a green stamp
+    lxx verify [--quick]       the whole pre-delivery gate of CLAUDE.md
+    lxx build CASE [-e E]      one case, in a build dir that stays put
+    lxx snippet -c '\ex. ...'  the same for an ad-hoc minimal repro
+    lxx log [CASE|FILE]        a TeX log boiled down to its errors
+    lxx text PDF [-p N]        the text layer
+    lxx words PDF [-g RE]      word boxes with coordinates (geometry)
+    lxx png PDF [-p N] [--crop]  a rendering, cropped, for actually LOOKING
+    lxx struct PDF             the tag tree, folded, plus its invariants
+    lxx ua PDF                 veraPDF, summarised to the failing rules
+    lxx diff A.pdf B.pdf       which pages of two PDFs differ, and where
+    lxx stamp                  what the last green run covered
+
+Every command is quiet by default and prints paths rather than dumping
+what they point at, so the next step can be a targeted read.
+"""
+
+import argparse
+import hashlib
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+TESTS = ROOT / "tests"
+STY = ROOT / "linguexx.sty"
+STATE = ROOT / ".claude" / ".state"
+BUILD = STATE / "build"
+STAMP = STATE / "last-green.json"
+ENGINES = ["pdflatex", "xelatex", "lualatex"]
+
+#: What a green suite run is a statement ABOUT.  The stamp records these
+#: files' hashes, so "the suite passed" can be checked against the tree the
+#: hook sees at commit time rather than believed.
+SOURCES = [STY, TESTS / "runtests.py"]
+
+
+def sources():
+    return SOURCES + sorted(TESTS.glob("*.tex"))
+
+
+def source_hash():
+    h = hashlib.sha256()
+    for p in sources():
+        h.update(p.name.encode())
+        h.update(p.read_bytes() if p.exists() else b"<missing>")
+    return h.hexdigest()[:16]
+
+
+def runtests():
+    """tests/runtests.py as a module: PASSES, parse_pdf, brace_bulge, ..."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("runtests",
+                                                  TESTS / "runtests.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def sh(cmd, **kw):
+    kw.setdefault("capture_output", True)
+    kw.setdefault("text", True)
+    # pdfinfo -struct-text prints UTF-16 fragments of a heading verbatim, and
+    # a decode error in a summariser is a lost afternoon over a bad byte.
+    kw.setdefault("errors", "replace")
+    return subprocess.run([str(c) for c in cmd], **kw)
+
+
+def die(msg, code=2):
+    print(f"lxx: {msg}", file=sys.stderr)
+    sys.exit(code)
+
+
+# --------------------------------------------------------------------------
+# TeX logs
+# --------------------------------------------------------------------------
+#: Warnings worth carrying out of a log.  A TeX log says a great deal that
+#: is true of every document ever compiled; these are the lines that have
+#: ever meant something was wrong in THIS package.
+WARN_PAT = re.compile(
+    r"^(?:! |LaTeX Warning:|LaTeX Font Warning:|Package \S+ Warning:"
+    r"|Class \S+ Warning:|Module \S+ Warning:|pdfTeX warning|Missing character)"
+)
+#: ... and the ones that are noise here: a font substitution the manual
+#: makes on purpose, and hyperref's own bookkeeping.
+WARN_SKIP = re.compile(r"Font shape .* undefined|Token not allowed in a PDF string")
+
+
+def log_digest(text, boxes=False, limit=12):
+    """A TeX log as the handful of lines that carry information.
+
+    Errors first, with the context TeX prints under them (up to the `l.NNN`
+    line, which names the input line and is the whole point), then the
+    warnings, then a count of what was dropped.  An overfull box is a
+    GEOMETRY complaint in a package that draws its own alignment, so it is
+    counted always and listed on request.
+    """
+    lines = text.splitlines()
+    out, warns, i = [], [], 0
+    while i < len(lines):
+        ln = lines[i]
+        if ln.startswith("!"):
+            block = [ln]
+            j = i + 1
+            while j < len(lines) and len(block) < 12:
+                block.append(lines[j])
+                if lines[j].startswith("l."):     # TeX's "here is where" line
+                    break
+                j += 1
+            out.append("\n".join(block))
+            i = j + 1
+            continue
+        if WARN_PAT.match(ln) and not WARN_SKIP.search(ln):
+            # A LaTeX warning wraps; its continuation is indented or runs to
+            # the blank line that follows it.
+            w = [ln.rstrip()]
+            j = i + 1
+            while j < len(lines) and lines[j].strip() and len(w) < 4 \
+                    and not WARN_PAT.match(lines[j]):
+                w.append(lines[j].strip())
+                j += 1
+            warns.append(" ".join(w))
+            i = j
+            continue
+        i += 1
+
+    box = [l for l in lines if l.startswith(("Overfull", "Underfull"))]
+    rerun = [w for w in warns if "Rerun" in w]
+    parts = []
+    for b in out[:limit]:
+        parts.append("ERROR " + b)
+    if len(out) > limit:
+        parts.append(f"... and {len(out) - limit} more errors")
+    seen = set()
+    for w in warns:
+        if "Rerun" in w:
+            continue
+        key = w[:80]
+        if key in seen:
+            continue
+        seen.add(key)
+        parts.append("WARN  " + w)
+    if boxes:
+        parts += ["BOX   " + b for b in box[:limit]]
+    tail = []
+    if box and not boxes:
+        tail.append(f"{len(box)} over/underfull boxes (--boxes to list)")
+    if rerun:
+        tail.append("log asks for a rerun")
+    if tail:
+        parts.append("note: " + "; ".join(tail))
+    return "\n".join(parts), len(out)
+
+
+# --------------------------------------------------------------------------
+# building
+# --------------------------------------------------------------------------
+def resolve_source(name):
+    """A case name, a path, or a near miss reported as such."""
+    p = Path(name)
+    if p.suffix == ".tex" and p.exists():
+        return p.resolve()
+    for cand in (TESTS / f"{name}.tex", ROOT / f"{name}.tex",
+                 ROOT / "examples" / f"{name}.tex"):
+        if cand.exists():
+            return cand
+    near = sorted(q.stem for q in TESTS.glob(f"*{name}*.tex"))
+    die(f"no such case: {name}" + (f" (did you mean: {', '.join(near[:6])})"
+                                   if near else ""))
+
+
+def build(src: Path, engine, passes=None, outdir=None, quiet=False,
+          boxes=False):
+    """Compile `src` the way the suite would, in a directory that STAYS.
+
+    The suite throws its build away, which is right for a test and wrong
+    for a debugging loop: the .log, the .aux, the .pdf and the rendered
+    pages are exactly what the next question is about.  TEXINPUTS points at
+    the source's own directory and at the repo, so a case finds its
+    preambles and any document finds linguexx.sty -- without copying the
+    package, which is how a stale copy gets compiled and puzzled over.
+    """
+    rt = runtests()
+    if passes is None:
+        passes = rt.PASSES.get(src.stem, rt.DEFAULT_PASSES)
+    out = Path(outdir) if outdir else BUILD / f"{src.stem}-{engine}"
+    out.mkdir(parents=True, exist_ok=True)
+    if (out / src.name).resolve() != src.resolve():
+        shutil.copy(src, out / src.name)
+    # A stale PDF from the previous build is worse than none: it makes a
+    # failed compile look like it produced something, and it is the copy a
+    # follow-up `lxx words` would then measure.
+    for stale in (out / f"{src.stem}.pdf", out / f"{src.stem}.log"):
+        if stale.exists() and BUILD in stale.parents:
+            stale.unlink()
+    env = dict(os.environ)
+    env["TEXINPUTS"] = f"{src.parent}:{ROOT}:{TESTS}:" + env.get("TEXINPUTS", "")
+    env["max_print_line"] = "1000"      # so an error message is one line
+    # A TMPDIR of this build's own, for the reason runtests.run_case gives:
+    # xdvipdfmx reopens its /tmp scratch file by name, so concurrent runs
+    # sharing /tmp can delete each other's.
+    env["TMPDIR"] = str(out)
+    t0 = time.time()
+    rc, timed_out = 0, False
+    for n in range(passes):
+        try:
+            proc = subprocess.run(
+                [engine, "-interaction=nonstopmode", "-halt-on-error",
+                 src.name],
+                cwd=out, capture_output=True, text=True, timeout=rt.CASE_TIMEOUT,
+                env=env)
+            rc = proc.returncode
+        except subprocess.TimeoutExpired:
+            rc, timed_out = 1, True
+            break
+        if rc != 0:
+            break
+    dt = time.time() - t0
+    log = out / f"{src.stem}.log"
+    pdf = out / f"{src.stem}.pdf"
+    text = log.read_text(errors="replace") if log.exists() else ""
+    digest, nerr = log_digest(text, boxes=boxes)
+    ok = rc == 0 and pdf.exists() and not timed_out
+    if not quiet:
+        pages = ""
+        if pdf.exists():
+            m = re.search(r"Pages:\s+(\d+)", sh(["pdfinfo", pdf]).stdout)
+            pages = f", {m.group(1)} page(s)" if m else ""
+        head = "OK " if ok else "FAILED "
+        if timed_out:
+            head = "TIMED OUT "
+        print(f"{head}{src.stem} / {engine} / {passes} pass(es) "
+              f"({dt:.1f}s{pages})")
+        print(f"dir: {out}")
+        if digest:
+            print(digest)
+    return ok, out, pdf, text
+
+
+def cmd_build(a):
+    src = resolve_source(a.case)
+    ok, out, pdf, _ = build(src, a.engine, a.passes, boxes=a.boxes)
+    return 0 if ok else 1
+
+
+SNIPPET = r"""\input{%s}
+\begin{document}
+%s
+\end{document}
+"""
+
+
+def cmd_snippet(a):
+    """A minimal repro built from a body and one of the suite's preambles.
+
+    The preamble is the suite's own, not a hand-written one: a repro that
+    loads the package differently from every case is a repro of something
+    else, and that has cost real hours here.
+    """
+    body = a.code if a.code else sys.stdin.read()
+    pre = a.preamble
+    if not (TESTS / f"{pre}.tex").exists():
+        avail = sorted(p.stem for p in TESTS.glob("_preamble*.tex"))
+        die(f"no preamble {pre!r}; have: {', '.join(avail)}")
+    tmp = BUILD / "snippet"
+    tmp.mkdir(parents=True, exist_ok=True)
+    src = tmp / "snippet.tex"
+    src.write_text(SNIPPET % (pre, body))
+    ok, out, pdf, _ = build(src, a.engine, a.passes, outdir=tmp, boxes=a.boxes)
+    if ok and a.show:
+        print("---- text layer ----")
+        print(sh(["pdftotext", "-layout", pdf, "-"]).stdout.rstrip())
+    return 0 if ok else 1
+
+
+def cmd_log(a):
+    """The digest of a log, by case name or by path."""
+    if a.target and Path(a.target).exists():
+        p = Path(a.target)
+    elif a.target:
+        cands = sorted(BUILD.glob(f"{a.target}*/{a.target}.log")) \
+            + sorted(ROOT.glob(f"{a.target}.log")) \
+            + sorted(ROOT.glob(f"*/{a.target}.log"))
+        if not cands:
+            die(f"no log for {a.target!r}: build it first (lxx build {a.target})")
+        p = max(cands, key=lambda q: q.stat().st_mtime)
+    else:
+        logs = list(BUILD.glob("*/*.log")) + list(ROOT.glob("*.log"))
+        if not logs:
+            die("no log anywhere; give a path")
+        p = max(logs, key=lambda q: q.stat().st_mtime)
+    digest, nerr = log_digest(p.read_text(errors="replace"), boxes=a.boxes,
+                              limit=a.limit)
+    print(f"# {p}  ({p.stat().st_size // 1024} kB)")
+    print(digest or "clean: no errors, no warnings worth reporting")
+    return 1 if nerr else 0
+
+
+# --------------------------------------------------------------------------
+# looking at a PDF
+# --------------------------------------------------------------------------
+def page_words(pdf: Path):
+    """[(page, text, x0, y0, x1, y1)] in PostScript points, origin top-left.
+
+    runtests.parse_pdf drops the page a word is on, because every assertion
+    it serves is about one page.  Debugging is not: "which page did this
+    land on" is half the beamer questions.
+    """
+    out = sh(["pdftotext", "-bbox", str(pdf), "-"]).stdout
+    words, page = [], 0
+    for m in re.finditer(
+            r'<page width="([\d.]+)" height="([\d.]+)">'
+            r'|<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" '
+            r'yMax="([\d.]+)">(.*?)</word>', out):
+        if m.group(1):
+            page += 1
+            continue
+        x0, y0, x1, y1, txt = m.group(3), m.group(4), m.group(5), m.group(6), m.group(7)
+        words.append((page, txt, float(x0), float(y0), float(x1), float(y1)))
+    return words
+
+
+def cmd_text(a):
+    cmd = ["pdftotext"]
+    if a.layout:
+        cmd.append("-layout")
+    if a.page:
+        cmd += ["-f", str(a.page), "-l", str(a.last or a.page)]
+    cmd += [str(a.pdf), "-"]
+    txt = sh(cmd).stdout
+    if a.grep:
+        pat = re.compile(a.grep)
+        txt = "\n".join(l for l in txt.splitlines() if pat.search(l))
+    print(txt.rstrip())
+    return 0
+
+
+def cmd_words(a):
+    """Word boxes, filtered.  This is the geometry oracle in interactive form.
+
+    Every real bug in this package was a coordinate, not a crash, and the
+    alternative to this command is writing the same throwaway pdftotext
+    -bbox parser again for each question.
+    """
+    ws = page_words(Path(a.pdf))
+    if a.page:
+        ws = [w for w in ws if w[0] == a.page]
+    if a.grep:
+        pat = re.compile(a.grep)
+        hits = [w for w in ws if pat.search(w[1])]
+    else:
+        hits = ws
+    if a.line:
+        # everything on the rendered line of each hit, which is what an
+        # alignment question actually asks
+        pat = re.compile(a.line)
+        anchors = [w for w in ws if pat.search(w[1])]
+        if not anchors:
+            die(f"nothing matches {a.line!r}")
+        hits = []
+        for an in anchors:
+            cy = (an[3] + an[5]) / 2
+            same = [w for w in ws if w[0] == an[0]
+                    and (an[3] <= (w[3] + w[5]) / 2 <= an[5]
+                         or w[3] <= cy <= w[5])]
+            hits += sorted(same, key=lambda w: w[2])
+            hits.append(None)                       # line break between groups
+    npages = max((w[0] for w in ws), default=0)
+    print(f"# {a.pdf}: {len(ws)} words on {npages} page(s)"
+          + (f", {len([h for h in hits if h])} shown" if hits != ws else ""))
+    for w in hits[:a.limit if a.limit else None]:
+        if w is None:
+            print("  --")
+            continue
+        p, t, x0, y0, x1, y1 = w
+        print(f"  p{p} x=[{x0:7.2f},{x1:7.2f}] y=[{y0:7.2f},{y1:7.2f}]  {t}")
+    return 0
+
+
+def cmd_png(a):
+    """Render a page and CROP it, because CLAUDE.md says to look at it.
+
+    Cropping is not cosmetic: an image costs context in proportion to its
+    area, and a full A4 page at a legible resolution is mostly margin.
+    --crop trims to the ink, --box takes a region in PDF points, and the
+    result is scaled to a width that stays readable without paying for the
+    whole sheet.
+    """
+    from PIL import Image
+    pdf = Path(a.pdf)
+    dest = BUILD / "png"
+    dest.mkdir(parents=True, exist_ok=True)
+    stem = dest / f"{pdf.stem}-p{a.page}"
+    for old in dest.glob(f"{pdf.stem}-p{a.page}*.png"):
+        old.unlink()
+    r = sh(["pdftoppm", "-png", "-r", str(a.dpi), "-f", str(a.page),
+            "-l", str(a.page), str(pdf), str(stem)])
+    if r.returncode != 0:
+        die(r.stderr.strip() or "pdftoppm failed")
+    made = sorted(dest.glob(f"{pdf.stem}-p{a.page}*.png"))
+    if not made:
+        die(f"no page {a.page} in {pdf}")
+    img = Image.open(made[0]).convert("RGB")
+    s = a.dpi / 72.0
+    if a.box:
+        x0, y0, x1, y1 = a.box
+        m = a.margin
+        img = img.crop((max(0, int(x0 * s - m)), max(0, int(y0 * s - m)),
+                        min(img.width, int(x1 * s + m)),
+                        min(img.height, int(y1 * s + m))))
+    elif a.crop:
+        from PIL import ImageChops, ImageOps
+        gray = ImageOps.invert(img.convert("L"))
+        bb = gray.point(lambda v: 255 if v > 12 else 0).getbbox()
+        if bb:
+            m = a.margin
+            img = img.crop((max(0, bb[0] - m), max(0, bb[1] - m),
+                            min(img.width, bb[2] + m),
+                            min(img.height, bb[3] + m)))
+    if a.width and img.width > a.width:
+        img = img.resize((a.width, round(img.height * a.width / img.width)),
+                         Image.LANCZOS)
+    final = dest / f"{pdf.stem}-p{a.page}.png"
+    img.save(final)
+    for extra in made:
+        if extra != final:
+            extra.unlink()
+    print(f"{final}  {img.width}x{img.height}px  (page {a.page} @ {a.dpi}dpi"
+          + (", cropped to ink" if a.crop and not a.box else "") + ")")
+    return 0
+
+
+def cmd_struct(a):
+    """The tag tree, folded, with the invariants CLAUDE.md names.
+
+    pdfinfo -struct-text prints one line per element and several hundred
+    for a real document, most of them the same three tags repeating.  What
+    a tagging question is ever about is the SHAPE -- and two properties
+    that no amount of reading the shape reveals, so they are checked here
+    rather than eyeballed: that every top-level example number sits at one
+    depth (an element that is never closed is spec-valid, veraPDF passes
+    it, and the rest of the document quietly becomes its child), and that
+    no Formula element exists (the thing \altn/\altg avoid by construction).
+    """
+    pdf = Path(a.pdf)
+    r = sh(["pdfinfo", "-struct-text", str(pdf)])
+    lines = [l for l in r.stdout.splitlines() if l.strip()]
+    if not lines:
+        die("no structure tree: is this document tagged?")
+    kept, prev, run = [], None, 0
+
+    def flush():
+        nonlocal run, prev
+        if prev is not None:
+            kept.append(prev + (f"  x{run}" if run > 1 else ""))
+        prev, run = None, 0
+
+    for ln in lines:
+        indent = len(ln) - len(ln.lstrip())
+        body = ln.strip()
+        m = re.match(r"^([A-Za-z0-9]+) <ID\.[0-9a-f]+>(.*)$", body)
+        if m:
+            tag, rest = m.group(1), m.group(2).strip()
+            txt = ""
+            if a.text and rest:
+                txt = " " + rest[:60]
+            shown = " " * indent + tag + txt
+        else:                                    # a text or attribute line
+            if not a.text:
+                continue
+            shown = " " * indent + body[:70]
+        if a.grep and not re.search(a.grep, shown):
+            continue
+        if shown == prev:
+            run += 1
+            continue
+        flush()
+        prev, run = shown, 1
+    flush()
+    if a.depth:
+        kept = [k for k in kept if (len(k) - len(k.lstrip())) // 2 <= a.depth]
+    print(f"# {pdf}: {len(lines)} structure lines, {len(kept)} shown")
+    print("\n".join(kept))
+    if r.stderr.strip():
+        print("stderr: " + "; ".join(dict.fromkeys(r.stderr.split("\n")))[:300])
+    rt = runtests()
+    depths = label_depths(pdf)
+    levels = {d for _, d in depths}
+    print(f"\ninvariant label-depth: {'OK' if len(levels) <= 1 else 'BROKEN'}"
+          f"  ({len(depths)} top-level numbers at depth(s) {sorted(levels)}"
+          + (f"; deepest label {max(depths, key=lambda t: t[1])[0]}"
+             if len(levels) > 1 else "") + ")")
+    try:
+        print(f"invariant no-Formula: "
+              f"{'BROKEN' if rt.struct_has_formula(pdf) else 'OK'}")
+        cls = rt.struct_ol_classes(pdf)
+        if cls:
+            print("ListNumbering classes: " + ", ".join(
+                f"{k}={v}" for k, v in sorted(cls.items())))
+    except Exception as e:
+        print(f"invariant no-Formula: not checkable ({e})")
+    return 0
+
+
+def label_depths(pdf: Path):
+    r"""(number, depth) for every decimal example number that is a Lbl.
+
+    runtests.struct_label_depths asks the same question of a test case and
+    is the authority on what the answer means (an element left open drops
+    the depth of everything after it).  It matches any "(N)" string in the
+    tree, which is exact for a case file and wrong for a real document: a
+    relative reference typeset in running prose -- \Next inside a Link --
+    is also the text "(1)", sits at whatever depth the paragraph does, and
+    made ua-demo look broken here when it is not.  So this narrows the
+    match to a number whose enclosing element is a Lbl, which is what a
+    list label is, and leaves the meaning of the check untouched.
+    """
+    out = sh(["pdfinfo", "-struct-text", str(pdf)]).stdout
+    stack, found = [], []
+    for ln in out.splitlines():
+        indent = len(ln) - len(ln.lstrip())
+        body = ln.strip()
+        m = re.match(r"^([A-Za-z0-9]+) <ID\.[0-9a-f]+>", body)
+        if m:
+            while stack and stack[-1][0] >= indent:
+                stack.pop()
+            stack.append((indent, m.group(1)))
+            continue
+        m = re.match(r'^"\((\d+)\)"', body)
+        if m and stack and stack[-1][1] == "Lbl":
+            found.append((m.group(1), stack[-1][0]))
+    return found
+
+
+def cmd_ua(a):
+    """veraPDF, reduced to the rules that failed.
+
+    The text format says one word ("FAIL") and the XML says 190 kB, almost
+    all of it one <check/> per offending object.  What a fix needs is the
+    clause, what it requires, how many objects break it and where one of
+    them is -- which is what this prints, one block per failed rule.
+    """
+    import xml.etree.ElementTree as ET
+    pdf = Path(a.pdf)
+    if not shutil.which("verapdf"):
+        die("verapdf is not on PATH; it is the only authoritative PDF/UA oracle")
+    cmd = ["verapdf", "--format", "xml"]
+    if a.flavour:
+        cmd += ["-f", a.flavour]
+    cmd.append(str(pdf))
+    r = sh(cmd)
+    try:
+        root = ET.fromstring(r.stdout)
+    except ET.ParseError:
+        die("veraPDF produced no report:\n" + (r.stdout or r.stderr)[:800])
+    rc = 0
+    for job in root.iter():
+        if not job.tag.endswith("validationReport"):
+            continue
+        prof = job.get("profileName", "?")
+        compliant = job.get("isCompliant") == "true"
+        short = re.sub(r"\s*validation profile.*", "", prof)
+        print(f"{'PASS' if compliant else 'FAIL'}  {short}")
+        if compliant:
+            continue
+        rc = 1
+        for rule in job.iter():
+            if not rule.tag.endswith("rule") or rule.get("status") != "failed":
+                continue
+            desc = test = ""
+            ctx = []
+            for c in rule:
+                if c.tag.endswith("description"):
+                    desc = (c.text or "").strip()
+                elif c.tag.endswith("test"):
+                    test = (c.text or "").strip()
+                elif c.tag.endswith("check"):
+                    for cc in c:
+                        if cc.tag.endswith("context") and len(ctx) < 2:
+                            ctx.append((cc.text or "").strip())
+            print(f"  {rule.get('clause')}-{rule.get('testNumber')}  "
+                  f"{rule.get('failedChecks')} failed: {desc}")
+            if a.verbose and test:
+                print(f"      test: {test}")
+            for c in ctx:
+                print(f"      at: {c[:160]}")
+    return rc
+
+
+def cmd_diff(a):
+    """Which pages of two PDFs differ, and the box the difference sits in.
+
+    The manual is kept beside a -previous copy on purpose; the question
+    that pair exists to answer is "what moved", and answering it by reading
+    two PDFs is exactly the kind of thing that should not cost a context
+    window.
+    """
+    from PIL import Image, ImageChops
+    dest = BUILD / "diff"
+    dest.mkdir(parents=True, exist_ok=True)
+
+    def render(pdf, tag):
+        for old in dest.glob(f"{tag}-*.png"):
+            old.unlink()
+        sh(["pdftoppm", "-png", "-r", str(a.dpi), "-gray", str(pdf),
+            str(dest / tag)])
+        return sorted(dest.glob(f"{tag}-*.png"))
+
+    A, B = render(Path(a.a), "a"), render(Path(a.b), "b")
+    print(f"# {a.a}: {len(A)} pages vs {a.b}: {len(B)} pages")
+    if len(A) != len(B):
+        print("PAGE COUNT DIFFERS")
+    changed = 0
+    s = a.dpi / 72.0
+    for i in range(min(len(A), len(B))):
+        ia, ib = Image.open(A[i]).convert("L"), Image.open(B[i]).convert("L")
+        if ia.size != ib.size:
+            print(f"  p{i + 1}: page SIZE differs {ia.size} vs {ib.size}")
+            changed += 1
+            continue
+        d = ImageChops.difference(ia, ib).point(lambda v: 255 if v > 24 else 0)
+        bb = d.getbbox()
+        if bb:
+            changed += 1
+            print(f"  p{i + 1}: differs in box "
+                  f"x=[{bb[0] / s:.0f},{bb[2] / s:.0f}] "
+                  f"y=[{bb[1] / s:.0f},{bb[3] / s:.0f}] pt")
+    print(f"{changed} page(s) differ" if changed else "identical rendering")
+    return 1 if changed else 0
+
+
+# --------------------------------------------------------------------------
+# the suite, and the gate
+# --------------------------------------------------------------------------
+def run_suite(engine=None, filt=None, jobs=None, verbose=False):
+    """runtests.py, with its 250 lines of green folded away.
+
+    A passing case is 63 identical lines of no information per engine; a
+    failing one is what the run is for.  Failures are grouped by case
+    rather than by engine, because a real defect fails all three with the
+    same message and printing it once names the engines instead.
+    """
+    cmd = [sys.executable, str(TESTS / "runtests.py")]
+    if engine:
+        for e in engine:
+            cmd += ["-e", e]
+    if filt:
+        cmd += ["-k", filt]
+    if jobs:
+        cmd += ["-j", str(jobs)]
+    t0 = time.time()
+    r = sh(cmd, cwd=ROOT)
+    dt = time.time() - t0
+    fails, summary = parse_suite(r.stdout + "\n" + r.stderr)
+    return r.returncode, fails, summary, dt, r
+
+
+def parse_suite(text):
+    """The suite's report as {case: {detail: [engines]}} plus its summary."""
+    fails, cur_engine, cur_case = {}, "?", None
+    for ln in text.splitlines():
+        m = re.match(r"=== (\S+) ===", ln)
+        if m:
+            cur_engine = m.group(1)
+            continue
+        m = re.match(r"\s+\[(FAIL|XFAIL)\] (\S+)\s+(\d+)/(\d+)", ln)
+        if m:
+            cur_case = m.group(2) + (" [XFAIL]" if m.group(1) == "XFAIL" else "")
+            fails.setdefault(cur_case, {})
+            continue
+        if re.match(r"\s+\[PASS\]", ln):
+            cur_case = None
+            continue
+        m = re.match(r"\s+X (.*)", ln)
+        if m and cur_case:
+            fails[cur_case].setdefault(m.group(1), []).append(cur_engine)
+        elif m:
+            # a suite-integrity or stale-XFAIL complaint: not attached to a
+            # case, and the thing that makes the run exit 2
+            fails.setdefault("SUITE INTEGRITY", {}).setdefault(
+                m.group(1), []).append("-")
+    summary = ""
+    for ln in text.splitlines():
+        if "assertions passed across" in ln:
+            summary = ln.strip()
+        elif ln.startswith(("SKIP ", "STALE", "FAILED:", "no cases match")):
+            summary += " | " + ln.strip()
+    return fails, summary.lstrip(" |")
+
+
+def print_fails(fails):
+    for case, details in fails.items():
+        print(f"FAIL {case}")
+        for detail, engines in details.items():
+            eng = ",".join(sorted(set(e.replace("latex", "") for e in engines)))
+            print(f"     [{eng}] {detail}")
+
+
+def confirm_failures(fails):
+    """Re-run each failing case ALONE and report what survives that.
+
+    Observed on this machine at -j12, which was the suite's default before
+    DEFAULT_JOBS was cut to 6: a case fails perhaps once in three full runs
+    -- a different case each time, passing on its own immediately afterwards
+    (an unconverged `ua` PDF once, a bare "COMPILE FAILED" under xelatex the
+    next).  At -j6 the same tree ran green repeatedly.  The default now
+    matches the physical cores, so this should be rare; it stays because a
+    gate that has ever cried wolf has to prove itself, and a gate
+    that reports it as a defect is a gate that gets overridden, and an
+    override habit costs more than the flake.
+
+    So a failure is not reported until it has been reproduced serially.
+    Both outcomes are printed: a confirmed failure is the run's verdict, a
+    flake is named with the command that refuted it, and neither is
+    silently dropped -- an intermittent defect in the package would show up
+    here as a case that flakes over and over, which is worth seeing.
+    """
+    confirmed, flaky = {}, {}
+    for case, details in fails.items():
+        if case == "SUITE INTEGRITY":
+            confirmed[case] = details
+            continue
+        name = case.replace(" [XFAIL]", "")
+        engines = sorted({e for eng in details.values() for e in eng
+                          if e in ENGINES})
+        rc, again, _, _, _ = run_suite(engine=engines or None, filt=name,
+                                       jobs=1)
+        still = {k: v for k, v in again.items()
+                 if k.replace(" [XFAIL]", "") == name}
+        if still:
+            confirmed[case] = still[list(still)[0]]
+        else:
+            flaky[case] = (details, engines)
+    return confirmed, flaky
+
+
+def report(fails):
+    """Print a suite result, having checked every failure serially.
+
+    Returns True if the run is to be treated as green.
+    """
+    if not fails:
+        return True
+    confirmed, flaky = confirm_failures(fails)
+    print_fails(confirmed)
+    for case, (details, engines) in flaky.items():
+        detail = list(details)[0] if details else "(no detail)"
+        print(f"FLAKY {case} -- failed in the parallel run, PASSED alone")
+        print(f"     [{','.join(e.replace('latex', '') for e in engines)}] "
+              f"{detail}")
+        print(f"     reproduce or refute:  python3 tests/runtests.py -k {case} "
+              f"-j1")
+    return not confirmed
+
+
+def write_stamp(extra):
+    import json
+    head = sh(["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"]).stdout.strip()
+    data = {"hash": source_hash(), "when": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "git": head, **extra}
+    STATE.mkdir(parents=True, exist_ok=True)
+    STAMP.write_text(json.dumps(data, indent=1))
+    return data
+
+
+def cmd_test(a):
+    rc, fails, summary, dt, raw = run_suite(a.engine, a.filter, a.jobs)
+    if a.full:
+        print(raw.stdout)
+        return rc
+    green = report(fails)
+    print(f"{summary}  [{dt:.0f}s]"
+          + ("  (failures refuted by a serial re-run)" if green and fails
+             else ""))
+    full_run = not a.engine and not a.filter
+    if green and full_run:
+        st = write_stamp({"scope": "suite", "summary": summary,
+                          "flaky": sorted(fails)})
+        print(f"green stamp written ({st['hash']} @ {st['git']})")
+    elif green:
+        print("(partial run: no green stamp; run `lxx test` unfiltered for that)")
+    return 0 if green else 1
+
+
+def cmd_verify(a):
+    """The whole of CLAUDE.md's pre-delivery gate, in one command.
+
+    The rules it enforces are not this file's invention -- they are the
+    'Verification -- non-negotiable' section: all three engines green, the
+    full accessible document validated by veraPDF (ua-demo, not just the
+    `ua` case, because the case deliberately omits footnote examples), its
+    structure tree inspected, and the manual built under lualatex, which is
+    the only engine it builds under.
+    """
+    steps, ok = [], True
+
+    rc, fails, summary, dt, _ = run_suite(jobs=a.jobs)
+    green = report(fails)
+    steps.append((green, f"suite: {summary}", dt))
+    ok &= green
+
+    demo = ROOT / "examples" / "ua-demo.tex"
+    t0 = time.time()
+    good, out, pdf, _ = build(demo, "lualatex", passes=3, quiet=True)
+    steps.append((good, f"ua-demo builds (lualatex, 3 passes) -> {pdf}",
+                  time.time() - t0))
+    ok &= good
+    if good:
+        t0 = time.time()
+        r = sh(["verapdf", "--format", "text", str(pdf)])
+        lines = [l for l in r.stdout.splitlines() if l.strip()]
+        good = bool(lines) and all(l.startswith("PASS") for l in lines)
+        steps.append((good, "ua-demo veraPDF: "
+                      + ", ".join(l.split()[0] + " " + l.split()[-1]
+                                  for l in lines), time.time() - t0))
+        ok &= good
+        rt = runtests()
+        try:
+            depths = label_depths(pdf)
+            lv = {d for _, d in depths}
+            g = len(lv) == 1 and not rt.struct_has_formula(pdf)
+            steps.append((g, f"ua-demo structure: {len(depths)} top-level "
+                             f"numbers at depth(s) {sorted(lv)}, "
+                             f"Formula={rt.struct_has_formula(pdf)}", 0))
+            ok &= g
+        except Exception as e:
+            steps.append((False, f"ua-demo structure: not checkable ({e})", 0))
+            ok = False
+
+    if not a.quick:
+        t0 = time.time()
+        good, out, docpdf, text = build(ROOT / "linguexx-doc.tex", "lualatex",
+                                        passes=3, quiet=True)
+        steps.append((good, f"manual builds (lualatex) -> {docpdf}",
+                      time.time() - t0))
+        ok &= good
+
+    print()
+    for good, what, dt in steps:
+        print(f"  [{'OK  ' if good else 'FAIL'}] {what}" +
+              (f"  ({dt:.0f}s)" if dt else ""))
+    if ok:
+        st = write_stamp({"scope": "verify" if not a.quick else "verify-quick",
+                          "summary": summary})
+        print(f"\nGATE PASSED -- green stamp {st['hash']} @ {st['git']}")
+    else:
+        print("\nGATE FAILED -- do not deliver")
+    return 0 if ok else 1
+
+
+def cmd_doc(a):
+    """The manual: lualatex only, three passes, and never by accident in place."""
+    src = ROOT / "linguexx-doc.tex"
+    out = ROOT if a.inplace else None
+    good, d, pdf, _ = build(src, "lualatex", passes=a.passes, outdir=out,
+                            boxes=a.boxes)
+    return 0 if good else 1
+
+
+def cmd_stamp(a):
+    import json
+    if not STAMP.exists():
+        print("no green run recorded")
+        return 1
+    st = json.loads(STAMP.read_text())
+    now = source_hash()
+    fresh = st.get("hash") == now
+    print(json.dumps(st, indent=1))
+    print(f"sources now {now}: {'MATCHES the stamp' if fresh else 'CHANGED since it'}")
+    return 0 if fresh else 1
+
+
+def main():
+    ap = argparse.ArgumentParser(prog="lxx", description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    p = sub.add_parser("test", help="the suite, failures only")
+    p.add_argument("-e", "--engine", action="append", choices=ENGINES)
+    p.add_argument("-k", "--filter")
+    p.add_argument("-j", "--jobs", type=int)
+    p.add_argument("--full", action="store_true", help="raw suite output")
+    p.set_defaults(fn=cmd_test)
+
+    p = sub.add_parser("verify", help="the full pre-delivery gate")
+    p.add_argument("--quick", action="store_true", help="skip the manual")
+    p.add_argument("-j", "--jobs", type=int)
+    p.set_defaults(fn=cmd_verify)
+
+    p = sub.add_parser("build", help="compile one case into a build dir")
+    p.add_argument("case")
+    p.add_argument("-e", "--engine", default="pdflatex", choices=ENGINES)
+    p.add_argument("-p", "--passes", type=int)
+    p.add_argument("--boxes", action="store_true")
+    p.set_defaults(fn=cmd_build)
+
+    p = sub.add_parser("snippet", help="build an ad-hoc minimal repro")
+    p.add_argument("-c", "--code", help="body; omit to read stdin")
+    p.add_argument("--preamble", default="_preamble",
+                   help="a tests/_preamble*.tex (default: _preamble)")
+    p.add_argument("-e", "--engine", default="pdflatex", choices=ENGINES)
+    p.add_argument("-p", "--passes", type=int, default=2)
+    p.add_argument("--show", action="store_true", help="print the text layer")
+    p.add_argument("--boxes", action="store_true")
+    p.set_defaults(fn=cmd_snippet)
+
+    p = sub.add_parser("log", help="a TeX log boiled down")
+    p.add_argument("target", nargs="?")
+    p.add_argument("--boxes", action="store_true")
+    p.add_argument("-n", "--limit", type=int, default=12)
+    p.set_defaults(fn=cmd_log)
+
+    p = sub.add_parser("text", help="the text layer")
+    p.add_argument("pdf")
+    p.add_argument("-p", "--page", type=int)
+    p.add_argument("-l", "--last", type=int)
+    p.add_argument("-g", "--grep")
+    p.add_argument("--layout", action="store_true", default=True)
+    p.set_defaults(fn=cmd_text)
+
+    p = sub.add_parser("words", help="word boxes with coordinates")
+    p.add_argument("pdf")
+    p.add_argument("-p", "--page", type=int)
+    p.add_argument("-g", "--grep")
+    p.add_argument("--line", help="show the whole rendered line of each match")
+    p.add_argument("-n", "--limit", type=int, default=60)
+    p.set_defaults(fn=cmd_words)
+
+    p = sub.add_parser("png", help="render a page, cropped, for looking at")
+    p.add_argument("pdf")
+    p.add_argument("-p", "--page", type=int, default=1)
+    p.add_argument("-r", "--dpi", type=int, default=150)
+    p.add_argument("--crop", action="store_true", help="trim to the ink")
+    p.add_argument("--box", nargs=4, type=float,
+                   metavar=("X0", "Y0", "X1", "Y1"), help="region in PDF points")
+    p.add_argument("--margin", type=int, default=12, help="px around the crop")
+    p.add_argument("-w", "--width", type=int, default=900, help="max px wide")
+    p.set_defaults(fn=cmd_png)
+
+    p = sub.add_parser("struct", help="the tag tree, folded, plus invariants")
+    p.add_argument("pdf")
+    p.add_argument("--text", action="store_true", help="keep strings/attributes")
+    p.add_argument("-g", "--grep")
+    p.add_argument("-d", "--depth", type=int, help="fold below this depth")
+    p.set_defaults(fn=cmd_struct)
+
+    p = sub.add_parser("ua", help="veraPDF, summarised")
+    p.add_argument("pdf")
+    p.add_argument("-f", "--flavour", help="ua1, ua2, ... (default: auto)")
+    p.add_argument("-v", "--verbose", action="store_true")
+    p.set_defaults(fn=cmd_ua)
+
+    p = sub.add_parser("diff", help="which pages of two PDFs differ")
+    p.add_argument("a")
+    p.add_argument("b")
+    p.add_argument("-r", "--dpi", type=int, default=100)
+    p.set_defaults(fn=cmd_diff)
+
+    p = sub.add_parser("doc", help="build the manual (lualatex only)")
+    p.add_argument("--inplace", action="store_true",
+                   help="write to the repo root, updating the tracked PDF")
+    p.add_argument("-p", "--passes", type=int, default=3)
+    p.add_argument("--boxes", action="store_true")
+    p.set_defaults(fn=cmd_doc)
+
+    p = sub.add_parser("stamp", help="what the last green run covered")
+    p.set_defaults(fn=cmd_stamp)
+
+    a = ap.parse_args()
+    return a.fn(a)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

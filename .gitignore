@@ -66,3 +66,13 @@ experiments/brace-look/
 # not a second source file.  The "!linguexx-doc.pdf" exception above keeps
 # the real manual tracked; this keeps its snapshots out.
 linguexx-doc-previous.*
+
+# the agent harness in .claude/: the tooling itself is tracked (tools/lxx,
+# the hooks, the agent and command definitions, settings.json), because
+# CLAUDE.md documents it and it enforces the verification rules there.  Two
+# things in it are not: settings.local.json, which is one machine's
+# permission grants and full of session paths, and .state/, which holds
+# build directories, renderings and the green-run stamp -- all regenerable,
+# all true of one working copy.
+.claude/settings.local.json
+.claude/.state/

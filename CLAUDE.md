@@ -7,13 +7,56 @@ Standalone and modern reimplementation of `linguex` (numbered linguistic example
 - Taging preamble: `\DocumentMetadata{...}` with `testphase={phase-III}` (portable), NOT the old `{tagpdf,text,sec,block}` list.
 - veraPDF installed (`verapdf`): this is the ONLY oracle that is authoritative for PDF/UA.
 
+## Harness — `.claude/tools/lxx`
+Local agent tooling (in `.claude/`, untracked; ignore this section if it is
+not there). It wraps the tools below so that a debugging loop costs one
+command and a few lines instead of a 40 kB log. It never restates an
+assertion: it imports `tests/runtests.py` for `PASSES`, the parsers and the
+geometry helpers, so nothing here can drift away from the suite.
+
+- `lxx test [-k F] [-e E]` — the suite with the 248 green lines folded away;
+  failures grouped by CASE, engines named, so a defect that fails all three
+  prints once. Every failure is re-run SERIALLY before it is reported: a
+  concurrent xdvipdfmx temp-file race makes a xelatex case die about once in
+  600 runs with no TeX error at all (see `DEFAULT_JOBS`, now 6), and a red
+  that cannot be trusted is a gate that gets overridden. A confirmed
+  failure is still red; a refuted one prints as FLAKY with the command that
+  refuted it. On a full green run it writes the stamp the hooks read — so does
+  a raw `python3 tests/runtests.py` that prints "All green."
+- `lxx verify [--quick]` — the whole gate of the section below in one go.
+- `lxx build CASE [-e E]` / `lxx snippet -c '\ex. ...' [--preamble _preamble-tagged]`
+  — compile a case or an ad-hoc repro into a build dir that STAYS
+  (`.claude/.state/build/`), with the suite's own preambles and pass count.
+- `lxx log [CASE|FILE]` — a TeX log as its errors, each with the `l.NNN`
+  line, plus warnings and a box count. Reading a big `.log` whole is
+  refused by a hook that names this command; grep still works.
+- `lxx words PDF [-g RE] [--line RE]` — word boxes in points, and every word
+  on the rendered line of a match: the geometry oracle, interactively.
+- `lxx png PDF [-p N] [--crop|--box x0 y0 x1 y1]` — a rendering, cropped to
+  the ink, for LOOKING at, which the section below requires.
+- `lxx struct PDF` — the tag tree folded (494 lines → ~130), plus the
+  label-depth and no-Formula invariants. `lxx ua PDF` — veraPDF's 190 kB
+  report as one line per failed rule with a location.
+- `lxx diff A.pdf B.pdf` — which pages differ and the box the change sits in.
+- Three hooks enforce the section below rather than trusting memory: a commit
+  is held back when `linguexx.sty` or a case has changed since the last green
+  run (`LXX_SKIP_GATE=1` overrides), a turn that CLAIMS completion on such a
+  tree is stopped once, and a `.log` over 6 kB is not read whole. They compare
+  hashes, so "I ran the suite" cannot be believed, only checked.
+- The `log-triage` subagent (haiku) is for FAN-OUT only: many logs, many
+  builds, one question. For a single log, run `lxx log` — a subagent that
+  re-derives the context is the expensive way to read four lines.
+
 ## Verification — non-negotiable
 - NEVER conclude that a rendering is correct based on an exit code. Render the PDF (`pdftoppm`) and INSPECT it.
 - For any geometric shape (braces, alignments), verify the POSITION *and the shape* — not just the coordinates. The mirrored brace bug came from measuring the position without looking at the curvature.
 - Test assertions prove the actual geometry and tagging, not just successful compilation. Mutation-tested suite: every rule has a mutation that kills it.
-- Run `python3 tests/runtests.py` (all 3 engines) before delivering. It now runs `verapdf` itself, on the `ua` case, so PDF/UA compliance is checked on every run and veraPDF is a hard requirement of the suite.
-- Still run `verapdf` on examples/ua-demo.pdf before delivering: it is the full accessible document (and covers footnote examples, which the `ua` case deliberately omits — see its header comment).
-- Check with `pdfinfo -struct-text ua-demo.pdf` whether the tagging structure makes sense.
+- Run `python3 tests/runtests.py` (all 3 engines) before delivering
+  (`lxx test`, or `lxx verify` for this whole list at once). It now runs `verapdf` itself, on the `ua` case, so PDF/UA compliance is checked on every run and veraPDF is a hard requirement of the suite.
+- Still run `verapdf` on examples/ua-demo.pdf before delivering (`lxx verify`
+  does it, on a build of its own): it is the full accessible document (and covers footnote examples, which the `ua` case deliberately omits — see its header comment).
+- Check with `pdfinfo -struct-text ua-demo.pdf` (or `lxx struct`) whether the
+  tagging structure makes sense.
 - The manual (`linguexx-doc.tex`) builds with **lualatex only** and errors out under pdflatex. It contains the dot-below transliteration examples of its §9.3, which pdflatex gives a broken text layer (`kṛṣṇaḥ` extracts as `kr.s.n.ah.`), so building it with pdflatex made the manual exhibit the defect it documents. Do not add `fontspec`/`\setmainfont` to it: the kernel's own Latin Modern under LuaLaTeX has the small-caps and bold-mono shapes the manual needs, and naming the families explicitly loses them.
 - veraPDF and the structure checks are COMPLEMENTARY, and neither alone is sufficient. An element opened at the wrong moment (marked content straddling its parent) fails veraPDF but passes every structure assertion; an element never closed is spec-valid, so veraPDF passes it while the rest of the document silently becomes its child — that one is caught only by `struct_label_depths`, which asserts that top-level example numbers all sit at one depth.
 - PDF/UA validity needs a THIRD LaTeX pass under pdflatex and xelatex (lualatex converges in two). An unconverged file fails veraPDF exactly like a real regression; see `PASSES` in runtests.py before concluding a tagging change broke something.

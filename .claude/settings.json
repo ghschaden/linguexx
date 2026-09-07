@@ -1,0 +1,54 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.claude/tools/lxx:*)",
+      "Bash(./.claude/tools/lxx:*)",
+      "Bash(python3 .claude/tools/lxx:*)",
+      "Bash(python3 tests/runtests.py:*)",
+      "Bash(pdftotext:*)",
+      "Bash(pdftoppm:*)",
+      "Bash(pdfinfo:*)",
+      "Bash(qpdf:*)",
+      "Bash(verapdf:*)",
+      "Bash(texdef:*)",
+      "Bash(kpsewhich:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.py\"",
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.py\"",
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.py\"",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  }
+}
