@@ -844,8 +844,24 @@ the example text, so that judged and unjudged examples align:
 \d. \#Ich schlafte.
 
 \afterex
-The mark must come first in the item, \emph{before} anything else including
-a \cs{label}. The conventional readings are the usual ones (\texttt{*}
+The mark must come first in the item, \emph{before the example text}. A
+\cs{label} or a \cs{sublabel} may precede it: they make no ink, so the mark
+is still the first thing on the line and is still hung in the margin.
+
+\begin{code}
+\ex. \label{ex:invasione}*?La sola invasione romana della Tracia
+\end{code}
+
+\rendered
+\ex. \label{ex:invasione}*?La sola invasione romana della Tracia
+
+\afterex
+Anything that does print --- a \cs{textbf}, an opening bracket, a footnote
+mark --- ends the recognition, and a mark behind it stays in the text where
+it was typed. Use \cs{jdg} (section~\ref{sec:jdgmanual}) for those, and for
+marks outside the four characters below.
+
+The conventional readings are the usual ones (\texttt{*}
 ungrammatical, \texttt{?} degraded, \texttt{\#} semantically or
 pragmatically deviant, \texttt{\%} varying across speakers), but the
 package attaches no meaning to them: it only places them.
@@ -877,7 +893,7 @@ marks) on sub-examples \textbf{as a routine matter}, widen the boxes:
 mark that grazes the letter is harmless; only alignment is guaranteed, and
 that unconditionally.)
 
-\subsection{Arbitrary marks: \cs{jdg}}
+\subsection{Arbitrary marks: \cs{jdg}}\label{sec:jdgmanual}
 
 For any other mark, \cs{jdg}\marg{mark} hangs an arbitrary symbol into the
 margin, at any position, not only at the start of an example:

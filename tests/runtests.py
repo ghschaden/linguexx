@@ -477,6 +477,9 @@ def a_judgment_align(p: Page):
         ("JSUB", "PSUB", "letter level"),
         ("JROMAN", "PROMAN", "roman level"),
         ("JMANUAL", "PMANUAL", "manual \\jdg"),
+        ("JLABEL", "PLABEL", "main level behind a \\label"),
+        ("JSUBLAB", "PSUBLAB", "letter level behind a \\sublabel"),
+        ("JGLOSS", "PGLOSS", "gloss object tier behind a \\label"),
     ]
     for judged, plain, where in pairs:
         wj, wp = p.find(judged), p.find(plain)
@@ -502,7 +505,8 @@ def a_judgment_align(p: Page):
     # default-width guarantee: TWO narrow marks clear the sub-example
     # letter.  pdftotext merges tokens closer than ~2pt, so the letter
     # appearing as its own token with the marks to its right IS the check.
-    for judged, level in [("JSUB", "letter"), ("JROMAN", "roman")]:
+    for judged, level in [("JSUB", "letter"), ("JROMAN", "roman"),
+                          ("JSUBLAB", "letter, behind a \\sublabel")]:
         line = p.line_of(p.find(judged))
         lab = [w for w in line if re.fullmatch(r"[a-f]\.|[ivx]+\.", w.text)]
         if not lab:
@@ -516,6 +520,43 @@ def a_judgment_align(p: Page):
                        f"(label ends {lab[0].x1:.2f}, marks at "
                        f"{marks[0].x0:.2f})" if marks else
                        f"{level} level: mark token not found right of label"))
+    # A skipped label with no mark behind it displaces nothing at all:
+    # this is the pair whose two members BOTH sit at the text edge.
+    wq, wp = p.find("QLABEL"), p.find("PLABEL")
+    r.append(check(abs(wq.x0 - wp.x0) < TOL,
+                   f"a \\label alone does not displace text "
+                   f"({wq.x0:.2f} vs {wp.x0:.2f})"))
+    # The other half of the \label case.  Hanging the mark means taking the
+    # label out of the input and putting it back after the \item, and a
+    # replay that lands in the wrong place is invisible on the page: the
+    # example still looks right and only the reference to it is wrong.  So
+    # the references are read back off the page.  \prefrange is in here
+    # because it is the one that needs the \sublabel to have been replayed
+    # at its own DEPTH -- it prints the recorded letter, and a \sublabel
+    # replayed one level out records nothing and silently falls back to a
+    # full \pref.
+    num = re.compile(r"^\(\d+\)$")
+
+    def number_of(sentinel):
+        toks = [w.text for w in p.line_of(p.find(sentinel))]
+        hit = [t for t in toks if num.match(t)]
+        return hit[0] if hit else None
+
+    main, sub, gloss = (number_of(s) for s in
+                        ("JLABEL", "JSUBLAB", "JGLOSS"))
+    refs = "".join(w.text for w in p.line_of(p.find("REFCHECK")))
+    refs = refs.replace("\u2013", "--").replace("\u2014", "--")
+    r.append(check(all((main, sub, gloss)),
+                   f"the labelled examples print a number "
+                   f"(got {main}, {sub}, {gloss})"))
+    if all((main, sub, gloss)):
+        # \prefrange is the unparenthesised half of \refrange, so it
+        # prints the bare number and the bare letter: "7--a".
+        want = [main, sub[:-1] + "a)", gloss, main.strip("()") + "--a"]
+        for w in want:
+            r.append(check(w in refs,
+                           f"a \\label carried across a judgment mark still "
+                           f"resolves: expected {w} in {refs!r}"))
     return r
 
 

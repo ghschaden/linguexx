@@ -298,6 +298,13 @@
 %%          \SetAltSpoken*{or}[,]; both arguments are trimmed, so
 %%          {ou} and { ou } are one setting.  LOCAL, unlike \SetLeipzig:
 %%          a French example can be fenced in a group.
+%%          A \label or \sublabel at the head of an example no longer
+%%          stops the judgment scan: "\ex. \label{x}*?Foo" hung
+%%          nothing and indented Foo by the width of the marks, so the
+%%          examples that broke the alignment were exactly the
+%%          cross-referenced ones.  The label is skipped past and
+%%          replayed after the \item, where writing it in the body put
+%%          it, so \ref, the anchor and \prefrange are unchanged.
 %% Package options come in two independent groups.
 %%
 %% SYNTAX:
@@ -1028,16 +1035,46 @@
 %% they carry a judgment.  Recognized: the characters * and ? and the
 %% control sequences \# and \%.  Anything else: use \jdg{...}, which
 %% works anywhere and takes arbitrary marks.
+%%
+%% "The very start" is not the same thing as "the first token".  A label
+%% is typed at the head of the example far more often than after its
+%% first word --
+%%
+%%     \ex. \label{ex:2}*?La sola invasione romana della Tracia
+%%
+%% -- and \label makes no ink, so the star is still the first thing on
+%% the line and the reader still expects it in the gutter.  Left alone
+%% the scan stopped at \label, the marks stayed in the body, and the
+%% example was indented by their width: the one thing this whole
+%% mechanism exists to prevent, appearing only in the examples that
+%% happen to be cross-referenced.
+%%
+%% Such a command is therefore SKIPPED and REPLAYED rather than stopped
+%% at.  Skipped: it is taken out of the input so the loop can go on to
+%% the marks behind it.  Replayed, and not executed here: \label belongs
+%% after the \item, which is where writing it in the body has always put
+%% it, and where \@currentlabel and the anchor for it are the example's.
+%% \lx@emitjudge puts the collected commands back, in order, the moment
+%% the mark is hung -- see there.
+%%
+%% The set is closed, and it is the two no-ink commands a linguexx
+%% example is cross-referenced with: \label and \sublabel.  Recognition
+%% is by meaning, so the hyperref, cleveref and babel redefinitions of
+%% \label are all the same \label to it, and an optional argument
+%% (cleveref's \label[eq]{...}) is carried across with the rest.
 
 \ExplSyntaxOn
 \tl_new:N \l__lx_judge_tl
 \tl_new:N \l__lx_judge_cont_tl
+\tl_new:N \l__lx_judge_pre_tl
 
 % scan judgments, then execute #1 (the collected marks are in
-% \lx@judgeprint; \lx@emitjudge hangs them via \jdg if nonempty)
+% \lx@judgeprint; \lx@emitjudge hangs them via \jdg if nonempty, and
+% replays whatever \l__lx_judge_pre_tl was skipped past)
 \cs_new_protected:Npn \lx@scanjudgeto #1
   {
     \tl_clear:N \l__lx_judge_tl
+    \tl_clear:N \l__lx_judge_pre_tl
     \tl_set:Nn \l__lx_judge_cont_tl {#1}
     \__lx_judge_loop:
   }
@@ -1058,9 +1095,47 @@
           {
         \peek_meaning_remove:NTF \%
           { \tl_put_right:Nn \l__lx_judge_tl {\%} \__lx_judge_loop: }
+          {
+        \peek_meaning:NTF \label
+          { \__lx_judge_skip:N }
+          {
+        \peek_meaning:NTF \sublabel
+          { \__lx_judge_skip:N }
           { \tl_use:N \l__lx_judge_cont_tl }
-          } } }
+          } } } } }
       }
+  }
+%% Take one skipped command out of the input and put it in
+%% \l__lx_judge_pre_tl, argument and all, then go on scanning.  The
+%% command token itself is still in the stream when we get here (the
+%% peek above does not remove it), so #1 is it; what follows is any
+%% number of bracketed optional arguments and then exactly one braced
+%% one, which is the shape of both \label and \sublabel.
+\cs_new_protected:Npn \__lx_judge_skip:N #1
+  {
+    \tl_put_right:Nn \l__lx_judge_pre_tl {#1}
+    \__lx_judge_skip_args:
+  }
+%% The optional argument is looked for only BEFORE the mandatory one,
+%% which is why \__lx_judge_skip_arg:n hands back to the judgment loop
+%% and not to here: "\ex. \label{x}[DP der Hund] bellte." opens its
+%% object line with a bracket, and a second look would eat the
+%% constituent as an argument of the label it follows.
+\cs_new_protected:Npn \__lx_judge_skip_args:
+  {
+    \peek_charcode:NTF [
+      { \__lx_judge_skip_opt:w }
+      { \__lx_judge_skip_arg:n }
+  }
+\cs_new_protected:Npn \__lx_judge_skip_opt:w [#1]
+  {
+    \tl_put_right:Nn \l__lx_judge_pre_tl { [#1] }
+    \__lx_judge_skip_args:
+  }
+\cs_new_protected:Npn \__lx_judge_skip_arg:n #1
+  {
+    \tl_put_right:Nn \l__lx_judge_pre_tl { {#1} }
+    \__lx_judge_loop:
   }
 \cs_new:Npn \lx@judgeprint { \tl_use:N \l__lx_judge_tl }
 \cs_new_protected:Npn \lx@setjudge #1
@@ -1119,6 +1194,15 @@
         \hskip \JdgSep
       }
   }
+%% Hang the mark, then put back whatever the scan skipped to reach it
+%% (\label, \sublabel -- see \__lx_judge_skip:N).  This order is the
+%% point: the mark hangs from the label edge with nothing between it and
+%% the \item, and the replayed \label sits exactly where writing it in
+%% the body used to put it -- after the item, in the same mode, with the
+%% same \@currentlabel.  The replay does not depend on a mark having
+%% been found -- a labelled example with no judgment goes through here
+%% too -- and it clears as it goes, so no second \lx@emitjudge (the
+%% \exg. path calls it after \lx@makeitem has) delivers the label twice.
 \cs_new_protected:Npn \lx@emitjudge
   {
     \tl_if_empty:NF \l__lx_judge_tl
@@ -1126,6 +1210,11 @@
         \tl_set:Ne \l__lx_judge_alt_tl
           { \prop_item:Ne \g_lx_judge_alt_prop { \tl_to_str:N \l__lx_judge_tl } }
         \exp_args:NV \lx@hangjudge \l__lx_judge_alt_tl { \lx@judgeprint }
+      }
+    \tl_if_empty:NF \l__lx_judge_pre_tl
+      {
+        \tl_use:N \l__lx_judge_pre_tl
+        \tl_clear:N \l__lx_judge_pre_tl
       }
   }
 \ExplSyntaxOff

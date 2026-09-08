@@ -23,6 +23,23 @@ version string.
   `\SetLeipzig`: a French example can be fenced in a group without the rest
   of the document following it. A preamble setting is made at top level and
   so still applies throughout.
+- Fixed: a `\label` at the head of an example stopped the judgment scan, so
+  `\ex. \label{ex:2}*?La sola invasione ...` set the `*?` in the text block
+  instead of hanging it in the gutter and indented the example by its width.
+  Since a label is typed at the head far more often than after the first word,
+  the examples that lost the alignment were precisely the cross-referenced
+  ones. The same held for `\sublabel` on a sub-example (`\ag.`, `\a.`) and
+  for the glossed shorthands, where the object tier moved out from under its
+  own number.
+- `\label` and `\sublabel` are now skipped past and *replayed*: taken out of
+  the input so the scan reaches the marks behind them, and put back
+  immediately after the `\item`, which is where writing them in the body
+  always put them. `\ref`, `\prefrange` and the PDF anchor are therefore
+  unchanged — including the depth `\sublabel` records, which is what
+  `\prefrange` prints as the closing half of a range. An optional argument
+  (cleveref's `\label[eq]{...}`) is carried across with the rest, and
+  recognition is by meaning, so the hyperref, cleveref and babel
+  redefinitions of `\label` are all the same `\label` to it.
 - Test suite: cases now compile in parallel, which takes a full run from 383s
   to about 85s on a six-core machine with two threads a core — 69s at twelve
   jobs, but see the next entry for why that is not the default (`-j1` for the

@@ -19,4 +19,34 @@
 \ex. \jdg{\dag}Text JMANUAL rest.
 
 \ex. Text PMANUAL rest.
+
+% A label typed at the head of an example -- which is where a label
+% actually gets typed -- must not stop the judgment scan.  \label makes
+% no ink, so the mark is still the first thing on the line and still
+% belongs in the gutter; before it was skipped past, the marks stayed in
+% the body and indented exactly the examples that are cross-referenced.
+% The pairs below are the same displacement test as the ones above, and
+% the \ref line is the other half of it: the label has to survive being
+% carried across the mark, still name this example, and still be a label
+% of the right KIND (\sublabel's letter is what \prefrange reads).
+\ex. \label{j:main}*Text JLABEL rest.
+
+\ex. Text PLABEL rest.
+
+% ... and a label with no mark behind it must not displace anything
+% either: skipping past it means the scan, not \ignorespaces, eats the
+% space that follows it, so QLABEL is where a spurious one would show.
+\ex. \label{j:nomark}Text QLABEL rest.
+
+\ex.
+\a. \sublabel{j:sublab}??\#Text JSUBLAB rest.
+\b. Text PSUBLAB rest.
+
+\exg. \label{j:gloss}*Text JGLOSS rest.\\
+Wort GLOSSTIER Rest.\\
+
+\exg. Text PGLOSS rest.\\
+Wort PGLOSSTIER Rest.\\
+
+REFCHECK \ref{j:main} \ref{j:sublab} \ref{j:gloss} \prefrange{j:main}{j:sublab}
 \end{document}
