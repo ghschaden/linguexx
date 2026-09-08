@@ -650,6 +650,14 @@
 % \Exlabelsep.  The defaults are chosen so that TWO marks (e.g. "??",
 % "?*") fit without touching the letter; for three or more as a routine
 % matter, widen these.
+%
+% "Widen these" means the AUTHOR widens them.  Three marks (\a. ??\#)
+% overrun the box and the marks cross the letter -- in both default sets
+% and on all three engines -- and that is not to be fixed here: these
+% numbers are not the package's to raise on behalf of a document it
+% cannot see.  See doc/DEFERRED-DECISIONS.md, "Three judgment marks
+% running into the sub-example letter", for the measurement and the
+% ruling.
 \newlength{\SubExlabelwidth}
 \newlength{\SubSubExlabelwidth}
 % linguex's names for the same two levels (see above)

@@ -9,6 +9,12 @@ The rule for all of them: do not "fix" these in passing. A drive-by patch
 picks one of the available semantics by accident, and the accident is then
 what the package has promised.
 
+An entry may also be *closed* — a question that was put and answered "the
+package does not do this". Those are marked as such in their first line.
+They stay here because the rule above is the reason they are worth
+writing down: a behaviour that looks like a defect, and is not, is exactly
+the kind of thing that gets patched by someone who has not been told.
+
 Code is pointed at by NAME here, not by line number. Line numbers were
 tried and rotted twice in a single afternoon: every insertion into
 `linguexx.sty` moves everything below it, so a citation is stale the next
@@ -696,3 +702,50 @@ not simply relax the assertion to make room. Note also that `\ExAnnotSep` is
 a `\newlength`, so an author can already give it stretch and shrink of their
 own; the package does not stop them, and that is the cheapest way to try
 answer (2) on a real document before deciding anything.
+
+---
+
+## Three judgment marks running into the sub-example letter
+
+*CLOSED, 2026-09-08, by Gerhard: not to be touched in the package itself.
+Noticed while fixing the `\label`-before-a-judgment bug of the same day,
+in passing and off the point of it — which is the case the rule above is
+written for.*
+
+**Current behaviour.** A sub-example carrying three marks collides with
+its own letter. Measured at 11pt on `\a. ??\#Three MARKS rest.`: with the
+default widths the letter box runs 105.78–114.26pt and the marks
+108.75–128.14pt, so they begin 5.5pt inside it (the text itself starts
+clear, at 129.78pt); under `[legacy]` the letter runs 104.44–112.93pt and
+the marks start at 106.88pt, an overlap of 6.1pt.
+
+It is not confined to `[lazy]` in either sense of the word — not to the
+`[lazy]` *syntax* option (the same numbers come out under `[gb4e]` and
+`[langsci]`) and not to the `\lx@defaults@lazy` *width* set (`[legacy]`
+overlaps by as much) — and it is the same on all three engines. It is simply what the default
+`\SubExlabelwidth` of 1.6em buys.
+
+**Why the package does not widen the defaults.** A hanging mark takes no
+horizontal space, so the alignment guarantee — the thing the whole
+mechanism exists for — holds unconditionally and is unaffected here. What
+is at stake is only whether a mark grazes the letter to its left, and the
+room for it is bought out of the indentation of every sub-example in the
+document, judged or not. Which trade a document wants is the document's to
+make: `\SubExlabelwidth` and `\SubSubExlabelwidth` are the author's
+lengths, manual §4.2 states the arithmetic and names 2.4em/2.5em as the
+widths that carry `?*\#` comfortably, and `\#` and `\%` are nearly twice
+the width of `?` in most fonts, so no single default can be right for a
+document that uses them routinely and one that uses them twice.
+
+**What would reopen it.** Nothing about the geometry. The decision is not
+that 1.6em is optimal; it is that the number belongs to the author. A
+report that `\SubExlabelwidth` does not in fact do what §4.2 says, or that
+some *other* level's surplus cannot be reached from the documented
+lengths, is a different bug and should be treated as one.
+
+**If it is ever changed anyway:** the two defaults are set in
+`\lx@defaults@lazy` and `\lx@defaults@legacy`, and the comment above
+`\newlength{\SubExlabelwidth}` points here. Note what the suite does and
+does not pin: `a_judgment_align` asserts that the example *text* clears the
+letter, which it does throughout the collision above; nothing asserts that
+the marks do, deliberately, because that is the thing left to the author.
