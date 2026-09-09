@@ -3,7 +3,7 @@
 All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
-## 1.2
+## 1.3
 - Fixed: `\renewcommand{\ExLBr}{[}` did nothing. `linguex` has had
   `\ExLBr`/`\ExRBr` (and `\FnExLBr`/`\FnExRBr` for the footnote series)
   since its version 4.0 and documents them as the way to get `[1]` instead
@@ -419,13 +419,6 @@ version string.
   tree. Nothing in an existing document needs to change, and no internal
   spelled `\lx@...` was renamed or removed -- but those remain private and
   unsupported, which is the point of publishing the others.
-- `\altn`'s spoken `/Alt` now expands a Leipzig abbreviation, as `\altg`'s
-  already did: `\altn{a \lpzg{pl} of cats}{a dog}` is announced as "a plural
-  of cats or a dog" rather than "a pl of cats or a dog". Only the spoken form
-  changes -- the stack still prints the small-cap abbreviation, and that
-  abbreviation still carries its own `/E` expansion inside the stack (unlike
-  in an `\altg` stack, which sets `\lpzg` plain). Simple keys only, as in
-  `\altg`: a compound or unknown key is spoken as printed.
 - Fix: the relative references take their sub-example argument again.
   `\Last[b]` is `linguex` syntax for "letter b of the previous example",
   but `\Last` was declared without an optional argument, so the brackets
@@ -694,41 +687,6 @@ version string.
   The defensive `\Last\ ` and `\Last{}` that documents written against
   the old behaviour contain are unaffected -- `\xspace` recognises both.
   Covered by `tests/relrefs.tex`.
-- Fix: `\z.` is now usable inside an `exe` batch. Mixing the syntaxes is
-  documented, so an `\a.` inside `exe` legitimately opens a sub-level -- but
-  `\z.`, the only thing that could close it again, raised "`\z.` outside an
-  example": the command was gated on a flag only the dot syntax sets. It is
-  now gated on the open sub-level itself, so `\a. ... \z.` inside a batch
-  returns to the main level and the next `\ex` is a main-level example
-  again. (With the `\z.` omitted that `\ex` is still silently demoted to a
-  sub-item: `\ex` continues at the *current* level, which is the rule
-  `xlist` documents, and `\z.` is now the escape.) Only the branch that ends
-  the example stays dot-syntax-only; a `\z.` at the main level of a batch is
-  a package error saying to end the batch with `\end{exe}`.
-- Fix: hyperref anchors for sub-examples in footnotes no longer collide with
-  main-text ones. `\theSubExNo` (the printed label) branches on
-  `\if@noftnote`, but `\theHSubExNo`/`\theHSubSubExNo` (the anchors) built
-  their name from `ExNo` unconditionally, so a sub-example "a" in a footnote
-  and one under main example 1 both claimed `lxex.1.a`. hyperref keeps the
-  first destination of a name and drops the rest, so a `\ref` to the
-  footnote sub-example linked to the main-text one -- a wrong *link*, never
-  a wrong number, which is why it stayed invisible. Footnote sub-examples
-  now anchor on the footnote series, `lxfnex.<FnExNo>.<letter>` and
-  `lxfnex.<FnExNo>.<letter>.<n>`, matching `\theHFnExNo`. Main-text anchors
-  are unchanged.
-- Fix: a stray `\a.` in prose, with no example of either kind open, is now a
-  package error naming itself. It used to open a list and a `\begingroup`
-  that nothing ever closed, and the document died much later with
-  "`\begin{list} ended by \end{document}`" -- a message naming neither `\a.`
-  nor the line it stood on. `\a.` inside an `exe` batch is unaffected: it
-  reaches the same code path legitimately, and stays legal.
-- Fix: a trailing or doubled period in a `\lpzg` label no longer records an
-  empty abbreviation. `\lpzg{sg.}` splits into `sg` and an empty piece, and
-  the empty piece was recorded as a used key like any other, so `\lpzgcheck`
-  reported "No expansion known for" nothing at all -- a warning naming a key
-  the author could not find in the source -- and the `/E` expansion carried
-  a trailing space. Blank segments are now skipped; the real pieces beside
-  them are recorded exactly as before.
 - Fix: a modifier inside a `\lpzg` label now *adds* to the small capitals
   instead of replacing them. `\lpzg{\textbf{m}.pl}` -- the way one picks the
   cell of a paradigm the surrounding discussion is about -- came out as a
@@ -893,6 +851,50 @@ version string.
   after a space is a gloss column of its own and already fell past the
   paradigm. `\altn` needs none of this -- it draws both braces itself.
   Covered by `tests/lpzg-mod.tex`.
+
+## 1.2
+- `\altn`'s spoken `/Alt` now expands a Leipzig abbreviation, as `\altg`'s
+  already did: `\altn{a \lpzg{pl} of cats}{a dog}` is announced as "a plural
+  of cats or a dog" rather than "a pl of cats or a dog". Only the spoken form
+  changes -- the stack still prints the small-cap abbreviation, and that
+  abbreviation still carries its own `/E` expansion inside the stack (unlike
+  in an `\altg` stack, which sets `\lpzg` plain). Simple keys only, as in
+  `\altg`: a compound or unknown key is spoken as printed.
+- Fix: `\z.` is now usable inside an `exe` batch. Mixing the syntaxes is
+  documented, so an `\a.` inside `exe` legitimately opens a sub-level -- but
+  `\z.`, the only thing that could close it again, raised "`\z.` outside an
+  example": the command was gated on a flag only the dot syntax sets. It is
+  now gated on the open sub-level itself, so `\a. ... \z.` inside a batch
+  returns to the main level and the next `\ex` is a main-level example
+  again. (With the `\z.` omitted that `\ex` is still silently demoted to a
+  sub-item: `\ex` continues at the *current* level, which is the rule
+  `xlist` documents, and `\z.` is now the escape.) Only the branch that ends
+  the example stays dot-syntax-only; a `\z.` at the main level of a batch is
+  a package error saying to end the batch with `\end{exe}`.
+- Fix: hyperref anchors for sub-examples in footnotes no longer collide with
+  main-text ones. `\theSubExNo` (the printed label) branches on
+  `\if@noftnote`, but `\theHSubExNo`/`\theHSubSubExNo` (the anchors) built
+  their name from `ExNo` unconditionally, so a sub-example "a" in a footnote
+  and one under main example 1 both claimed `lxex.1.a`. hyperref keeps the
+  first destination of a name and drops the rest, so a `\ref` to the
+  footnote sub-example linked to the main-text one -- a wrong *link*, never
+  a wrong number, which is why it stayed invisible. Footnote sub-examples
+  now anchor on the footnote series, `lxfnex.<FnExNo>.<letter>` and
+  `lxfnex.<FnExNo>.<letter>.<n>`, matching `\theHFnExNo`. Main-text anchors
+  are unchanged.
+- Fix: a stray `\a.` in prose, with no example of either kind open, is now a
+  package error naming itself. It used to open a list and a `\begingroup`
+  that nothing ever closed, and the document died much later with
+  "`\begin{list} ended by \end{document}`" -- a message naming neither `\a.`
+  nor the line it stood on. `\a.` inside an `exe` batch is unaffected: it
+  reaches the same code path legitimately, and stays legal.
+- Fix: a trailing or doubled period in a `\lpzg` label no longer records an
+  empty abbreviation. `\lpzg{sg.}` splits into `sg` and an empty piece, and
+  the empty piece was recorded as a used key like any other, so `\lpzgcheck`
+  reported "No expansion known for" nothing at all -- a warning naming a key
+  the author could not find in the source -- and the `/E` expansion carried
+  a trailing space. Blank segments are now skipped; the real pieces beside
+  them are recorded exactly as before.
 
 ## 1.1
 - `\lpzglist`: the list of the abbreviations the document actually uses, each

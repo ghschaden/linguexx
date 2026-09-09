@@ -51,12 +51,12 @@ never had to ask, and for items 1 and 4 that question is the hard part.
 
 | | Feature | Cost | Blocking decision |
 |---|---|---|---|
-| 1 | Free translation *beside* the gloss | **done, v1.4** | — |
+| 1 | Free translation *beside* the gloss | **done, v1.3** | — |
 | 2 | Key-value façade and named styles | medium | the key names, which become API forever |
 | 3 | Reference checking | medium | whether `\ref` itself is in scope |
 | 4 | Named label types | medium | whether a type may change the *reference* format |
 
-**Item 1 is implemented** as of v1.4 (`\GlossTransSide`); this section is
+**Item 1 is implemented** as of v1.3 (`\GlossTransSide`); this section is
 kept for the reasoning, and the block at its end records what the
 implementation added to what was planned. Remaining order: **2, 3, 4**.
 
@@ -332,7 +332,7 @@ one of these three that announces itself.
 boxed pair, the no-room fallback, `\altg`, and the two cases that are
 refused by decision anyway (sub-examples, `\exannot`).
 
-### What implementing it added, v1.4
+### What implementing it added, v1.3
 
 Shipped as `\GlossTransSide` / `\GlossTransBelow` exactly as designed above:
 a declaration before the example, boxed layout, `\glt` unchanged, top level
