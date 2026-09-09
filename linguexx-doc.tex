@@ -2356,6 +2356,17 @@ themselves; they are \texttt{\{\}}/\texttt{\{.\}} in both modes for the
 letter (``a.''), while the roman is bare ``i.'' by default but
 parenthesised ``(i)'' under \opt{legacy}.
 
+The number of a top-level example is bracketed by
+\cs{ExLBr}/\cs{ExRBr}, and a footnote example's by
+\cs{FnExLBr}/\cs{FnExRBr}. These are \pkg{linguex}'s names and
+\pkg{linguex}'s meaning: \verb|\renewcommand{\ExLBr}{[}| together with
+\verb|\renewcommand{\ExRBr}{]}| prints ``[1]'' in the label and in every
+reference to it, and the footnote series keeps its parentheses until its
+own pair is moved as well. The package reads all four through
+\cs{theExLBr} and its relatives, which add the parenthesis suppression
+that \cs{ExBareRefs} asks for (section~\ref{sec:refs}); redefine one of
+\emph{those} and you replace the switch along with the character.
+
 The counters are \texttt{ExNo}, \texttt{SubExNo}, \texttt{SubSubExNo} and
 \texttt{FnExNo} (footnotes). To change the style of the numbering,
 redefine \cs{theExNo} and its relatives in the usual \LaTeX{} way.

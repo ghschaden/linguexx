@@ -1,0 +1,30 @@
+%% linguex's \ExLBr / \ExRBr, which a document written for linguex uses to
+%% get [1] instead of (1).  They were accepted and ignored here until the
+%% characters moved into them: the document compiled and only the page was
+%% wrong, which is the one kind of incompatibility a drop-in replacement
+%% cannot have.
+%%
+%% Three things at once: the main pair is honoured; the FOOTNOTE pair is
+%% separate, so a footnote example still prints (i) when only \ExLBr moved
+%% (as in linguex, where they are four commands and not two); and
+%% \theExLBr still overrides both, since it is the layer that also carries
+%% the parenthesis-suppression switch.
+\input{_preamble}
+\renewcommand{\ExLBr}{[}
+\renewcommand{\ExRBr}{]}
+\begin{document}
+\ex.\label{ex:one} EXLBRMAIN the first example.
+
+\ex. EXLBRSECOND the second.
+
+EXLBRREF \ref{ex:one} is how it is referred to.
+
+EXLBRFNHOST a host sentence.\footnote{EXLBRFNTEXT \ex. EXLBRFN in a footnote.}
+
+%% Doubled brackets rather than angles: pdftotext -bbox reports its
+%% words as XML and would hand the suite "&lt;3&gt;" to assert on.
+{\renewcommand{\theExLBr}{[[}\renewcommand{\theExRBr}{]]}%
+\ex. EXLBROVERRIDE the layer above still wins.
+
+}
+\end{document}

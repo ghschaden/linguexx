@@ -482,6 +482,41 @@ def a_numbering(p: Page):
     return r
 
 
+def a_exlbr(p: Page):
+    r"""linguex's \ExLBr / \ExRBr are honoured, and are not \theExLBr.
+
+    A linguex document that wants square brackets writes
+    \renewcommand{\ExLBr}{[}.  Here that line used to be accepted and do
+    nothing: the parentheses came from \theExLBr, which is spelled
+    differently, so the document compiled and only the page was wrong.
+    Three assertions, because the fix has three parts that can each be
+    lost separately -- the main pair, the footnote pair that must NOT
+    follow it, and the layer above that still overrides both.
+    """
+    def label_of(sentinel):
+        return p.line_of(p.find(sentinel))[0].text
+
+    r = [check(label_of("EXLBRMAIN") == "[1]",
+               f"\\ExLBr reaches the printed number: first example is "
+               f"{label_of('EXLBRMAIN')!r}, want '[1]'"),
+         check(label_of("EXLBRSECOND") == "[2]",
+               f"... and the one after it: {label_of('EXLBRSECOND')!r}")]
+    ref = [w.text for w in p.line_of(p.find("EXLBRREF"))]
+    r.append(check("[1]" in ref,
+                   f"a \\ref prints the same delimiters; the line reads {ref}"))
+    # The footnote series has its own pair in linguex, and so must have one
+    # here: moving \ExLBr alone must not move it.
+    r.append(check(label_of("EXLBRFN") == "(i)",
+                   f"the footnote series keeps its own \\FnExLBr: "
+                   f"{label_of('EXLBRFN')!r}, want '(i)'"))
+    # \theExLBr is where the parenthesis-suppression switch lives, so it
+    # has to keep the last word over the character it reads.
+    r.append(check(label_of("EXLBROVERRIDE") == "[[3]]",
+                   f"\\theExLBr still overrides \\ExLBr: "
+                   f"{label_of('EXLBROVERRIDE')!r}, want '[[3]]'"))
+    return r
+
+
 def a_judgment_align(p: Page):
     """The invariant: a judgment mark hangs into the margin and consumes no
     horizontal space in the text block, so text is not displaced.
@@ -4812,6 +4847,7 @@ ASSERTIONS = {
     "babel-fr-order": a_babel_fr_order,
     "termination": a_termination,
     "verb": a_verb,
+    "exlbr": a_exlbr,
     "refs": a_refs,
     "relrefs": a_relrefs,
     "relreflinks": a_relreflinks,

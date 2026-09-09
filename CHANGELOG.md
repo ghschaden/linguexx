@@ -4,6 +4,19 @@ All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
 ## 1.2
+- Fixed: `\renewcommand{\ExLBr}{[}` did nothing. `linguex` has had
+  `\ExLBr`/`\ExRBr` (and `\FnExLBr`/`\FnExRBr` for the footnote series)
+  since its version 4.0 and documents them as the way to get `[1]` instead
+  of `(1)`; this package printed its parentheses from `\theExLBr`, which is
+  spelled differently, so a document that asked for square brackets was
+  accepted and ignored. That is the one kind of incompatibility a drop-in
+  replacement cannot have: the document still compiles and only the page is
+  wrong. The characters now live in the four `linguex` names and the
+  `\the...` layer reads them, so both spellings work and mean different
+  things -- `\ExLBr` is the character, `\theExLBr` the character plus the
+  parenthesis suppression `\ExBareRefs` asks for. The footnote pair stays
+  separate, as upstream: moving `\ExLBr` alone leaves a footnote example
+  at `(i)`.
 - New: `\SetAltSpoken{word}` sets the connector a screen reader hears between
   the alternatives of a stack — `\altn{aa}{bb}` was announced "aa or bb" in
   every document, whatever its language, and there was no way to say "aa ou

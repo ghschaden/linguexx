@@ -496,10 +496,28 @@
 
 % parenthesis suppression switch (v1 machinery, kept verbatim in spirit)
 \newif\ifparens\parensfalse
-\newcommand\theExLBr{\ifparens\else(\fi}
-\newcommand\theExRBr{\ifparens\else)\fi}
-\newcommand\theFnExLBr{\ifparens\else(\fi}
-\newcommand\theFnExRBr{\ifparens\else)\fi}
+% The delimiters around a top-level example number, in two layers.
+%
+% linguex has \ExLBr / \ExRBr (and the footnote pair) since its version
+% 4.0 and documents them: a document that wants [1] rather than (1)
+% writes \renewcommand{\ExLBr}{[}.  This package printed its parentheses
+% from \theExLBr alone, so that line was accepted and did nothing -- the
+% one kind of incompatibility a drop-in replacement cannot have, because
+% the document still compiles and only the page is wrong.
+%
+% So the characters live in the linguex names, and the \the... layer --
+% which is what \theExNo expands and what a \newlabel record carries --
+% reads them through the suppression switch.  Both remain redefinable and
+% mean different things: \ExLBr is the character, \theExLBr the
+% character plus the switch.
+\newcommand\ExLBr{(}
+\newcommand\ExRBr{)}
+\newcommand\FnExLBr{(}
+\newcommand\FnExRBr{)}
+\newcommand\theExLBr{\ifparens\else\ExLBr\fi}
+\newcommand\theExRBr{\ifparens\else\ExRBr\fi}
+\newcommand\theFnExLBr{\ifparens\else\FnExLBr\fi}
+\newcommand\theFnExRBr{\ifparens\else\FnExRBr\fi}
 
 % "am I in a footnote?" -- linguex's switch name kept for compatibility;
 % TRUE means NOT in a footnote (sic, as in linguex)
