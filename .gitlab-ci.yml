@@ -1,12 +1,14 @@
 # Run the linguexx regression suite on a current TeX Live.
 #
-# Kept in step with .github/workflows/ci.yml, which is the workflow the suite
-# itself checks (runtests.py: REQUIRED_TOOLS against WORKFLOW): a tool named
-# there and missing from that file is a suite-integrity error.  Nothing checks
-# THIS file, so it is the one that drifts -- and it did, installing only
-# poppler-utils and python3 long after qpdf and veraPDF had become
-# requirements, so the pipeline could not start the suite at all.  When the
-# two disagree, the GitHub one is right by construction; mirror it here.
+# Kept in step with .github/workflows/ci.yml, which is the reference: the
+# suite checks REQUIRED_TOOLS against it by step name, and that is where a
+# new requirement is written first.  This file used to be checked by nothing
+# at all, so it was the one that drifted -- it installed only poppler-utils
+# and python3 long after qpdf and veraPDF had become requirements, so the
+# pipeline could not start the suite.  It is now checked too, for the things
+# that generalise: the apt packages, an installed tool proving it starts with
+# `--version`, and the `--documents` invocation (runtests.tooling_integrity).
+# When the two disagree, the GitHub one is right by construction; mirror it.
 #
 # Written out flat rather than shared through YAML anchors: an anchor on a
 # sequence spliced into before_script gives a list of lists, which GitLab
@@ -48,8 +50,11 @@ regression:
     - ln -s /opt/verapdf/verapdf /usr/local/bin/verapdf
     - verapdf --version
   script:
+    # --documents builds the manual and the shipped examples and validates
+    # ua-demo with veraPDF: the half of CLAUDE.md's gate that is not a test
+    # case.  Dropping it is a suite-integrity error, not a quieter pipeline.
     - cd tests
-    - python3 runtests.py
+    - python3 runtests.py --documents
   # cache nothing; the image already contains the whole toolchain.
 
 # Manual reconnaissance job for the \alt math-tagging work (see

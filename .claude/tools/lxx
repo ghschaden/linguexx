@@ -517,33 +517,13 @@ def cmd_struct(a):
 
 
 def label_depths(pdf: Path):
-    r"""(number, depth) for every decimal example number that is a Lbl.
+    """runtests.struct_lbl_depths: (number, depth) per example number.
 
-    runtests.struct_label_depths asks the same question of a test case and
-    is the authority on what the answer means (an element left open drops
-    the depth of everything after it).  It matches any "(N)" string in the
-    tree, which is exact for a case file and wrong for a real document: a
-    relative reference typeset in running prose -- \Next inside a Link --
-    is also the text "(1)", sits at whatever depth the paragraph does, and
-    made ua-demo look broken here when it is not.  So this narrows the
-    match to a number whose enclosing element is a Lbl, which is what a
-    list label is, and leaves the meaning of the check untouched.
+    Written here first, and moved to the suite when the documents phase
+    needed it -- an assertion belongs where the assertions are.  The name
+    stays because two commands here call it.
     """
-    out = sh(["pdfinfo", "-struct-text", str(pdf)]).stdout
-    stack, found = [], []
-    for ln in out.splitlines():
-        indent = len(ln) - len(ln.lstrip())
-        body = ln.strip()
-        m = re.match(r"^([A-Za-z0-9]+) <ID\.[0-9a-f]+>", body)
-        if m:
-            while stack and stack[-1][0] >= indent:
-                stack.pop()
-            stack.append((indent, m.group(1)))
-            continue
-        m = re.match(r'^"\((\d+)\)"', body)
-        if m and stack and stack[-1][1] == "Lbl":
-            found.append((m.group(1), stack[-1][0]))
-    return found
+    return runtests().struct_lbl_depths(pdf)
 
 
 def cmd_ua(a):
@@ -803,8 +783,8 @@ def cmd_verify(a):
     'Verification -- non-negotiable' section: all three engines green, the
     full accessible document validated by veraPDF (ua-demo, not just the
     `ua` case, because the case deliberately omits footnote examples), its
-    structure tree inspected, and the manual built under lualatex, which is
-    the only engine it builds under.
+    structure tree inspected, the shipped examples built, and the manual
+    built under lualatex, which is the only engine it builds under.
     """
     steps, ok = [], True
 
@@ -813,41 +793,28 @@ def cmd_verify(a):
     steps.append((green, f"suite: {summary}", dt))
     ok &= green
 
-    demo = ROOT / "examples" / "ua-demo.tex"
-    t0 = time.time()
-    good, out, pdf, _ = build(demo, "lualatex", passes=3, quiet=True)
-    steps.append((good, f"ua-demo builds (lualatex, 3 passes) -> {pdf}",
-                  time.time() - t0))
-    ok &= good
-    if good:
+    # The documents -- ua-demo with its veraPDF and structure checks, the
+    # examples, the manual -- are runtests.DOCUMENTS, and running them from
+    # there rather than here is the point: CI runs the same code through
+    # `runtests.py --documents`, so the gate cannot mean one thing on this
+    # machine and another one on a push.  --quick drops the manual alone,
+    # which is the slow half.
+    rt = runtests()
+    for name in rt.DOCUMENTS:
+        if a.quick and name == "manual":
+            continue
         t0 = time.time()
-        r = sh(["verapdf", "--format", "text", str(pdf)])
-        lines = [l for l in r.stdout.splitlines() if l.strip()]
-        good = bool(lines) and all(l.startswith("PASS") for l in lines)
-        steps.append((good, "ua-demo veraPDF: "
-                      + ", ".join(l.split()[0] + " " + l.split()[-1]
-                                  for l in lines), time.time() - t0))
-        ok &= good
-        rt = runtests()
-        try:
-            depths = label_depths(pdf)
-            lv = {d for _, d in depths}
-            g = len(lv) == 1 and not rt.struct_has_formula(pdf)
-            steps.append((g, f"ua-demo structure: {len(depths)} top-level "
-                             f"numbers at depth(s) {sorted(lv)}, "
-                             f"Formula={rt.struct_has_formula(pdf)}", 0))
-            ok &= g
-        except Exception as e:
-            steps.append((False, f"ua-demo structure: not checkable ({e})", 0))
-            ok = False
-
-    if not a.quick:
-        t0 = time.time()
-        good, out, docpdf, text = build(ROOT / "linguexx-doc.tex", "lualatex",
-                                        passes=3, quiet=True)
-        steps.append((good, f"manual builds (lualatex) -> {docpdf}",
-                      time.time() - t0))
-        ok &= good
+        # into BUILD, so a failure can be looked at with `lxx log/png/struct`
+        # instead of rebuilt by hand.
+        results = rt.run_document(name, outdir=BUILD / f"doc-{name}")
+        # One line per check, not one per document: ua-demo's veraPDF
+        # verdict and its label depths ARE the gate on this file, and a
+        # gate that reports only "it built" is one nobody can read the
+        # evidence of.  The time goes on the first line, where the build is.
+        for i, (good, d) in enumerate(results):
+            steps.append((good, f"{name}: {d}",
+                          time.time() - t0 if i == 0 else 0))
+            ok &= good
 
     print()
     for good, what, dt in steps:

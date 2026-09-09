@@ -41,7 +41,14 @@ jobs:
           ln -s /opt/verapdf/verapdf /usr/local/bin/verapdf
           verapdf --version
 
-      - name: Run the regression suite
+      # --documents is the rest of the gate, and the reason it is spelled
+      # out here rather than left to a later job: without it CI builds the
+      # cases and nothing else, so the manual could stop compiling and
+      # examples/ua-demo.pdf could stop being PDF/UA while every push
+      # stayed green -- the two checks CLAUDE.md requires before delivering
+      # used to run only where the author typed them.  The suite refuses to
+      # start if this file drops the flag (runtests.tooling_integrity).
+      - name: Run the regression suite, the manual and the examples
         run: |
           cd tests
-          python3 runtests.py
+          python3 runtests.py --documents

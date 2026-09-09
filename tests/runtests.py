@@ -14,12 +14,21 @@ ASSERTIONS.  Only what ASSERTIONS lists is ever run, so a case file without
 an entry is dead weight; the suite refuses to run until every case file is
 either wired up or declared SMOKE_ONLY (see suite_integrity).
 
+Beyond the cases there are the DOCUMENTS: the manual and the shipped
+examples, which are not test cases and still have to build.  --documents
+builds them and validates examples/ua-demo.pdf with veraPDF, which is the
+pre-delivery gate of CLAUDE.md -- and which, until that flag existed, only
+ever ran on the author's machine.  It is opt-in because the manual costs
+about a minute; CI passes it, and tooling_integrity checks that CI still
+does.
+
 Usage:
     python3 runtests.py                  # all cases, all engines
     python3 runtests.py -e pdflatex      # one engine
     python3 runtests.py -k gloss         # cases matching a substring
     python3 runtests.py -v               # show every assertion, not just failures
     python3 runtests.py -j1              # one case at a time (default: DEFAULT_JOBS)
+    python3 runtests.py --documents      # ... and the manual and the examples
 
 Requires: pdflatex / xelatex / lualatex, pdftotext and pdfinfo
 (poppler-utils), qpdf (to resolve a named destination to the page it lands
@@ -27,13 +36,14 @@ on, which no poppler tool reports), and veraPDF on PATH as `verapdf` -- the
 only authoritative oracle for PDF/UA, used by the `ua` case.
 That list is REQUIRED_TOOLS, and it is checked rather than described: the
 suite refuses to start if a tool is missing from PATH, unnamed in this
-paragraph, or not installed by the CI workflow.  The three used to be
+paragraph, or not installed by either CI definition.  They used to be
 kept in step by hand and were not.
 
 Exit status: 0 iff every assertion passed, 1 on a failing assertion,
 2 on a suite-integrity problem (an unwired case file, a missing case file,
 a stale KNOWN_XFAIL or PASSES key, a required tool that PATH, this
-docstring and the workflow do not agree about) or when no case matches -k.
+docstring and the CI definitions do not agree about, a CI definition that
+no longer runs --documents) or when no case matches -k.
 """
 
 import argparse
@@ -193,10 +203,19 @@ REQUIRED_TOOLS = {
     "verapdf":   ("step:Install veraPDF", False,
                   "the PDF/UA oracle, used by the `ua` case"),
 }
-#: The workflow the tools above are checked against.  Absent from a
+#: The CI definitions the tools above are checked against.  Absent from a
 #: distribution tarball, where there is no CI to disagree with; the check
 #: is about this repository, not about the package.
-WORKFLOW = Path(__file__).parent.parent / ".github" / "workflows" / "ci.yml"
+#:
+#: The GitHub workflow is the reference -- REQUIRED_TOOLS cites its step
+#: names.  The GitLab pipeline is checked for what generalises: the apt
+#: packages, a tool proving it started with --version, and the suite
+#: invocation.  Its own header records why it is checked at all: nothing
+#: checked it, so it is the one that drifted, and it installed neither qpdf
+#: nor veraPDF long after both had become requirements.
+REPO = Path(__file__).parent.parent
+WORKFLOW = REPO / ".github" / "workflows" / "ci.yml"
+GITLAB_CI = REPO / ".gitlab-ci.yml"
 CASES = Path(__file__).parent / "cases"
 if not CASES.is_dir():                       # flat layout: cases beside the script
     CASES = Path(__file__).parent
@@ -4436,6 +4455,42 @@ def struct_label_depths(pdf: Path):
             for m in re.finditer(r'(?m)^( *)"\((\d+)\)"', out)]
 
 
+def struct_lbl_depths(pdf: Path):
+    """struct_label_depths, narrowed to numbers that really are list labels.
+
+    Same question, same meaning of the answer -- an element left open drops
+    the depth of everything after it -- but asked of a REAL document rather
+    than of a case file.  The pattern above matches any "(N)" string in the
+    tree, which is exact for a case (whose prose is written not to contain
+    one) and wrong for the manual or ua-demo: a relative reference typeset
+    in running text is also the string "(1)", sits at whatever depth its
+    paragraph does, and made ua-demo look broken when it was not.  What
+    distinguishes a label is its enclosing element, so that is what is
+    matched here.
+
+    Lived in the agent harness first, where it was written for exactly this
+    file; it is here because the documents phase needs it and an assertion
+    belongs with the suite.
+    """
+    out = subprocess.run(["pdfinfo", "-struct-text", str(pdf)],
+                         capture_output=True, text=True,
+                         errors="replace").stdout
+    stack, found = [], []
+    for ln in out.splitlines():
+        indent = len(ln) - len(ln.lstrip())
+        body = ln.strip()
+        m = re.match(r"^([A-Za-z0-9]+) <ID\.[0-9a-f]+>", body)
+        if m:
+            while stack and stack[-1][0] >= indent:
+                stack.pop()
+            stack.append((indent, m.group(1)))
+            continue
+        m = re.match(r'^"\((\d+)\)"', body)
+        if m and stack and stack[-1][1] == "Lbl":
+            found.append((m.group(1), stack[-1][0]))
+    return found
+
+
 def struct_alts(raw: bytes):
     """Decoded /Alt strings on Span elements (spoken judgment forms).
 
@@ -4768,6 +4823,146 @@ ASSERTIONS = {
 
 
 # ---------------------------------------------------------------------------
+#  Documents: the half of the gate that is not a test case
+# ---------------------------------------------------------------------------
+
+def d_ua_demo(pdf: Path):
+    """The PDF/UA gate on the FULL accessible document.
+
+    The `ua` case does not replace this one and was never meant to: it
+    deliberately omits footnote examples (its header says so), and a
+    footnote example is the construct whose structure is hardest to keep
+    valid.  CLAUDE.md has therefore always required veraPDF on this file
+    before delivering; what it could not require was that anything but the
+    author's own machine ever ran it.
+
+    Three oracles, because no one of them sees what the others do: the
+    verdict; what veraPDF LOGGED while parsing, which it can do while still
+    reporting compliant (verapdf_log_records); and the depth of the
+    top-level numbers, which is the only one of the three that catches an
+    element never closed -- that stays spec-valid and quietly adopts the
+    rest of the document (struct_lbl_depths).
+    """
+    if not shutil.which("verapdf"):
+        return [(False, "verapdf is not on PATH: the PDF/UA gate for the "
+                        "accessible demo cannot run (it is the only "
+                        "authoritative oracle for PDF/UA)")]
+    verdicts, failures, raw = verapdf_report(pdf)
+    if not verdicts:
+        return [(False, f"veraPDF produced no verdict -- it is on PATH but "
+                        f"could not report (broken install? missing JRE?). "
+                        f"Its output was: {raw[:400]!r}")]
+    r = [check(len(verdicts) >= 3,
+               f"veraPDF reported on all its profiles (got {verdicts})")]
+    failed = [name for name, ok in verdicts if not ok]
+    r.append(check(not failed,
+                   f"veraPDF: compliant on every profile; failed {failed} "
+                   f"with {failures}"
+                   if failed else
+                   "veraPDF: compliant on every profile"))
+    logged = verapdf_log_records(raw)
+    r.append(check(not logged,
+                   f"veraPDF parsed the file without complaint; it logged "
+                   f"{len(logged)} record(s): {logged[:3]}"
+                   if logged else
+                   "veraPDF parsed the file without complaint"))
+    depths = struct_lbl_depths(pdf)
+    levels = {d for _, d in depths}
+    r.append(check(len(depths) >= 8 and len(levels) == 1,
+                   f"every top-level example number sits at one depth; "
+                   f"got {depths}"))
+    # \altn and \altg are text, not math: a Formula element in a PDF/UA-2
+    # document needs an /Alt or a MathML association and this package has
+    # neither to give.  Avoiding it is the whole point of the 0.12 rewrite.
+    r.append(check(not struct_has_formula(pdf),
+                   "no Formula element in the tree"))
+    return r
+
+
+#: The documents that are not test cases and still have to build, with the
+#: engine each is built under, the passes it needs and anything to check
+#: beyond the build itself.
+#:
+#: Building IS the assertion for three of them.  That is not a low bar: the
+#: manual is the only document that exercises the package as a reader meets
+#: it -- every option, both front-ends, the whole of the glossing code, over
+#: 3000 lines -- and nothing in cases/ is remotely that long.
+#:
+#: One engine each, and deliberately not a matrix: the engine matrix belongs
+#: to the cases, where `ua`, `langsci-ua`, `exannot-ua` and `tagged` run the
+#: tagging under all three.  The manual builds under lualatex alone and
+#: errors out under pdflatex on purpose (it documents, and contains, the
+#: dot-below transliterations pdflatex gives a broken text layer).
+#:
+#: ua-demo gets three passes because PDF/UA validity needs a third one on
+#: the engines that do not converge in two, and an unconverged file fails
+#: veraPDF exactly like a real regression.  See PASSES for the same rule
+#: applied to the cases.
+DOCUMENTS = {
+    "ua-demo": (REPO / "examples" / "ua-demo.tex", "lualatex", 3, d_ua_demo),
+    "accessible-demo": (REPO / "examples" / "accessible-demo.tex",
+                        "lualatex", 2, None),
+    "altg-demo": (REPO / "examples" / "altg-demo.tex", "pdflatex", 2, None),
+    "manual": (REPO / "linguexx-doc.tex", "lualatex", 3, None),
+}
+
+
+def run_document(name: str, outdir: Path = None):
+    """Build one document and run whatever else it asks for.
+
+    `outdir` keeps the build (and the PDF, at <outdir>/<stem>.pdf) instead
+    of discarding it with a temporary directory: what the agent harness
+    passes when the point of the run is to look at the result afterwards.
+    """
+    src, engine, passes, checker = DOCUMENTS[name]
+    if not src.is_file():
+        return [(False, f"MISSING DOCUMENT FILE: {src}")]
+    if not shutil.which(engine):
+        return [(False, f"{engine} is not installed, so {src.name} was "
+                        f"not built")]
+    tmpdir = None
+    if outdir is None:
+        tmpdir = tempfile.TemporaryDirectory()
+        work = Path(tmpdir.name)
+    else:
+        work = outdir
+        work.mkdir(parents=True, exist_ok=True)
+    try:
+        shutil.copy(src, work)
+        shutil.copy(STY, work)
+        env = dict(os.environ, TMPDIR=str(work))    # see DEFAULT_JOBS
+        for _ in range(passes):
+            try:
+                proc = subprocess.run(
+                    [engine, "-interaction=nonstopmode", "-halt-on-error",
+                     src.name],
+                    cwd=work, capture_output=True, text=True,
+                    timeout=CASE_TIMEOUT, env=env,
+                )
+            except subprocess.TimeoutExpired:
+                return [(False, f"TIMED OUT after {CASE_TIMEOUT}s: {engine} "
+                                f"did not stop (a TeX loop ignores "
+                                f"nonstopmode)")]
+            if proc.returncode != 0:
+                break
+        log = work / f"{src.stem}.log"
+        text = log.read_text(errors="replace") if log.exists() else ""
+        if proc.returncode != 0:
+            errs = [l for l in text.splitlines() if l.startswith("!")][:3]
+            return [(False, f"BUILD FAILED under {engine}: "
+                            f"{'; '.join(errs) or 'see the log'}")]
+        pdf = work / f"{src.stem}.pdf"
+        if not pdf.exists():
+            return [(False, f"{engine} exited 0 and produced no PDF")]
+        r = [(True, f"{src.name} builds under {engine} "
+                    f"({passes} passes, {len(text.splitlines())} log lines)")]
+        return r + (checker(pdf) if checker else [])
+    finally:
+        if tmpdir is not None:
+            tmpdir.cleanup()
+
+
+# ---------------------------------------------------------------------------
 
 def discover_cases():
     """Case-file stems present on disk (anything but the _preamble* helpers).
@@ -4833,17 +5028,24 @@ def suite_integrity():
 
 
 def tooling_integrity():
-    """Cross-check REQUIRED_TOOLS against PATH, the docstring and the workflow.
+    """Cross-check REQUIRED_TOOLS against PATH, the docstring and CI.
 
-    Three places have to agree about what the suite needs, and they had
+    Several places have to agree about what the suite needs, and they had
     already drifted once: qpdf reached the docstring and not the workflow,
     so every local run passed and CI failed on a FileNotFoundError two
     minutes in.  The list in REQUIRED_TOOLS is now the only statement of the
-    requirement, and this checks that the other two match it.
+    requirement, and this checks that the others match it.
 
     The docstring half is not pedantry.  It is what a person reads before
-    running the suite, and it is the only one of the three a reader of the
+    running the suite, and it is the only one of them a reader of the
     file can see.
+
+    The same drift had a second form, which is why --documents is checked
+    here too: CI ran the cases and nothing else, so the manual could stop
+    compiling and ua-demo could stop being PDF/UA with every push staying
+    green -- the gate that would have caught it lived in CLAUDE.md and ran
+    only where the author typed it.  A phase CI can silently omit is a
+    phase CI eventually omits.
     """
     problems = []
     for tool, (provided, at_startup, why) in REQUIRED_TOOLS.items():
@@ -4855,9 +5057,6 @@ def tooling_integrity():
                 f"{tool} is in REQUIRED_TOOLS but this module's docstring "
                 f"does not name it, so nobody reading the file learns they "
                 f"need it.")
-    if not WORKFLOW.exists():
-        return problems
-    workflow = WORKFLOW.read_text(errors="replace")
     # What is searched is the apt-get command's own argument list, and not
     # the file.  Searching the file passes a workflow that installs nothing:
     # this one both installs qpdf and SAYS why, in a comment and in a step
@@ -4865,25 +5064,55 @@ def tooling_integrity():
     # them are prose.  Verified the only way worth trusting -- by deleting
     # qpdf from the apt line and watching the first two versions of this
     # check stay green.
-    joined = re.sub(r"\\\n\s*", " ", workflow)   # undo the line continuations
-    apt = set()
-    for m in re.finditer(r"apt-get\s+install[^\n]*", joined):
-        apt.update(m.group(0).split())
-    for tool, (provided, at_startup, why) in REQUIRED_TOOLS.items():
-        kind, _, value = provided.partition(":")
-        if kind == "image":
-            continue                    # the container brings it
-        if kind == "apt":
-            ok = value in apt
-            what = f"install the package {value!r}"
-        else:
-            ok = f"- name: {value}" in workflow
-            what = f"run a step named {value!r}"
-        if not ok:
+    for ci, reference in ((WORKFLOW, True), (GITLAB_CI, False)):
+        if not ci.exists():
+            continue
+        text = ci.read_text(errors="replace")
+        joined = re.sub(r"\\\n\s*", " ", text)   # undo the line continuations
+        apt = set()
+        for m in re.finditer(r"apt-get\s+install[^\n]*", joined):
+            apt.update(m.group(0).split())
+        for tool, (provided, at_startup, why) in REQUIRED_TOOLS.items():
+            kind, _, value = provided.partition(":")
+            if kind == "image":
+                continue                # the container brings it
+            if kind == "apt":
+                ok = value in apt
+                what = f"install the package {value!r}"
+            elif reference:
+                ok = f"- name: {value}" in text
+                what = f"run a step named {value!r}"
+            else:
+                # The GitLab file has no named steps to cite, so what is
+                # checked there is what the step exists to DO: install the
+                # tool and prove it starts.  Both files end that install by
+                # running it once with --version, which is also the line
+                # that catches the failure veraPDF is famous for -- a
+                # launcher that exits 0 without a JVM.
+                ok = re.search(rf"(?m)^\s*-?\s*{tool} --version", joined) \
+                    is not None
+                what = f"install {tool} and run `{tool} --version`"
+            if not ok:
+                problems.append(
+                    f"{tool} is required ({why}) but {ci.name} does not "
+                    f"{what}; CI would then fail on a machine that happens "
+                    f"not to have it, long after the compile that hides why.")
+        # The INVOCATION lines, not the file, for the reason above: both CI
+        # files explain the flag in a comment, so a whole-file test for it
+        # passes a pipeline that runs the suite without it.  Measured, not
+        # assumed -- the first version of this check did exactly that.
+        invocations = [ln for ln in joined.splitlines()
+                       if "runtests.py" in ln
+                       and not ln.strip().lstrip("-").strip().startswith("#")]
+        if not any("--documents" in ln for ln in invocations):
             problems.append(
-                f"{tool} is required ({why}) but {WORKFLOW.name} does not "
-                f"{what}; CI would then fail on a machine that happens not "
-                f"to have it, long after the compile that hides why.")
+                f"{ci.name} " + ("does not run the suite at all"
+                                 if not invocations else
+                                 "runs the suite without --documents") +
+                ", so it never builds the manual or the shipped examples and "
+                "never validates ua-demo with veraPDF.  See DOCUMENTS: those "
+                "are the parts of the gate that used to run nowhere but on "
+                "the author's machine.")
     return problems
 
 
@@ -4996,6 +5225,11 @@ def main():
     ap.add_argument("-j", "--jobs", type=int, default=DEFAULT_JOBS,
                     help=f"cases to compile at once (default: {DEFAULT_JOBS}, "
                          f"see DEFAULT_JOBS; -j1 runs them one at a time)")
+    ap.add_argument("--documents", action="store_true",
+                    help="also build the manual and the shipped examples, "
+                         "and validate ua-demo with veraPDF (see DOCUMENTS); "
+                         "CI passes this, and the manual costs about a "
+                         "minute, which is why it is opt-in")
     args = ap.parse_args()
 
     # Deliberately before -k filtering: a filtered run must still notice a
@@ -5011,7 +5245,12 @@ def main():
     names = sorted(set(ASSERTIONS) | set(EXPECT_ERROR))
     if args.filter:
         names = [n for n in names if args.filter in n]
-    if not names:
+    # -k filters the documents too, so `-k manual --documents` is a way to
+    # build one of them and nothing else.
+    doc_names = sorted(DOCUMENTS) if args.documents else []
+    if args.filter:
+        doc_names = [n for n in doc_names if args.filter in n]
+    if not names and not doc_names:
         print("no cases match", file=sys.stderr)
         return 2
 
@@ -5089,7 +5328,32 @@ def main():
             if bad and key not in KNOWN_XFAIL:
                 failed_cases.append(key)
 
+    # The documents last: they are the slowest part of the run and the one
+    # whose failure is least likely to be diagnosed from the line above it.
+    doc_total = doc_passed = 0
+    if doc_names:
+        print("\n=== documents ===")
+        for name in doc_names:
+            results = run_document(name)
+            ok = sum(1 for good, _ in results if good)
+            doc_total += len(results)
+            doc_passed += ok
+            bad = [d for good, d in results if not good]
+            print(f"  [{'PASS' if not bad else 'FAIL'}] {name:16s} "
+                  f"{ok}/{len(results)} checks")
+            if args.verbose:
+                for good, d in results:
+                    if good:
+                        print(f"           . {d}")
+            for d in bad:
+                print(f"           X {d}")
+            if bad:
+                failed_cases.append(f"documents/{name}")
+
     print(f"\n{passed}/{total} assertions passed across {len(engines)} engine(s).")
+    if doc_names:
+        print(f"{doc_passed}/{doc_total} checks passed on "
+              f"{len(doc_names)} document(s).")
     stale = sorted((KNOWN_XFAIL & exercised) - fired)
     if stale:
         print("STALE KNOWN_XFAIL: these ran and PASSED, so the entry no "
