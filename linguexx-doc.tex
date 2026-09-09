@@ -273,6 +273,22 @@ bracketed judgment form of \cs{ex} work as they do there
 source of clashes with other packages; \pkg{linguexx} changes no
 category codes.
 
+\paragraph{One of them, not both.} \pkg{linguexx} replaces these packages
+rather than accompanying them, and a document must load only one.
+\pkg{linguex}, \pkg{expex}, \pkg{gb4e} and \pkg{langsci-gb4e} all define
+\cs{ex} --- as does this one, and all of them with \cs{def}, so whichever
+file is read second wins and nothing says so. The result compiles: the
+examples go on numbering, and what breaks is a detail in the middle of the
+document. \pkg{linguexx} therefore stops with an error naming the other
+package, whichever order they were loaded in. The environment and
+\cs{ea} syntaxes are available here as the options \opt{gb4e} and
+\opt{langsci} (sections~\ref{sec:envs} and~\ref{sec:langsci}), which is
+what a document that wants them should use. One case cannot be caught
+this way: \pkg{expex} is plain \TeX{} and may be read with \cs{input},
+which leaves no record of a package having been loaded. There the
+package warns that \cs{ex} is no longer its own and leaves the document
+alone.
+
 \paragraph{Parenthesis-free references.} The \cs{pref}/\cs{pNext} family
 follows a construction of Alan Munn's.
 

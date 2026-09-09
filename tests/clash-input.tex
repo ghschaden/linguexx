@@ -1,0 +1,11 @@
+%% expex is plain TeX and can be read with \input, which leaves no record
+%% for \@ifpackageloaded: the named check cannot see it, and the only
+%% trace is that \ex is no longer the one this package installed.  That is
+%% a warning and not an error -- redefining \ex is a document's own
+%% business -- so this case compiles, and the assertion is the log.
+\documentclass[11pt]{article}
+\usepackage{linguexx}
+\input expex
+\begin{document}
+CLASHINPUT ordinary text.
+\end{document}

@@ -1,0 +1,12 @@
+%% The other direction: linguexx first, the package it replaces second, so
+%% the collision is only visible at \begin{document}.  gb4e rather than
+%% linguex because linguex dies inside its own \newcounter{ExNo} before
+%% anything of ours can speak -- an error, but not one that says what the
+%% document did wrong.  gb4e loads to the end and would then quietly own
+%% \ex and the exe environment.
+\documentclass[11pt]{article}
+\usepackage{linguexx}
+\usepackage{gb4e}
+\begin{document}
+CLASHAFTER ordinary text.
+\end{document}

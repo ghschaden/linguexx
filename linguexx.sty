@@ -460,6 +460,61 @@
 % yourself, with whatever options you prefer.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  Packages this one cannot share a document with                     %%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% linguexx REPLACES these; it does not accompany them.  Each defines the
+%% same user commands out of the same tradition -- \ex and the dot syntax
+%% (linguex, expex), the exe/xlist environments (gb4e), \ea (langsci-gb4e)
+%% -- and all of them, this one included, define \ex with \def.  So the
+%% file read second wins, silently, and the document gets a working
+%% mixture: the examples go on numbering and what breaks is a detail in
+%% the middle of it.  A document being ported is exactly where this
+%% happens, because the old \usepackage line is the last thing anyone
+%% thinks to delete.
+%%
+%% Checked twice, because both orders occur and neither is more likely:
+%% at load time for a package already read, and again at \begin{document}
+%% for one read after this.
+%%
+%% cgloss4e is deliberately NOT in the list.  It defines \gll and \glt and
+%% would collide the same way, but whether a document may keep a foreign
+%% glossing package is the question doc/DEFERRED-DECISIONS.md leaves open
+%% under [nocgloss] -- and an error here would answer it by accident,
+%% which is what that file exists to prevent.
+\def\lx@clash@one#1{%
+  \@ifpackageloaded{#1}%
+    {\PackageError{linguexx}{The package #1 is loaded as well as linguexx}%
+      {linguexx reimplements #1's interface, so both define the same
+       commands and\MessageBreak
+       whichever is read second silently wins.\MessageBreak
+       Load one of them, not both: linguexx's [gb4e] and [langsci] options
+       provide\MessageBreak the other front-ends on this package's
+       engine.}}%
+    {}}
+\def\lx@clashcheck{%
+  \lx@clash@one{linguex}%
+  \lx@clash@one{expex}%
+  \lx@clash@one{gb4e}%
+  \lx@clash@one{langsci-gb4e}}
+\lx@clashcheck
+\AtBeginDocument{\lx@clashcheck}
+%% ... and one more for the package that is not one.  expex is plain TeX
+%% and can be read with \input, which leaves nothing for
+%% \@ifpackageloaded to find; what it does leave is a different \ex.  So
+%% the definition this package installed is remembered at the end of this
+%% file (\lx@ex@installed) and compared here.  A warning and not an error:
+%% redefining \ex is a document's own business, and only the document
+%% knows whether it meant to.
+\AtBeginDocument{%
+  \ifx\ex\lx@ex@installed\else
+    \PackageWarning{linguexx}{%
+      \string\ex\space is no longer linguexx's: something has redefined
+      it since\MessageBreak the package was loaded (another example
+      package, perhaps read\MessageBreak with \string\input).  The dot
+      syntax will now do whatever that\MessageBreak definition does}%
+  \fi}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%  Counters and number formatting (linguex-compatible names)          %%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -6931,5 +6986,13 @@
 %% expect.
 
 \resetExdefaults
+
+%% The \ex this package ends up with, for the \begin{document} check far
+%% above: taken here, after every branch that defines one ([gb4e] gives
+%% \ex to the environment front-end), so that what is remembered is what
+%% a document actually gets.  Under an option that defines no \ex at all
+%% both sides of the \ifx are undefined, which compares equal and says
+%% nothing, correctly.
+\let\lx@ex@installed\ex
 
 %%%% EOF

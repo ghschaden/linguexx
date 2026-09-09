@@ -138,6 +138,15 @@ PASSES = {"ua": 3, "frontend": 3, "langsci-ua": 3, "exannot-ua": 3,
 #: assertion.
 EXPECT_ERROR = {
     "altg-unpaired": "has no partner",
+    # A package this one REPLACES, loaded alongside it.  Both orders: the
+    # old \usepackage line left in front (clash-linguex) and a second
+    # front-end pulled in behind (clash-after).  Without the check the
+    # document compiles, because every one of these defines \ex with \def
+    # and the file read second simply wins -- so nothing else in this suite
+    # could see it.  clash-input.tex covers the third way in, which is not
+    # an error and cannot be one.
+    "clash-linguex": "is loaded as well as",
+    "clash-after": "is loaded as well as",
     # The one-syntax-per-example rule, both directions and the stray.  Each
     # of these renders without complaint if its guard is removed, and each
     # renders something the writer did not ask for: a sub-level only the
@@ -514,6 +523,26 @@ def a_exlbr(p: Page):
     r.append(check(label_of("EXLBROVERRIDE") == "[[3]]",
                    f"\\theExLBr still overrides \\ExLBr: "
                    f"{label_of('EXLBROVERRIDE')!r}, want '[[3]]'"))
+    return r
+
+
+def a_clash_input(p: Page):
+    r"""\input expex is a warning, and the document still compiles.
+
+    The named check cannot see this one: expex is plain TeX, \input leaves
+    no record for \@ifpackageloaded, and the only trace is that \ex is no
+    longer the definition this package installed.  An error would be
+    wrong -- redefining \ex is a document's own business -- so what is
+    asserted is that the package SAYS so and gets out of the way.
+    """
+    body = warning_body(p.log, "\\ex is no longer linguexx's")
+    r = [check(body, f"the package reports that \\ex was taken from it; "
+                     f"the log says {body[:120]!r}")]
+    r.append(check("redefined" in body,
+                   f"... and says what happened, not merely that something "
+                   f"did: {body[:120]!r}"))
+    r.append(check(p.find("CLASHINPUT") is not None,
+                   "the document still typesets: a warning, not an error"))
     return r
 
 
@@ -4848,6 +4877,7 @@ ASSERTIONS = {
     "termination": a_termination,
     "verb": a_verb,
     "exlbr": a_exlbr,
+    "clash-input": a_clash_input,
     "refs": a_refs,
     "relrefs": a_relrefs,
     "relreflinks": a_relreflinks,

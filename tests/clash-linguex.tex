@@ -1,0 +1,14 @@
+%% linguex loaded BEFORE linguexx: the port that kept its old \usepackage
+%% line.  Both define \ex with \def, so without the check the second file
+%% read wins silently and the document compiles into a mixture -- the
+%% examples keep numbering and what breaks is somewhere in the middle.
+%%
+%% No _preamble here: the load ORDER is the case.  See EXPECT_ERROR, and
+%% clash-after.tex for the other direction.
+\documentclass[11pt]{article}
+\usepackage{linguex}
+\usepackage{linguexx}
+\begin{document}
+CLASHBEFORE ordinary text.
+\ex. An example neither package should be left to claim.
+\end{document}

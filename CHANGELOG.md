@@ -17,6 +17,18 @@ version string.
   parenthesis suppression `\ExBareRefs` asks for. The footnote pair stays
   separate, as upstream: moving `\ExLBr` alone leaves a footnote example
   at `(i)`.
+- Fixed: loading a package this one replaces was silent. `linguex`,
+  `expex`, `gb4e` and `langsci-gb4e` all define `\ex`, all with `\def`,
+  and so does this one -- so whichever file was read second simply won and
+  the document compiled into a mixture that kept numbering. A document
+  being ported is exactly where that happens, because the old
+  `\usepackage` line is the last thing anyone deletes. All four are now
+  refused by name, in both load orders. `expex` read as plain `\TeX` with
+  `\input` leaves nothing to detect, so that one is a warning saying `\ex`
+  is no longer the package's. `cgloss4e` is deliberately not on the list:
+  whether a document may keep a foreign glossing package is the question
+  `doc/DEFERRED-DECISIONS.md` leaves open under `[nocgloss]`, and an error
+  would answer it by accident.
 - New: `\SetAltSpoken{word}` sets the connector a screen reader hears between
   the alternatives of a stack — `\altn{aa}{bb}` was announced "aa or bb" in
   every document, whatever its language, and there was no way to say "aa ou
