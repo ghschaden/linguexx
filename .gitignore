@@ -76,3 +76,9 @@ linguexx-doc-previous.*
 # all true of one working copy.
 .claude/settings.local.json
 .claude/.state/
+
+# dist/: what `make ctan` assembles for an upload.  Regenerable from a
+# clean tree by tools/ctan.py, and the one thing in here that must never
+# be committed -- a zip in git is a second copy of the package that
+# nothing checks against the first.
+dist/
