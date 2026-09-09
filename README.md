@@ -98,14 +98,24 @@ tagged cases, the PDF structure tree, across all three engines:
 
 ```sh
 cd tests
-python3 runtests.py            # all cases, all engines
-python3 runtests.py -k tagged  # one case
-python3 runtests.py -v         # show every assertion
+python3 runtests.py              # all cases, all engines
+python3 runtests.py -k tagged    # one case
+python3 runtests.py -v           # show every assertion
+python3 runtests.py --documents  # ... and the manual and the examples too
 ```
 
-It needs the three TeX engines plus `poppler-utils` (`pdftotext`, `pdfinfo`) and
-Python 3. One assertion (`pdflatex/judgment-align`) is a known `pdftotext`
-token-merging artifact, not a layout bug; it is marked expected-fail.
+`--documents` is the rest of the gate: it builds the manual and the shipped
+examples and validates `examples/ua-demo.pdf` with veraPDF, which is what the
+`ua` case cannot do for you (it deliberately leaves footnote examples out).
+It is what CI runs.
+
+It needs the three TeX engines and Python 3, plus `poppler-utils` (`pdftotext`
+for the word boxes every geometric assertion reads, `pdfinfo` for the structure
+tree), `qpdf` (to resolve a named destination to the page it lands on, which no
+poppler tool reports) and [veraPDF](https://verapdf.org/) on `PATH` as `verapdf`,
+which needs a JRE — it is the only authoritative oracle for PDF/UA. The suite
+will not start without poppler or qpdf, and the PDF/UA cases fail rather than
+quietly skip when veraPDF is absent.
 
 ## Requirements
 
