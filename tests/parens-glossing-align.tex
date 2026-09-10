@@ -1,0 +1,28 @@
+\input{_preamble}
+%% A translation that reproduces the object language's parentheses.
+%%
+%% Reported from a comparison of Italian and French word order: "(è questa)"
+%% glossed "(est celle-ci)" came out with the gloss one paren-width right of
+%% the object, while every other column in the same gloss was flush.  The pad
+%% was measured off the object word alone and applied to the tiers below
+%% without asking what those words already carried, so the gloss got the
+%% object's "(" on top of the "(" it had -- the aligner misaligning exactly
+%% the column that needed no alignment.
+%%
+%% The same words in two orders, as the report had them.  This case is the
+%% reported document and not a probe: real prose, \ag./\bg., a hoisted
+%% judgment mark, colour, a braced multi-word gloss cell.  The geometry that
+%% tells the rule apart from its plausible neighbours -- subtracting rather
+%% than skipping, and the clamp -- is in phantomalign.tex (7)-(9); only the
+%% parenthesised column is asserted here, because an unmarked column gets no
+%% pad under any variant of the rule and could not fail.
+\begin{document}
+\GlossPhantomAlign
+
+\ex. \ag. La causa \textcolor{blue}{prima} \textcolor{brown}{più} \textcolor{brown}{probabile} della sua morte (è questa)\\
+La cause principale plus probabable {de la} sienne mort (est celle-ci)\\
+\bg. *La cause \textcolor{brown}{più} \textcolor{brown}{probabile} \textcolor{blue}{prima} della sua morte (è questa)\\
+La cause plus probable principale {de la} sienne mort (est celle-ci)\\
+\z.
+
+\end{document}

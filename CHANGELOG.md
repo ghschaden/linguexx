@@ -3,6 +3,27 @@
 All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
+## Unreleased
+- Fixed: under `[phantomalign]`, a gloss word that reproduces the object
+  word's own delimiters came out one delimiter-width too far right.
+  `(è questa)` glossed `(est celle-ci)` -- a translation keeping the
+  parentheses of what it translates, which is the ordinary case and not a
+  corner one -- had its `(` padded by the object's `(` on top of the one it
+  already carried, so the aligner misaligned precisely the column that
+  needed no help; every other column in the same gloss stayed flush to the
+  hundredth of a point, which is why it read as a stray indent rather than
+  as this feature. The pad was measured from the object tier alone and
+  applied to the tiers below without asking what those words began with.
+  It is now the difference: the object word's leading run in the object
+  font, less the tier's own leading run in the tier's own font. Not "no pad
+  when the two runs match", which is the cheaper rule and wrong for the same
+  reason the pad is sized in the object font at all -- the tiers have fonts
+  of their own, and flushing a `\footnotesize` gloss's `(` against the
+  object's leaves the real glyphs apart by the difference. A tier carrying
+  *more* delimiter than the object would need a negative pad; that is
+  clamped at zero, leaving the gloss's delimiter sticking out to the left
+  rather than pushing ink into the neighbouring column.
+
 ## 1.3
 - Fixed: `\renewcommand{\ExLBr}{[}` did nothing. `linguex` has had
   `\ExLBr`/`\ExRBr` (and `\FnExLBr`/`\FnExRBr` for the footnote series)

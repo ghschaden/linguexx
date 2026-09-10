@@ -1385,6 +1385,69 @@ def a_phantomalign(p: Page):
     r.append(check(o6.x1 - g6.x1 > 2.0,
                    f"auto ignores a macro-wrapped bracket: gloss stem stays "
                    f"short of the object stem ({g6.x1:.2f} vs {o6.x1:.2f})"))
+
+    # (7)-(9): the pad is the object word's leading run MINUS the tier's own,
+    # clamped at zero.  Read off the TOKEN left edges (both tokens open with
+    # a mark here), since the stems differ in case and, in (8), in size.
+
+    # (7) same mark, same font: the pad is zero and the parens sit flush.
+    # The unconditional pad -- the object's "(" added on top of the gloss's
+    # own -- put the gloss a full paren-width right of where it belonged.
+    o7, g7 = p.find("(Ppp"), p.find("(ppp")
+    r.append(check(abs(g7.x0 - o7.x0) < TOL,
+                   f"same mark in both tiers: no pad, parens flush "
+                   f"({g7.x0:.2f} vs {o7.x0:.2f})"))
+
+    # (8) same mark, tier 2 at \tiny: the pad is the difference of the two
+    # bracket widths -- strictly greater than zero and strictly less than the
+    # full object bracket of (1).  The lower bound kills "skip the pad when
+    # the prefixes match" (which would flush the brackets and leave the real
+    # glyphs apart); the upper bound kills the unconditional pad.
+    o8, g8 = p.find("[Rrr"), p.find("[rrr")
+    pad8 = g8.x0 - o8.x0
+    r.append(check(pad8 > TOL,
+                   f"smaller tier, same mark: pad is positive "
+                   f"({pad8:.2f}pt) -- not skipped because the marks match"))
+    r.append(check(pad8 < shift1 - TOL,
+                   f"smaller tier, same mark: pad is the DIFFERENCE, short of "
+                   f"the full bracket ({pad8:.2f} vs {shift1:.2f}pt)"))
+
+    # (9) clamp: the gloss carries more mark than the object, so the exact
+    # pad is negative and would push ink left out of the column.  Zero
+    # instead -- the gloss keeps the column origin.
+    o9, g9 = p.find("?Ttt"), p.find("*([ttt")
+    r.append(check(abs(g9.x0 - o9.x0) < TOL,
+                   f"pad clamped at zero: gloss keeps the column origin "
+                   f"({g9.x0:.2f} vs {o9.x0:.2f})"))
+    return r
+
+
+def a_parens_glossing_align(p: Page):
+    """A translation that reproduces the object language's parentheses.
+
+    The reported document behind the subtraction in \\__lx_gl_pad:nn:
+    "(e questa)" glossed "(est celle-ci)" put the gloss a paren-width right of
+    the object, because the pad was measured off the object word alone and
+    then added to a gloss word that already carried the same "(".  Real
+    prose rather than the synthetic stems of phantomalign.tex -- \\ag./\\bg.,
+    a hoisted judgment mark, colour, a braced multi-word gloss cell -- so the
+    rule is exercised where it was reported and not only where it is probed.
+    The two examples are the same words in two orders, as the report had
+    them.  The unmarked columns are deliberately NOT asserted here: a word
+    with no leading marks gets no pad under any variant of this rule, so
+    checking one would be an assertion nothing can fail.  phantomalign.tex
+    (7)-(9) carries the discriminating geometry."""
+    def both(text):
+        """The two occurrences of an exact token, in reading order."""
+        ws = sorted((w for w in p.words if w.text == text), key=lambda w: w.y0)
+        assert len(ws) == 2, f"expected 2 of {text!r}, found {len(ws)}: {ws}"
+        return ws
+
+    r = []
+    for n, (o, g) in enumerate(zip(both("(è"), both("(est")), start=1):
+        r.append(check(abs(g.x0 - o.x0) < TOL,
+                       f"example {n}: gloss paren sits under the object paren "
+                       f"({g.x0:.2f} vs {o.x0:.2f})"))
     return r
 
 
@@ -4864,6 +4927,7 @@ ASSERTIONS = {
     "lpzglist": a_lpzglist,
     "lpzgsetup": a_lpzgsetup,
     "phantomalign": a_phantomalign,
+    "parens-glossing-align": a_parens_glossing_align,
     "phantommarks": a_phantommarks,
     "altg": a_altg,
     "altn": a_altn,

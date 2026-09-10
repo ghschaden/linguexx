@@ -4642,11 +4642,14 @@
 %% object line opens with a run of delimiter/judgment characters -- e.g.
 %% "[ein" in "ich bin [ein Idiot]" -- the gloss word below it normally
 %% left-aligns with the "[", not with "ein".  With alignment on, the gloss
-%% word (and any further tiers) is preceded by a \phantom of that leading
-%% run, SET IN THE OBJECT-TIER FONT, so its first real glyph sits under the
-%% first real glyph of the object word regardless of the gloss-tier size
-%% (e.g. \footnotesize glosses still line up).  The phantom ships no ink and
-%% no marked content, so tagging is unaffected.  Enable with the package
+%% word (and any further tiers) is preceded by an empty box the width of
+%% that leading run, SET IN THE OBJECT-TIER FONT, so its first real glyph
+%% sits under the first real glyph of the object word regardless of the
+%% gloss-tier size (e.g. \footnotesize glosses still line up).  Less
+%% whatever leading marks the tier's OWN word carries, in the tier's own
+%% font, clamped at zero -- see \__lx_gl_pad:nn, which is where the rule
+%% and the reasons for it live.  The pad ships no ink and no marked
+%% content, so tagging is unaffected.  Enable with the package
 %% option [phantomalign] or \GlossPhantomAlign; \GlossPhantomAlignOff turns
 %% it back off.  \GlossPhantomChars sets the leading marks that count
 %% (default: the judgment marks * ? \# \% and the openers ( [ < ), and the
@@ -4682,6 +4685,14 @@
 \tl_new:N  \l__lx_gl_obj_tl
 \str_new:N \l__lx_gl_head_str
 \quark_new:N \q__lx_gl_stop
+%% The lower tier's own peel, kept apart from the object tier's: the two
+%% halves of the subtraction below are live at the same moment, and the
+%% peel writes through whatever it is handed.
+\tl_new:N  \l__lx_gl_tierword_tl
+\tl_new:N  \l__lx_gl_tierprefix_tl
+\tl_new:N  \l__lx_gl_tierrest_tl
+\dim_new:N \l__lx_gl_pad_dim
+\box_new:N \l__lx_gl_pad_box
 \cs_new_protected:Npn \GlossPhantomAlign
   { \bool_set_true:N \l__lx_gl_phantom_bool }
 \cs_new_protected:Npn \GlossPhantomAlignOff
@@ -4786,6 +4797,60 @@
       { \int_compare:nNnT {##1} = {#3} { \tl_set:Nn #1 {##2} } }
   }
 \cs_generate_variant:Nn \__lx_gl_word_get:NNn { Ncn }
+\cs_generate_variant:Nn \__lx_gl_peel:nNN { V }
+%% The pad in front of word #2 of tier #1, for a column whose OBJECT word
+%% peeled \l__lx_gl_prefix_tl.  What is wanted is that the first REAL
+%% glyph of the tier sit under the first real glyph of the object word;
+%% the pad is therefore a DIFFERENCE, not the object's prefix outright:
+%%
+%%   max( 0 , wd(object prefix, tier-1 font) - wd(own prefix, tier-#1 font) )
+%%
+%% The subtraction is the whole point.  A translation reproduces the
+%% delimiters of what it translates -- "(e~questa)" glossed "(est
+%% celle-ci)" is the ordinary case, not a corner one -- and padding such a
+%% word by the object's "(" on top of the "(" it already carries put the
+%% gloss one paren-width too far right, so the aligner MISALIGNED exactly
+%% the columns that were already aligned.  It went unseen because the
+%% pad was computed from tier 1 alone and applied blindly downward; every
+%% other column in the same gloss was flush to the hundredth of a point.
+%%
+%% Not "skip the pad when the two prefixes match", which is the obvious
+%% cheaper rule and is wrong for the reason the phantom is set in the
+%% OBJECT font in the first place: the tiers have fonts of their own, and
+%% a "(" in a \footnotesize\itshape gloss is about half a point narrower
+%% than the object's.  Flushing the two parens leaves the real glyphs
+%% apart by that difference -- the very residual this feature exists to
+%% remove.  Measuring both and subtracting handles matching, partial and
+%% absent prefixes with one rule and no special cases.
+%%
+%% Clamped at zero.  When the tier carries a mark the object does not
+%% ("e" glossed "(est"), aligning the real glyphs needs a NEGATIVE pad,
+%% which would push ink out of the column box and into the gap belonging
+%% to the column before it.  The gloss's own delimiter is left sticking
+%% out instead: a delimiter half a paren left of where it wants to be is
+%% a blemish, one overlapping the previous gloss word is a defect.
+%%
+%% The tier word is retrieved unexpanded, for the same reason the object
+%% word is (see \__lx_gl_word_get:NNn): the peel must see literal marks
+%% and not expand its way into a macro-wrapped bracket.  Both prefixes
+%% are typeset into a scratch box that is measured and dropped, so the
+%% pad ships as width and never as ink or marked content -- the tier's
+%% own prefix is run twice, once to measure and once for real, which the
+%% mark set (characters and robust control sequences) is safe under.
+\cs_new_protected:Npn \__lx_gl_pad:nn #1#2
+  {
+    \__lx_gl_word_get:Ncn \l__lx_gl_tierword_tl
+      { l__lx_gl_tier_ #1 _seq } {#2}
+    \__lx_gl_peel:VNN \l__lx_gl_tierword_tl
+      \l__lx_gl_tierprefix_tl \l__lx_gl_tierrest_tl
+    \hbox_set:Nn \l__lx_gl_pad_box
+      { \lx@glfontuse {1} { \l__lx_gl_prefix_tl } }
+    \dim_set:Nn \l__lx_gl_pad_dim { \box_wd:N \l__lx_gl_pad_box }
+    \hbox_set:Nn \l__lx_gl_pad_box
+      { \lx@glfontuse {#1} { \l__lx_gl_tierprefix_tl } }
+    \dim_sub:Nn \l__lx_gl_pad_dim { \box_wd:N \l__lx_gl_pad_box }
+    \hbox_to_wd:nn { \dim_max:nn { \c_zero_dim } { \l__lx_gl_pad_dim } } { }
+  }
 %% An \exannot on the OBJECT line of a gloss.  It is lifted off tier 1
 %% before the columns are built and set after them, on the object tier's
 %% own baseline, at \ExAnnotColumn -- so a glossed example carries the same
@@ -5053,10 +5118,14 @@
               { % tier ####1
                 \hbox:n
                   { \strut
+                    %% An object word with no leading marks pads nothing,
+                    %% rather than falling through to a pad the clamp
+                    %% would zero anyway: that is the same answer, and it
+                    %% keeps a gloss whose delimiters the object does not
+                    %% share exactly where it was typed.
                     \int_compare:nNnT {####1} > { 1 }
                       { \tl_if_empty:NF \l__lx_gl_prefix_tl
-                          { \phantom
-                              { \lx@glfontuse {1} { \l__lx_gl_prefix_tl } } } }
+                          { \__lx_gl_pad:nn {####1} {##1} } }
                     \lx@gl@wordbegin {####1}
                     \lx@glfontuse {####1}
                       { \seq_item:cn { l__lx_gl_tier_ ####1 _seq } {##1} }

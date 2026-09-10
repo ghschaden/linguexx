@@ -56,4 +56,44 @@
      Mmm nnn \\
 \glt `Auto does not see through a macro-wrapped bracket.'
 
+%% (7)-(9) probe the SUBTRACTION: the pad is the object word's leading run
+%% MINUS whatever leading run the tier's own word carries, clamped at zero.
+%% Here the gloss word carries marks of its own, so object and gloss tokens
+%% both start with them and the geometry is read off the TOKEN left edges
+%% (the mark), not off the stem right edges as in (1)-(6): the stems differ
+%% in case, and in (8) in size, so their widths are not comparable.
+
+% (7) both tiers open with "(", both in the same font: the pad is zero and
+% the two parens sit flush, which puts the stems flush too.  A translation
+% reproducing the delimiters of what it translates is the ordinary case
+% ("(e' questa)" glossed "(est celle-ci)"), and padding the gloss by the
+% object's paren on top of its own put it one paren-width too far right --
+% the aligner misaligning precisely the column that needed no help.
+\ex. \gll (Ppp QQQ \\
+     (ppp qqq \\
+\glt `ON: same mark in both tiers, no pad.'
+
+% (8) the same, with tier 2 at \tiny: the tier's own "[" is about half the
+% object's, so the pad is the DIFFERENCE -- strictly between zero and the
+% full bracket width of (1).  This is what separates the subtraction from
+% the cheaper "skip the pad when the prefixes match": that rule would flush
+% the two brackets and leave the real glyphs apart by the difference, which
+% is the residual the phantom is set in the object font to remove.  \tiny
+% rather than \footnotesize only so the gap clears TOL: at \footnotesize
+% the difference is 0.37pt and no assertion could see it.
+{\GlossTierFont{2}{\tiny}%
+\ex. \gll [Rrr SSS \\
+     [rrr sss \\
+\glt `ON: same mark, smaller tier, pad is the difference.'
+}
+
+% (9) the clamp.  The gloss carries MORE mark than the object ("?" against
+% "*(["), so aligning the real glyphs would need a negative pad, pulling the
+% gloss's marks out of the column box and into the gap belonging to the
+% column before it.  It is clamped at zero instead: the gloss stays at the
+% column origin with its marks sticking out to the left of the object's.
+\ex. \gll ?Ttt UUU \\
+     *([ttt uuu \\
+\glt `ON: pad clamped at zero, gloss keeps the column origin.'
+
 \end{document}

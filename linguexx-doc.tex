@@ -1277,15 +1277,39 @@ I am a idiot\\
 {\GlossPhantomAlign
 \ex. \gll Ich bin [<ein Idiot>]\\ I am a idiot\\}
 
-\noindent The padding is a \cs{phantom} of the leading marks \emph{set in
-the object-line font}, so alignment holds even when the gloss tier is set at
-a different size (a \cs{footnotesize} gloss still lines up under the
-full-size bracket). It ships no ink and no marked content, so tagging is
-unaffected. Any number of leading marks are skipped together; the marks that
-count are, by default, the judgment marks \verb|* ? \# \%| and the
+\noindent The padding is an invisible box the width of the leading marks
+\emph{set in the object-line font}, so alignment holds even when the gloss
+tier is set at a different size (a \cs{footnotesize} gloss still lines up
+under the full-size bracket). It ships no ink and no marked content, so
+tagging is unaffected. Any number of leading marks are skipped together; the
+marks that count are, by default, the judgment marks \verb|* ? \# \%| and the
 openers \texttt{(\,[\,<}. Change the set with
 \cs{GlossPhantomChars}\marg{marks}, e.g.\ \cs{GlossPhantomChars}\texttt{\{[(\}}
 to react to square and round brackets only.
+
+A translation usually keeps the delimiters of what it translates, and such a
+gloss word is padded only by the \emph{difference}. In
+
+\begin{code}
+{\GlossPhantomAlign
+\ex. \gll della sua morte (\`e questa)\\
+of.the his death (is this.one)\\
+}
+\end{code}
+
+\rendered
+{\GlossPhantomAlign
+\ex. \gll della sua morte (\`e questa)\\ of.the his death (is this.one)\\}
+
+\noindent the gloss carries a parenthesis of its own, so its first real glyph
+already sits where it belongs and nothing is added: the two parentheses stay
+flush. Were the tier set at a smaller size its parenthesis would be narrower
+than the object's, and the pad would be exactly that difference --- enough to
+put the real glyphs under one another, and no more. Should the gloss open
+with \emph{more} mark than the object word does, aligning the real glyphs
+would mean pulling the gloss to the \emph{left} of its column, into the space
+belonging to the word before it; that is not done. The gloss keeps the column
+and its extra mark hangs out on the left.
 
 The argument is a list without separators: \emph{one token is one mark}, so a
 character and a command count alike and neither commas nor spaces are needed
