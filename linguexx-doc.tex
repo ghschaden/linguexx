@@ -2374,12 +2374,19 @@ of the text margin and take no space.
 \noindent Every parameter is an ordinary length, set with \cs{setlength}
 anywhere in the document:
 
-\begin{center}
+\begingroup
 \renewcommand{\arraystretch}{1.25}
-\begin{tabular}{@{}>{\ttfamily}l l p{0.44\linewidth}@{}}
+\setlength{\LTpre}{\medskipamount}\setlength{\LTpost}{\medskipamount}
+\begin{longtable}{@{}>{\ttfamily}l l p{0.44\linewidth}@{}}
 \toprule
 \normalfont Length & Default & Role \\
 \midrule
+\endhead
+\midrule
+\multicolumn{3}{r@{}}{\normalfont\footnotesize\itshape continued on the next page} \\
+\endfoot
+\bottomrule
+\endlastfoot
 \textbackslash Extopsep & \texttt{.66\textbackslash baselineskip} &
   Vertical space before and after an example. \\
 \textbackslash Exredux & \texttt{-.66\textbackslash baselineskip} &
@@ -2418,9 +2425,8 @@ anywhere in the document:
   annotation onto the next line rather than crowd in. \\
   & & Under \cs{ExAnnotFit} the same length is the distance the fitted
   column keeps past the longest example of its block. \\
-\bottomrule
-\end{tabular}
-\end{center}
+\end{longtable}
+\endgroup
 
 \noindent A few further knobs are macros, not lengths, and are changed with
 \cs{renewcommand}: \cs{GlossSep} (glue between gloss columns),
