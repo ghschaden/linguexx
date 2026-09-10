@@ -4832,23 +4832,38 @@
 %%
 %% The tier word is retrieved unexpanded, for the same reason the object
 %% word is (see \__lx_gl_word_get:NNn): the peel must see literal marks
-%% and not expand its way into a macro-wrapped bracket.  Both prefixes
-%% are typeset into a scratch box that is measured and dropped, so the
-%% pad ships as width and never as ink or marked content -- the tier's
-%% own prefix is run twice, once to measure and once for real, which the
-%% mark set (characters and robust control sequences) is safe under.
+%% and not expand its way into a macro-wrapped bracket.
+%%
+%% Both prefixes are typeset into a scratch box that is measured and
+%% dropped, so the pad ships as width and never as ink.  It must not ship
+%% STRUCTURE either, and a dropped box is not enough for that: tagpdf
+%% builds the tree as the material is executed, not when the box is used,
+%% so a mark that opens a structure element does so from inside a box
+%% nobody ever sees.  A mark declared through \GlossPhantomChars can be
+%% any control sequence, including one that enters math -- a Quine corner
+%% \ensuremath{\ulcorner} is the natural case -- and then each measure
+%% adds a Formula element with no content on the page for a screen reader
+%% to find.  \tag_suspend:n keeps both measures out of the tree.
+%%
+%% This is the one thing the \phantom of the earlier, unconditional pad
+%% got for free: the kernel already keeps \phantom material out of the
+%% tree, so replacing it with a raw \hbox_set:Nn was a quiet regression --
+%% two ghost Formulae per column where there had been none, valid under
+%% veraPDF (which passes either way) and wrong for a reader.
 \cs_new_protected:Npn \__lx_gl_pad:nn #1#2
   {
     \__lx_gl_word_get:Ncn \l__lx_gl_tierword_tl
       { l__lx_gl_tier_ #1 _seq } {#2}
     \__lx_gl_peel:VNN \l__lx_gl_tierword_tl
       \l__lx_gl_tierprefix_tl \l__lx_gl_tierrest_tl
+    \tag_suspend:n { lx-gl-pad }
     \hbox_set:Nn \l__lx_gl_pad_box
       { \lx@glfontuse {1} { \l__lx_gl_prefix_tl } }
     \dim_set:Nn \l__lx_gl_pad_dim { \box_wd:N \l__lx_gl_pad_box }
     \hbox_set:Nn \l__lx_gl_pad_box
       { \lx@glfontuse {#1} { \l__lx_gl_tierprefix_tl } }
     \dim_sub:Nn \l__lx_gl_pad_dim { \box_wd:N \l__lx_gl_pad_box }
+    \tag_resume:n { lx-gl-pad }
     \hbox_to_wd:nn { \dim_max:nn { \c_zero_dim } { \l__lx_gl_pad_dim } } { }
   }
 %% An \exannot on the OBJECT line of a gloss.  It is lifted off tier 1
