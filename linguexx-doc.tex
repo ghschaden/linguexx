@@ -1327,6 +1327,49 @@ how you add a mark of your own:
 that is not in the set is not a mark: it stays in the word, where you typed
 it.
 
+There is one restriction on what may be a mark, and it is worth stating as a
+rule: \emph{math-mode code typed directly into the example cannot be a
+delimiter; a command that contains math can.} A Quine corner written
+\verb|$\ulcorner{}$| in the object word cannot be declared, however you
+spell the declaration. The same corner given a name --- \cs{qq}, defined as
+\verb|\ensuremath{\ulcorner}| --- can be, and from then on behaves like
+every other mark in the set.
+
+The reason is \emph{one token is one mark} read the other way round. The
+scan looks at the first \emph{token} of the word, and in
+\verb|($\ulcorner{}$machin| that token is the \texttt{\$}, which is not a
+mark; the scan stops there, before it has so much as seen \cs{ulcorner}. So
+putting \cs{ulcorner} in the set changes nothing, and says nothing --- the
+gloss simply goes on being padded as though the corner were part of the
+word. \verb|\ensuremath{\ulcorner}| written out in the example fails
+identically, its first token being \cs{ensuremath}. Nor is declaring the
+\texttt{\$} itself a way round it: the scan would then peel the dollar and
+the corner off and stop at the empty group between them, leaving a leading
+run with its math unbalanced --- \texttt{! Extra \}, or forgotten \$}, at
+the end of the example. A name is the only thing here with a single token
+to offer:
+
+\begin{code}
+\newcommand{\qq}{\ensuremath{\ulcorner}}
+\GlossPhantomChars{*?([<\#\%\qq}
+
+\ex. \gll AAA (\qq{}machin BBB\\
+     aaa \qq{}thingy bbb\\
+\end{code}
+
+\noindent The empty group after \cs{qq} does two jobs. It keeps the control
+word off the letters that follow it without using a \emph{space} --- a space
+there would end the word, and \cs{gll} would build two columns out of the
+one --- and the scan stops at a brace group, so the leading run comes out as
+exactly \verb|(\qq| and no more.
+
+Without the declaration that example still lines up, as it happens: the
+corner is then simply part of the word, in the object line and in the gloss
+alike, and the parenthesis alone accounts for the difference between them.
+Declaring it earns its keep when the gloss does \emph{not} carry the corner
+--- then \texttt{thingy} sits under \texttt{machin}, where undeclared it
+would sit under the corner.
+
 The feature is \emph{off by default} --- only because turning it on shifts
 the horizontal position of glosses under bracketed material, and existing
 documents should keep the layout they were written for. For new documents it
