@@ -3,7 +3,7 @@
 All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
-## Unreleased
+## 1.3.1
 - Fixed: under `[phantomalign]`, a gloss word that reproduces the object
   word's own delimiters came out one delimiter-width too far right.
   `(è questa)` glossed `(est celle-ci)` -- a translation keeping the
@@ -23,6 +23,19 @@ version string.
   *more* delimiter than the object would need a negative pad; that is
   clamped at zero, leaving the gloss's delimiter sticking out to the left
   rather than pushing ink into the neighbouring column.
+- Fixed: the CTAN archive ships the manual's source, `linguexx-doc.tex`,
+  beside `linguexx-doc.pdf`. It was missing from the 1.3 upload -- never
+  removed, just never on the list of files the archive is built from.
+- Manual: the table of layout lengths in §8 breaks across pages. It was one
+  unbreakable box about a page and a third tall and ran off the bottom of
+  its page, past the page number; that has been true since at least 1.2,
+  and it only looked intermittent because earlier edits moved the page it
+  landed on.
+- Manual: `\GlossPhantomChars` now spells out that a mark may be a command
+  that *contains* math but may not be math typed straight into the
+  example. `($\ulcorner{}$machin` offers the scan a `$` first, so declaring
+  `\ulcorner` changes nothing and says nothing; the manual gives the recipe
+  that works (name the mark, declare the name, write `(\qq{}machin`).
 
 ## 1.3
 - Fixed: `\renewcommand{\ExLBr}{[}` did nothing. `linguex` has had
