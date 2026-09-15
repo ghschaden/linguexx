@@ -10,6 +10,7 @@
 #   make ctan      build dist/linguexx.zip, and prove it installs
 #   make ctan-tds  ... and linguexx.tds.zip beside it
 #   make clean     remove dist/ and the manual's auxiliary files
+#   make hooks     use the repository's git hooks (the revert check)
 #
 # `make ctan` runs `make check` and `make test` itself -- the release does
 # not depend on anyone having remembered to.  It never bumps a version,
@@ -17,7 +18,7 @@
 
 PYTHON ?= python3
 
-.PHONY: all check test manual ctan ctan-tds clean
+.PHONY: all check test manual ctan ctan-tds clean hooks
 
 all: check test
 
@@ -44,6 +45,13 @@ ctan:
 
 ctan-tds:
 	@$(PYTHON) tools/ctan.py --tds
+
+# Point git at the hooks the repository keeps, in tools/hooks, rather than
+# the unversioned .git/hooks.  Local to this clone; `git config --unset
+# core.hooksPath` undoes it.
+hooks:
+	@git config core.hooksPath tools/hooks
+	@echo "OK  git hooks from tools/hooks (the revert check: tools/revert_check.py)"
 
 clean:
 	@rm -rf dist

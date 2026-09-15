@@ -1,0 +1,5 @@
+#!/bin/sh
+# linguexx: refuse a commit whose change to linguexx.sty's code the suite
+# cannot see.  Installed by `make hooks` (core.hooksPath = tools/hooks);
+# the why and the escape hatch are in tools/revert_check.py.
+exec python3 tools/revert_check.py "$1"

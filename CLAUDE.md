@@ -51,6 +51,13 @@ geometry helpers, so nothing here can drift away from the suite.
 - NEVER conclude that a rendering is correct based on an exit code. Render the PDF (`pdftoppm`) and INSPECT it.
 - For any geometric shape (braces, alignments), verify the POSITION *and the shape* — not just the coordinates. The mirrored brace bug came from measuring the position without looking at the curvature.
 - Test assertions prove the actual geometry and tagging, not just successful compilation. Mutation-tested suite: every rule has a mutation that kills it.
+- A commit that changes `linguexx.sty`'s CODE (not its comments) must be
+  one the suite can see: the `commit-msg` hook (`make hooks`,
+  `tools/revert_check.py`) runs the suite with HEAD's `.sty` put back and
+  refuses the commit if it stays green. Stage the test WITH the fix. A
+  change no test can see says so in the message, `Untested: <why>`. The
+  check costs a suite run and more, so give such a `git commit` a timeout
+  of several minutes. It exists because `cbbffeb` shipped in 1.3.1 untested.
 - Run `python3 tests/runtests.py` (all 3 engines) before delivering
   (`lxx test`, or `lxx verify` for this whole list at once). It now runs `verapdf` itself, on the `ua` case, so PDF/UA compliance is checked on every run and veraPDF is a hard requirement of the suite.
 - Still run `verapdf` on examples/ua-demo.pdf before delivering (`lxx verify`
