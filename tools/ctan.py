@@ -21,7 +21,9 @@ The steps, and why each is here rather than in a checklist somebody reads:
 4.  The manual is REBUILT from the .sty being shipped, in a directory of
     its own, through the suite's own DOCUMENTS entry.  The repository's
     linguexx-doc.pdf is a committed artifact and can be older than the
-    package it documents; what goes in the archive never is.
+    package it documents; what goes in the archive never is.  Its source,
+    linguexx-doc.tex, ships beside it -- unrebuilt, straight from the
+    clean tree the PDF was just made from.
 5.  The archive is unpacked into a scratch TEXMF and a probe document is
     compiled against THAT copy, under every engine on the machine.  This
     is the only step that tests the artifact rather than the repository,
@@ -53,19 +55,29 @@ CHANGELOG = REPO / "CHANGELOG.md"
 MANUAL_TEX = REPO / "linguexx-doc.tex"
 MANUAL_PDF = REPO / "linguexx-doc.pdf"
 
-#: What the archive contains: the four files the CTAN directory already
-#: holds, unpacking into a single directory named after the package.
-#: Deliberately not a glob of the repository -- the tests, the notes in
-#: doc/ and the agent harness are how the package is made, not what it is,
-#: and a release that quietly starts shipping them is a release nobody
-#: decided on.
-PAYLOAD = ["README.md", "LICENSE", "linguexx.sty", "linguexx-doc.pdf"]
+#: What the archive contains, unpacking into a single directory named
+#: after the package.  Deliberately not a glob of the repository -- the
+#: tests, the notes in doc/ and the agent harness are how the package is
+#: made, not what it is, and a release that quietly starts shipping them
+#: is a release nobody decided on.
+#:
+#: linguexx-doc.tex is here because CTAN asks for the source of the
+#: documentation beside it, and because a reader who wants to see how an
+#: example in the manual was written has nowhere else to look.  It went
+#: missing from the 1.3 upload -- not removed, never added: the payload
+#: listed four files and the manual's source was not one of them.  Adding
+#: it here is what makes install_test check for it.
+PAYLOAD = ["README.md", "LICENSE", "linguexx.sty",
+           "linguexx-doc.tex", "linguexx-doc.pdf"]
 
 #: The TDS layout, for the optional linguexx.tds.zip: where a TeX
-#: distribution would put each of those files.
+#: distribution would put each of those files.  The manual's source goes
+#: in doc/ beside the PDF it builds, which is where a TDS tree keeps the
+#: documentation of a package that has no separate .dtx.
 TDS = {
     "tex/latex/linguexx": ["linguexx.sty"],
-    "doc/latex/linguexx": ["README.md", "LICENSE", "linguexx-doc.pdf"],
+    "doc/latex/linguexx": ["README.md", "LICENSE",
+                           "linguexx-doc.tex", "linguexx-doc.pdf"],
 }
 
 #: The probe compiled against the UNPACKED archive.  Small, and not a smoke
