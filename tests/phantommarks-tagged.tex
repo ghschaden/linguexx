@@ -1,0 +1,27 @@
+%% The [phantomalign] pad must ship width, never structure.
+%%
+%% The pad is measured by typesetting the leading run of a word into a box
+%% that is dropped.  tagpdf builds the tree as material is EXECUTED, not
+%% when a box is used, so a mark that opens a structure element opens one
+%% from inside that box -- and a mark declared through \GlossPhantomChars
+%% may be any control sequence, including one that enters math.  Each of
+%% the two measures then left a Formula element in the tree with nothing on
+%% the page behind it: a formula a screen reader announces and a sighted
+%% reader cannot find.  veraPDF passes the file either way, so only a count
+%% catches it.
+%%
+%% The math mark here is written the way the manual says it has to be (a
+%% command that CONTAINS math, declared by name, closed with {}), and it
+%% occurs exactly twice on the page: once on the object tier, once on the
+%% gloss.  Two visible marks, two Formula elements -- any more are the
+%% measures'.  \langle rather than the manual's \ulcorner, which would need
+%% amssymb for no gain.
+\input{_preamble-tagged}
+\newcommand\qq{\ensuremath{\langle}}
+\GlossPhantomAlign
+\GlossPhantomChars{*?([<\qq}
+
+\exg. (\qq{}PMQOBJ truc\\
+(\qq{}PMQGLS bidule\\
+
+\end{document}

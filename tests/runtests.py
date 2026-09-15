@@ -1978,6 +1978,24 @@ def a_relreflinks_off(p: Page):
     return r
 
 
+def a_phantommarks_tagged(p: Page):
+    r"""The [phantomalign] pad ships width, never structure.
+
+    The pad measures a word's leading run by typesetting it into a box that
+    is dropped, and tagpdf builds the tree as material is executed -- so a
+    declared mark that enters math left a Formula element per measure, with
+    nothing on the page behind it.  veraPDF passes that file, so the count
+    is the only guard.  The case prints exactly two math marks, one per
+    tier, so the tree must hold exactly two Formula elements: fewer means
+    the visible marks lost their tagging, more means the measures are back
+    in the tree (four, without the \tag_suspend:n).
+    """
+    n = len(re.findall(r"/S\s*/Formula", _qdf(p.path)))
+    return [check(n == 2,
+                  f"two Formula elements, one per visible math mark, and none "
+                  f"from the pad's measuring boxes; got {n}")]
+
+
 def a_phantommarks(p: Page):
     r"""Which leading marks the aligner recognises, on both consumers.
 
@@ -4929,6 +4947,7 @@ ASSERTIONS = {
     "phantomalign": a_phantomalign,
     "parens-glossing-align": a_parens_glossing_align,
     "phantommarks": a_phantommarks,
+    "phantommarks-tagged": a_phantommarks_tagged,
     "altg": a_altg,
     "altn": a_altn,
     "altspoken": a_altspoken,
