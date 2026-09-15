@@ -164,7 +164,7 @@
 %%          expansion known for" nothing at all and the /E carried a
 %%          trailing space.  Blank segments are skipped; the real
 %%          pieces beside them are recorded exactly as before.
-%%          Fix: a modifier INSIDE a \lpzg label adds to the small
+%% v. 1.3: Fix: a modifier INSIDE a \lpzg label adds to the small
 %%          caps instead of replacing them.  Latin Modern has no bold
 %%          small caps in any encoding, so NFSS kept the series and
 %%          dropped the shape and \lpzg{\textbf{m}.pl} came out as a
@@ -305,6 +305,13 @@
 %%          cross-referenced ones.  The label is skipped past and
 %%          replayed after the \item, where writing it in the body put
 %%          it, so \ref, the anchor and \prefrange are unchanged.
+%% v. 1.3.1: Fix: under [phantomalign] a gloss word is padded by the
+%%          difference between the object word's leading marks and its
+%%          own, each measured in its own tier's font and clamped at
+%%          zero, so a gloss that repeats its object's "(" is no longer
+%%          pushed one delimiter-width right.  The measures run under
+%%          \tag_suspend:n: a math mark declared through
+%%          \GlossPhantomChars leaves no Formula element behind.
 %% Package options come in two independent groups.
 %%
 %% SYNTAX:
