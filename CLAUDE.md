@@ -8,8 +8,14 @@ Standalone and modern reimplementation of `linguex` (numbered linguistic example
 - veraPDF installed (`verapdf`): this is the ONLY oracle that is authoritative for PDF/UA.
 
 ## Harness — `.claude/tools/lxx`
-Local agent tooling (in `.claude/`, untracked; ignore this section if it is
-not there). It wraps the tools below so that a debugging loop costs one
+Local agent tooling, and it is TRACKED: `tools/lxx`, `hooks/guard.py`,
+`settings.json`, `agents/` and `commands/` are all in git, so a fix to the
+harness is an ordinary commit and belongs with the change that motivated
+it. Only `.claude/.state/` (the build dirs and the green stamp) and
+`.claude/settings.local.json` are ignored — see the comment above those two
+lines in `.gitignore`. (This paragraph used to say the whole directory was
+untracked, which cost a harness fix its commit until `git ls-files` was
+asked.) It wraps the tools below so that a debugging loop costs one
 command and a few lines instead of a 40 kB log. It never restates an
 assertion: it imports `tests/runtests.py` for `PASSES`, the parsers and the
 geometry helpers, so nothing here can drift away from the suite.
