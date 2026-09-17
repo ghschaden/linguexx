@@ -5173,6 +5173,7 @@ def suite_integrity():
         elif name not in known:
             problems.append(f"KNOWN_XFAIL key {key!r} names no known case.")
     problems.extend(tooling_integrity())
+    problems.extend(expect_error_selftest())
     return problems
 
 
@@ -5265,6 +5266,66 @@ def tooling_integrity():
     return problems
 
 
+def expect_error_verdict(want, returncode, log):
+    r"""Decide an EXPECT_ERROR case from the engine's status AND its log.
+
+    Both halves are load-bearing, and the second one was missing until
+    2026-09-17.  Every string in EXPECT_ERROR is the PAYLOAD of the message
+    and none of them contains the word "Error" -- "has no partner", "is
+    loaded as well as", "inside an \ea example".  So a guard downgraded from
+    \msg_error:nn to \msg_warning:nn keeps its wording exactly, the document
+    then compiles to the end, and a log-only check stays green while the
+    guard no longer guards anything.  Nineteen cases rest on this branch,
+    among them the package-clash detection and the one-syntax-per-example
+    rule, and a case whose whole point is that the compile STOPS has to
+    assert that it stopped.
+
+    Pure, so that expect_error_selftest() can put the case that matters
+    through it without a TeX run: the mutation to kill is the deletion of
+    the returncode arm, and nothing that needs an engine can be relied on
+    to kill it.
+    """
+    errs = [l for l in log.splitlines() if l.startswith("!")][:3]
+    if want not in log:
+        return [(False, f"expected the error {want!r}; got "
+                        f"{'; '.join(errs) or 'a clean compile'}")]
+    if returncode == 0:
+        return [(False, f"logged {want!r} but the compile SUCCEEDED; this "
+                        f"case is meant to stop the engine, so the message "
+                        f"has been downgraded to a warning")]
+    return [(True, f"raises its error: {want!r}")]
+
+
+def expect_error_selftest():
+    """Put the three shapes of EXPECT_ERROR outcome through the verdict.
+
+    The middle one is the point: it is the state the suite could not see
+    before, and it is indistinguishable from a pass in the log alone.  This
+    costs no TeX run, so it is checked on every invocation rather than
+    being a case somebody remembers to run.
+    """
+    problems = []
+    want = "is loaded as well as"
+    logged = f"Package linguexx Warning: linguex {want} linguexx.\n"
+    if expect_error_verdict(want, 1, logged)[0][0] is not True:
+        problems.append(
+            "expect_error_verdict() rejects a case that logged its message "
+            "and stopped the engine, which is what every EXPECT_ERROR case "
+            "is supposed to do.")
+    if expect_error_verdict(want, 0, logged)[0][0] is not False:
+        problems.append(
+            "expect_error_verdict() accepts a case whose message reached the "
+            "log but whose compile SUCCEEDED, so all "
+            f"{len(EXPECT_ERROR)} EXPECT_ERROR cases would stay green if "
+            "their guards were downgraded from errors to warnings.")
+    if expect_error_verdict(want, 1, "! Undefined control sequence.\n")[0][0] \
+            is not False:
+        problems.append(
+            "expect_error_verdict() accepts a case that failed with the "
+            "WRONG error, so any failure would satisfy any expectation.")
+    return problems
+
+
 def run_case(name: str, engine: str, verbose: bool):
     """Compile one case under one engine and run its assertions."""
     src = CASES / f"{name}.tex"
@@ -5317,15 +5378,13 @@ def run_case(name: str, engine: str, verbose: bool):
                 first_log = cold.read_text(errors="replace") if cold.exists() \
                     else ""
         # Cases whose point IS the error: the compile is meant to stop, so
-        # check the message before treating a non-zero status as a failure.
+        # check the message before treating a non-zero status as a failure --
+        # and check that it DID stop, which is the other half.  See
+        # expect_error_verdict() for why the log alone cannot say so.
         if name in EXPECT_ERROR:
-            want = EXPECT_ERROR[name]
-            log = (tmp / f"{name}.log").read_text(errors="replace")
-            if want not in log:
-                errs = [l for l in log.splitlines() if l.startswith("!")][:3]
-                return [(False, f"expected the error {want!r}; got "
-                                f"{'; '.join(errs) or 'a clean compile'}")]
-            return [(True, f"raises its error: {want!r}")]
+            return expect_error_verdict(
+                EXPECT_ERROR[name], proc.returncode,
+                (tmp / f"{name}.log").read_text(errors="replace"))
         if proc.returncode != 0:
             log = (tmp / f"{name}.log").read_text(errors="replace")
             errs = [l for l in log.splitlines() if l.startswith("!")][:3]
