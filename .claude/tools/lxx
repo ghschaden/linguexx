@@ -257,11 +257,24 @@ def cmd_build(a):
     return 0 if ok else 1
 
 
+#: The tagged preambles (_preamble-tagged, _preamble-ua) END with
+#: \begin{document}: they are written to be \input by a case file, which
+#: then adds only its body and \end{document}.  The plain ones stop before
+#: it.  Emitting the line unconditionally opened the document twice and
+#: died with "Can be used only in preamble" -- on exactly the preambles
+#: CLAUDE.md tells the reader to pass to this command, so the documented
+#: invocation was the one that could not run.
 SNIPPET = r"""\input{%s}
-\begin{document}
-%s
+%s%s
 \end{document}
 """
+
+
+def snippet_source(pre, body):
+    """The repro document, opening the document only if the preamble has not."""
+    text = (TESTS / f"{pre}.tex").read_text(errors="replace")
+    opened = r"\begin{document}" in text
+    return SNIPPET % (pre, "" if opened else "\\begin{document}\n", body)
 
 
 def cmd_snippet(a):
@@ -279,7 +292,7 @@ def cmd_snippet(a):
     tmp = BUILD / "snippet"
     tmp.mkdir(parents=True, exist_ok=True)
     src = tmp / "snippet.tex"
-    src.write_text(SNIPPET % (pre, body))
+    src.write_text(snippet_source(pre, body))
     ok, out, pdf, _ = build(src, a.engine, a.passes, outdir=tmp, boxes=a.boxes)
     if ok and a.show:
         print("---- text layer ----")
