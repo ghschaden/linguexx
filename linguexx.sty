@@ -6093,22 +6093,49 @@
     \box_use:N \l__lxp_alt_box
     \hspace{\AltBraceSep} \__lxp_alt_brace:n { R } \hspace{\AltBraceOuterSep} }
 %% the printed object wrapped in a Span carrying the spoken /Alt
+%%
+%% The stack is BUILT HERE, inside the open Span, and that ordering is the
+%% whole point rather than a tidying.  In lua mode the marked content a
+%% node belongs to is an ATTRIBUTE stamped on the node when it is CREATED
+%% and resolved at shipout (tagpdf.lua, __tag_update_mc_attributes); it is
+%% not a /BDC..../EMC pair written into the stream at the point of use, as
+%% it is in generic mode.  A box filled before the Span exists therefore
+%% keeps the ambient paragraph's stamp, and \box_use:N does not restamp
+%% it: the Span ends up with an EMPTY /K, the alternatives stay children
+%% of the paragraph, and the spoken /Alt is attached to nothing at all.
+%% That shipped -- veraPDF passes it (an /Alt that is present and
+%% well-formed satisfies the profile however little it wraps) and every
+%% assertion in this suite measured the ink, which was right on every
+%% engine.  See tagpdf's documentation, section 9.1.
+%%
+%% Filling inside the Span fixes it at the source instead of repairing it
+%% afterwards with \tag_mc_reset_box:N: the reset overwrites the
+%% attributes of the WHOLE box recursively, so it would flatten a \lpzg
+%% Span written into an alternative (tagpdf 9.2 warns about exactly this),
+%% and \altn's build hook -- unlike \altg's -- leaves \lpzg tagging.
+%% Nothing changes for generic mode: \hbox_gset:Nn writes to a register,
+%% not to the content stream, so the outer stream sees the same tokens in
+%% the same order and pdflatex/xelatex output is unmoved.
 \cs_new_protected:Npn \__lxp_alt_emit_tagged:
   {
     \__lxp_buildalt:NN \l__lxp_alt_seq \l__lxp_alt_alt_tl
     \leavevmode
     \hspace{\AltBraceOuterSep}
     \lx@tag@span@begin:e { tag = Span , alt = { \l__lxp_alt_alt_tl } }
+    \__lxp_alt_setstack:
     \__lxp_alt_brace:n { L } \__lxp_alt_opensep:
     \box_use:N \l__lxp_alt_box
     \hspace{\AltBraceSep} \__lxp_alt_brace:n { R }
     \lx@tag@span@end:
     \hspace{\AltBraceOuterSep}
   }
+%% The untagged path builds the stack here; the tagged one builds it inside
+%% its Span (see \__lxp_alt_emit_tagged:) and must not have it built twice.
 \cs_new_protected:Npn \__lxp_alt_print:
   {
-    \__lxp_alt_setstack:
-    \lx@tag@if@active:TF { \__lxp_alt_emit_tagged: } { \__lxp_alt_emit: }
+    \lx@tag@if@active:TF
+      { \__lxp_alt_emit_tagged: }
+      { \__lxp_alt_setstack: \__lxp_alt_emit: }
   }
 \ExplSyntaxOff
 
@@ -6375,7 +6402,12 @@
   }
 %% emit one shape, tag-guarded: under active tagging the shape is wrapped
 %% in a Span carrying the spoken /Alt of this call's list.
-\cs_new_protected:Npn \__lxp_altg_emit:n #1
+%% #1 builds the stack, #2 prints the shape that uses it.  They are two
+%% arguments and not one because the build has to happen INSIDE the Span
+%% under lua mode -- the reason is written out above
+%% \__lxp_alt_emit_tagged:, and it cost a shipped release in which every
+%% \altg stack's spoken /Alt wrapped an empty element.
+\cs_new_protected:Npn \__lxp_altg_emit:nn #1#2
   {
     \leavevmode
     \lx@tag@if@active:TF
@@ -6383,9 +6415,10 @@
         \__lxp_buildalt:NN \l__lxp_altg_seq \l__lxp_altg_alt_tl
         \lx@tag@span@begin:e { tag = Span , alt = { \l__lxp_altg_alt_tl } }
         #1
+        #2
         \lx@tag@span@end:
       }
-      { #1 }
+      { #1 #2 }
   }
 \cs_new_protected:Npn \__lxp_altg_print:
   {
@@ -6396,8 +6429,8 @@
             \int_gset:Nn \g__lxp_altg_role_int { 1 }
             \int_gset:Nn \g__lxp_altg_count_int
               { \seq_count:N \l__lxp_altg_seq }
-            \__lxp_altg_setstack:nN { } \c_true_bool
-            \__lxp_altg_emit:n { \__lxp_altg_shape_obj: }
+            \__lxp_altg_emit:nn { \__lxp_altg_setstack:nN { } \c_true_bool }
+              { \__lxp_altg_shape_obj: }
             \__lxp_altg_takepunct:
           }
           { % gloss call
@@ -6410,13 +6443,14 @@
                     \int_eval:n { \seq_count:N \l__lxp_altg_seq } ~glosses }
                   { The~two~\string\altg\space calls~of~one~paradigm~must~
                     list~the~same~number~of~alternatives. } }
-            \__lxp_altg_setstack:nN { \AltgTransFont } \c_false_bool
-            \__lxp_altg_emit:n { \__lxp_altg_shape_gloss: }
+            \__lxp_altg_emit:nn
+              { \__lxp_altg_setstack:nN { \AltgTransFont } \c_false_bool }
+              { \__lxp_altg_shape_gloss: }
           }
       }
       { % solo, outside a gloss
-        \__lxp_altg_setstack:nN { } \c_true_bool
-        \__lxp_altg_emit:n { \__lxp_altg_shape_solo: }
+        \__lxp_altg_emit:nn { \__lxp_altg_setstack:nN { } \c_true_bool }
+          { \__lxp_altg_shape_solo: }
       }
   }
 \ExplSyntaxOff

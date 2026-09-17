@@ -1,0 +1,44 @@
+%% Every spoken /Alt must WRAP the content it speaks for.
+%%
+%% altspoken.tex asserts what the /Alt strings SAY; this one asserts that
+%% the element carrying one contains anything at all.  The two look like
+%% the same test and are not, which is how the defect this case exists for
+%% reached a release: under lualatex every \altn and \altg stack carried a
+%% well-formed /Alt on an element with an empty /K, the alternatives stayed
+%% children of the paragraph, and nothing noticed.  The page was correct on
+%% all three engines, veraPDF passed PDF/UA-2 and both WTPDF profiles, and
+%% struct_alts() found every string it expected.
+%%
+%% The cause was the build order: the stack was boxed BEFORE its Span was
+%% opened.  In lua mode the marked content a node belongs to is an
+%% attribute stamped when the node is created, so the box kept the
+%% paragraph's stamp and \box_use:N did not restamp it; generic mode writes
+%% /BDC..../EMC at the point of use and so never showed it.  All three
+%% engines are therefore required here: on pdflatex and xelatex this case
+%% passes both before and after the fix.
+%%
+%% ALTKLPZG is the second half of the point.  A \lpzg inside an \altn
+%% alternative writes a Span of its own into the box, so the defect could
+%% NOT be repaired with \tag_mc_reset_box:N, which rewrites a box's
+%% attributes recursively and would have made that Span's expansion a child
+%% of the stack instead (tagpdf's documentation, section 9.2).
+%%
+%% Tagged preamble, so the structure elements are in the PDF.
+\input{_preamble-tagged}
+
+\ex. ALTKPLAIN \altn{aa}{bb} end.
+\ex. ALTKJUDGE \altn{cc}{*dd} end.
+
+%% An alternative that carries tagging of its own.
+\ex. ALTKLPZG \altn{\lpzg{sg}}{\lpzg{pl}} end.
+
+%% \altg is written twice, and each call opens a Span of its own: the
+%% object tier and the gloss tier are two separate stacks and two separate
+%% boxes, so both call sites have to be right.
+\ex. \gll ALTKGLOSS \altg{tt}{uu}\\
+     objectword \altg{vv}{ww}\\
+\glt `a gloss whose stacks must each wrap their own alternatives'
+
+%% The third call site: a stack outside a gloss altogether.
+\ex. ALTKSOLO \altg{kk}{ll} end.
+\end{document}

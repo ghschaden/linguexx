@@ -4655,6 +4655,73 @@ def struct_alts(raw: bytes):
     return alts
 
 
+def struct_alt_kids(pdf: Path):
+    r"""(decoded /Alt, count of marked-content kids) per element carrying one.
+
+    struct_alts() above reads the STRINGS, which is what a spoken form is.
+    This reads whether the element carrying one wraps anything, which is a
+    different question and had no assertion until 2026-09-17 -- when every
+    \altn and \altg stack in a lualatex build turned out to carry a
+    well-formed /Alt on an element with an empty /K.
+
+    The kids are counted by their /MCID entries and NOT by looking for
+    "/K [": a single kid is written as a bare dictionary rather than a
+    one-element array, so a bracket test calls every judgment mark empty.
+    It did, in the first version of the measurement that found this, and
+    the false positives read exactly like the real ones.
+    """
+    out = []
+    for obj in _qdf(pdf).split("endobj"):
+        m = re.search(r"/Alt\s*<([0-9A-Fa-f]+)>", obj)
+        if m:
+            txt = (bytes.fromhex(m.group(1))
+                   .decode("utf-16-be", "replace").lstrip("﻿"))
+        else:
+            m = re.search(r"/Alt\s*\(([^)]*)\)", obj)
+            if not m:
+                continue
+            txt = m.group(1)
+        out.append((txt, len(re.findall(r"/MCID", obj))))
+    return out
+
+
+def a_altkids(p: Page):
+    r"""Every spoken /Alt wraps the content it speaks for.
+
+    The mutation this kills is the one that shipped: build the stack box
+    before opening its Span -- which is what \__lxp_alt_print: and
+    \__lxp_altg_emit: did until 2026-09-17 -- and under lua mode every one
+    of these elements comes back with an empty /K.  Nothing else in the
+    suite says so: the ink is identical, veraPDF passes all three profiles
+    (an /Alt that is present and well-formed satisfies them however little
+    it wraps), and struct_alts() still finds every string.
+
+    Runs on all three engines deliberately.  On pdflatex and xelatex it
+    passes with the defect present, because generic mode writes the marked
+    content at the point of use; only lualatex fails.  A case restricted to
+    the engine that shows a defect is a case that stops noticing when the
+    others acquire it.
+    """
+    r = []
+    pairs = struct_alt_kids(p.path)
+    got = {t: k for t, k in pairs}
+    for want in ("aa or bb", "cc or *dd", "singular or plural",
+                 "tt or uu", "vv or ww", "kk or ll"):
+        r.append(check(want in got,
+                       f"{want!r} reached the structure tree; "
+                       f"got {sorted(got)}"))
+    empty = sorted(t for t, k in pairs if k == 0)
+    r.append(check(not empty,
+                   f"every /Alt element wraps marked content; these wrap "
+                   f"nothing: {empty}"))
+    # ALTKLPZG: the \lpzg written into an alternative keeps its own
+    # expansion.  This is what a blind \tag_mc_reset_box:N would have cost,
+    # so it is asserted rather than assumed.
+    r.append(check("singular" in struct_exps(inflated(getattr(p, "raw", b""))),
+                   "the \\lpzg inside an \\altn alternative keeps its /E"))
+    return r
+
+
 def _band_lines(p: Page, y_top: float, y_bottom: float):
     """The rendered lines of a horizontal band, top to bottom.
 
@@ -4951,6 +5018,7 @@ ASSERTIONS = {
     "altg": a_altg,
     "altn": a_altn,
     "altspoken": a_altspoken,
+    "altkids": a_altkids,
     "altn-phantomalign": a_altn_phantomalign,
     "altg-phantomalign": a_altg_phantomalign,
     "alttuck": a_alttuck,
