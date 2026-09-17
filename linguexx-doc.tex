@@ -2906,6 +2906,21 @@ validation substitutes for it.
   claimed here and nothing is patched; if the numbering matters in your
   document, put the examples outside the minipage.
 
+\item \textbf{A stack inside a stack, under tagging.} \cs{altn} may be
+  written inside an alternative of another \cs{altn}, and the page is
+  right: both stacks are drawn and braced, the inner one set inside the
+  outer's row. What is not right is the \emph{spoken} form. The outer
+  stack's alternative text is built from the source of its alternatives,
+  so a nested call contributes its own bracketed option and its
+  alternatives run together with no connector between them; and because
+  the inner stack is built before the outer's element is opened, the two
+  come out as siblings rather than one inside the other, so a screen
+  reader reaches the inner stack first and announces its alternatives
+  twice. Nothing is claimed here and nothing is patched: what a nested
+  stack ought to \emph{say} is undecided, and guessing would turn the
+  guess into the promise. If the example is meant to be read aloud, write
+  it as two examples.
+
 \item \textbf{\pkg{ulem} is not loaded.} For struck-through alternatives
   (\cs{sout} inside \cs{altn}), load \pkg{ulem} yourself; the usual choice
   is \cs{usepackage[normalem]\{ulem\}}, which keeps \cs{emph} italic.
