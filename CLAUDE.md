@@ -6,6 +6,14 @@ Standalone and modern reimplementation of `linguex` (numbered linguistic example
 - TeX Live 2026 (LuaHBTeX). All three engines must pass: pdflatex, xelatex, lualatex.
 - Taging preamble: `\DocumentMetadata{...}` with `testphase={phase-III}` (portable), NOT the old `{tagpdf,text,sec,block}` list.
 - veraPDF installed (`verapdf`): this is the ONLY oracle that is authoritative for PDF/UA.
+- `show-pdf-tags` installed (TeX Live package of that name): the LaTeX
+  team's own tag viewer, and a HARD requirement of the suite since
+  2026-09-18 -- `struct_empty_alts` raises without it. It resolves `/K`
+  the way a consumer does, which the byte-level helpers do not: it is
+  what catches an element carrying an author `/Alt` that wraps nothing,
+  and veraPDF cannot see that (an empty `/K` is spec-valid, optional in
+  ISO 32000-1 Table 323). Upstream named it when this defect was
+  reported; it had been installed here the whole time it went unnoticed.
 
 ## Harness — `.claude/tools/lxx`
 Local agent tooling, and it is TRACKED: `tools/lxx`, `hooks/guard.py`,

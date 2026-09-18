@@ -2521,6 +2521,15 @@ def a_ua(p: Page):
                    f"{len(logged)} record(s): {logged[:3]}"
                    if logged else
                    "veraPDF parsed the file without complaint"))
+    # veraPDF cannot see this one: an /Alt that is present and well-formed
+    # satisfies every profile however little it wraps, because /K is
+    # optional in ISO 32000-1 (Table 323).  Asked here as well as in
+    # altkids because this case is the whole tagging gate, and the
+    # invariant needs no list of expected strings to hold.
+    orphans = struct_empty_alts(p.path)
+    r.append(check(not orphans,
+                   f"every /Alt in the tree wraps content; these wrap "
+                   f"nothing: {orphans}"))
     # the document really did typeset, so a compliant-but-empty PDF cannot
     # pass this case by accident
     for tok in ("UAMAIN", "UAALPHA", "UAOBJ", "UATRANS", "UAALTN", "UAALTG",
@@ -2636,6 +2645,17 @@ def a_altspoken(p: Page):
     # a leak would show up as the French form surviving to the last example
     r.append(check("xx, yy ou zz" not in alts,
                    f"no French connector after the group closed (got {got})"))
+    # Every string above can be exactly right while the element carrying it
+    # wraps nothing, and that is not hypothetical: with the pre-2026-09-17
+    # .sty this case builds 13 such elements under lualatex and every
+    # assertion above still passes.  struct_alts() reads the strings out of
+    # the raw bytes and never asks what they are attached to -- which is
+    # precisely how the defect reached a release.  This case is named for
+    # the spoken forms, so it is the one that should have said so first.
+    orphans = struct_empty_alts(p.path)
+    r.append(check(not orphans,
+                   f"every spoken /Alt wraps the content it speaks for; "
+                   f"these wrap nothing: {orphans}"))
     return r
 
 
@@ -3977,7 +3997,14 @@ def a_frontend(p: Page):
 
 def a_tagged(p: Page):
     """Tagged compile (DocumentMetadata) must survive every construct;
-    the compile itself is the real assertion (tagpdf errors halt it)."""
+    the compile itself is the real assertion (tagpdf errors halt it).
+
+    With one exception, which the compile cannot see: this case carries six
+    /Alt-bearing elements, and four of them wrap nothing under lualatex with
+    the pre-2026-09-17 .sty.  A compile that survives says nothing about
+    that, so it is asserted below rather than left to the two cases that
+    happen to cover it.
+    """
     r = []
     r.append(check(p.find("MAINTEXT") is not None, "main example typeset"))
     r.append(check(p.find("FNEX") is not None, "footnote example typeset"))
@@ -4132,6 +4159,12 @@ def a_tagged(p: Page):
                        f"({lst[0][0].x0:.2f} vs {lst[1][0].x0:.2f})"))
         r.append(check(all(l[0].x1 < l[1].x0 + TOL for l in lst),
                        "no list label overruns its explanation under tagging"))
+    # The six /Alt elements this case carries must each wrap something;
+    # four of them do not with the pre-2026-09-17 .sty, on lualatex only.
+    orphans = struct_empty_alts(p.path)
+    r.append(check(not orphans,
+                   f"every /Alt in the tree wraps content; these wrap "
+                   f"nothing: {orphans}"))
     return r
 
 
@@ -4685,6 +4718,86 @@ def struct_alt_kids(pdf: Path):
     return out
 
 
+def show_pdf_tags_xml(pdf: Path):
+    """The structure tree as show-pdf-tags renders it, parsed.
+
+    show-pdf-tags is the LaTeX team's own tool (TeX Live package
+    ``show-pdf-tags``); Ulrike Fischer named it when this package reported
+    the empty-/K defect upstream, and it was installed here the whole time
+    the defect was going unnoticed.  It is here because it resolves the
+    tree the way a consumer does -- following /K whether the kid is a
+    marked-content dictionary, an array, or a reference to another element
+    -- which the byte-level helpers in this file do not.
+
+    That difference is not theoretical.  The ad-hoc measurement that first
+    read these numbers tested for kids with a pattern beginning ``/K [``
+    and so counted ``/K [ ]`` -- an EMPTY array -- as an element with a
+    kid, reporting a defective ua-demo as clean.  struct_alt_kids() avoids
+    that trap by counting /MCID instead, and says so in its own docstring;
+    the trap was walked into anyway, by hand, on 2026-09-18.  An oracle
+    maintained upstream cannot drift away from tagpdf's output in that way.
+    """
+    if not shutil.which("show-pdf-tags"):
+        raise AssertionError(
+            "show-pdf-tags is not on PATH: the structure tree cannot be read "
+            "as a consumer resolves it (TeX Live package 'show-pdf-tags')")
+    out = subprocess.run(["show-pdf-tags", "--xml", str(pdf)],
+                         capture_output=True, text=True, errors="replace")
+    if out.returncode != 0 or not out.stdout.strip():
+        raise AssertionError(
+            f"show-pdf-tags could not read {pdf.name}: "
+            f"rc={out.returncode} stderr={out.stderr[:300]!r}")
+    import xml.etree.ElementTree as ET
+    return ET.fromstring(out.stdout)
+
+
+def struct_empty_alts(pdf: Path):
+    r"""(tag, /Alt) for every element that carries an /Alt and wraps nothing.
+
+    The invariant is document-wide and needs no list of expected strings:
+    an /Alt is an author's assertion about how SOME CONTENT is announced,
+    so an element carrying one with nothing inside it is self-contradictory
+    -- the alternative text has nothing to be an alternative to.  A screen
+    reader announces it regardless.
+
+    This is the complement of a_altkids, which enumerates the strings it
+    expects; this one catches an element nobody thought to enumerate, which
+    is how the 2026-09-17 defect reached a release.  Empty elements in
+    GENERAL are not the signal: tagpdf opens a text-unit/text pair at every
+    paragraph and a following list or parbox closes it again at once, so
+    empty structures are frequent and valid.  Conjoining "empty" with
+    "carries an author /Alt" is what makes the condition exact rather than
+    a heuristic.
+
+    What counts as content: any child ELEMENT, or any text.  A marked-content
+    sequence carrying no text does not, and that distinction is not academic
+    -- it is the whole difference between this oracle and struct_alt_kids.
+    Pre-fix under pdflatex the ALTKLPZG element wraps three EMPTY marked
+    content sequences while the two \lpzg Spans holding "sg" and "pl" sit
+    outside it as siblings; counting /MCID entries calls that three kids and
+    passes it, and resolving the tree shows an element that announces
+    "singular or plural" over nothing.  Generic mode is therefore NOT immune
+    to the 2026-09-17 defect where the box contains tagging of its own: it
+    places the marked content correctly and still parents a structure
+    element created during the fill to whatever was open then.
+
+    Conservative in the other direction: an element holding a child element
+    counts as wrapping something even if that child is itself empty.  The
+    defect this exists for leaves nothing behind, and a rule that reports
+    only what it can justify is worth more here than one that guesses.
+    """
+    empty = []
+    for el in show_pdf_tags_xml(pdf).iter():
+        alt = el.get("alt")
+        if alt is None:
+            continue
+        kids = list(el)
+        text = (el.text or "") + "".join((k.tail or "") for k in kids)
+        if not kids and not text.strip():
+            empty.append((el.tag.rsplit("}", 1)[-1], alt))
+    return empty
+
+
 def a_altkids(p: Page):
     r"""Every spoken /Alt wraps the content it speaks for.
 
@@ -4696,11 +4809,16 @@ def a_altkids(p: Page):
     (an /Alt that is present and well-formed satisfies them however little
     it wraps), and struct_alts() still finds every string.
 
-    Runs on all three engines deliberately.  On pdflatex and xelatex it
-    passes with the defect present, because generic mode writes the marked
-    content at the point of use; only lualatex fails.  A case restricted to
-    the engine that shows a defect is a case that stops noticing when the
-    others acquire it.
+    Runs on all three engines deliberately, and the reason is stronger than
+    it was first written.  The claim used to be that pdflatex and xelatex
+    pass with the defect present, generic mode writing its marked content at
+    the point of use, and that only lualatex fails.  That is true of the
+    three flat stacks and FALSE of ALTKLPZG: with the pre-fix .sty all three
+    engines leave that element wrapping nothing a reader can hear, because
+    the \lpzg Spans built into the box are parented where the box was
+    filled, not where it is used.  It took an oracle that resolves the tree
+    to see it (struct_empty_alts); counting /MCID in the object sees three
+    empty marked-content sequences and calls them kids.
     """
     r = []
     pairs = struct_alt_kids(p.path)
@@ -4710,10 +4828,25 @@ def a_altkids(p: Page):
         r.append(check(want in got,
                        f"{want!r} reached the structure tree; "
                        f"got {sorted(got)}"))
+    # DOMINATED, and kept deliberately.  Measured on 2026-09-18 over 27
+    # builds (nine tagged cases x three engines, with the .sty both fixed
+    # and reverted to ad113db^): this check uniquely caught NOTHING, while
+    # struct_empty_alts below uniquely caught two -- ALTKLPZG under
+    # pdflatex and xelatex, where the element wraps three EMPTY marked
+    # content sequences and counting /MCID entries calls them three kids.
+    # It stays because it is the one oracle here that is ours rather than
+    # upstream's, so the two fail differently; it is not a second opinion
+    # on anything, and a mutation that kills it kills the other as well.
     empty = sorted(t for t, k in pairs if k == 0)
     r.append(check(not empty,
                    f"every /Alt element wraps marked content; these wrap "
                    f"nothing: {empty}"))
+    # The same question put to the LaTeX team's own tool, which resolves /K
+    # the way a consumer does rather than by counting /MCID in one object.
+    stale = struct_empty_alts(p.path)
+    r.append(check(not stale,
+                   f"show-pdf-tags: every /Alt element wraps content; "
+                   f"these wrap nothing: {stale}"))
     # ALTKLPZG: the \lpzg written into an alternative keeps its own
     # expansion.  This is what a blind \tag_mc_reset_box:N would have cost,
     # so it is asserted rather than assumed.
@@ -5093,6 +5226,15 @@ def d_ua_demo(pdf: Path):
     # neither to give.  Avoiding it is the whole point of the 0.12 rewrite.
     r.append(check(not struct_has_formula(pdf),
                    "no Formula element in the tree"))
+    # The fourth oracle, and the one the other three cannot supply: an
+    # element carrying a spoken /Alt that wraps nothing.  This document is
+    # where it mattered -- 6 of its 12 /Alt elements were empty under
+    # lualatex before 2026-09-17, with veraPDF compliant on all three
+    # profiles and every depth assertion above satisfied.
+    orphans = struct_empty_alts(pdf)
+    r.append(check(not orphans,
+                   f"every /Alt in the tree wraps content; these wrap "
+                   f"nothing: {orphans}"))
     return r
 
 
