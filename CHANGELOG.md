@@ -3,6 +3,19 @@
 All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
+## 1.3.2
+- Fixed: in a tagged PDF, the spoken form of an `\altn` or `\altg` stack
+  was attached to nothing. Under LuaLaTeX every stack's `/Alt` sat on a
+  structure element with no content, and the alternatives stayed
+  children of the surrounding paragraph; under every engine, so did an
+  `\altn` alternative that contained a `\lpzg` gloss. The page was
+  correct and veraPDF passed the file, so nothing reported it. A
+  screen reader now finds the alternatives inside the element whose
+  `/Alt` describes them. Tagged documents that use either command should
+  be recompiled.
+- Manual: "Notes and limitations" says that an `\altn` stack nested
+  inside another prints correctly but is read out wrongly.
+
 ## 1.3.1
 - Fixed: under `[phantomalign]`, a gloss word that repeats its object
   word's delimiters -- `(è questa)` glossed `(est celle-ci)` -- was set one

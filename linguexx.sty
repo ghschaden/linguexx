@@ -5,7 +5,7 @@
 %%%% This program can be redistributed and/or modified under the terms
 %%%% of the LaTeX Project Public License
 \NeedsTeXFormat{LaTeX2e}[2020/10/01]% expl3 in kernel required
-\ProvidesPackage{linguexx}[2026/09/15 Standalone linguistic examples, linguex-compatible interface v. 1.3.1]
+\ProvidesPackage{linguexx}[2026/09/21 Standalone linguistic examples, linguex-compatible interface v. 1.3.2]
 %% v. 0.1: [legacy] option; empty \firstrefdash by default.
 %% v. 0.2: tagging-safe under \DocumentMetadata (PDF tagging testphase):
 %%         lists opened/closed through the environment interface; no TeX
@@ -312,6 +312,11 @@
 %%          pushed one delimiter-width right.  The measures run under
 %%          \tag_suspend:n: a math mark declared through
 %%          \GlossPhantomChars leaves no Formula element behind.
+%% v. 1.3.2: Fix: an \altn or \altg stack is filled inside its Span,
+%%          not before it.  Under lualatex every stack's /Alt sat on an
+%%          element with an empty /K, the alternatives left in the
+%%          paragraph; under every engine so did an \altn alternative
+%%          holding a \lpzg Span.  veraPDF passed both.
 %% Package options come in two independent groups.
 %%
 %% SYNTAX:
