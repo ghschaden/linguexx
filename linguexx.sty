@@ -960,6 +960,35 @@
   \labelwidth\SubSubExlabelwidth \labelsep\Exlabelsep
   \leftmargin\dimexpr\SubSubExlabelwidth+\Exlabelsep\relax \topsep\z@}
 
+%%%% --- internal names -------------------------------------------------
+%% Four prefixes, and which one a thing carries is not arbitrary.
+%%
+%%   \lx@...      the LaTeX2e-style front end: the dot syntax and the
+%%                environments, their peeking and body collection, the
+%%                geometry tables above, the option glue.  \def and
+%%                \newcommand, and always OUTSIDE an \ExplSyntaxOn block
+%%                -- there is no \def anywhere inside one in this file,
+%%                and keeping it that way is what stops a body that
+%%                depends on significant spaces (a glue specification, a
+%%                delimiter) from being read with them stripped.
+%%   \lx_...      the public expl3 interface -- \lx_mode_new:nn,
+%%                \lx_mode_select:n, \lx_relref_anchor:, \lx_ol_class:n.
+%%                A front end other than this file's may call these.
+%%   \__lx_...    private expl3, the engine: body loops, the glossing
+%%                grid, judgment marks, mode selection, splitting.
+%%   \__lxp_...   private expl3, the PARADIGM code and nothing else --
+%%                \altn, \altg, and the TikZ brace they are drawn with.
+%%                The p is for "paradigm", which is the word this file
+%%                uses throughout for a stack of alternatives sharing a
+%%                brace; the module is worth its own prefix because the
+%%                two-call \altg protocol carries state between object
+%%                and gloss tier (\g__lxp_altg_role_int) and nothing
+%%                outside it may touch that.
+%%
+%% The split between \__lx_ and \__lxp_ is therefore a module boundary,
+%% not a vintage: a new name belongs to \__lxp_ if the alternatives code
+%% owns it, and to \__lx_ otherwise.
+
 %%%% --- public API (Protocol B: geometry modes) ------------------------
 %% A mode is a defaults table plus three geometry hooks -- and nothing
 %% else: [legacy] differs from the default in exactly these four macros.
