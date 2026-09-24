@@ -5,7 +5,7 @@ input syntax and first-class support for **accessible (tagged) PDF output**.
 
 `linguexx` reimplements the familiar dot-syntax of `linguex`
 (`\ex.`, `\a.`, `\b.`, `\z.`, `\exg.`, `\gll`, `\glt`, `\Next`, `\Last`, …) on a
-fresh `expl3` engine, with no dependency on `linguex`, `cgloss4e`, or `xspace`.
+fresh `expl3` engine, with no dependency on `linguex` or `cgloss4e`.
 It runs on **pdfLaTeX, XeLaTeX and LuaLaTeX**. A `[legacy]` option reproduces
 `linguex`'s exact geometry for drop-in replacement; the default mode is a
 slightly tighter variant.
@@ -122,6 +122,9 @@ quietly skip when veraPDF is absent.
 - A reasonably current TeX Live (2023 or later; the tagging support tracks the
   LaTeX tagging project, which is still evolving — see the notes).
 - `expl3` (part of the LaTeX kernel).
+- `tikz`, which draws the brace of `\altn` and `\altg` so that the alternatives
+  are ordinary tagged text rather than a formula, and `xspace`, for the space
+  after `\Last` and its family. Both are loaded by the package itself.
 
 ## Licence
 
