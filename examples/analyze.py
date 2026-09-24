@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Analyze an uncompressed tagged PDF: print the structure tree and
 report any text shown outside marked content (untagged 'real content')."""
-import re, sys, zlib
-from collections import defaultdict
+import re
+import sys
+import zlib
 
 data = open(sys.argv[1], "rb").read()
 
@@ -56,7 +57,8 @@ if root is None:
 
 def walk(n, depth, seen):
     if n in seen:
-        print("  " * depth + f"[CYCLE {n}]"); return
+        print("  " * depth + f"[CYCLE {n}]")
+        return
     seen.add(n)
     b = objs.get(n, b"")
     s = sval(b, b"S") or ("STRUCTROOT" if n == root else "?")
@@ -87,7 +89,9 @@ for st in streams:
         continue
     depth_mc, in_art = 0, 0
     stack = []
-    for tok in re.finditer(rb"(/[A-Za-z][A-Za-z0-9]*\s*(?:<<[^>]*>>)?\s*(?:BDC|BMC))|(EMC)|(\[[^\]]*\]\s*TJ|\([^)]*\)\s*Tj)", st):
+    marked = (rb"(/[A-Za-z][A-Za-z0-9]*\s*(?:<<[^>]*>>)?\s*(?:BDC|BMC))"
+              rb"|(EMC)|(\[[^\]]*\]\s*TJ|\([^)]*\)\s*Tj)")
+    for tok in re.finditer(marked, st):
         if tok.group(1):
             stack.append(b"art" if tok.group(1).startswith(b"/Artifact") else b"mc")
         elif tok.group(2):

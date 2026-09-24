@@ -659,7 +659,8 @@ def a_exsource(p: Page):
     line = p.line_of(fallback)
     right_edge = max(w.x1 for w in line)
     r.append(check(right_edge >= body_right - 2.0,
-                   f"fallback source is flush right ({right_edge:.1f} vs text edge {body_right:.1f})"))
+                   f"fallback source is flush right ({right_edge:.1f} vs "
+                   f"text edge {body_right:.1f})"))
     # the inline one must sit on the same line as its example text, at the right
     inline_line = p.line_of(inline)
     r.append(check(len(inline_line) > 2,
@@ -3384,7 +3385,9 @@ def a_langsci(p: Page):
     # example establishes, so the check needs no page geometry of its own.
     just = _band_lines(p, p.find("LSJUST").y0 - 1, p.find("LSRAG").y0 - 1)
     rag = _band_lines(p, p.find("LSRAG").y0 - 1, p.find("LSREFS").y0 - 1)
-    edges = lambda lines: [max(w.x1 for w in line) for line in lines]
+    def edges(lines):
+        return [max(w.x1 for w in line) for line in lines]
+
     je, re_ = edges(just), edges(rag)
     r.append(check(len(je) >= 2 and len(re_) >= 2,
                    f"both justification examples wrapped ({len(je)} and "
@@ -4196,7 +4199,7 @@ def a_tagged(p: Page):
     # any other -- the stack prints it plain but still records it.
     lst = _band_lines(p, p.find("LPZGLIST").y1,
                       max(w.y1 for w in p.words) + 1)[:3]  # footnote follows
-    labels = [l[0].text for l in lst]
+    labels = [row[0].text for row in lst]
     r.append(check(labels == ["pl", "pst", "sg"],
                    f"abbreviation list under tagging: {labels} != "
                    f"['pl', 'pst', 'sg']"))
@@ -4204,7 +4207,7 @@ def a_tagged(p: Page):
         r.append(check(abs(lst[0][0].x0 - lst[1][0].x0) < TOL,
                        f"list labels stay flush left under tagging "
                        f"({lst[0][0].x0:.2f} vs {lst[1][0].x0:.2f})"))
-        r.append(check(all(l[0].x1 < l[1].x0 + TOL for l in lst),
+        r.append(check(all(row[0].x1 < row[1].x0 + TOL for row in lst),
                        "no list label overruns its explanation under tagging"))
     # The six /Alt elements this case carries must each wrap something;
     # four of them do not with the pre-2026-09-17 .sty, on lualatex only.
@@ -4648,10 +4651,10 @@ def verapdf_log_records(raw: str):
     """
     lines = raw.splitlines()
     out = []
-    for i, l in enumerate(lines):
-        if "org.verapdf." in l:
+    for i, ln in enumerate(lines):
+        if "org.verapdf." in ln:
             msg = lines[i + 1].strip() if i + 1 < len(lines) else ""
-            out.append(msg or l.strip())
+            out.append(msg or ln.strip())
     return out
 
 
@@ -4940,12 +4943,12 @@ def a_lpzglist(p: Page):
     """
     r = []
     lines = _band_lines(p, p.find("FRONTLIST").y1, p.find("(1)").y0)
-    labels = [l[0].text for l in lines]
+    labels = [row[0].text for row in lines]
     expected = ["3", "acc", "def", "f\u00e9m", "nom", "obv", "pl", "prs",
                 "pst", "sg", "voc"]
     r.append(check(labels == expected,
                    f"front list is complete and alphabetical: {labels} != {expected}"))
-    texts = {l[0].text: " ".join(w.text for w in l[1:]) for l in lines}
+    texts = {row[0].text: " ".join(w.text for w in row[1:]) for row in lines}
     for key, meaning in (("3", "third person"), ("acc", "accusative"),
                          ("obv", "obviative"), ("voc", "vocative"),
                          ("f\u00e9m", "f\u00e9minin")):
@@ -4955,14 +4958,15 @@ def a_lpzglist(p: Page):
     # them (a right-aligned label column would spread them by width), and
     # none of them running into its explanation (\labelwidth is the width
     # of the WIDEST key, not of the first one).
-    entries = [l for l in lines if len(l) > 1]
-    xs = [l[0].x0 for l in entries]
-    starts = [l[1].x0 for l in entries]
+    entries = [row for row in lines if len(row) > 1]
+    xs = [row[0].x0 for row in entries]
+    starts = [row[1].x0 for row in entries]
     r.append(check(xs and max(xs) - min(xs) < TOL,
                    f"list labels are flush left "
                    f"(spread {max(xs) - min(xs):.2f}pt)" if xs else
                    "list labels are flush left (the list is empty)"))
-    r.append(check(entries and all(l[0].x1 < l[1].x0 + TOL for l in entries),
+    r.append(check(entries and all(row[0].x1 < row[1].x0 + TOL
+                                   for row in entries),
                    "no label overruns its explanation column"))
     r.append(check(starts and max(starts) - min(starts) < TOL,
                    f"explanations share one column "
@@ -5355,7 +5359,8 @@ def run_document(name: str, outdir: Path = None):
         log = work / f"{src.stem}.log"
         text = log.read_text(errors="replace") if log.exists() else ""
         if proc.returncode != 0:
-            errs = [l for l in text.splitlines() if l.startswith("!")][:3]
+            errs = [ln for ln in text.splitlines()
+                    if ln.startswith("!")][:3]
             return [(False, f"BUILD FAILED under {engine}: "
                             f"{'; '.join(errs) or 'see the log'}")]
         pdf = work / f"{src.stem}.pdf"
@@ -5543,7 +5548,7 @@ def expect_error_verdict(want, returncode, log):
     the returncode arm, and nothing that needs an engine can be relied on
     to kill it.
     """
-    errs = [l for l in log.splitlines() if l.startswith("!")][:3]
+    errs = [ln for ln in log.splitlines() if ln.startswith("!")][:3]
     if want not in log:
         return [(False, f"expected the error {want!r}; got "
                         f"{'; '.join(errs) or 'a clean compile'}")]
@@ -5645,7 +5650,7 @@ def run_case(name: str, engine: str, verbose: bool):
                 (tmp / f"{name}.log").read_text(errors="replace"))
         if proc.returncode != 0:
             log = (tmp / f"{name}.log").read_text(errors="replace")
-            errs = [l for l in log.splitlines() if l.startswith("!")][:3]
+            errs = [ln for ln in log.splitlines() if ln.startswith("!")][:3]
             return [(False, f"COMPILE FAILED: {'; '.join(errs) or 'see log'}")]
         pdf = tmp / f"{name}.pdf"
         if not pdf.exists():

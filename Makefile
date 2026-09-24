@@ -5,6 +5,7 @@
 # assemble the CTAN upload.
 #
 #   make check     the version strings agree everywhere they are stated
+#   make lint      ruff over the Python that checks the package
 #   make test      the regression suite, all three engines, documents too
 #   make manual    rebuild linguexx-doc.pdf in place (lualatex only)
 #   make ctan      build dist/linguexx.zip, and prove it installs
@@ -18,12 +19,29 @@
 
 PYTHON ?= python3
 
-.PHONY: all check test manual ctan ctan-tds clean hooks
+.PHONY: all check lint test manual ctan ctan-tds clean hooks
 
 all: check test
 
 check:
 	@$(PYTHON) tools/ctan.py --check
+
+# The Python that checks the package -- the suite, tools/, the harness in
+# .claude/.  Configured in ruff.toml, which says what is selected and why.
+# Deliberately NOT part of `all` or of `make ctan`: ruff is not needed to
+# build or release linguexx, and a release that cannot be cut on a machine
+# without it would be a worse trade than an unlinted afternoon.  It is also
+# why this target says so when ruff is missing instead of failing.
+#
+# One shell, not two lines: make gives each recipe line its own, so an
+# `exit 0` on the first does not stop the second and the absent-ruff path
+# fell through to a 127 from the real invocation.
+lint:
+	@if command -v ruff >/dev/null 2>&1; then \
+	  ruff check . && echo "OK  ruff"; \
+	else \
+	  echo "ruff is not installed; skipping (see ruff.toml)"; \
+	fi
 
 test:
 	@$(PYTHON) tests/runtests.py --documents

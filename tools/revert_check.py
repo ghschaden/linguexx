@@ -81,7 +81,8 @@ def untested_reason(msg_path):
     text = Path(msg_path).read_text()
     # A commented-out template line must not count, whether or not git has
     # stripped the comments before calling the hook.
-    text = "\n".join(l for l in text.splitlines() if not l.startswith("#"))
+    text = "\n".join(ln for ln in text.splitlines()
+                     if not ln.startswith("#"))
     parsed = git("interpret-trailers", "--parse", input=text).stdout
     for line in parsed.splitlines():
         key, _, value = line.partition(":")

@@ -138,7 +138,7 @@ def log_digest(text, boxes=False, limit=12):
             continue
         i += 1
 
-    box = [l for l in lines if l.startswith(("Overfull", "Underfull"))]
+    box = [ln for ln in lines if ln.startswith(("Overfull", "Underfull"))]
     rerun = [w for w in warns if "Rerun" in w]
     parts = []
     for b in out[:limit]:
@@ -357,7 +357,7 @@ def cmd_text(a):
     txt = sh(cmd).stdout
     if a.grep:
         pat = re.compile(a.grep)
-        txt = "\n".join(l for l in txt.splitlines() if pat.search(l))
+        txt = "\n".join(ln for ln in txt.splitlines() if pat.search(ln))
     print(txt.rstrip())
     return 0
 
@@ -436,7 +436,7 @@ def cmd_png(a):
                         min(img.width, int(x1 * s + m)),
                         min(img.height, int(y1 * s + m))))
     elif a.crop:
-        from PIL import ImageChops, ImageOps
+        from PIL import ImageOps
         gray = ImageOps.invert(img.convert("L"))
         bb = gray.point(lambda v: 255 if v > 12 else 0).getbbox()
         if bb:
@@ -471,7 +471,7 @@ def cmd_struct(a):
     """
     pdf = Path(a.pdf)
     r = sh(["pdfinfo", "-struct-text", str(pdf)])
-    lines = [l for l in r.stdout.splitlines() if l.strip()]
+    lines = [ln for ln in r.stdout.splitlines() if ln.strip()]
     if not lines:
         die("no structure tree: is this document tagged?")
     kept, prev, run = [], None, 0

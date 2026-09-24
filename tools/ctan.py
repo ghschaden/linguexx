@@ -146,7 +146,7 @@ def package_version():
 def tracked(pattern):
     """Files git tracks, so an untracked work order cannot block a release."""
     out = sh(["git", "-C", REPO, "ls-files", pattern]).stdout
-    return [REPO / l for l in out.split() if l]
+    return [REPO / ln for ln in out.split() if ln]
 
 
 def check_versions():
@@ -351,7 +351,8 @@ def install_test(zip_path: Path, version: str, when: str):
             log = (work / "probe.log").read_text(errors="replace")
             flat = log.replace("\n", "")     # see max_print_line above
             if proc.returncode != 0:
-                errs = [l for l in log.splitlines() if l.startswith("!")][:3]
+                errs = [ln for ln in log.splitlines()
+                        if ln.startswith("!")][:3]
                 problems.append(f"the archive's linguexx.sty does not "
                                 f"compile under {engine}: "
                                 f"{'; '.join(errs) or 'see the log'}")
@@ -424,7 +425,7 @@ def main():
     if dirty and not a.allow_dirty:
         print("\nthe tree has uncommitted changes, so the archive would "
               "hold a file no commit records:\n")
-        print("\n".join("  " + l for l in dirty.splitlines()))
+        print("\n".join("  " + ln for ln in dirty.splitlines()))
         print("\ncommit them, or pass --allow-dirty if this is a dry run.")
         return 1
 
@@ -446,7 +447,7 @@ def main():
         if a.tds:
             tds = tds_zip(tree, a.out)
 
-    print(f"\ntesting the archive itself, unpacked, under every engine ...")
+    print("\ntesting the archive itself, unpacked, under every engine ...")
     problems = install_test(archive, version, when)
     if problems:
         print(f"\nARCHIVE REJECTED ({len(problems)} problem(s)):\n")

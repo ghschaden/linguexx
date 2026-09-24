@@ -1,0 +1,71 @@
+# Linting for the Python in this repository: the test suite, the release
+# plumbing in tools/, and the agent harness in .claude/.  None of it ships
+# to CTAN -- tools/ctan.py builds the archive from an explicit list and no
+# .py is on it -- so this is about keeping the code that CHECKS the package
+# honest, not the package itself.
+#
+#   ruff check .
+#
+# from the repository root.  Install it with the system package manager
+# (packaged as `ruff`); nothing here needs a virtualenv.
+#
+# It earned its keep on the first run, which is the argument for having it:
+# a rename in verapdf_failures() left one `l` behind out of four, and F821
+# named the line.  That bug fires only when a veraPDF report line is
+# followed by a blank one, so the suite could have stayed green on it.
+#
+# Deliberately a lint and NOT a formatter.  `ruff format` over
+# tests/runtests.py would rewrite assertion bodies wholesale, and the diff
+# that matters here is the one that changes what an assertion CLAIMS; a
+# reformat touching 5,800 lines hides exactly that.
+
+target-version = "py39"
+
+# 79 is the style the code is written in; 100 is the width it is CHECKED
+# at, and the gap is deliberate.  Set this to 79 and the lint reports 122
+# existing lines, all of them long assertion messages in
+# tests/runtests.py where the alternative to one wide line is a
+# worse-reading wrapped one -- a lint that starts with 122 complaints is a
+# lint nobody runs.  At 100 the baseline is clean and a genuinely runaway
+# line is still caught.  Keep writing 79.
+line-length = 100
+
+# The harness entry point is a script with a shebang and no .py suffix, so
+# ruff has to be told it is Python.  It is tracked, CLAUDE.md documents it,
+# and it imports tests/runtests.py -- it is not scratch.
+extend-include = [".claude/tools/lxx"]
+
+# experiments/ is a record of what was tried, not code that runs: each
+# probe is frozen beside the conclusion it produced (see the notes in
+# .gitignore about experiments/brace-look/).  Tidying a frozen probe's
+# imports changes a document, and the diff would say a question was
+# reopened when it was not.
+extend-exclude = ["experiments/"]
+
+[lint]
+# F  -- pyflakes: undefined names, unused imports and variables.  The
+#       reason this file exists; in 6,000 lines of byte-level PDF parsing
+#       a name that only exists on the branch nobody took is a real risk.
+# E  -- pycodestyle errors: bare excepts, ambiguous names, comparisons to
+#       None/True, and E9's syntax/IO failures.
+# W  -- trailing whitespace, missing final newline.
+# UP -- pyupgrade, bounded by target-version above.
+# B  -- bugbear, for B006/B008 (mutable default arguments) above all.
+select = ["F", "E", "W", "UP", "B"]
+
+ignore = [
+    # UP031 wants .format()/f-strings instead of %-formatting.  Every site
+    # in this repository builds a LaTeX string -- "\\lx@relref@dest{%s}",
+    # "\\providecommand\\%s[%d]{}" -- where the braces are literal and
+    # load-bearing.  Converting them means doubling every one of those
+    # braces, in code whose whole job is to assert on LaTeX output, to buy
+    # nothing.  % is the right operator for brace-heavy text.
+    "UP031",
+    # B007 flags a loop variable the body does not use.  The two sites are
+    # tuple unpackings of REQUIRED_TOOLS, whose three fields are named so
+    # that the shape of the value is readable at the loop head -- the
+    # comment above that table explains the fields in the same order.
+    # Renaming them to _provided and _at_startup would hide what the
+    # unpacking documents.
+    "B007",
+]

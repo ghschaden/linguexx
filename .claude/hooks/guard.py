@@ -173,8 +173,8 @@ def post_tool(ev):
     if "All green." not in out:
         return 0
     m = lxx()
-    summary = next((l.strip() for l in out.splitlines()
-                    if "assertions passed across" in l), "green")
+    summary = next((ln.strip() for ln in out.splitlines()
+                    if "assertions passed across" in ln), "green")
     m.write_stamp({"scope": "suite (raw runtests.py)", "summary": summary})
     return 0
 
