@@ -51,6 +51,13 @@ benchmarks/
 # pattern: a plan file put in doc/ will not be picked up by "git add" until
 # this line is narrowed.
 doc/*-PLAN.md
+# The same thing at the root, and named separately because the pattern above
+# does not reach it: TODO.md is a work order (currently the trim of the .sty
+# version log and the split of tests/runtests.py), not a list the package
+# makes any promise about.  An unignored TODO.md is the kind of file
+# "git add -A" commits by accident, which is how a private note becomes a
+# published roadmap.
+TODO.md
 
 # the brace-look comparison: the renderings and timings behind the v1.2
 # brace (tikz decoration against pict2e, hairline against a typographic
