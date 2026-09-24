@@ -4,7 +4,14 @@
 %%%%  interface modelled on cgloss4e by Hans-Peter Kolb & Craig Thiersch)
 %%%% This program can be redistributed and/or modified under the terms
 %%%% of the LaTeX Project Public License
-\NeedsTeXFormat{LaTeX2e}[2020/10/01]% expl3 in kernel required
+%% 2022/06/01 is where \DeclareKeys, \DeclareUnknownKeyHandler and
+%% \ProcessKeyOptions entered the kernel; the options below are declared
+%% with them.  expl3 alone would still be satisfied by 2020/10/01, but
+%% asking for the earlier format only buys a document on a 2020 kernel an
+%% undefined \ProcessKeyOptions half a file later instead of the "format
+%% too old" it should get here.  README has promised TL2023 or later all
+%% along, so this states the requirement that was already being made.
+\NeedsTeXFormat{LaTeX2e}[2022/06/01]% \ProcessKeyOptions + expl3 in kernel
 \ProvidesPackage{linguexx}[2026/09/21 Standalone linguistic examples, linguex-compatible interface v. 1.3.2]
 %% v. 0.1: [legacy] option; empty \firstrefdash by default.
 %% v. 0.2: tagging-safe under \DocumentMetadata (PDF tagging testphase):
@@ -387,28 +394,91 @@
 \newif\iflx@legacy
 \newif\iflx@phantomalign
 \newif\iflx@relreflinks \lx@relreflinkstrue
-\DeclareOption{lazy}{\lx@lazytrue}
-\DeclareOption{gb4e}{\lx@gbfourtrue}
+%% The options are declared with the kernel's key interface rather than
+%% \DeclareOption, which is where the four \keys_define:nn sets further
+%% down the file already are.  Three things about that are deliberate.
+%%
+%% VALUELESS, and a value is an ERROR rather than something ignored.
+%% Every option here is a switch, and the spellings this package accepts
+%% are exactly the eleven names below -- [legacy], never [legacy=true].
+%% Declaring them with .code:n and an empty .default:n is what keeps it
+%% that way: the key interface would otherwise hand a document
+%% [legacy=false] and set the switch anyway, reading the value as
+%% decoration.  A key=value option surface may be worth having one day;
+%% it is not something to acquire by accident, as a side effect of how the
+%% options happen to be declared.  \lx@opt@bare says so out loud.
+%%
+%% It has to be \lx@opt@bare and not an expl3 name: \DeclareKeys reads
+%% its body with the catcodes in force HERE, and this is above the
+%% package's first \ExplSyntaxOn.  Written \__lx_opt_bare:nn the code
+%% would not merely fail to run -- each _ is a subscript, so TeX reports
+%% "Missing $ inserted", typesets the name, and the option silently does
+%% nothing at all.
+%%
+%% ORDER.  \ProcessOptions ran options in the order they were DECLARED;
+%% \ProcessKeyOptions runs them in the order they were GIVEN.  The pair
+%% below is the only place that can show: [norelreflinks,relreflinks]
+%% used to come out linked whichever way round it was written, because
+%% [relreflinks] is declared first, and now the last one written wins.
+%% Given order is the better answer -- it is what every other key=value
+%% interface in the document does -- and a preamble naming both was
+%% always asking for one of them to be ignored.
+\newcommand\lx@opt@bare[2]{%
+  \def\lx@opt@given{#2}%
+  \ifx\lx@opt@given\@empty\else
+    \PackageError{linguexx}{The option '#1' takes no value}%
+      {linguexx's package options are switches: write [#1], not
+       [#1=...].\MessageBreak
+       The lengths and fonts are set with commands in the preamble
+       instead -- see the manual.}%
+  \fi}
+\DeclareKeys[linguexx]{
+  lazy            .code:n    = {\lx@opt@bare{lazy}{#1}\lx@lazytrue},
+  lazy            .default:n = {},
+  gb4e            .code:n    = {\lx@opt@bare{gb4e}{#1}\lx@gbfourtrue},
+  gb4e            .default:n = {},
 % [langsci] is a SUPERSET of the gb4e syntax -- \ea expands to what exe
 % and xlist write -- so it turns [gb4e] on rather than competing with it.
 % That also makes the "no syntax option means [lazy]" rule below do the
 % right thing for [langsci] alone.
-\DeclareOption{langsci}{\lx@langscitrue\lx@gbfourtrue}
+  langsci         .code:n    = {\lx@opt@bare{langsci}{#1}%
+                                \lx@langscitrue\lx@gbfourtrue},
+  langsci         .default:n = {},
 % langsci-gb4e's four options, under their own names so that a preamble
 % being ported does not have to be edited.  They are read only under
 % [langsci]; given without it they are accepted and do nothing, which is
 % what they would do in a document that has no \ea in it either.
-\DeclareOption{nojambox}{\lx@nojamboxtrue}
-\DeclareOption{manualexewidth}{\lx@manualexewidthtrue}
-\DeclareOption{lowerpenalty}{\lx@lowerpenaltytrue}
-\DeclareOption{nocgloss}{\lx@nocglosstrue}
-\DeclareOption{legacy}{\lx@legacytrue}
-\DeclareOption{phantomalign}{\lx@phantomaligntrue}
-\DeclareOption{relreflinks}{\lx@relreflinkstrue}
-\DeclareOption{norelreflinks}{\lx@relreflinksfalse}
-\DeclareOption*{\PackageWarning{linguexx}{Unknown option
-  '\CurrentOption' ignored}}
-\ProcessOptions\relax
+  nojambox        .code:n    = {\lx@opt@bare{nojambox}{#1}\lx@nojamboxtrue},
+  nojambox        .default:n = {},
+  manualexewidth  .code:n    = {\lx@opt@bare{manualexewidth}{#1}%
+                                \lx@manualexewidthtrue},
+  manualexewidth  .default:n = {},
+  lowerpenalty    .code:n    = {\lx@opt@bare{lowerpenalty}{#1}%
+                                \lx@lowerpenaltytrue},
+  lowerpenalty    .default:n = {},
+  nocgloss        .code:n    = {\lx@opt@bare{nocgloss}{#1}\lx@nocglosstrue},
+  nocgloss        .default:n = {},
+  legacy          .code:n    = {\lx@opt@bare{legacy}{#1}\lx@legacytrue},
+  legacy          .default:n = {},
+  phantomalign    .code:n    = {\lx@opt@bare{phantomalign}{#1}%
+                                \lx@phantomaligntrue},
+  phantomalign    .default:n = {},
+  relreflinks     .code:n    = {\lx@opt@bare{relreflinks}{#1}%
+                                \lx@relreflinkstrue},
+  relreflinks     .default:n = {},
+  norelreflinks   .code:n    = {\lx@opt@bare{norelreflinks}{#1}%
+                                \lx@relreflinksfalse},
+  norelreflinks   .default:n = {},
+}
+%% An unknown option WARNS and is ignored, as \DeclareOption* did here --
+%% not the error the key interface would raise by itself.  A document
+%% carrying an option this package does not know still deserves to be
+%% typeset.  Only options given to \usepackage reach this: a class option
+%% the package has no key for is left alone by the kernel, so
+%% \documentclass[a4paper]{article} does not warn.
+\DeclareUnknownKeyHandler[linguexx]{%
+  \PackageWarning{linguexx}{Unknown option '#1' ignored}}
+\ProcessKeyOptions[linguexx]
 \iflx@gbfour\else\lx@lazytrue\fi
 % [legacy,langsci] is refused rather than approximated.  [legacy] is
 % linguex's geometry to the value, and langsci-gb4e is the house style of a

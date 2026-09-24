@@ -1,0 +1,17 @@
+%% A package option given a value is refused.  linguexx's options are
+%% switches -- [legacy], not [legacy=true] -- and the eleven names are the
+%% whole accepted surface.
+%%
+%% This is here because the kernel's key interface makes the opposite easy
+%% to arrive at by accident.  Declaring the options with .code:n and an
+%% empty .default:n is what keeps them valueless; drop \lx@opt@bare from
+%% one of them, or give it a non-empty .default:n, and the key quietly
+%% accepts whatever it is handed and sets the switch anyway -- so
+%% [legacy=false] would turn [legacy] ON, which is worse than not
+%% supporting the spelling at all.  Under the old \DeclareOption interface
+%% [legacy=true] was simply an unknown option and warned.  See EXPECT_ERROR.
+\documentclass{article}
+\usepackage[legacy=true]{linguexx}
+\begin{document}
+OPTIONVALUE unreachable.
+\end{document}

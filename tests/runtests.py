@@ -156,6 +156,13 @@ EXPECT_ERROR = {
     "langsci-eamix": "written in the other syntax",
     "langsci-strayz": "with no \\ea to close",
     "langsci-legacy": "cannot be combined",
+    # A package option handed a value.  The options are switches, and the
+    # kernel's key interface is what makes the opposite easy to reach by
+    # accident: give one of them a non-empty .default:n, or drop
+    # \lx@opt@bare, and [legacy=false] sets [legacy] rather than being
+    # refused -- the value read as decoration.  Under \DeclareOption the
+    # spelling was merely unknown and warned.
+    "option-value": "takes no value",
     "langsci-unclosed": "was never closed",
     "langsci-exioutside": "outside an example",
     "langsci-easnest": "inside an example",
@@ -1975,6 +1982,46 @@ def a_relreflinks_off(p: Page):
                    "no anchors are written to the .aux"))
     r.append(check("linguexx Warning" not in getattr(p, "log", ""),
                    "and nothing is reported"))
+    return r
+
+
+def a_option_unknown(p: Page):
+    r"""An unknown package option warns, is ignored, and costs its neighbours nothing.
+
+    The old \DeclareOption* warned and carried on.  The kernel's key
+    interface errors on an undeclared key instead, so the migration to
+    \DeclareKeys restored the warning with \DeclareUnknownKeyHandler -- and
+    this is the only case that passes an option linguexx does not know, so
+    it is the only place that can tell the two apart.
+
+    Three claims, because the cheap version of this test passes for the
+    wrong reason.  That the warning names the option is not enough: an
+    error message names it too.  So the document must also have REACHED the
+    end (both examples on the page), and [norelreflinks], which shared the
+    bracket with the bad name, must still have been honoured -- if the
+    unknown key aborted option processing the switch would silently revert
+    to its default and \Next would come out a link.
+    """
+    r = []
+    body = warning_body(p.log, "Package linguexx Warning: Unknown option")
+    r.append(check("bogusoption" in body,
+                   f"the warning names the option; got {body!r}"))
+    txt = " ".join(w.text for w in p.words)
+    for tok in ("OUEXONE", "OUEXTWO"):
+        r.append(check(tok in txt,
+                       f"{tok} is on the page, so the run was not stopped"))
+    for tok, want in (("OUNEXT", "(2)"), ("OULAST", "(1)"), ("OUREF", "(1)")):
+        r.append(check(f"{tok} {want}" in txt,
+                       f"{tok} prints {want}; got "
+                       f"{txt[txt.find(tok):][:len(tok) + 14]!r}"))
+    # The neighbour option survived the bad name: \Next is not a link, and
+    # \ref beside it still is, exactly as in relreflinks-off.
+    got = example_targets(p.raw)
+    r.append(check("ExNo.lxex.2" not in got,
+                   "[norelreflinks] still took effect: \\Next is not a link"))
+    r.append(check(got.count("ExNo.lxex.1") == 1,
+                   f"and hyperref's own \\ref still is (one link to example "
+                   f"1, got {got.count('ExNo.lxex.1')})"))
     return r
 
 
@@ -5166,6 +5213,7 @@ ASSERTIONS = {
     "relrefs": a_relrefs,
     "relreflinks": a_relreflinks,
     "relreflinks-off": a_relreflinks_off,
+    "option-unknown": a_option_unknown,
     "relreflinks-reset": a_relreflinks_reset,
     "relreflinks-beamer": a_relreflinks_beamer,
     "relreflinks-beamer-reset": a_relreflinks_beamer_reset,

@@ -1,0 +1,35 @@
+%% An option linguexx does not know WARNS and is ignored; the document
+%% still compiles, and the options beside it still take effect.
+%%
+%% This is what \DeclareOption* did here, and it is NOT what the kernel's
+%% key interface does by itself -- an undeclared key raises an error there,
+%% so the move to \DeclareKeys had to put the warning back by hand with
+%% \DeclareUnknownKeyHandler.  Remove that line and a preamble carrying
+%% one option this package has never heard of stops the run instead of
+%% typesetting.  No other case passes an unknown option, so no other case
+%% would notice.
+%%
+%% The preamble is relreflinks-off's, written out rather than \input
+%% because the unknown option has to be on the \usepackage line itself,
+%% and [norelreflinks] rides along on purpose: the run has to reach the
+%% end AND still honour the option that shared the bracket with the bad
+%% one, which is what says the warning cost its neighbours nothing.
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=25mm]{geometry}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else
+  \usepackage{fontspec}
+\fi
+\usepackage[norelreflinks,bogusoption]{linguexx}
+\usepackage{hyperref}
+\pagestyle{empty}
+\begin{document}
+\ex.\label{ou:one} OUEXONE first example.
+
+OUNEXT \Next\ OULAST \Last\ OUREF \ref{ou:one}
+
+\ex. OUEXTWO second example.
+\end{document}
