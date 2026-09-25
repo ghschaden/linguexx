@@ -43,14 +43,32 @@
 \ExParenRefs
 \usepackage[colorlinks,linkcolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
 
+% A manual about macros is mostly prose carrying unbreakable \texttt runs:
+% \cs{DeclareJudgment}\marg{command}\marg{mark} is one ~200pt token with no
+% hyphenation point in it.  When such a run does not fit, TeX weighs a very
+% loose preceding line against an overfull one and, with the default zero
+% emergency stretch, takes the overfull -- six of them, the worst 26pt (about
+% 9mm) into the right margin of a printed A4 page.  A third pass over looser
+% interword space is the cheaper trade here, and it is the standard remedy:
+% nothing is reworded and no markup changes meaning.  Keep an eye on the box
+% count (`lxx log linguexx-doc.log`) rather than on this number.
+\emergencystretch=3em
+
 % --- documentation helpers --------------------------------------------------
 \definecolor{codebg}{gray}{0.96}
 \newcommand{\cs}[1]{\texttt{\textbackslash #1}}
 \newcommand{\pkg}[2][]{\textsf{#2}}
 \newcommand{\opt}[1]{\texttt{#1}}
 \newcommand{\meta}[1]{\textrm{\itshape\textlangle#1\textrangle}}
-\newcommand{\marg}[1]{\texttt{\{}\meta{#1}\texttt{\}}}
-\newcommand{\oarg}[1]{\texttt{[}\meta{#1}\texttt{]}}
+% The \penalty is what lets \cs{Name}\marg{a}\marg{b} break at all: without
+% it the whole signature is one ~200pt token with no breakpoint, and when it
+% will not fit TeX overruns the margin instead.  300 discourages the break
+% without forbidding it, so a signature still prefers to stay whole and
+% splits only when the alternative is ink in the margin.  Rewording the
+% sentences instead would fix the two that overflow today and nothing about
+% the next one.
+\newcommand{\marg}[1]{\penalty300 \texttt{\{}\meta{#1}\texttt{\}}}
+\newcommand{\oarg}[1]{\penalty300 \texttt{[}\meta{#1}\texttt{]}}
 % a length/command name set as text, for the box-model diagram
 \newcommand{\lname}[1]{\text{\ttfamily\scriptsize\textbackslash #1}}
 
