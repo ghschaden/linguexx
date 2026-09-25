@@ -112,10 +112,15 @@ It is what CI runs.
 It needs the three TeX engines and Python 3, plus `poppler-utils` (`pdftotext`
 for the word boxes every geometric assertion reads, `pdfinfo` for the structure
 tree), `qpdf` (to resolve a named destination to the page it lands on, which no
-poppler tool reports) and [veraPDF](https://verapdf.org/) on `PATH` as `verapdf`,
-which needs a JRE — it is the only authoritative oracle for PDF/UA. The suite
-will not start without poppler or qpdf, and the PDF/UA cases fail rather than
-quietly skip when veraPDF is absent.
+poppler tool reports), `show-pdf-tags` (the LaTeX team's own tag viewer, the
+TeX Live package of that name: it resolves `/K` the way a consumer does, which
+is what sees an `/Alt` that wraps nothing) and [veraPDF](https://verapdf.org/)
+on `PATH` as `verapdf`, which needs a JRE — it is the only authoritative oracle
+for PDF/UA. The suite will not start without poppler or qpdf, and the tagging
+and PDF/UA cases fail rather than quietly skip when `show-pdf-tags` or veraPDF
+is absent. That list is `REQUIRED_TOOLS` in `tests/runtests.py`, which is
+checked against `PATH`, the suite's own docstring and both CI definitions
+rather than being kept in step by hand.
 
 ## Requirements
 

@@ -42,8 +42,11 @@ Usage:
 
 Requires: pdflatex / xelatex / lualatex, pdftotext and pdfinfo
 (poppler-utils), qpdf (to resolve a named destination to the page it lands
-on, which no poppler tool reports), and veraPDF on PATH as `verapdf` -- the
-only authoritative oracle for PDF/UA, used by the `ua` case.
+on, which no poppler tool reports), show-pdf-tags (the LaTeX team's own tag
+viewer, TeX Live package of that name: it resolves /K the way a consumer
+does, which is what sees an /Alt wrapping nothing), and veraPDF on PATH as
+`verapdf` -- the only authoritative oracle for PDF/UA, used by the `ua`
+case.
 That list is REQUIRED_TOOLS, and it is checked rather than described: the
 suite refuses to start if a tool is missing from PATH, unnamed in this
 paragraph, or not installed by either CI definition.  They used to be
@@ -215,6 +218,11 @@ EXPECT_ERROR = {
 #:   "step:<name>" -- a workflow step of that name must exist
 #: veraPDF is deliberately NOT a startup check: a_ua owns that message, and
 #: a startup check here would make that branch unreachable dead code.
+#: show-pdf-tags is here for the same reason and was missed for a week --
+#: it became a hard requirement with struct_empty_alts, which raises
+#: without it, and it reached CLAUDE.md and this table's absence instead.
+#: It passed only because the texlive container ships it and the machine it
+#: was written on had it installed, which is the qpdf story above, again.
 REQUIRED_TOOLS = {
     "pdflatex":  ("image", False, "engine"),
     "xelatex":   ("image", False, "engine"),
@@ -227,6 +235,9 @@ REQUIRED_TOOLS = {
                   "resolving a named destination to the page it lands on"),
     "verapdf":   ("step:Install veraPDF", False,
                   "the PDF/UA oracle, used by the `ua` case"),
+    "show-pdf-tags": ("image", False,
+                      "resolving /K the way a consumer does, which is what "
+                      "sees an /Alt that wraps nothing"),
 }
 #: The CI definitions the tools above are checked against.  Absent from a
 #: distribution tarball, where there is no CI to disagree with; the check
