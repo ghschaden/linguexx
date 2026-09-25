@@ -46,11 +46,17 @@ ENGINES = ["pdflatex", "xelatex", "lualatex"]
 #: What a green suite run is a statement ABOUT.  The stamp records these
 #: files' hashes, so "the suite passed" can be checked against the tree the
 #: hook sees at commit time rather than believed.
+#:
+#: tests/suite/*.py is in there because the suite stopped being one file.
+#: Miss it and the hole is silent in the worst way: editing a moved
+#: assertion would leave the hash unchanged, so the hooks would read a
+#: green stamp from before the edit and call the tree verified.
 SOURCES = [STY, TESTS / "runtests.py"]
 
 
 def sources():
-    return SOURCES + sorted(TESTS.glob("*.tex"))
+    return (SOURCES + sorted(TESTS.glob("suite/*.py"))
+            + sorted(TESTS.glob("*.tex")))
 
 
 def source_hash():
