@@ -23,6 +23,19 @@ image: texlive/texlive:latest
 stages:
   - test
 
+# Mirrors the `lint` job of the GitHub workflow, which is the reference.  Its
+# own image: ruff needs no TeX, and pulling the texlive container to run a
+# linter wastes four minutes per pipeline.  Unpinned for the same reason
+# veraPDF is; see that job's comment in .github/workflows/ci.yml.
+lint:
+  stage: test
+  image: python:3-slim
+  before_script:
+    - pip install --quiet --disable-pip-version-check ruff
+  script:
+    - ruff --version
+    - ruff check .
+
 regression:
   stage: test
   before_script:

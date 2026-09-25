@@ -5,6 +5,31 @@ on:
   pull_request:
 
 jobs:
+  # The Python that CHECKS the package -- the suite, tools/, the harness --
+  # none of which ships to CTAN.  Its own job, on a plain runner: ruff needs
+  # no TeX, and a lint that waits four minutes for a container is a lint that
+  # reports late.  `make lint` runs the same thing locally.
+  #
+  # Deliberately not pinned, like veraPDF below: a new rule in the selected
+  # families (F, E, W, UP, B -- see ruff.toml) is something to find out about
+  # here.  If this reddens with no source change, read the new rule and either
+  # satisfy it or ignore it in ruff.toml with the reason, as the file does for
+  # UP031 and B007.
+  #
+  # It earns the job: during the suite split, F821 caught two genuinely broken
+  # references and F401 caught a facade re-export that had been deleted as
+  # "unused", which would have shipped a broken `lxx struct`.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ruff
+        run: pipx install ruff
+      - name: ruff check
+        run: |
+          ruff --version
+          ruff check .
+
   regression:
     runs-on: ubuntu-latest
     # The official TeX Live image ships all three engines and the tagging code.
