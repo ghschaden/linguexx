@@ -14,6 +14,12 @@ Standalone and modern reimplementation of `linguex` (numbered linguistic example
   and veraPDF cannot see that (an empty `/K` is spec-valid, optional in
   ISO 32000-1 Table 323). Upstream named it when this defect was
   reported; it had been installed here the whole time it went unnoticed.
+  It is now in `REQUIRED_TOOLS` too, which is what actually enforces any
+  of this. For a week it was NOT, and lived only in this paragraph: the
+  suite passed everywhere because the texlive container ships it and this
+  machine had it, which is exactly the qpdf drift that put that table
+  there. A requirement stated only in prose is a requirement nothing
+  checks — including when the prose is this file.
 
 ## Harness — `.claude/tools/lxx`
 Local agent tooling, and it is TRACKED: `tools/lxx`, `hooks/guard.py`,
@@ -25,10 +31,32 @@ lines in `.gitignore`. (This paragraph used to say the whole directory was
 untracked, which cost a harness fix its commit until `git ls-files` was
 asked.) It wraps the tools below so that a debugging loop costs one
 command and a few lines instead of a 40 kB log. It never restates an
-assertion: it imports `tests/runtests.py` for `PASSES`, the parsers and the
-geometry helpers, so nothing here can drift away from the suite.
+assertion: it loads `tests/runtests.py` BY PATH and reads eight names off
+it — `CASE_TIMEOUT`, `DEFAULT_PASSES`, `DOCUMENTS`, `PASSES`,
+`run_document`, `struct_has_formula`, `struct_lbl_depths`,
+`struct_ol_classes` — so nothing here can drift away from the suite. Those
+are a CONTRACT: several are re-exports that this file alone does not call,
+so `ruff --fix` will offer to delete them as unused imports, and the one
+that says so in a comment is the one that survived. It does NOT borrow the
+parsers: `lxx words` reimplements `parse_pdf` on purpose, because that one
+drops the page a word is on.
 
-- `lxx test [-k F] [-e E]` — the suite with the 248 green lines folded away;
+## The suite is a package, not a file
+`tests/runtests.py` (891 lines) is the entry point and the facade: the
+runner, the engine/pass registries, the integrity checks, `main()`. The
+bulk is in `tests/suite/` — `pdf.py` (words and boxes), `geometry.py`
+(measured ink), `structure.py` (the tag tree, veraPDF, show-pdf-tags),
+`check.py` (the assertion protocol) and `assertions/` grouped by subject,
+with `ASSERTIONS` itself in `assertions/__init__.py`. Two things stayed
+behind deliberately and must: `tooling_integrity` reads `__doc__`, and the
+path constants are `Path(__file__).parent` including the flat-layout
+fallback — one directory deeper, both mean something else.
+
+Adding a module there means adding it to git IN THE SAME COMMIT: the
+`commit-msg` hook exports the INDEX with `git checkout-index`, so an
+untracked module makes the hook fail as though a test broke.
+
+- `lxx test [-k F] [-e E]` — the suite with the 266 green lines folded away;
   failures grouped by CASE, engines named, so a defect that fails all three
   prints once. Every failure is re-run SERIALLY before it is reported: a
   concurrent xdvipdfmx temp-file race makes a xelatex case die about once in
@@ -56,7 +84,19 @@ geometry helpers, so nothing here can drift away from the suite.
   is held back when `linguexx.sty` or a case has changed since the last green
   run (`LXX_SKIP_GATE=1` overrides), a turn that CLAIMS completion on such a
   tree is stopped once, and a `.log` over 6 kB is not read whole. They compare
-  hashes, so "I ran the suite" cannot be believed, only checked.
+  hashes, so "I ran the suite" cannot be believed, only checked. The stamp
+  hashes `linguexx.sty`, `tests/runtests.py`, `tests/suite/*.py` and the
+  cases (`SOURCES`/`sources()` in `lxx`); a new suite module that is not in
+  that glob is a stale green nobody sees.
+- `tests/nominal-capture.sh` then `tests/nominal-verify.sh` — the pair for a
+  change that is supposed to alter NOTHING on the page. Capture before, edit,
+  verify after: the structure tree must be identical, every rendered page
+  byte-identical, veraPDF still happy. They answer the question the suite
+  cannot — the suite checks the properties someone thought to assert, a
+  refactor claims every property is unchanged including the unnamed ones.
+  They are not in the Makefile and are easy to miss; reach for them on a
+  refactor of the `.sty`. (A test-only refactor cannot reach the page, so
+  for one of those the suite's own assertion count is the proof instead.)
 - The `log-triage` subagent (haiku) is for FAN-OUT only: many logs, many
   builds, one question. For a single log, run `lxx log` — a subagent that
   re-derives the context is the expensive way to read four lines.
