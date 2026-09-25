@@ -67,7 +67,16 @@ MANUAL_PDF = REPO / "linguexx-doc.pdf"
 #: missing from the 1.3 upload -- not removed, never added: the payload
 #: listed four files and the manual's source was not one of them.  Adding
 #: it here is what makes install_test check for it.
-PAYLOAD = ["README.md", "LICENSE", "linguexx.sty",
+#:
+#: CHANGELOG.md is here because the .sty header no longer carries a copy
+#: of the release history.  It held one for 20 versions, 311 lines, kept
+#: in step with this file by hand; the duplicate nobody diffs is the one
+#: that rots.  Trimming it to a pointer is only safe if the file it points
+#: at is one an installing reader actually has, which is what this line
+#: makes true.  It is also what this package's peers do: l3kernel,
+#: l3packages, beamer and pdfmanagement-testphase all ship CHANGELOG.md
+#: into doc/latex/<pkg>/ and keep no version log in the .sty at all.
+PAYLOAD = ["README.md", "LICENSE", "CHANGELOG.md", "linguexx.sty",
            "linguexx-doc.tex", "linguexx-doc.pdf"]
 
 #: The TDS layout, for the optional linguexx.tds.zip: where a TeX
@@ -76,7 +85,7 @@ PAYLOAD = ["README.md", "LICENSE", "linguexx.sty",
 #: documentation of a package that has no separate .dtx.
 TDS = {
     "tex/latex/linguexx": ["linguexx.sty"],
-    "doc/latex/linguexx": ["README.md", "LICENSE",
+    "doc/latex/linguexx": ["README.md", "LICENSE", "CHANGELOG.md",
                            "linguexx-doc.tex", "linguexx-doc.pdf"],
 }
 
