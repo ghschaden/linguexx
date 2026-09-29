@@ -9,8 +9,9 @@ coordinates.
 import subprocess
 from pathlib import Path
 
-def _render_gray(pdf: Path, dpi: int):
-    """The first page as (pixels, width, height): one byte per pixel, 0 = black.
+def _render_gray(pdf: Path, dpi: int, page: int = 1):
+    """A page, the first by default, as (pixels, width, height): one byte
+    per pixel, 0 = black.
 
     Everything else in this file reads the TEXT layer, which is blind to
     vector ink -- and a drawn brace is nothing but vector ink.  pdftoppm is
@@ -18,7 +19,8 @@ def _render_gray(pdf: Path, dpi: int):
     library to read.
     """
     out = subprocess.run(
-        ["pdftoppm", "-gray", "-r", str(dpi), "-f", "1", "-l", "1", str(pdf)],
+        ["pdftoppm", "-gray", "-r", str(dpi), "-f", str(page), "-l", str(page),
+         str(pdf)],
         capture_output=True, check=True,
     ).stdout
     # P5 header: magic, width, height, maxval, one whitespace byte, then data
@@ -185,7 +187,7 @@ def ink_clearance(pdf: Path, x0, x1, y0, y1, dpi=1200):
     return best
 
 
-def ink_bbox(pdf: Path, x0, y0, x1, y1, dpi=600, threshold=200):
+def ink_bbox(pdf: Path, x0, y0, x1, y1, dpi=600, threshold=200, page=1):
     """(left, top, right, bottom) in PDF points of the ink inside a box.
 
     Where glyph_ink asks how big and how heavy a glyph is, this asks where
@@ -195,8 +197,11 @@ def ink_bbox(pdf: Path, x0, y0, x1, y1, dpi=600, threshold=200):
     mostly as anti-aliasing) and glyph_ink's strict 128: both things
     measured here have a solid core, and the edge pixels either way move
     the answer by less than the tolerances that read it.
+
+    `page` is for a beamer deck, where one example comes past once per
+    slide and each slide is a page of its own.
     """
-    px, width, height = _render_gray(pdf, dpi)
+    px, width, height = _render_gray(pdf, dpi, page)
     s = dpi / 72.0
     cx0, cx1 = max(0, int(x0 * s)), min(width, int(x1 * s) + 1)
     cy0, cy1 = max(0, int(y0 * s)), min(height, int(y1 * s) + 1)

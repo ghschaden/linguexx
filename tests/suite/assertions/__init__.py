@@ -73,6 +73,12 @@ from suite.assertions.tagging import (  # noqa: F401
     a_tagged,
     a_ua,
 )
+from suite.assertions.movement import (  # noqa: F401
+    a_movement,
+    a_movement_beamer,
+    a_movement_rerun,
+    a_movement_spoken,
+)
 from suite.assertions.langsci import (  # noqa: F401
     a_gbfour,
     a_langsci,
@@ -126,6 +132,10 @@ ASSERTIONS = {
     "exannot-fit": a_exannot_fit,
     "exannot-fitbody": a_exannot_fitbody,
     "exannot-beamer": a_exannot_beamer,
+    "movement": a_movement,
+    "movement-beamer": a_movement_beamer,
+    "movement-spoken": a_movement_spoken,
+    "movement-rerun": a_movement_rerun,
     "glt-side": a_glt_side,
     "zpop": a_zpop,
     "gloss": a_gloss,

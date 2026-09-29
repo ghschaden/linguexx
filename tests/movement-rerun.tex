@@ -1,0 +1,9 @@
+%% One pass only.  The arrows are drawn from the previous run's .aux, so a
+%% first run cannot draw them -- and must say so, in words latexmk reacts
+%% to, or an editor that compiles once shows a deck with no arrows and no
+%% reason.  movement.tex pins the other half: two passes, and no warning.
+\input{_preamble}
+
+\begin{document}
+\ex. RERUNMV \mvto{a}{RLAND} stays \mvfrom{a}{RBASE} end.
+\end{document}

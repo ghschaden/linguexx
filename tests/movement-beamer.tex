@@ -1,0 +1,21 @@
+%% Movement arrows in a beamer deck, which is where they were asked for.
+%%
+%% A frame is typeset once per overlay slide, with the counters restored,
+%% so one \mvto{a} comes past once per slide.  Each slide is its own page
+%% with its own positions, and an arrow must be drawn from ITS slide's:
+%% here the material \only<2> adds above the example moves the whole
+%% example down on slide 2, and the arrow has to move with it.  Keyed by
+%% the label rather than by the mark, slide 2 would draw slide 1's arrow.
+%% This is the \pause case it was reported as -- arrows that "move after the
+%% pause" -- and the answer is that they must, exactly as far as the words.
+\input{_preamble-beamer}
+\begin{document}
+\begin{frame}
+\only<2>{BEAMSHIFT some lines that push the example down.\par
+  And another one.\par}
+\ex. BEAMMV la seule \mvto{a}{BLAND} romaine \mvfrom{a}{BBASE} possible
+
+\pause
+BEAMAFTER the text after the pause.
+\end{frame}
+\end{document}

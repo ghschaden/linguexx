@@ -1,0 +1,39 @@
+%% What a screen reader gets for a movement.  The arrow is an artifact, so
+%% everything it says has to be said by the words at its two ends:
+%%
+%%   - the base position (\mvfrom) is read with a note after it,
+%%     "SPBASE (moved)", and the page still prints SPBASE;
+%%   - the landing site (\mvto) is read as printed, with no Span at all --
+%%     an /Alt equal to the text it replaces is noise in the tree;
+%%   - colour is how a copy is greyed out, so it is what a base position
+%%     will most often be wrapped in, and the kernel's purifier would read
+%%     \textcolor{gray}{SPGREY} as "graySPGREY", and {\color{gray}SPDECL} as
+%%     "graySPDECL";
+%%   - spoken= replaces the spoken form, on either end;
+%%   - \SetMoveSpoken replaces the note, bare and trimmed like
+%%     \SetAltSpoken's word, and is local like it;
+%%   - and the arrows themselves are painted as artifacts.
+%%
+%% Tagged preamble, so the /Alt strings are in the PDF.
+\input{_preamble-tagged}
+
+\ex. \mvto{a}{SPLAND} stays \mvfrom{a}{SPBASE} end.
+
+\ex. \mvto{a}{SPX} stays \mvfrom{a}{\textcolor{gray}{SPGREY}} and
+     \mvto{b}{SPY} stays \mvfrom{b}{\textcolor[rgb]{.5,.5,.5}{SPRGB}} and
+     \mvto{c}{SPZ} stays \mvfrom{c}{{\color{gray}SPDECL}} end.
+
+\ex. \mvto[spoken=where it went]{a}{SPTO} stays
+     \mvfrom[spoken=where it was]{a}{SPFROM} end.
+
+{\SetMoveSpoken{ déplacé }
+\ex. \mvto{a}{SPFRL} reste \mvfrom{a}{SPFR} fin.
+}
+
+\ex. \mvto{a}{SPAFTERL} stays \mvfrom{a}{SPAFTER} end.
+
+%% A chain, written with the \mvto INSIDE the \mvfrom: the outer end's
+%% spoken form reads the inner one as its text, and the inner end, being a
+%% landing site, gets no /Alt of its own -- not the outer one's by accident.
+\ex. \mvto{a}{SPCHL} x \mvfrom{a}{\mvto{b}{SPCHAIN}} y \mvfrom{b}{SPCHB}.
+\end{document}

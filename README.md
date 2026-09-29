@@ -45,6 +45,10 @@ into the PDF structure tree as genuine, accessible objects:
   phrase" while the page still shows `[CP]`
   (and `\ExAnnotFit` puts that column where the examples themselves say it
   belongs, one column per example);
+- movement arrows (`\mvto{a}{What} … \mvfrom{a}{\_\_}`) are drawn as
+  artifacts, and the base position is read with a note, "__ (moved)"
+  (`\SetMoveSpoken` sets the word), so the arrow's meaning reaches a reader
+  who cannot see it;
 - Leipzig category abbreviations carry their expansion (`\lpzg{sg}` → `/E`
   "singular"), so they are spoken in full while the page still shows SG, and
   `\lpzglist` prints the list of those actually used, as a tagged list;
@@ -128,8 +132,9 @@ rather than being kept in step by hand.
   LaTeX tagging project, which is still evolving — see the notes).
 - `expl3` (part of the LaTeX kernel).
 - `tikz`, which draws the brace of `\altn` and `\altg` so that the alternatives
-  are ordinary tagged text rather than a formula, and `xspace`, for the space
-  after `\Last` and its family. Both are loaded by the package itself.
+  are ordinary tagged text rather than a formula, and the movement arrows of
+  `\mvfrom`/`\mvto` (with its `arrows.meta` library), and `xspace`, for the
+  space after `\Last` and its family. Both are loaded by the package itself.
 
 ## Licence
 

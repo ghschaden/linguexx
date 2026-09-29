@@ -1,0 +1,11 @@
+%% Two \mvfrom with one label, open at once in one example.  A movement is
+%% one of each, and which two of the three marks were meant cannot be
+%% guessed, so this is an error rather than an arrow to whichever came last.
+%%
+%% This case must fail to compile; runtests.py checks the message via
+%% EXPECT_ERROR.
+\input{_preamble}
+
+\begin{document}
+\ex. \mvfrom{a}{ONE} and \mvfrom{a}{TWO} both before \mvto{a}{LAND}.
+\end{document}

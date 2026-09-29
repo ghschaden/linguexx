@@ -2349,6 +2349,100 @@ column's position rather than its distance from the margin --- and the two
 are built differently because of it. \cs{jambox} is provided exactly as
 \pkg{langsci-gb4e} has it; use whichever suits the note you are writing.
 
+\subsection{Movement arrows: \cs{mvfrom} and \cs{mvto}}\label{sec:movement}
+
+A movement has two ends: the position a constituent started in, and the
+one it landed in. Mark each with the same label, and \pkg{linguexx} draws
+the arrow from the first to the second:
+
+\begin{code}
+\ex. \mvto{a}{What} did John buy \mvfrom{a}{\_\_}?
+\end{code}
+
+\rendered
+\ex. \mvto{a}{What} did John buy \mvfrom{a}{\_\_}?
+
+\afterex
+\cs{mvfrom}\oarg{options}\marg{label}\marg{text} marks the base position
+and \cs{mvto}\oarg{options}\marg{label}\marg{text} the landing site; the
+\meta{text} is typeset as it is, so a copy can be greyed out with
+\cs{textcolor} as usual. The arrow always points at the \cs{mvto}, whichever
+of the two comes first in the source, so rightward movement is written the
+same way. A label belongs to its example --- to one \cs{a.}\ or \cs{b.}\ ---
+so \texttt{a} can be used again in the next one. A mark with no partner in
+its example draws nothing and says so in the log.
+
+Several movements in one example are stacked out of each other's way: an
+arrow over a stretch that holds another one runs a level further out, and
+the line is given the room it needs, so the arrows never reach the next
+example. A word can be both ends at once, which is how a chain is written;
+the arrow arriving and the one leaving then meet it side by side:
+
+\begin{code}
+\ex. \mvto{b}{What} do you think \mvto{a}{\mvfrom{b}{\_\_}}
+     John bought \mvfrom{a}{\_\_}?
+\end{code}
+
+\rendered
+\ex. \mvto{b}{What} do you think \mvto{a}{\mvfrom{b}{\_\_}}
+     John bought \mvfrom{a}{\_\_}?
+
+\afterex
+Arrows go below the line, and above the object line in a gloss, where below
+would cut through the gloss tier:
+
+\begin{code}
+\ex. \gll \mvto{a}{Was} hat Hans \mvfrom{a}{\_\_} gekauft?\\
+          what has Hans \_\_ bought\\
+     \glt `What did Hans buy?'
+\end{code}
+
+\rendered
+\ex. \gll \mvto{a}{Was} hat Hans \mvfrom{a}{\_\_} gekauft?\\
+          what has Hans \_\_ bought\\
+     \glt `What did Hans buy?'
+
+\afterex
+The options go on either mark; where the two disagree, the one written
+second wins. \opt{above} and \opt{below} choose the side,
+\opt{level}\texttt{=}\meta{n} puts the arrow \meta{n} steps out instead of
+where the stacking would, and \opt{spoken} is described below. The look
+of the arrow is the TikZ style \texttt{lx move}, so
+
+\begin{code}
+\tikzset{lx move/.append style={red, dashed}}
+\end{code}
+
+\noindent changes every arrow of the document, or of a group.
+\cs{MoveArrowGap} (\texttt{.3ex}) is the gap between a word and the end of
+its arrow, and \cs{MoveArrowStep} (\texttt{1.1ex}) the distance from one
+level to the next; both are macros, so \cs{renewcommand} them.
+
+\paragraph{Two runs.} Where the other end of an arrow is on the page is
+only known once the page has been written out, so the arrows are drawn
+from what the previous run recorded, as a \cs{ref} is. A document compiled
+once has no arrows yet, and the log asks for a rerun whenever they have
+moved; \texttt{latexmk} does this by itself. Two runs are always enough,
+however many overlay slides a frame has: each slide records its own
+positions, so arrows in a \pkg{beamer} frame stay with their words when
+material appears above them.
+
+\paragraph{One line.} An arrow joins two words on one line. If a line
+break separates them, the arrow is still drawn, but the room for it is
+kept on the second line only, and the log says so; across a page break
+nothing is drawn. In a long example, a \cs{linebreak} before the first
+marked word keeps the two together.
+
+\paragraph{Screen readers.} In a tagged PDF the arrow itself is decoration
+--- an artifact --- and what it means is said by the words at its ends. The
+base position is read with a note after it, ``\_\_ (moved)'', while the
+page still prints what you wrote; the landing site is read as printed.
+\cs{SetMoveSpoken}\marg{word} replaces the note --- \cs{SetMoveSpoken}\-
+\marg{déplacé} for a French document --- and respects grouping, like
+\cs{SetAltSpoken}. The \opt{spoken} option replaces the whole spoken form
+of one mark, on either end: \cs{mvfrom}\texttt{[spoken=trace of what]}\-
+\marg{a}\marg{\_\_}.
+
 % ===========================================================================
 \section{Example and glossing layout}\label{sec:layout}
 % ===========================================================================
@@ -3287,6 +3381,9 @@ exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package opt
 \textbackslash ExAnnotColumn & Where the column is, from the \emph{left} edge of the text block (\texttt{.75\textbackslash columnwidth}). \\
 \textbackslash ExAnnotSep & Least gap between an example and that column (\texttt{1em}); give it no stretch or shrink. \\
 \textbackslash ExAnnotFont & Font of the annotation (\cs{normalfont}). \\
+\textbackslash mvfrom\oarg{options}\marg{label}\marg{text}, \textbackslash mvto\oarg{options}\marg{label}\marg{text} & The base position and the landing site of a movement; one of each with the same label in one example draws an arrow to the \cs{mvto}. Options \opt{above}, \opt{below}, \opt{level}\texttt{=}\meta{n}, \opt{spoken}\texttt{=}\meta{text}. Two runs (section~\ref{sec:movement}). Fallbacks: \cs{lxMoveFrom}, \cs{lxMoveTo}. \\
+\textbackslash SetMoveSpoken\marg{word} & The note a screen reader says after a base position (\texttt{moved}). Respects grouping. \\
+\textbackslash MoveArrowGap, \textbackslash MoveArrowStep & Gap between a word and its arrow (\texttt{.3ex}); distance between levels (\texttt{1.1ex}). Macros. The arrow's look is the TikZ style \texttt{lx move}. \\
 \addlinespace
 \multicolumn{2}{@{}l}{\itshape Layout and options} \\
   \opt{lazy}, \opt{gb4e} & Package options: dot syntax (default), \pkg{gb4e} environment syntax; combinable. \\

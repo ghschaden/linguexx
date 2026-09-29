@@ -3,6 +3,20 @@
 All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
+## Unreleased
+- New: movement arrows. `\mvto{a}{What} did John buy \mvfrom{a}{\_\_}?`
+  draws an arrow from the base position (`\mvfrom`) to the landing site
+  (`\mvto`), below the line, or above the object line in a gloss. Several
+  movements in one example are stacked out of each other's way, and the
+  line gets the room they need; a word can be both ends of a chain. Options
+  `above`, `below`, `level=<n>` and `spoken=<text>`; the arrow's look is the
+  TikZ style `lx move`. Two runs, like `\ref`, and the log asks for the
+  second; in `beamer` every slide has its own arrows, so they stay with
+  their words when a `\pause` or `\only` moves the text. In a tagged PDF
+  the arrow is an artifact and the base position is read as "__ (moved)";
+  `\SetMoveSpoken` changes the note. Long names `\lxMoveFrom`,
+  `\lxMoveTo`, for a document where the short ones are taken.
+
 ## 1.3.2
 - Fixed: in a tagged PDF, the spoken form of an `\altn` or `\altg` stack
   was attached to nothing. Under LuaLaTeX every stack's `/Alt` sat on a

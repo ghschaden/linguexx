@@ -141,7 +141,9 @@ ENGINES_FOR = {
 DEFAULT_PASSES = 2
 PASSES = {"ua": 3, "frontend": 3, "langsci-ua": 3, "exannot-ua": 3,
           "exannot-fit": 2, "exannot-fitbody": 2,
-          "exannot-beamer": 2}
+          "exannot-beamer": 2,
+          # one run on purpose: it is the run that has to ask for another
+          "movement-rerun": 1}
 #: Cases that must FAIL to compile, mapped to a substring their .log has to
 #: contain.  A package error is as much a feature as a rendering is -- it is
 #: what a silently wrong construct was turned into -- and without this it
@@ -182,6 +184,7 @@ EXPECT_ERROR = {
     "langsci-retired": "is not provided",
     "judgment-badarg": "needs one command here",
     "exannot-gloss": "belongs at the end of the OBJECT",
+    "movement-twice": "in one example",
     "glt-side-sub": "for top-level examples only",
     "glt-side-annot": "cannot go on a gloss with a side",
     "straysub": "no example to attach it to",

@@ -1,0 +1,81 @@
+%% Movement arrows, \mvfrom and \mvto, on the page.
+%%
+%% An arrow is nothing but vector ink, so everything here is measured on a
+%% rendering rather than read off the text layer:
+%%
+%%   MVPLAIN  one arrow below the line, from BASEA to LANDA.  The HEAD is at
+%%            the landing site -- the direction is the whole meaning of the
+%%            arrow, and an arrow drawn backwards sits at the right
+%%            coordinates.  And the line after it is pushed down to make
+%%            room: MVCTRL is the same pair of lines with no arrow.
+%%   MVNEST   an arrow over a stretch that holds another goes a level
+%%            further out, so the two horizontals do not run into one.
+%%   CHMID    a word that is both a landing site and a base position (a
+%%            chain): the arrow arriving and the one leaving meet it side by
+%%            side, not down one line.
+%%   GLAND    in a gloss the arrow goes ABOVE the object line, since below
+%%            it would cut through the gloss tier.
+%%   ULAND    [above] outside a gloss.
+%%   LONELY   an \mvto with no partner draws nothing and says so -- and
+%%            the \mvfrom{z} in the NEXT example is not its partner.
+%%   DOG      the ends start at one depth below a word with a descender
+%%            and one without: the strut is the floor, not the ink.
+%%   MVUP     the same above the line: an arrow over "ace" starts above
+%%            where the ascender of "fly" ends.
+%%   MLAND    level=3 puts the horizontal two steps further out.
+%%   SLAND    an arrow above and one below never push each other out a
+%%            level, however their stretches overlap.
+%%   WLAND    two ends on two lines: the arrow still joins them, and the
+%%            log says the room was only kept on one line.
+%%   RUNL     a mark that starts a paragraph starts it, rather than being
+%%            set as a line of its own.
+%%   PLAND    two ends on two pages: nothing is drawn, and the log says so.
+%%
+%% Two passes: the positions come from the previous run's .aux, and the
+%% room is reserved in the run itself, so the second run is final -- which
+%% the absence of the rerun warning pins.
+\input{_preamble}
+
+\begin{document}
+\ex. MVPLAIN \mvto{a}{LANDA} stays here \mvfrom{a}{BASEA} end.
+
+\ex. MVNEXT the line under an arrow.
+
+\ex. MVCTRL no arrow here.
+
+\ex. MVCTRLNEXT the line under no arrow.
+
+\ex. MVNEST \mvto{o}{OUTL} \mvto{i}{INL} x \mvfrom{i}{INB} y \mvfrom{o}{OUTB} z.
+
+\ex. \mvto{b}{CHW} do you think \mvto{a}{\mvfrom{b}{CHMID}} John bought
+     \mvfrom{a}{CHEND}?
+
+\ex. MVPREV the line above a gloss.
+
+\ex. \gll \mvto{g}{GLAND} hat Hans \mvfrom{g}{GBASE} gekauft\\
+          what has Hans GTIER bought\\
+
+\ex. MVABOVE \mvto[above]{u}{ULAND} x \mvfrom{u}{UBASE}.
+
+\ex. MVLONE \mvto{z}{LONELY} has no partner.
+
+\ex. MVLONETWO and \mvfrom{z}{LONETWO} is not it: a label is the example's own.
+
+\ex. MVDESC \mvto{d}{DOG} x \mvfrom{d}{gypsy}.
+
+\ex. MVLEVEL \mvto[level=3]{m}{MLAND} x \mvfrom{m}{MBASE}.
+
+\ex. MVSIDES \mvto{s}{SLAND} \mvto[above]{t}{TLAND} x \mvfrom{t}{TBASE} y
+     \mvfrom{s}{SBASE}.
+
+\ex. MVUP \mvto[above]{e}{ace} x \mvfrom{e}{fly} end.
+
+\ex. MVWRAP a line that ends in \mvto{w}{WLAND}\linebreak
+     \mvfrom{w}{WBASE} short.
+
+\mvto{r}{RUNL} starts a paragraph of running text \mvfrom{r}{RUNB} here.
+
+\ex. MVPAGE \mvto{p}{PLAND} before the break.\par
+\newpage
+     PAFTER after it, \mvfrom{p}{PBASE} on the next page.
+\end{document}

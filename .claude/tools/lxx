@@ -50,12 +50,16 @@ ENGINES = ["pdflatex", "xelatex", "lualatex"]
 #: tests/suite/*.py is in there because the suite stopped being one file.
 #: Miss it and the hole is silent in the worst way: editing a moved
 #: assertion would leave the hash unchanged, so the hooks would read a
-#: green stamp from before the edit and call the tree verified.
+#: green stamp from before the edit and call the tree verified.  The
+#: assertions themselves live one directory further down, in
+#: suite/assertions/, and for a while that was exactly the hole: the glob
+#: did not reach them.
 SOURCES = [STY, TESTS / "runtests.py"]
 
 
 def sources():
     return (SOURCES + sorted(TESTS.glob("suite/*.py"))
+            + sorted(TESTS.glob("suite/assertions/*.py"))
             + sorted(TESTS.glob("*.tex")))
 
 

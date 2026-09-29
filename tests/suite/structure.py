@@ -350,3 +350,39 @@ def struct_empty_alts(pdf: Path):
         if not kids and not text.strip():
             empty.append((el.tag.rsplit("}", 1)[-1], alt))
     return empty
+
+
+def painted_marked_content(raw: bytes):
+    r"""The tag of the innermost marked-content sequence around every
+    path-painting operator on the page (None where there is none).
+
+    A drawing is decoration or it is content, and the tree cannot say which
+    of the two a stroke was: an arrow painted inside a paragraph's own
+    marked content is simply part of that paragraph, which veraPDF accepts
+    and a reader gets as nothing at all.  Only the content stream says
+    whether the paint was put in an /Artifact, so this reads that.  Needs
+    an uncompressed file (the `uncompress` of _preamble-tagged); streams
+    without paint are skipped, and with them the object streams.
+    """
+    paint = {b"S", b"s", b"f", b"F", b"f*", b"B", b"B*", b"b", b"b*"}
+    token = re.compile(rb"/[^\s/<>\[\]()]+|\((?:\\.|[^\\)])*\)|<<.*?>>"
+                       rb"|<[0-9A-Fa-f\s]*>|\[|\]|[^\s/<>\[\]()]+", re.S)
+    out = []
+    for m in re.finditer(rb"stream\r?\n(.*?)\r?\nendstream", raw, re.S):
+        stack, operands = [], []
+        for t in token.findall(m.group(1)):
+            if t in (b"BDC", b"BMC"):
+                # /Tag BMC, or /Tag <<props>> BDC, or /Tag /Props BDC
+                names = [o for o in operands[-2:] if o.startswith(b"/")]
+                stack.append(names[0] if names else b"?")
+                operands = []
+            elif t == b"EMC":
+                if stack:
+                    stack.pop()
+                operands = []
+            elif t in paint:
+                out.append(stack[-1].decode() if stack else None)
+                operands = []
+            else:
+                operands = (operands + [t])[-8:]
+    return out

@@ -225,6 +225,7 @@
 %% stops needing a filled curved path -- and then read
 %% \__lxp_brace:nnn first, since that is the thing being traded away.
 \RequirePackage{tikz}%              drawn brace for \lxAltn (no math mode)
+\usetikzlibrary{arrows.meta}%       the tip of a movement arrow (\mvto)
 \RequirePackage{xspace}%            space after \Last & co. (see below)
 %% No decorations.pathreplacing: the brace was its "brace" decoration
 %% until v1.2 and is now drawn as an outline of its own (see
@@ -1781,7 +1782,7 @@
 %% before \ignorespaces, which must stay last.  It expands to nothing at
 %% all in a document whose anchors hyperref is placing itself.
 \def\lx@makeitem{\lx@kernel@item[\lx@itemlabel]\lx@emitjudge
-  \lx@relref@anchor\ignorespaces}
+  \lx@relref@anchor\lx@mv@newitem\ignorespaces}
 %% --- public API (Protocol A: emitting the item) -----------------------
 %% Emit the \item for the label currently in \lx@itemlabel and hang any
 %% judgment collected since the last scan.  The \lx_item_... commands
@@ -6897,6 +6898,516 @@
 \def\lx@annot@recordused#1{%
   \edef\lx@annot@tmp{\write\@auxout{\string\lxannotUsed{\lx@annot@group}%
       {#1}{\iflx@annot@fellback B\else F\fi}}}\lx@annot@tmp}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  Movement arrows: \mvfrom / \mvto                                  %%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% \ex. \mvto{a}{What} did John buy \mvfrom{a}{\_\_}?
+%%
+%% Two marks with the same label in the same example item are one movement,
+%% and the arrow runs from the \mvfrom (the base position) to the \mvto (the
+%% landing site), whichever comes first in the source.  A word can be both
+%% (\mvto{a}{\mvfrom{b}{t}}), which is how a chain is written.  Options, on
+%% either mark, the second one winning: above, below, level=<n>, and
+%% spoken=<text> for what a screen reader says for that mark.
+%%
+%% Where the arrow goes is only known after shipout, so each mark writes its
+%% position to the .aux and the arrow is drawn from the PREVIOUS run's
+%% record -- two runs, as for a \ref.  Everything else is decided in the
+%% run itself, and that is deliberate:
+%%   - the room the arrow needs is reserved by the mark that draws it, from
+%%     the word boxes and the level, neither of which depends on a position.
+%%     Had it depended on the .aux, reserving it would move the words, and a
+%%     third run would be needed to catch up with them;
+%%   - the level is decided from the ORDER of the marks in the item, not
+%%     from their x: an arrow over a stretch that holds another gets the
+%%     next level up.  Order and x agree as long as the item is one line,
+%%     which is where arrows are drawn anyway (see move-lines below).
+%% The arrow is drawn by the mark that completes the pair, with its origin
+%% at that mark's own left edge on the baseline.  Only the OTHER end comes
+%% from the .aux, and only as an offset from this one: two positions on one
+%% page, subtracted, carry no page origin with them.
+%%
+%% The .aux key is a serial of every mark ever typeset, not the label: a
+%% beamer frame is set once per slide with the counters restored, so one
+%% label comes past once per slide and each slide has its own positions.
+%% The serial is the same from run to run as long as the source is, which
+%% is the same promise \label makes.  The registries are per ITEM, and an
+%% item is counted by \lx@makeitem, which every example of every front-end
+%% ends in; a slide re-typesets its items, and so starts from empty.
+
+\newcommand\MoveArrowGap{.3ex}%   between the word and the end of its arrow
+\newcommand\MoveArrowStep{1.1ex}% from one level to the next
+\tikzset{lx move/.style={-{Stealth[length=.9ex,width=.75ex]},line width=.45pt}}
+
+\ExplSyntaxOn
+\int_new:N  \g__lx_mv_serial_int   % every mark so far: the .aux key
+\int_new:N  \g__lx_mv_item_int     % every example item so far
+\int_new:N  \g__lx_mv_scope_int    % the item the registries belong to
+\int_new:N  \g__lx_mv_index_int    % marks so far in that item
+\int_new:N  \g__lx_mv_depth_int    % marks inside marks, for a chain
+\bool_new:N \g__lx_mv_inner_bool   % a mark was set inside the one being boxed
+\prop_new:N \g__lx_mv_open_prop    % label -> the end waiting for its partner
+\seq_new:N  \g__lx_mv_done_seq     % {lo}{hi}{side}{level} of the item's arrows
+\dim_new:N  \g__lx_mv_below_dim    % room the arrows of this word need,
+\dim_new:N  \g__lx_mv_above_dim    %   given out by the outermost mark
+\bool_new:N \g__lx_mv_changed_bool
+
+\int_new:N  \l__lx_mv_serial_int
+\int_new:N  \l__lx_mv_index_int
+\int_new:N  \l__lx_mv_level_int
+\bool_new:N \l__lx_mv_shared_bool
+\bool_new:N \l__lx_mv_spoken_bool
+\tl_new:N   \l__lx_mv_side_tl
+\tl_new:N   \l__lx_mv_spoken_tl
+\tl_new:N   \l__lx_mv_entry_tl
+\tl_new:N   \l__lx_mv_path_tl
+\box_new:N  \l__lx_mv_box
+\dim_new:N  \l__lx_mv_below_dim
+\dim_new:N  \l__lx_mv_above_dim
+%% the other end, unpacked from its registry entry
+\tl_new:N   \l__lx_mv_orole_tl
+\int_new:N  \l__lx_mv_oserial_int
+\int_new:N  \l__lx_mv_oindex_int
+\dim_new:N  \l__lx_mv_owd_dim
+\dim_new:N  \l__lx_mv_obelow_dim
+\dim_new:N  \l__lx_mv_oabove_dim
+\tl_new:N   \l__lx_mv_okeys_tl
+\bool_new:N \l__lx_mv_oshared_bool
+%% the drawing, in points from this mark's left edge on the baseline
+\dim_new:N  \l__lx_mv_dx_dim
+\dim_new:N  \l__lx_mv_dy_dim
+\dim_new:N  \l__lx_mv_reach_dim
+\dim_new:N  \l__lx_mv_yh_dim
+
+%% What a screen reader says after the base position: "invasion (moved)".
+%% Stored bare and put in parentheses here, like \SetAltSpoken's word, and
+%% local like it, so a French stretch can be fenced off in an English
+%% document.
+\tl_new:N \l__lx_mv_word_tl
+\tl_set:Nn \l__lx_mv_word_tl { moved }
+\NewDocumentCommand \SetMoveSpoken { m }
+  {
+    \tl_set:Nn \l__lx_mv_word_tl {#1}
+    \tl_trim_spaces:N \l__lx_mv_word_tl
+  }
+
+\keys_define:nn { linguexx / move }
+  {
+    above  .code:n = { \tl_set:Nn \l__lx_mv_side_tl { above } } ,
+    above  .value_forbidden:n = true ,
+    below  .code:n = { \tl_set:Nn \l__lx_mv_side_tl { below } } ,
+    below  .value_forbidden:n = true ,
+    level  .int_set:N = \l__lx_mv_level_int ,
+    spoken .code:n =
+      {
+        \tl_set:Nn \l__lx_mv_spoken_tl {#1}
+        \bool_set_true:N \l__lx_mv_spoken_bool
+      } ,
+  }
+
+\msg_new:nnnn { linguexx } { move-twice }
+  { Two~\iow_char:N \\mv#1{#2}~in~one~example. }
+  {
+    A~movement~is~one~\iow_char:N \\mvfrom~and~one~\iow_char:N \\mvto~with~
+    the~same~label.~The~second~\iow_char:N \\mv#1{#2}~is~typeset~without~
+    an~arrow.
+  }
+\msg_new:nnn { linguexx } { move-unpaired }
+  {
+    \iow_char:N \\mv#2{#1}~has~no~partner~in~its~example;~no~arrow~is~
+    drawn.
+  }
+\msg_new:nnn { linguexx } { move-pages }
+  {
+    The~two~ends~of~movement~'#1'~are~on~different~pages;~no~arrow~is~
+    drawn.
+  }
+\msg_new:nnn { linguexx } { move-lines }
+  {
+    The~two~ends~of~movement~'#1'~are~on~different~lines.~The~arrow~is~
+    drawn,~but~the~room~for~it~is~only~kept~on~the~line~of~the~second.
+  }
+
+%% Called by \lx@makeitem for every item.  Nothing is reset here: the
+%% registries are cleared by the first mark of the next item, which is
+%% also where anything left unpaired in the last one is reported.
+\cs_new_protected:Npn \lx@mv@newitem { \int_gincr:N \g__lx_mv_item_int }
+\cs_new_protected:Npn \__lx_mv_scope:
+  {
+    \int_compare:nNnF { \g__lx_mv_scope_int } = { \g__lx_mv_item_int }
+      {
+        \__lx_mv_unpaired:
+        \int_gset_eq:NN \g__lx_mv_scope_int \g__lx_mv_item_int
+        \int_gzero:N \g__lx_mv_index_int
+        \seq_gclear:N \g__lx_mv_done_seq
+      }
+  }
+\cs_new_protected:Npn \__lx_mv_unpaired:
+  {
+    \prop_map_inline:Nn \g__lx_mv_open_prop
+      {
+        \msg_warning:nnne { linguexx } { move-unpaired } {##1}
+          { \tl_head:n {##2} }
+      }
+    \prop_gclear:N \g__lx_mv_open_prop
+  }
+\AddToHook { enddocument } { \__lx_mv_unpaired: }
+
+%% The .aux record, written at shipout like \exannot's: the serial is
+%% expanded now, the position and the page when the page goes out.
+\cs_if_exist:NTF \lastypos
+  { \cs_new_eq:NN \lx@mv@lastypos \lastypos }
+  { \cs_new_eq:NN \lx@mv@lastypos \pdflastypos }
+\ExplSyntaxOff
+\def\lx@mv@record#1{%
+  \lx@annot@savepos
+  \edef\lx@mv@tmp{\write\@auxout{\string\lxmvpos{#1}%
+      {\noexpand\the\noexpand\lx@annot@lastxpos}%
+      {\noexpand\the\noexpand\lx@mv@lastypos}%
+      {\noexpand\the\noexpand\ReadonlyShipoutCounter}}}\lx@mv@tmp}
+\def\lxmvpos#1#2#3#4{%
+  \expandafter\gdef\csname lxmv@p@#1\endcsname{{#2}{#3}{#4}}}
+\if@filesw
+  \AtBeginDocument{%
+    \immediate\write\@mainaux{\string\providecommand\string\lxmvpos[4]{}}}%
+\fi
+%% When the .aux is read back at \end{document}, every record is compared
+%% with the one this run drew from; any difference, or a record this run
+%% did not have, means the arrows are one run behind.  The warning says
+%% "Rerun" for latexmk's sake.
+\def\lx@mv@compare{%
+  \def\lxmvpos##1##2##3##4{%
+    \def\lx@mv@tmp{{##2}{##3}{##4}}%
+    \expandafter\ifx\csname lxmv@p@##1\endcsname\lx@mv@tmp\else
+      \lx@mv@changed
+    \fi}}
+\AddToHook{enddocument/afterlastpage}{\lx@mv@compare}
+\ExplSyntaxOn
+\cs_new_protected:Npn \lx@mv@changed { \bool_gset_true:N \g__lx_mv_changed_bool }
+\msg_new:nnn { linguexx } { move-rerun }
+  { Movement~arrows~have~changed.~Rerun~to~get~them~right. }
+\AddToHook { enddocument / afteraux }
+  {
+    \bool_if:NT \g__lx_mv_changed_bool
+      { \msg_warning:nn { linguexx } { move-rerun } }
+  }
+
+%% The spoken form rides on the mark's own box: an \mvfrom is read as its
+%% text with the note after it, unless spoken= says otherwise; an \mvto is
+%% read as printed unless spoken= is given.  spoken={} reads as printed.
+\cs_new_protected:Npn \__lx_mv_content:nnn #1#2#3
+  {
+    \bool_set_false:N \l__lx_mv_spoken_bool
+    \keys_set:nn { linguexx / move } {#2}
+    \lx@tag@if@active:TF
+      {
+        \bool_if:NF \l__lx_mv_spoken_bool
+          {
+            \str_if_eq:nnT {#1} { from }
+              {
+                %% Colour is how a copy is greyed out, so it is what this
+                %% text will most often be wrapped in, and the kernel's
+                %% purifier knows neither command: "\textcolor{gray}{x}"
+                %% would be read "grayx".  The equivalents are local.
+                \text_declare_purify_equivalent:Nn \textcolor
+                  { \__lx_mv_purify:w }
+                \text_declare_purify_equivalent:Nn \color
+                  { \__lx_mv_purify_color:w }
+                \tl_set:Ne \l__lx_mv_spoken_tl
+                  { \text_purify:n {#3} ~ ( \l__lx_mv_word_tl ) }
+              }
+          }
+        \bool_lazy_or:nnTF
+          { \tl_if_blank_p:V \l__lx_mv_spoken_tl }
+          { ! \bool_lazy_or_p:nn { \l__lx_mv_spoken_bool }
+                { \str_if_eq_p:nn {#1} { from } } }
+          {#3}
+          {
+            \lx@tag@span@exp:nn
+              { tag = Span , alt = { \l__lx_mv_spoken_tl } } {#3}
+          }
+      }
+      {#3}
+  }
+%% A mark inside another one's spoken form: the text it prints, nothing of
+%% the label or the options.  Expandable, since \text_purify:n expands.
+\cs_new:Npn \__lx_mv_purify:w #1
+  { \str_if_eq:nnTF {#1} { [ } { \__lx_mv_purify_opt:w } { \use_ii:nn {#1} } }
+\cs_new:Npn \__lx_mv_purify_opt:w #1 ] #2#3 {#3}
+\cs_new:Npn \__lx_mv_purify_color:w #1
+  { \str_if_eq:nnT {#1} { [ } { \__lx_mv_purify_copt:w } }
+\cs_new:Npn \__lx_mv_purify_copt:w #1 ] #2 { }
+
+%% #1 = from/to, #2 = options, #3 = label, #4 = the text.
+\cs_new_protected:Npn \__lx_mv_mark:nnnn #1#2#3#4
+  {
+    \mode_leave_vertical:
+    \__lx_mv_scope:
+    \int_gincr:N \g__lx_mv_serial_int
+    \int_gincr:N \g__lx_mv_index_int
+    \int_set_eq:NN \l__lx_mv_serial_int \g__lx_mv_serial_int
+    \int_set_eq:NN \l__lx_mv_index_int \g__lx_mv_index_int
+    \int_compare:nNnT { \g__lx_mv_depth_int } = { 0 }
+      {
+        \dim_gzero:N \g__lx_mv_below_dim
+        \dim_gzero:N \g__lx_mv_above_dim
+      }
+    \int_gincr:N \g__lx_mv_depth_int
+    \bool_gset_false:N \g__lx_mv_inner_bool
+    \hbox_set:Nn \l__lx_mv_box { \__lx_mv_content:nnn {#1} {#2} {#4} }
+    \int_gdecr:N \g__lx_mv_depth_int
+    %% shared: this word is also the end of another movement, inside or
+    %% around this one -- the two arrows then meet it side by side.
+    \bool_set:Nn \l__lx_mv_shared_bool
+      { \g__lx_mv_inner_bool || \int_compare_p:nNn { \g__lx_mv_depth_int } > { 0 } }
+    \bool_gset:Nn \g__lx_mv_inner_bool
+      { \int_compare_p:nNn { \g__lx_mv_depth_int } > { 0 } }
+    \dim_set:Nn \l__lx_mv_below_dim
+      {
+        \dim_max:nn { \box_dp:N \l__lx_mv_box } { \box_dp:N \strutbox }
+        + \MoveArrowGap
+      }
+    \dim_set:Nn \l__lx_mv_above_dim
+      {
+        \dim_max:nn { \box_ht:N \l__lx_mv_box } { \box_ht:N \strutbox }
+        + \MoveArrowGap
+      }
+    \lx@mv@record { \int_use:N \l__lx_mv_serial_int }
+    \prop_get:NnNTF \g__lx_mv_open_prop {#3} \l__lx_mv_entry_tl
+      {
+        \exp_after:wN \__lx_mv_unpack:nnnnnnnn \l__lx_mv_entry_tl
+        \str_if_eq:VnTF \l__lx_mv_orole_tl {#1}
+          { \msg_error:nnnn { linguexx } { move-twice } {#1} {#3} }
+          {
+            \prop_gremove:Nn \g__lx_mv_open_prop {#3}
+            \__lx_mv_close:nnn {#1} {#2} {#3}
+          }
+      }
+      {
+        \prop_gput:Nne \g__lx_mv_open_prop {#3}
+          {
+            {#1}
+            { \int_use:N \l__lx_mv_serial_int }
+            { \int_use:N \l__lx_mv_index_int }
+            { \dim_use:N \box_wd:N \l__lx_mv_box }
+            { \dim_use:N \l__lx_mv_below_dim }
+            { \dim_use:N \l__lx_mv_above_dim }
+            { \exp_not:n {#2} }
+            { \bool_if:NTF \l__lx_mv_shared_bool { 1 } { 0 } }
+          }
+      }
+    \box_use_drop:N \l__lx_mv_box
+    \int_compare:nNnT { \g__lx_mv_depth_int } = { 0 }
+      {
+        \bool_lazy_or:nnT
+          { \dim_compare_p:nNn { \g__lx_mv_below_dim } > { 0pt } }
+          { \dim_compare_p:nNn { \g__lx_mv_above_dim } > { 0pt } }
+          {
+            \tex_vrule:D width 0pt
+              height \g__lx_mv_above_dim depth \g__lx_mv_below_dim \scan_stop:
+          }
+      }
+  }
+\cs_new_protected:Npn \__lx_mv_unpack:nnnnnnnn #1#2#3#4#5#6#7#8
+  {
+    \tl_set:Nn \l__lx_mv_orole_tl {#1}
+    \int_set:Nn \l__lx_mv_oserial_int {#2}
+    \int_set:Nn \l__lx_mv_oindex_int {#3}
+    \dim_set:Nn \l__lx_mv_owd_dim {#4}
+    \dim_set:Nn \l__lx_mv_obelow_dim {#5}
+    \dim_set:Nn \l__lx_mv_oabove_dim {#6}
+    \tl_set:Nn \l__lx_mv_okeys_tl {#7}
+    \bool_set:Nn \l__lx_mv_oshared_bool { \int_compare_p:nNn {#8} = { 1 } }
+  }
+
+%% The second end.  #1 = its role, #2 = its options, #3 = the label; the
+%% first end is in the \l__lx_mv_o... variables.
+\cs_new_protected:Npn \__lx_mv_close:nnn #1#2#3
+  {
+    \group_begin:
+    \tl_clear:N \l__lx_mv_side_tl
+    \int_zero:N \l__lx_mv_level_int
+    \keys_set:nV { linguexx / move } \l__lx_mv_okeys_tl
+    \keys_set:nn { linguexx / move } {#2}
+    \tl_if_empty:NT \l__lx_mv_side_tl
+      {
+        \tl_set:Ne \l__lx_mv_side_tl
+          { \bool_if:NTF \l_lx_gl_inside_bool { above } { below } }
+      }
+    \int_compare:nNnT { \l__lx_mv_level_int } < { 1 }
+      {
+        \int_set:Nn \l__lx_mv_level_int { 1 }
+        \seq_map_inline:Nn \g__lx_mv_done_seq { \__lx_mv_level_over:nnnn ##1 }
+      }
+    \seq_gput_right:Ne \g__lx_mv_done_seq
+      {
+        { \int_use:N \l__lx_mv_oindex_int }
+        { \int_use:N \l__lx_mv_index_int }
+        { \l__lx_mv_side_tl }
+        { \int_use:N \l__lx_mv_level_int }
+      }
+    %% How far from the baseline the horizontal runs, on one line.  This is
+    %% the room kept, and on one line it is also exactly where it is drawn.
+    \dim_set:Nn \l__lx_mv_reach_dim
+      {
+        \str_if_eq:VnTF \l__lx_mv_side_tl { below }
+          { \dim_max:nn { \l__lx_mv_below_dim } { \l__lx_mv_obelow_dim } }
+          { \dim_max:nn { \l__lx_mv_above_dim } { \l__lx_mv_oabove_dim } }
+        + \MoveArrowStep * \l__lx_mv_level_int
+      }
+    \str_if_eq:VnTF \l__lx_mv_side_tl { below }
+      {
+        \dim_gset:Nn \g__lx_mv_below_dim
+          { \dim_max:nn { \g__lx_mv_below_dim } { \l__lx_mv_reach_dim } }
+      }
+      {
+        \dim_gset:Nn \g__lx_mv_above_dim
+          { \dim_max:nn { \g__lx_mv_above_dim } { \l__lx_mv_reach_dim } }
+      }
+    \__lx_mv_offset:nTF {#3}
+      { \__lx_mv_draw:n {#1} }
+      { }
+    \group_end:
+  }
+%% An arrow already in the item, on the same side, whose stretch of marks
+%% meets this one's: this one goes a level further out.
+\cs_new_protected:Npn \__lx_mv_level_over:nnnn #1#2#3#4
+  {
+    \bool_lazy_all:nT
+      {
+        { \str_if_eq_p:Vn \l__lx_mv_side_tl {#3} }
+        { \int_compare_p:nNn {#1} < { \l__lx_mv_index_int } }
+        { \int_compare_p:nNn { \l__lx_mv_oindex_int } < {#2} }
+        { \int_compare_p:nNn { \l__lx_mv_level_int } < { #4 + 1 } }
+      }
+      { \int_set:Nn \l__lx_mv_level_int { #4 + 1 } }
+  }
+%% The other end's offset from this one, from the previous run's .aux.
+%% False, and nothing drawn, on a first run or across a page.
+\prg_new_protected_conditional:Npnn \__lx_mv_offset:n #1 { TF }
+  {
+    \bool_lazy_and:nnTF
+      { \cs_if_exist_p:c { lxmv@p@ \int_use:N \l__lx_mv_serial_int } }
+      { \cs_if_exist_p:c { lxmv@p@ \int_use:N \l__lx_mv_oserial_int } }
+      {
+        \use:e
+          {
+            \exp_not:N \__lx_mv_offset:nnnnnnn
+            \use:c { lxmv@p@ \int_use:N \l__lx_mv_serial_int }
+            \use:c { lxmv@p@ \int_use:N \l__lx_mv_oserial_int }
+            { \exp_not:n {#1} }
+          }
+      }
+      { \prg_return_false: }
+  }
+\cs_new_protected:Npn \__lx_mv_offset:nnnnnnn #1#2#3#4#5#6#7
+  {
+    \int_compare:nNnTF {#3} = {#6}
+      {
+        \dim_set:Nn \l__lx_mv_dx_dim { \int_eval:n { #4 - #1 } sp }
+        \dim_set:Nn \l__lx_mv_dy_dim { \int_eval:n { #5 - #2 } sp }
+        \dim_compare:nNnT { \dim_abs:n { \l__lx_mv_dy_dim } } > { 1pt }
+          { \msg_warning:nnn { linguexx } { move-lines } {#7} }
+        \prg_return_true:
+      }
+      {
+        \msg_warning:nnn { linguexx } { move-pages } {#7}
+        \prg_return_false:
+      }
+  }
+%% #1 = this end's role.  Each end is the middle of its word, moved aside
+%% by a little towards the other end when the word is shared, so that an
+%% arrow arriving at a word and one leaving it do not run down one line.
+\cs_new_protected:Npn \__lx_mv_draw:n #1
+  {
+    \fp_set:Nn \l__lx_mv_x_fp
+      { \dim_to_fp:n { \box_wd:N \l__lx_mv_box } / 2 }
+    \fp_set:Nn \l__lx_mv_ox_fp
+      { \dim_to_fp:n { \l__lx_mv_dx_dim } + \dim_to_fp:n { \l__lx_mv_owd_dim } / 2 }
+    \bool_if:NT \l__lx_mv_shared_bool
+      {
+        \fp_add:Nn \l__lx_mv_x_fp
+          { sign ( \l__lx_mv_ox_fp - \l__lx_mv_x_fp ) * \dim_to_fp:n { .2em } }
+      }
+    \bool_if:NT \l__lx_mv_oshared_bool
+      {
+        \fp_add:Nn \l__lx_mv_ox_fp
+          { sign ( \l__lx_mv_x_fp - \l__lx_mv_ox_fp ) * \dim_to_fp:n { .2em } }
+      }
+    \str_if_eq:VnTF \l__lx_mv_side_tl { below }
+      {
+        \dim_set:Nn \l__lx_mv_y_dim { - \l__lx_mv_below_dim }
+        \dim_set:Nn \l__lx_mv_oy_dim { \l__lx_mv_dy_dim - \l__lx_mv_obelow_dim }
+        \dim_set:Nn \l__lx_mv_yh_dim
+          {
+            \dim_min:nn { \l__lx_mv_y_dim } { \l__lx_mv_oy_dim }
+            - \MoveArrowStep * \l__lx_mv_level_int
+          }
+      }
+      {
+        \dim_set:Nn \l__lx_mv_y_dim { \l__lx_mv_above_dim }
+        \dim_set:Nn \l__lx_mv_oy_dim { \l__lx_mv_dy_dim + \l__lx_mv_oabove_dim }
+        \dim_set:Nn \l__lx_mv_yh_dim
+          {
+            \dim_max:nn { \l__lx_mv_y_dim } { \l__lx_mv_oy_dim }
+            + \MoveArrowStep * \l__lx_mv_level_int
+          }
+      }
+    %% from the base position to the landing site
+    \str_if_eq:nnTF {#1} { from }
+      {
+        \__lx_mv_path:nnnnn
+          { \fp_to_decimal:N \l__lx_mv_x_fp } { \dim_to_decimal:n { \l__lx_mv_y_dim } }
+          { \fp_to_decimal:N \l__lx_mv_ox_fp } { \dim_to_decimal:n { \l__lx_mv_oy_dim } }
+          { \dim_to_decimal:n { \l__lx_mv_yh_dim } }
+      }
+      {
+        \__lx_mv_path:nnnnn
+          { \fp_to_decimal:N \l__lx_mv_ox_fp } { \dim_to_decimal:n { \l__lx_mv_oy_dim } }
+          { \fp_to_decimal:N \l__lx_mv_x_fp } { \dim_to_decimal:n { \l__lx_mv_y_dim } }
+          { \dim_to_decimal:n { \l__lx_mv_yh_dim } }
+      }
+    %% The arrow is decoration: what it says is said by the spoken form of
+    %% the base position, so to the tree it is an artifact.  Nothing here
+    %% makes it one -- tagging already paints every pgf picture as an
+    %% artifact, and an explicit /Artifact around it was tried, changed not
+    %% one byte of the paint's marked content, and could be removed by no
+    %% test.  tests/movement-spoken.tex pins the outcome instead, so that a
+    %% kernel which stops doing this is noticed.
+    \hbox_overlap_right:n
+      {
+        \begin { tikzpicture } [ overlay , baseline = 0pt , x = 1pt , y = 1pt ]
+          \exp_last_unbraced:NV \draw \l__lx_mv_path_tl ;
+        \end { tikzpicture }
+      }
+  }
+\fp_new:N  \l__lx_mv_x_fp
+\fp_new:N  \l__lx_mv_ox_fp
+\dim_new:N \l__lx_mv_y_dim
+\dim_new:N \l__lx_mv_oy_dim
+%% #1,#2 the tail, #3,#4 the head, #5 the y of the horizontal
+\cs_new_protected:Npn \__lx_mv_path:nnnnn #1#2#3#4#5
+  {
+    \tl_set:Ne \l__lx_mv_path_tl
+      {
+        [ lx~move ]
+        ( #1 , #2 ) -- ( #1 , #5 ) -- ( #3 , #5 ) -- ( #3 , #4 )
+      }
+  }
+
+\NewDocumentCommand \lxMoveFrom { O{} m m }
+  { \__lx_mv_mark:nnnn { from } {#1} {#2} {#3} }
+\NewDocumentCommand \lxMoveTo { O{} m m }
+  { \__lx_mv_mark:nnnn { to } {#1} {#2} {#3} }
+\text_declare_purify_equivalent:Nn \lxMoveFrom { \__lx_mv_purify:w }
+\text_declare_purify_equivalent:Nn \lxMoveTo { \__lx_mv_purify:w }
+\text_declare_purify_equivalent:Nn \mvfrom { \__lx_mv_purify:w }
+\text_declare_purify_equivalent:Nn \mvto { \__lx_mv_purify:w }
+\ExplSyntaxOff
+\lx@claim@alias{mvfrom}\lxMoveFrom
+\lx@claim@alias{mvto}\lxMoveTo
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%  Install the defaults of the mode in force                          %%%%

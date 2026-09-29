@@ -492,7 +492,8 @@ def a_ua(p: Page):
     # pass this case by accident
     for tok in ("UAMAIN", "UAALPHA", "UAOBJ", "UATRANS", "UAALTN", "UAALTG",
                 "UAEXE", "UALIST", "UAREL", "UAZTRANS", "UAZAFTER", "UAMOD",
-                "UASIDEOBJ", "UASIDETRANS"):
+                "UASIDEOBJ", "UASIDETRANS", "UAMVLAND", "UAMVBASE",
+                "UAMVGL"):
         r.append(check(p.find(tok) is not None, f"typeset: {tok}"))
     # The modified abbreviation reads back as it was written.  Where the
     # font has no bold small caps the glyphs on the page are capitals, so

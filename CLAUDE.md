@@ -85,7 +85,8 @@ untracked module makes the hook fail as though a test broke.
   run (`LXX_SKIP_GATE=1` overrides), a turn that CLAIMS completion on such a
   tree is stopped once, and a `.log` over 6 kB is not read whole. They compare
   hashes, so "I ran the suite" cannot be believed, only checked. The stamp
-  hashes `linguexx.sty`, `tests/runtests.py`, `tests/suite/*.py` and the
+  hashes `linguexx.sty`, `tests/runtests.py`, `tests/suite/*.py`,
+  `tests/suite/assertions/*.py` and the
   cases (`SOURCES`/`sources()` in `lxx`); a new suite module that is not in
   that glob is a stale green nobody sees.
 - `tests/nominal-capture.sh` then `tests/nominal-verify.sh` — the pair for a
