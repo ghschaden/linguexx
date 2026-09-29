@@ -1003,7 +1003,9 @@ words, or the reverse:
 
 \afterex
 If the tiers are of unequal length, the missing cells are simply left
-empty --- no error. A gloss too long for the line wraps between columns,
+empty --- no error. A cell in the middle is left empty with \verb|{}|, for a
+word that has no gloss of its own, such as a gap; the columns after it stay
+under their own words. A gloss too long for the line wraps between columns,
 never inside one.
 
 \subsection{Gloss abbreviations: \cs{lpzg}}\label{sec:leipzig}

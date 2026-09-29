@@ -16,6 +16,11 @@ version string.
   the arrow is an artifact and the base position is read as "__ (moved)";
   `\SetMoveSpoken` changes the note. Long names `\lxMoveFrom`,
   `\lxMoveTo`, for a document where the short ones are taken.
+- Fixed: an empty gloss cell written `{}` was dropped, so every gloss after
+  it moved one column to the left and sat under the wrong word, with
+  nothing in the log. `{}` is now an empty cell, in any column; `{ }`
+  already was. Documents without an empty `{}` are unchanged, page for
+  page.
 
 ## 1.3.2
 - Fixed: in a tagged PDF, the spoken form of an `\altn` or `\altg` stack

@@ -19,6 +19,21 @@ def a_gloss(p: Page):
         wt, wb = p.find(top), p.find(below)
         r.append(check(abs(wt.x0 - wb.x0) < TOL,
                        f"gloss column {top}/{below} aligned ({wt.x0:.2f} vs {wb.x0:.2f})"))
+    # an empty cell {} is a column, so the glosses after it stay under
+    # their own words -- and nothing is under the word it glosses
+    for top, below in [("EMPA", "empa"), ("EMPC", "empc"), ("EMPD", "empd"),
+                       ("EMQB", "emqb")]:
+        wt, wb = p.find(top), p.find(below)
+        r.append(check(abs(wt.x0 - wb.x0) < TOL,
+                       f"after an empty cell, {below} is under {top} "
+                       f"({wt.x0:.2f} vs {wb.x0:.2f})"))
+    for top in ("EMPB", "EMQA"):
+        w = p.find(top)
+        under = [v for v in p.words
+                 if v.y0 > w.y1 - 1 and v.y0 < w.y1 + 8 and v.x0 <= w.x0 + 1
+                 and v.x1 >= w.x0 + 1]
+        r.append(check(not under,
+                       f"and the cell under {top} is empty (found {under})"))
     # four-tier: all four tiers of column 1 share an x origin
     col1 = [p.find(t) for t in ("TIERONE", "tiertwo", "TIERTHREE", "tierfour")]
     xs = [w.x0 for w in col1]
