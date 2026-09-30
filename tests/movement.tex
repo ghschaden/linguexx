@@ -8,6 +8,11 @@
 %%            arrow, and an arrow drawn backwards sits at the right
 %%            coordinates.  And the line after it is pushed down to make
 %%            room: MVCTRL is the same pair of lines with no arrow.
+%%   KLAND    the room goes PAST the arrow, not just down to it: in a list
+%%            of sub-examples the next item follows with no skip between,
+%%            and a line set only \lineskip under the horizontal reads as
+%%            struck through.  HLAND is the same above the line, under an
+%%            item in capitals, which have no depth to keep it off.
 %%   MVNEST   an arrow over a stretch that holds another goes a level
 %%            further out, so the two horizontals do not run into one.
 %%   CHMID    a word that is both a landing site and a base position (a
@@ -44,6 +49,14 @@
 \ex. MVCTRL no arrow here.
 
 \ex. MVCTRLNEXT the line under no arrow.
+
+\ex. \a. MVSUB \mvto{k}{KLAND} stays here \mvfrom{k}{KBASE} end.
+     \b. KNEXT HANGS UNDER THE ARROW.
+     \z.
+
+\ex. \a. KPREV SITS OVER THE ARROW.
+     \b. MVSUBUP \mvto[above]{h}{HLAND} stays here \mvfrom{h}{HBASE} end.
+     \z.
 
 \ex. MVNEST \mvto{o}{OUTL} \mvto{i}{INL} x \mvfrom{i}{INB} y \mvfrom{o}{OUTB} z.
 

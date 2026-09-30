@@ -2420,7 +2420,9 @@ of the arrow is the TikZ style \texttt{lx move}, so
 \noindent changes every arrow of the document, or of a group.
 \cs{MoveArrowGap} (\texttt{.3ex}) is the gap between a word and the end of
 its arrow, and \cs{MoveArrowStep} (\texttt{1.1ex}) the distance from one
-level to the next; both are macros, so \cs{renewcommand} them.
+level to the next --- and from the outermost arrow to the line beyond it,
+which is kept as clear of it as a further level would be; both are
+macros, so \cs{renewcommand} them.
 
 \paragraph{Two runs.} Where the other end of an arrow is on the page is
 only known once the page has been written out, so the arrows are drawn

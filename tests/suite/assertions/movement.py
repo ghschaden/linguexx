@@ -69,6 +69,51 @@ def a_movement(p: Page):
     r.append(check(arrow[3] < nxt.y0,
                    f"and the arrow stays clear of it (ink ends at "
                    f"{arrow[3]:.1f}, the next line starts at {nxt.y0:.1f})"))
+    # And past it, which the line above cannot show: that one is a new
+    # example, with a skip before it that hides a strut ending right at the
+    # horizontal.  The next sub-example has no skip, so it is set \lineskip
+    # under whatever the strut says -- a point from the arrow, when the
+    # strut stopped at it.  The words keep the distance a further level
+    # would, so it is held against the step between two nested arrows.
+    step = None
+    mid = (f("INL").x1 + f("INB").x0) / 2
+    nested = _ink(p.path, mid - 0.5, f("INL").y1, mid + 0.5, f("CHW").y0 - 1)
+    if nested:
+        step = nested[3] - nested[1]
+    # The horizontal is found in a thin column between its two words, as
+    # the first ink met coming from them: whatever the next line puts in
+    # that column is further on, so it cannot be taken for the arrow.
+    def clearance(words, near, far, other):
+        mid = (words[0].x1 + words[1].x0) / 2
+        col = _ink(p.path, mid - 0.5, min(near, far), mid + 0.5,
+                   max(near, far))
+        if not col:
+            return None
+        if far > near:
+            bar = col[1] + 0.6
+            ink = _ink(p.path, other.x0, bar, other.x1, far)
+            return ink and ink[1] - bar
+        bar = col[3] - 0.6
+        ink = _ink(p.path, other.x0, far, other.x1, bar)
+        return ink and bar - ink[3]
+
+    def shown(v):
+        return "none" if v is None else f"{v:.2f}pt"
+
+    kl, kb, kn = f("KLAND"), f("KBASE"), f("KNEXT")
+    gap = clearance((kl, kb), kl.y1, kn.y1, kn)
+    r.append(check(step is not None and gap is not None
+                   and gap > 0.8 * step,
+                   f"the next sub-example keeps clear of an arrow above it "
+                   f"(capitals {shown(gap)} under the horizontal; a step "
+                   f"is {shown(step)})"))
+    hl, hb, hp = f("HLAND"), f("HBASE"), f("KPREV")
+    gap = clearance((hl, hb), hl.y0, hp.y0, hp)
+    r.append(check(step is not None and gap is not None
+                   and gap > 0.8 * step,
+                   f"and the one before keeps clear of an arrow below it "
+                   f"(capitals {shown(gap)} over the horizontal; a step "
+                   f"is {shown(step)})"))
     # Nesting.  Between INL and INB both horizontals pass, one level apart;
     # between OUTL and INL only the outer one does.
     below = f("CHW").y0 - 1

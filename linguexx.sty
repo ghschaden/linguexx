@@ -7286,8 +7286,13 @@
         { \l__lx_mv_side_tl }
         { \int_use:N \l__lx_mv_level_int }
       }
-    %% How far from the baseline the horizontal runs, on one line.  This is
-    %% the room kept, and on one line it is also exactly where it is drawn.
+    %% How far from the baseline the horizontal runs, on one line, which is
+    %% exactly where it is drawn.  The room kept is one step more: TeX sets
+    %% the next line against the strut with only \lineskip between, so a
+    %% strut that ended at the horizontal put the line under an arrow a
+    %% point from it.  A step is what separates two stacked arrows, so the
+    %% words underneath are as far from the outermost one as a further
+    %% level would be.
     \dim_set:Nn \l__lx_mv_reach_dim
       {
         \str_if_eq:VnTF \l__lx_mv_side_tl { below }
@@ -7298,11 +7303,17 @@
     \str_if_eq:VnTF \l__lx_mv_side_tl { below }
       {
         \dim_gset:Nn \g__lx_mv_below_dim
-          { \dim_max:nn { \g__lx_mv_below_dim } { \l__lx_mv_reach_dim } }
+          {
+            \dim_max:nn { \g__lx_mv_below_dim }
+              { \l__lx_mv_reach_dim + \MoveArrowStep }
+          }
       }
       {
         \dim_gset:Nn \g__lx_mv_above_dim
-          { \dim_max:nn { \g__lx_mv_above_dim } { \l__lx_mv_reach_dim } }
+          {
+            \dim_max:nn { \g__lx_mv_above_dim }
+              { \l__lx_mv_reach_dim + \MoveArrowStep }
+          }
       }
     \__lx_mv_offset:nTF {#3}
       { \__lx_mv_draw:n {#1} }
