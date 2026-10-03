@@ -298,6 +298,32 @@
 \newcounter{SubExNo}
 \newcounter{SubSubExNo}
 \newcounter{FnExNo}
+% Anchor serials, reset by nothing: what the hyperref anchors are built
+% from, so that two examples never claim one destination.  The printed
+% numbers (ExNo, FnExNo) can be reset -- [legacy]'s per-chapter reset,
+% \setcounter -- and a custom label steps no number at all; anchors built
+% from the printed number collided in both cases.  One serial per series,
+% so that in a document with neither, every anchor is the one it always
+% was: lxex.<n> for example (n), lxfnex.<n> for footnote example (n).
+% Custom-labelled examples have a series of their own (lxcex.<n>), so
+% that their sub-examples' anchors are distinct too.  See the anchors
+% below, and doc/DEFERRED-DECISIONS.md ("Two examples, one hyperref
+% anchor"), decided 2026-10-03 for this option.
+\newcounter{lxExSerial}
+\newcounter{lxFnExSerial}
+\newcounter{lxCustomSerial}
+\newif\iflx@customex
+% beamer sets a frame once per overlay slide, restoring the counters it was
+% told about -- linguex's ExNo, SubExNo and SubSubExNo, which beamer
+% registers itself -- so that one example keeps one number on every slide.
+% The serials have to be restored the same way, or each slide gives the
+% same example a new anchor (tests/relreflinks-beamer.tex).  beamer is a
+% class, loaded before this package, so \resetcounteronoverlays exists by
+% now if it ever will.
+\@ifundefined{resetcounteronoverlays}{}{%
+  \resetcounteronoverlays{lxExSerial}%
+  \resetcounteronoverlays{lxFnExSerial}%
+  \resetcounteronoverlays{lxCustomSerial}}
 
 % linguex resets ExNo at every \chapter in a class that has chapters.
 % That is a numbering CONVENTION, not a bug, so [legacy] reproduces it;
@@ -403,17 +429,17 @@
   \renewcommand{\theExNo}{\protect\theExLBr\arabic{ExNo}\protect\theExRBr}%
   \renewcommand{\theFnExNo}{\protect\theFnExLBr\roman{FnExNo}\protect\theFnExRBr}%
   \renewcommand{\theSubExNo}{%
-    \hbox{\if@noftnote\protect\theExLBr\Exarabic{ExNo}\firstrefdash
+    \hbox{\if@noftnote\protect\theExLBr\lx@refbase@main\firstrefdash
         \Exalph{SubExNo}\protect\theExRBr
       \else
-        \protect\theFnExLBr\Exroman{FnExNo}\firstrefdash%
+        \protect\theFnExLBr\lx@refbase@fn\firstrefdash%
         \Exalph{SubExNo}\protect\theFnExRBr
       \fi}}%
   \renewcommand{\theSubSubExNo}{%
     \hbox{\if@noftnote\protect\theExLBr%
-            \Exarabic{ExNo}\firstrefdash\Exalph{SubExNo}\secondrefdash
+            \lx@refbase@main\firstrefdash\Exalph{SubExNo}\secondrefdash
                \Exroman{SubSubExNo}\protect\theExRBr%
-      \else\protect\theFnExLBr\Exroman{FnExNo}\firstrefdash
+      \else\protect\theFnExLBr\lx@refbase@fn\firstrefdash
                 \Exalph{SubExNo}\secondrefdash\Exroman{SubSubExNo}\protect\theFnExRBr\fi}}%
   \def\lx@labelExNo{\theExNo}%
   \def\lx@labelFnExNo{\theFnExNo}}
@@ -421,16 +447,24 @@
   \renewcommand{\theExNo}{\arabic{ExNo}}%
   \renewcommand{\theFnExNo}{\roman{FnExNo}}%
   \renewcommand{\theSubExNo}{%
-    \hbox{\if@noftnote\Exarabic{ExNo}\firstrefdash\Exalph{SubExNo}%
-      \else\Exroman{FnExNo}\firstrefdash\Exalph{SubExNo}\fi}}%
+    \hbox{\if@noftnote\lx@refbase@main\firstrefdash\Exalph{SubExNo}%
+      \else\lx@refbase@fn\firstrefdash\Exalph{SubExNo}\fi}}%
   \renewcommand{\theSubSubExNo}{%
     \hbox{\if@noftnote
-            \Exarabic{ExNo}\firstrefdash\Exalph{SubExNo}\secondrefdash
+            \lx@refbase@main\firstrefdash\Exalph{SubExNo}\secondrefdash
               \Exroman{SubSubExNo}%
-      \else \Exroman{FnExNo}\firstrefdash\Exalph{SubExNo}\secondrefdash
+      \else \lx@refbase@fn\firstrefdash\Exalph{SubExNo}\secondrefdash
               \Exroman{SubSubExNo}\fi}}%
   \def\lx@labelExNo{\protect\theExLBr\theExNo\protect\theExRBr}%
   \def\lx@labelFnExNo{\protect\theFnExLBr\theFnExNo\protect\theFnExRBr}}
+%% The number a sub-example's reference starts with: the example's printed
+%% number, or -- under a custom label, which steps no counter -- the label
+%% itself, its brackets taken off (\lx_refbase_custom:n).  Built from ExNo
+%% unconditionally, a sub-example of \ex.[(7)] referred to itself as
+%% "(0a)": ExNo had not moved.  Set by every example at its start, so it
+%% never outlives the example it belongs to.
+\def\lx@refbase@main{\Exarabic{ExNo}}
+\def\lx@refbase@fn{\Exroman{FnExNo}}
 \newcommand\ExParenRefs{\lx@refs@paren}
 \newcommand\ExBareRefs{\lx@refs@bare}
 \iflx@langsci \lx@refs@bare \else \lx@refs@paren \fi
@@ -446,11 +480,17 @@
 % one.  The number printed was right either way, so only the anchor gave
 % it away.  \if@noftnote is a plain \newif, hence fully expandable and
 % safe in the \edef that hyperref runs over \theH... .
-\def\theHExNo{lxex.\arabic{ExNo}}
-\def\lx@Hexstem{\if@noftnote lxex.\arabic{ExNo}\else lxfnex.\arabic{FnExNo}\fi}
+%
+% Built from the SERIALS (see the counters), not from the printed numbers:
+% a reset ExNo, or a custom label (which steps none), made two examples
+% claim one anchor.  The custom series has its own stem; \iflx@customex is
+% a plain \newif, expandable like \if@noftnote.
+\def\theHExNo{lxex.\arabic{lxExSerial}}
+\def\lx@Hexstem{\iflx@customex lxcex.\arabic{lxCustomSerial}%
+  \else\if@noftnote lxex.\arabic{lxExSerial}\else lxfnex.\arabic{lxFnExSerial}\fi\fi}
 \def\theHSubExNo{\lx@Hexstem.\alph{SubExNo}}
 \def\theHSubSubExNo{\lx@Hexstem.\alph{SubExNo}.\arabic{SubSubExNo}}
-\def\theHFnExNo{lxfnex.\arabic{FnExNo}}
+\def\theHFnExNo{lxfnex.\arabic{lxFnExSerial}}
 
 % The same anchors as \hyperlink TARGETS.  hyperref prefixes the name it
 % builds from \theH<counter> with the counter's own name, so the
@@ -465,6 +505,12 @@
 % costs a link and never a wrong jump.
 \newcommand\lx@Hexname[1]{ExNo.lxex.#1}
 \newcommand\lx@Hfnexname[1]{FnExNo.lxfnex.#1}
+% Since the anchors are built from serials, #1 above is a SERIAL, and a
+% relative reference -- which knows a printed number -- cannot spell the
+% anchor it wants.  It names the number instead (these keys), and the
+% .aux says which anchor the example printing that number recorded.
+\newcommand\lx@Hexkey[1]{ExNo.#1}
+\newcommand\lx@Hfnexkey[1]{FnExNo.#1}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%  Layout parameters                                                  %%%%
@@ -1698,12 +1744,12 @@
 %% it, so that a front-end can have custom labels without having to spell
 %% them "[...]".  Note the order the label is set in: BEFORE \lx@mainlist,
 %% because [legacy] sizes the label box from the label itself.
-\def\lx@custom@item#1{\def\lx@itemlabel{#1}\lx@mainlist\lx@scanjudge}
+\def\lx@custom@item#1{\lx@custom@begin{#1}\def\lx@itemlabel{#1}\lx@mainlist\lx@scanjudge}
 %% The same, for a front-end whose list is ALREADY open -- an item inside a
 %% batch, which is where [langsci]'s \exi, \exr, \exp and \sn live.  It
 %% steps no counter and so records no anchor, exactly as \lx@custom@item
 %% does not; that is the whole point of a custom label.
-\def\lx@custom@item@here#1{\def\lx@itemlabel{#1}\lx@scanjudge}
+\def\lx@custom@item@here#1{\lx@custom@begin{#1}\def\lx@itemlabel{#1}\lx@scanjudge}
 \def\lx@exstart@opt[#1]{\lx@custom@item{#1}}
 %% \lx@relref@record notes the hyperref anchor this example just got, so
 %% that a later run's \Next can tell a number the document reaches from
@@ -1735,12 +1781,50 @@
 \def\lx@endprevpar{\if@inlabel\else\ifhmode\unskip\unskip\par\fi\fi}
 \def\lx@main@core{%
   \lx@endprevpar
+  \lx@customexfalse
+  \def\lx@refbase@main{\Exarabic{ExNo}}\def\lx@refbase@fn{\Exroman{FnExNo}}%
   \if@noftnote
+    \stepcounter{lxExSerial}%
     \refstepcounter{ExNo}\def\lx@itemlabel{\lx@labelExNo}%
   \else
+    \stepcounter{lxFnExSerial}%
     \refstepcounter{FnExNo}\def\lx@itemlabel{\lx@labelFnExNo}%
   \fi
   \lx@relref@record}
+%% A custom-labelled example steps no NUMBER (that is the point of a custom
+%% label) but it does step its own anchor serial, so that its sub-examples
+%% get anchors of their own (lxcex.<n>.a ...), and it gives its
+%% sub-examples their reference base: the label, brackets off.  It still
+%% records nothing for the relative references, which count numbers.
+\ExplSyntaxOn
+%% The label with its brackets taken off, if it has the example brackets
+%% (\ExLBr ... \ExRBr, or the footnote pair in a footnote): "(7$'$)" gives
+%% "7$'$", so that \theSubExNo puts it back between \theExLBr and
+%% \theExRBr exactly as it does a number -- "(7$'$a)" -- and follows the
+%% bracket settings the same way.  A label without them is used as it is.
+\tl_new:N \l__lx_refbase_tl
+\cs_new_protected:Npn \lx_refbase_custom:n #1
+  {
+    \tl_set:Nn \l__lx_refbase_tl {#1}
+    \bool_lazy_and:nnT
+      { \int_compare_p:nNn { \tl_count:n {#1} } > { 2 } }
+      {
+        \bool_lazy_and_p:nn
+          { \str_if_eq_p:ee { \tl_head:n {#1} }
+              { \legacy_if:nTF { @noftnote } { \ExLBr } { \FnExLBr } } }
+          { \str_if_eq_p:ee { \tl_item:nn {#1} { -1 } }
+              { \legacy_if:nTF { @noftnote } { \ExRBr } { \FnExRBr } } }
+      }
+      { \tl_set:Ne \l__lx_refbase_tl { \tl_range:nnn {#1} { 2 } { -2 } } }
+    \cs_set_eq:NN \lx@refbase@main \l__lx_refbase_tl
+    \cs_set_eq:NN \lx@refbase@fn   \l__lx_refbase_tl
+  }
+\cs_new_eq:NN \lx@refbase@custom \lx_refbase_custom:n
+\ExplSyntaxOff
+\def\lx@custom@begin#1{%
+  \lx@customextrue
+  \stepcounter{lxCustomSerial}%
+  \lx@refbase@custom{#1}}
 \def\lx@exstart@normal{\lx@main@core\lx@mainlist\lx@scanjudge}
 \def\lx@mainitem{\lx@main@core\lx@scanjudge}
 %% --- public API (Protocol A: top-level items) -------------------------
@@ -3097,6 +3181,7 @@
 \seq_new:N  \g__lx_relref_bad_seq    % references that found no target
 \seq_new:N  \g__lx_relref_ambig_seq  % references whose anchor is shared
 \str_new:N  \l__lx_relref_dest_str
+\tl_new:N   \l__lx_relref_anchor_tl
 
 %% Written to and read back from the .aux.  A destination name is a
 %% string on both sides -- it reaches this from the .aux as letters and
@@ -3116,14 +3201,24 @@
 %% shipping a wrong jump of its own, so an ambiguous name is treated
 %% exactly like a missing one -- the number is printed, no link is made,
 %% and the reference is reported.
-\cs_new_protected:Npn \lx@relref@dest #1
+%% #1 = the number the example printed, as a key (\lx@Hexkey), #2 = the
+%% anchor it got.  The anchors are built from serials and no longer spell
+%% the number, so the .aux has to say which anchor carries which number;
+%% the lookup is by number, as a relative reference asks by number.
+\str_new:N \l__lx_relref_key_str
+\cs_new_protected:Npn \lx@relref@num #1#2
   {
-    \str_set:Nn \l__lx_relref_dest_str {#1}
-    \prop_if_in:NVTF \g__lx_relref_dest_prop \l__lx_relref_dest_str
-      { \prop_gput:NVn \g__lx_relref_ambig_prop \l__lx_relref_dest_str { } }
-      { \prop_gput:NVn \g__lx_relref_dest_prop \l__lx_relref_dest_str { } }
-    \seq_gput_right:NV \g__lx_relref_aux_seq \l__lx_relref_dest_str
+    \str_set:Nn \l__lx_relref_key_str {#1}
+    \prop_if_in:NVTF \g__lx_relref_dest_prop \l__lx_relref_key_str
+      { \prop_gput:NVn \g__lx_relref_ambig_prop \l__lx_relref_key_str { } }
+      { \prop_gput:NVn \g__lx_relref_dest_prop \l__lx_relref_key_str {#2} }
+    \seq_gput_right:Nn \g__lx_relref_aux_seq { #1 = #2 }
   }
+%% The record before the anchors became serials named the anchor alone.
+%% An .aux written by that version is read once more after an update, and
+%% must not trip over it: the record is dropped, the run sees an .aux that
+%% knows no anchors, and asks for a rerun.
+\cs_new_protected:Npn \lx@relref@dest #1 { }
 %% One example, one anchor -- and, where the anchors are ours, one
 %% \hypertarget to go with it.
 %%
@@ -3138,8 +3233,15 @@
 \cs_new:Npn \lx_relref_name:
   {
     \legacy_if:nTF { @noftnote }
-      { \lx@Hexname { \int_use:N \c@ExNo } }
-      { \lx@Hfnexname { \int_use:N \c@FnExNo } }
+      { \lx@Hexname { \int_use:N \c@lxExSerial } }
+      { \lx@Hfnexname { \int_use:N \c@lxFnExSerial } }
+  }
+%% The number the example printed, as the key a reference looks up.
+\cs_new:Npn \lx_relref_key:
+  {
+    \legacy_if:nTF { @noftnote }
+      { \lx@Hexkey { \int_use:N \c@ExNo } }
+      { \lx@Hfnexkey { \int_use:N \c@FnExNo } }
   }
 \cs_new_protected:Npn \lx_relref_record:
   {
@@ -3153,12 +3255,13 @@
             \bool_if:NT \g__lx_relref_own_bool
               { \tl_gset_eq:NN \g__lx_relref_pending_tl
                   \l__lx_relref_dest_str }
-            \seq_gput_right:NV \g__lx_relref_new_seq \l__lx_relref_dest_str
+            \seq_gput_right:Ne \g__lx_relref_new_seq
+              { \lx_relref_key: = \l__lx_relref_dest_str }
             \legacy_if:nT { @filesw }
               {
                 \iow_now:Ne \@auxout
-                  { \token_to_str:N \lx@relref@dest
-                      { \l__lx_relref_dest_str } }
+                  { \token_to_str:N \lx@relref@num
+                      { \lx_relref_key: } { \l__lx_relref_dest_str } }
               }
           }
       }
@@ -3264,7 +3367,7 @@
   }
 \cs_new_eq:NN \lx@relref@record \lx_relref_record:
 
-%% #1 = the anchor wanted, #2 = the number as printed (for the report),
+%% #1 = the number wanted, as a key (\lx@Hexkey), #2 = the number as printed (for the report),
 %% #3 = the whole reference, parentheses and sub-part included.  #3 is
 %% what reaches the page in every branch: the link is added to the
 %% reference, it never replaces or reformats it.
@@ -3280,8 +3383,9 @@
             #3
           }
           {
-            \prop_if_in:NVTF \g__lx_relref_dest_prop \l__lx_relref_dest_str
-              { \exp_args:NV \hyperlink \l__lx_relref_dest_str {#3} }
+            \prop_get:NVNTF \g__lx_relref_dest_prop \l__lx_relref_dest_str
+                \l__lx_relref_anchor_tl
+              { \exp_args:NV \hyperlink \l__lx_relref_anchor_tl {#3} }
               {
                 \seq_gput_right:Ne \g__lx_relref_bad_seq
                   { #2 ~ (line~ \int_use:N \inputlineno ) }
@@ -3300,14 +3404,14 @@
 \cs_new_protected:Npn \lx@fmtEx #1
   {
     \lx_relref_emit:nnn
-      { \lx@Hexname { \int_eval:n {#1} } }
+      { \lx@Hexkey { \int_eval:n {#1} } }
       { \int_eval:n {#1} }
       { \theExLBr \int_eval:n {#1} \lx@relsub \theExRBr }
   }
 \cs_new_protected:Npn \lx@fmtFnEx #1
   {
     \lx_relref_emit:nnn
-      { \lx@Hfnexname { \int_eval:n {#1} } }
+      { \lx@Hfnexkey { \int_eval:n {#1} } }
       { \int_to_roman:n {#1} }
       { \theFnExLBr \int_to_roman:n {#1} \lx@relsub \theFnExRBr }
   }
@@ -3379,7 +3483,7 @@
     \legacy_if:nT { @filesw }
       { \iow_now:Ne \@auxout
           { \token_to_str:N \providecommand
-            \token_to_str:N \lx@relref@dest [1]{} } }
+            \token_to_str:N \lx@relref@num [2]{} } }
   }
 \legacy_if:nT { lx@relreflinks }
   {

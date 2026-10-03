@@ -12,6 +12,17 @@ from suite.pdf import (
     Page, dest_page, example_targets, link_targets,
 )
 
+def relref_record(name):
+    """The .aux line a relative-reference anchor is recorded with: the
+    number the example printed, as a key, and the anchor it got.  The
+    anchors are built from serials (doc/DEFERRED-DECISIONS.md, "Two
+    examples, one hyperref anchor"), so the line has to say which number
+    the anchor carries: ExNo.lxex.3 -> \\lx@relref@num{ExNo.3}{ExNo.lxex.3}
+    in a document without resets, where serial and number agree."""
+    series, _, n = name.split(".")
+    return "\\lx@relref@num{%s.%s}{%s}" % (series, n, name)
+
+
 def a_refs(p: Page):
     r = []
     txt = " ".join(w.text for w in p.words)
@@ -198,13 +209,13 @@ def a_relreflinks(p: Page):
     # \providecommand of its own: a document that drops linguexx still has
     # last run's .aux, and reading it must not be an undefined command.
     aux = getattr(p, "aux", "")
-    r.append(check(aux.find(r"\providecommand\lx@relref@dest[1]{}") >= 0
-                   and aux.find(r"\providecommand\lx@relref@dest[1]{}")
-                       < aux.find(r"\lx@relref@dest{ExNo"),
-                   "the .aux defines \\lx@relref@dest before using it"))
+    r.append(check(aux.find(r"\providecommand\lx@relref@num[2]{}") >= 0
+                   and aux.find(r"\providecommand\lx@relref@num[2]{}")
+                       < aux.find(r"\lx@relref@num{ExNo"),
+                   "the .aux defines \\lx@relref@num before using it"))
     for name in ("ExNo.lxex.1", "ExNo.lxex.2", "ExNo.lxex.3",
                  "FnExNo.lxfnex.1", "FnExNo.lxfnex.2"):
-        r.append(check(("\\lx@relref@dest{%s}" % name) in aux,
+        r.append(check(relref_record(name) in aux,
                        f"the .aux records the anchor of {name}"))
 
     # Cold run: the anchors are not known yet, so nothing is linked and the
@@ -271,7 +282,7 @@ def a_relreflinks_beamer(p: Page):
 
     # One example, one record -- on a frame typeset twice.
     for name in ("ExNo.lxex.1", "ExNo.lxex.2"):
-        n = aux.count("\\lx@relref@dest{%s}" % name)
+        n = aux.count(relref_record(name))
         r.append(check(n == 1, f"{name} is recorded once, not once per "
                                f"overlay (got {n})"))
 
@@ -283,7 +294,7 @@ def a_relreflinks_beamer(p: Page):
     r.append(check(txt.count("BMLATE") == 1,
                    f"the deferred example is set on one slide only "
                    f"(BMLATE {txt.count('BMLATE')}x)"))
-    n = aux.count("\\lx@relref@dest{ExNo.lxex.5}")
+    n = aux.count(relref_record("ExNo.lxex.5"))
     r.append(check(n == 1, f"the deferred example is recorded once, on the "
                            f"pass where it appears (got {n})"))
     r.append(check("ExNo.lxex.5" in got,
@@ -347,7 +358,9 @@ def a_relreflinks_beamer_reset(p: Page):
                    f"the first frame really has two slides (BRONE "
                    f"{txt.count('BRONE')}x, BROVERLAY "
                    f"{txt.count('BROVERLAY')}x)"))
-    n = aux.count("\\lx@relref@dest{ExNo.lxex.1}")
+    # Two examples print (1), on two frames; each records the number once,
+    # with its own anchor (the serial nothing resets).
+    n = aux.count("\\lx@relref@num{ExNo.1}{")
     r.append(check(n == 2, f"the number is recorded twice -- once per "
                            f"example, not once per slide and not once for "
                            f"both examples (got {n})"))
@@ -365,20 +378,20 @@ def a_relreflinks_beamer_reset(p: Page):
 def a_relreflinks_reset(p: Page):
     r"""A number two examples share is not linked either.
 
-    \theHExNo is built from ExNo alone, so a reset counter makes two
-    examples claim one anchor and hyperref keeps only the first
-    destination.  That is a defect in the anchors, older than the links: a
-    \label on the second example has always led to the first.  What is
-    asserted here is the narrower promise the links make -- that linguexx
-    adds no wrong jump of its own to a document that has this.  The
-    reference prints its number and stays put, and says so in its own
-    words, since a reader who gets the report has to be able to tell a
-    shared number from a missing one.
+    A reset counter makes two examples print the same number.  Until
+    2026-10-03 they also claimed one anchor, \theHExNo being built from
+    ExNo alone, and hyperref kept only the first destination.  The anchors
+    are now built from a serial that nothing resets
+    (doc/DEFERRED-DECISIONS.md, "Two examples, one hyperref anchor"), so
+    each example has its own -- and the engines' duplicate-destination
+    warning, which this case used to require, must now be ABSENT: that
+    was the agreed sign that the anchors had been mended.
 
-    The engines' own duplicate-destination warning is asserted too, on the
-    two that emit it.  It is what makes the case honest: if it ever stops
-    appearing, the anchors have been mended and the withheld link here is
-    a needless one rather than a saved wrong jump.
+    The relative reference still asks for a NUMBER, and a number two
+    examples print is still ambiguous: the guard stays, the reference
+    prints its number, stays put, and says so in its own words.  The
+    number one example prints is a link, now to that example's own
+    anchor (serial 3), not to the number's.
     """
     r = []
     txt = " ".join(w.text for w in p.words)
@@ -386,11 +399,12 @@ def a_relreflinks_reset(p: Page):
                    f"both references print their number; got "
                    f"{txt[txt.find('RSDUP'):][:24]!r}"))
     got = example_targets(p.raw)
-    r.append(check("ExNo.lxex.1" not in got,
-                   "the number two examples share is not a link"))
-    r.append(check(got.count("ExNo.lxex.2") == 1,
-                   f"the number one example carries still is "
-                   f"(got {got.count('ExNo.lxex.2')})"))
+    r.append(check("ExNo.lxex.1" not in got and "ExNo.lxex.2" not in got,
+                   "the number two examples share is not a link, to either "
+                   f"of them (got {got})"))
+    r.append(check(got.count("ExNo.lxex.3") == 1,
+                   f"the number one example carries still is, to that "
+                   f"example's own anchor (got {got})"))
     log = getattr(p, "log", "")
     body = warning_body(log, "Package linguexx Warning: More than one example")
     r.append(check("1 (line" in body,
@@ -400,25 +414,13 @@ def a_relreflinks_reset(p: Page):
                    "missing one"))
     r.append(check("No example carries" not in log,
                    "and is not ALSO reported as an example that does not exist"))
-    # The engine's own report of the destination it had to drop, which is
-    # what makes this case honest: if it ever stops appearing, the anchors
-    # have been mended and the link withheld above is a needless one rather
-    # than a saved wrong jump.  pdftex and luatex say so; xdvipdfmx does
-    # not, the collision being resolved downstream, so there is nothing to
-    # assert under xelatex and no pretence that there is.
-    #
-    # Written first as `check(True, ...)` inside `if <the phrase is
-    # present>`, which is to say not written at all: a check guarded by its
-    # own condition cannot fail, and it sat there reporting a pass while
-    # doc/DEFERRED-DECISIONS.md cited it as the thing that would fail loudly
-    # when the collision goes.  Same shape as the KNOWN_XFAIL entry that
-    # outlived its reason, and the same lesson: a guard that cannot fire is
-    # indistinguishable from one that guards nothing.
-    if p.engine in ("pdflatex", "lualatex"):
-        r.append(check("same identifier" in log or "duplicate destination"
-                       in log,
-                       f"{p.engine} reports the duplicate destination it had "
-                       f"to drop"))
+    # The anchors are mended, so the engines that report a dropped
+    # destination (pdftex, luatex; xdvipdfmx resolves it silently) must
+    # report none.  This used to be asserted the other way round, as the
+    # sign that would show when the collision was gone.
+    for phrase in ("same identifier", "duplicate destination"):
+        r.append(check(phrase not in log,
+                       f"no duplicate-destination warning ({phrase!r})"))
     return r
 
 
@@ -450,7 +452,8 @@ def a_relreflinks_off(p: Page):
     # Nothing is recorded either: with the links off the .aux must not grow
     # a line per example for a mechanism the document has switched off.
     aux = getattr(p, "aux", "")
-    r.append(check(r"\lx@relref@dest" not in aux,
+    r.append(check(r"\lx@relref@num" not in aux
+                   and r"\lx@relref@dest" not in aux,
                    "no anchors are written to the .aux"))
     r.append(check("linguexx Warning" not in getattr(p, "log", ""),
                    "and nothing is reported"))
@@ -588,3 +591,58 @@ def a_cleveref_named(p: Page):
                    f"a counter it did not name stays bare; got "
                    f"{txt[txt.find('CVSUB'):][:16]!r}"))
     return r
+
+
+def a_customlabel_refs(p: Page):
+    r"""Sub-examples under a custom label: the number in their references,
+    and their anchors.
+
+    A custom label steps no counter, and \theSubExNo and \theHSubExNo
+    both built from ExNo, so every sub-example under \ex.[(n)] referred to
+    itself with ExNo's value -- "(0a)" before any numbered example -- and
+    every custom-labelled example claimed the anchor "lxex.0.a", of which
+    hyperref kept the first.  Both halves are asserted: the printed text
+    off the page, the anchors off the .aux.  A numbered example after them
+    must keep exactly the anchor it always had.
+    """
+    r = []
+    aux = getattr(p, "aux", "")
+    txt = " ".join(w.text for w in p.words)
+
+    def anchor(label):
+        m = re.search(r"\\newlabel\{" + re.escape(label)
+                      + r"\}\{.*?\}\{[^{}]*\}\{[^{}]*\}\{([^{}]*)\}",
+                      aux, re.S)
+        return m.group(1) if m else None
+
+    # the reference text: the custom label, brackets off, with the letter
+    for sent, want in (("CLREFFIVE", "(5a)"), ("CLREFSIXA", "(6a)"),
+                       ("CLREFSIXB", "(6b)"), ("CLREFA", "(Aa)"),
+                       ("CLREFNUM", "(1a)")):
+        r.append(check(f"{sent} {want}" in txt,
+                       f"{sent} prints {want}; got "
+                       f"{txt[txt.find(sent):][:len(sent) + 10]!r}"))
+    r.append(check("(0a)" not in txt,
+                   "no reference is built from a counter the custom label "
+                   "never stepped"))
+    got = {k: anchor(k) for k in ("cl:fivea", "cl:sixa", "cl:sixb", "cl:aa",
+                                  "cl:numa")}
+    r.append(check(all(got.values()),
+                   f"every \\label recorded an anchor (got {got})"))
+    custom = [got[k] for k in ("cl:fivea", "cl:sixa", "cl:sixb", "cl:aa")]
+    r.append(check(len(set(custom)) == len(custom),
+                   f"each custom sub-example has an anchor of its own "
+                   f"(got {custom})"))
+    r.append(check(all((a or "").startswith("SubExNo.lxcex.") for a in custom),
+                   f"on the custom series (got {custom})"))
+    # a numbered example keeps the anchor it always had: the serials leave
+    # a document without custom labels or resets exactly as it was
+    r.append(check(got["cl:numa"] == "SubExNo.lxex.1.a",
+                   f"the numbered example's sub-example keeps lxex.1.a "
+                   f"(got {got['cl:numa']})"))
+    log = getattr(p, "log", "")
+    for phrase in ("same identifier", "duplicate destination"):
+        r.append(check(phrase not in log,
+                       f"no duplicate-destination warning ({phrase!r})"))
+    return r
+

@@ -16,6 +16,22 @@ version string.
   the arrow is an artifact and the base position is read as "__ (moved)";
   `\SetMoveSpoken` changes the note. Long names `\lxMoveFrom`,
   `\lxMoveTo`, for a document where the short ones are taken.
+- Fixed: a sub-example under a custom label (`\ex.[(5)] \a. ...`) referred
+  to itself with the example counter's value instead of its label: `\ref`
+  to letter a printed "(0a)" before any numbered example, and the number
+  of the last numbered example after one. Every custom-labelled example
+  also claimed the same hyperref anchors, so each such `\ref` led to the
+  first of them. The reference now prints the label with the letter,
+  "(5a)" (brackets taken off and put back as for a number), and each
+  example has anchors of its own.
+- Changed: hyperref anchors are built from a serial that nothing resets,
+  not from the printed number, so two examples never share a destination
+  -- after `\setcounter{ExNo}{0}`, or `[legacy]`'s per-chapter reset, a
+  `\label` on the second example led to the first. A document without
+  resets or custom labels keeps exactly the anchors it had. Custom-labelled
+  examples use the stem `lxcex.`. The `.aux` records of the relative
+  references change form (`\lx@relref@num`): the first run after the
+  update asks for a rerun.
 - Fixed: an empty gloss cell written `{}` was dropped, so every gloss after
   it moved one column to the left and sat under the wrong word, with
   nothing in the log. `{}` is now an empty cell, in any column; `{ }`

@@ -437,6 +437,19 @@ replacement for it.
 
 ## Two examples, one hyperref anchor, when the counter is reset
 
+*Closed on 2026-10-03: option 2 below, decided by Gerhard. The anchors are
+built from serials nothing resets -- `lxExSerial`, `lxFnExSerial`, and
+`lxCustomSerial` for custom-labelled examples (stem `lxcex.`) -- through
+the four places named under "If it is ever patched". The relative
+references record the printed number WITH the anchor in the `.aux`
+(`\lx@relref@num`) and look the anchor up by number, so the ambiguity
+guard still withholds a link from a number two examples print. What
+forced the question: custom labels, which step no counter, made every
+custom-labelled example claim one anchor, and their sub-examples print
+"(0a)" (`tests/customlabel-refs.tex`). One serial per series keeps
+every anchor of a document without resets or custom labels exactly as it
+was. The entry is kept below as it was written.*
+
 *Found on 2026-08-28, while making the relative references clickable. The
 links work around it; nothing about the anchors themselves was changed.*
 

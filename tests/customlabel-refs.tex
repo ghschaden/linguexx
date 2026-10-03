@@ -1,0 +1,33 @@
+%% Sub-examples under a custom label: their references, and their anchors.
+%%
+%% A custom label steps no counter, and the sub-examples under it built
+%% both their PRINTED reference and their hyperref ANCHOR from ExNo:
+%% before any numbered example ExNo is 0, so \ref to letter a of \ex.[(5)]
+%% printed "(0a)", and every custom-labelled example claimed the anchor
+%% "lxex.0.a" -- hyperref kept the first destination and dropped the rest,
+%% so each such \ref led to the first custom example.  Found setting the
+%% examples of a journal, where every example carries the author's own
+%% number and so a custom label.
+%%
+%% The custom examples come FIRST, so that ExNo is 0 while they are set:
+%% after a numbered example the wrong number would be that example's, and
+%% the case would still pass on a reference that happened to coincide.
+%% The bare label "A" has no brackets to take off and is used as it is.
+\input{_preamble}
+\usepackage{hyperref}
+\begin{document}
+\ex.[(5)] \a.\label{cl:fivea} CLFIVEA first custom, letter a.
+\b. CLFIVEB first custom, letter b.
+
+\ex.[(6)] \a.\label{cl:sixa} CLSIXA second custom, letter a.
+\b.\label{cl:sixb} CLSIXB second custom, letter b.
+
+\ex.[A] \a.\label{cl:aa} CLAA bare label, letter a.
+\b. CLAB bare label, letter b.
+
+\ex. \a.\label{cl:numa} CLNUMA first numbered, letter a.
+\b. CLNUMB first numbered, letter b.
+
+CLREFFIVE \ref{cl:fivea} CLREFSIXA \ref{cl:sixa} CLREFSIXB \ref{cl:sixb}
+CLREFA \ref{cl:aa} CLREFNUM \ref{cl:numa}
+\end{document}
