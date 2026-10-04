@@ -3,7 +3,7 @@
 All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
-## Unreleased
+## 1.4
 - New: movement arrows. `\mvto{a}{What} did John buy \mvfrom{a}{\_\_}?`
   draws an arrow from the base position (`\mvfrom`) to the landing site
   (`\mvto`), below the line, or above the object line in a gloss. Several
@@ -58,6 +58,18 @@ version string.
   nothing in the log. `{}` is now an empty cell, in any column; `{ }`
   already was. Documents without an empty `{}` are unchanged, page for
   page.
+- Changed: the package options are declared with the LaTeX kernel's key
+  interface, which needs LaTeX 2022-06-01 or later (was 2020-10-01). The
+  options and their names are the same, and still take no value: where
+  1.3.2 ignored `[legacy=true]` with a warning, it is now an error, "The
+  option 'legacy' takes no value" -- write `[legacy]`. An unknown option
+  still only warns.
+- Manual: "Notes and limitations" says that in a tagged document a
+  sub-example list broken across a page needs LaTeX 2026-06-01: older
+  kernels can break the structure tree there (the kernel's bug, not
+  linguexx's), with a workaround for them.
+- The CTAN package ships `CHANGELOG.md` beside the manual, in place of the
+  release history the `.sty` header used to repeat.
 
 ## 1.3.2
 - Fixed: in a tagged PDF, the spoken form of an `\altn` or `\altg` stack
