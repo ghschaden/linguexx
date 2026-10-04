@@ -3059,6 +3059,18 @@ validation substitutes for it.
   guess into the promise. If the example is meant to be read aloud, write
   it as two examples.
 
+\item \textbf{Sub-examples across a page break, under tagging, before
+  LaTeX 2026-06-01.} With an older kernel, a nested list that breaks
+  across a page in a tagged document can end the run with ``\texttt{The
+  number of automatic begin \dots{} and end \dots}'' from \pkg{tagpdf},
+  and every structure element after the break is attached to the root:
+  the page looks right, and veraPDF fails the file. Sub-examples are
+  nested lists, so they are affected, but so is the kernel's own nested
+  \texttt{enumerate} without \pkg{linguexx}: it is the kernel's bug, and
+  LaTeX 2026-06-01 (\TeX\ Live 2026) fixes it. Not every break point
+  triggers it. With an older kernel, keep such an example on one page,
+  for instance with a \cs{pagebreak} or \cs{enlargethispage} before it.
+
 \item \textbf{\pkg{ulem} is not loaded.} For struck-through alternatives
   (\cs{sout} inside \cs{altn}), load \pkg{ulem} yourself; the usual choice
   is \cs{usepackage[normalem]\{ulem\}}, which keeps \cs{emph} italic.
