@@ -8,7 +8,8 @@ version string.
   draws an arrow from the base position (`\mvfrom`) to the landing site
   (`\mvto`), below the line, or above the object line in a gloss. Several
   movements in one example are stacked out of each other's way, and the
-  line gets the room they need; a word can be both ends of a chain. Options
+  line gets the room they need; a word can be both ends of a chain, whose
+  links stay on one level. Options
   `above`, `below`, `level=<n>` and `spoken=<text>`; the arrow's look is the
   TikZ style `lx move`. Two runs, like `\ref`, and the log asks for the
   second; in `beamer` every slide has its own arrows, so they stay with

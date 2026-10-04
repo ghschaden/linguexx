@@ -7087,7 +7087,7 @@
 \int_new:N  \g__lx_mv_serial_int   % every mark so far: the .aux key
 \int_new:N  \g__lx_mv_item_int     % every example item so far
 \int_new:N  \g__lx_mv_scope_int    % the item the registries belong to
-\int_new:N  \g__lx_mv_index_int    % marks so far in that item
+\int_new:N  \g__lx_mv_index_int    % marked words so far in that item
 \int_new:N  \g__lx_mv_depth_int    % marks inside marks, for a chain
 \bool_new:N \g__lx_mv_inner_bool   % a mark was set inside the one being boxed
 \prop_new:N \g__lx_mv_open_prop    % label -> the end waiting for its partner
@@ -7288,7 +7288,11 @@
     \mode_leave_vertical:
     \__lx_mv_scope:
     \int_gincr:N \g__lx_mv_serial_int
-    \int_gincr:N \g__lx_mv_index_int
+    %% The index is the word's place in the item, so a mark inside another
+    %% shares it: two arrows of a chain then only meet at the word they
+    %% share, and stay on one level instead of stepping out at each link.
+    \int_compare:nNnT { \g__lx_mv_depth_int } = { 0 }
+      { \int_gincr:N \g__lx_mv_index_int }
     \int_set_eq:NN \l__lx_mv_serial_int \g__lx_mv_serial_int
     \int_set_eq:NN \l__lx_mv_index_int \g__lx_mv_index_int
     \int_compare:nNnT { \g__lx_mv_depth_int } = { 0 }

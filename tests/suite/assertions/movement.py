@@ -145,6 +145,18 @@ def a_movement(p: Page):
     r.append(check(left is not None and right is not None and centre is None,
                    f"a word shared by two movements has their two ends side "
                    f"by side (left {left}, right {right}, centre {centre})"))
+    # And the two are on one level.  They only share a word, which is not
+    # a stretch holding another, so neither steps out: each horizontal is
+    # measured in a column just inside its own end at CHW or CHEND, past
+    # that end's vertical, and the two run at one depth.
+    w, e = f("CHW"), f("CHEND")
+    first = _ink(p.path, w.x1 + 2.0, m.y1, w.x1 + 3.0, nx.y0 - 1)
+    second = _ink(p.path, e.x0 - 3.0, m.y1, e.x0 - 2.0, nx.y0 - 1)
+    r.append(check(first is not None and second is not None
+                   and abs(first[3] - second[3]) < 0.3,
+                   f"the two links of a chain are on one level "
+                   f"(horizontals at {first and round(first[3], 2)} and "
+                   f"{second and round(second[3], 2)})"))
     # In a gloss the arrow goes above the object line: below, it would cut
     # through the gloss tier.
     g, prev, tier = f("GLAND"), f("MVPREV"), f("GTIER")
@@ -159,7 +171,7 @@ def a_movement(p: Page):
     r.append(check(_ink(p.path, _mid(u) - 2, tier.y1 + 1,
                         _mid(u) + 2, u.y0 + 1) is not None
                    and _ink(p.path, _mid(u) - 2, u.y1, _mid(u) + 2,
-                            f("MVLONE").y0) is None,
+                            f("MVLONE").y0 - 1) is None,
                    "[above] puts a plain example's arrow above its line"))
     # An end with no partner draws nothing, and says why.  The next
     # example's \mvfrom{z} is not its partner: labels are per example, so
