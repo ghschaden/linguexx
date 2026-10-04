@@ -442,7 +442,9 @@
       \else\protect\theFnExLBr\lx@refbase@fn\firstrefdash
                 \Exalph{SubExNo}\secondrefdash\Exroman{SubSubExNo}\protect\theFnExRBr\fi}}%
   \def\lx@labelExNo{\theExNo}%
-  \def\lx@labelFnExNo{\theFnExNo}}
+  \def\lx@labelFnExNo{\theFnExNo}%
+  \def\lx@labelCustom##1{\if@noftnote\protect\theExLBr##1\protect\theExRBr
+    \else\protect\theFnExLBr##1\protect\theFnExRBr\fi}}
 \def\lx@refs@bare{%
   \renewcommand{\theExNo}{\arabic{ExNo}}%
   \renewcommand{\theFnExNo}{\roman{FnExNo}}%
@@ -456,7 +458,8 @@
       \else \lx@refbase@fn\firstrefdash\Exalph{SubExNo}\secondrefdash
               \Exroman{SubSubExNo}\fi}}%
   \def\lx@labelExNo{\protect\theExLBr\theExNo\protect\theExRBr}%
-  \def\lx@labelFnExNo{\protect\theFnExLBr\theFnExNo\protect\theFnExRBr}}
+  \def\lx@labelFnExNo{\protect\theFnExLBr\theFnExNo\protect\theFnExRBr}%
+  \def\lx@labelCustom##1{##1}}
 %% The number a sub-example's reference starts with: the example's printed
 %% number, or -- under a custom label, which steps no counter -- the label
 %% itself, its brackets taken off (\lx_refbase_custom:n).  Built from ExNo
@@ -491,6 +494,7 @@
 \def\theHSubExNo{\lx@Hexstem.\alph{SubExNo}}
 \def\theHSubSubExNo{\lx@Hexstem.\alph{SubExNo}.\arabic{SubSubExNo}}
 \def\theHFnExNo{lxfnex.\arabic{lxFnExSerial}}
+\def\theHlxCustomSerial{lxcex.\arabic{lxCustomSerial}}
 
 % The same anchors as \hyperlink TARGETS.  hyperref prefixes the name it
 % builds from \theH<counter> with the counter's own name, so the
@@ -1990,28 +1994,102 @@
 %% \theExRBr exactly as it does a number -- "(7$'$a)" -- and follows the
 %% bracket settings the same way.  A label without them is used as it is.
 \tl_new:N \l__lx_refbase_tl
+\bool_new:N \l__lx_refbase_bracketed_bool
+%% Is the first (#2: \ExLBr) or last (\ExRBr) item of the label #1 the
+%% example bracket -- as the character, "(7)", or as the command that
+%% prints it, which is how langsci's \exr and \exp spell their labels
+%% (\theExLBr\pref{x}\theExRBr)?  Missing the second, \ref of an \exr
+%% item printed "(1)" where [langsci]'s \ref of a number prints "1", and
+%% "(\ref{x})" in the text came out "((1))".  #3 is the footnote pair.
+%% \tl_item:nn hands its token back under \exp_not:n, so the command is
+%% compared by name and not by what it would print.
+\prg_new_conditional:Npnn \__lx_refbase_end:nNN #1#2#3 { p }
+  {
+    \bool_lazy_or:nnTF
+      {
+        \str_if_eq_p:ee
+          { \tl_item:nn {#1} { \token_if_eq_meaning:NNTF #2 \ExLBr { 1 } { -1 } } }
+          { \legacy_if:nTF { @noftnote } {#2} {#3} }
+      }
+      {
+        \str_if_eq_p:ee
+          { \tl_item:nn {#1} { \token_if_eq_meaning:NNTF #2 \ExLBr { 1 } { -1 } } }
+          {
+            \legacy_if:nTF { @noftnote }
+              { \exp_not:c { the \cs_to_str:N #2 } }
+              { \exp_not:c { the \cs_to_str:N #3 } }
+          }
+      }
+      { \prg_return_true: } { \prg_return_false: }
+  }
 \cs_new_protected:Npn \lx_refbase_custom:n #1
   {
     \tl_set:Nn \l__lx_refbase_tl {#1}
+    \bool_set_false:N \l__lx_refbase_bracketed_bool
     \bool_lazy_and:nnT
       { \int_compare_p:nNn { \tl_count:n {#1} } > { 2 } }
       {
         \bool_lazy_and_p:nn
-          { \str_if_eq_p:ee { \tl_head:n {#1} }
-              { \legacy_if:nTF { @noftnote } { \ExLBr } { \FnExLBr } } }
-          { \str_if_eq_p:ee { \tl_item:nn {#1} { -1 } }
-              { \legacy_if:nTF { @noftnote } { \ExRBr } { \FnExRBr } } }
+          { \__lx_refbase_end_p:nNN {#1} \ExLBr \FnExLBr }
+          { \__lx_refbase_end_p:nNN {#1} \ExRBr \FnExRBr }
       }
-      { \tl_set:Ne \l__lx_refbase_tl { \tl_range:nnn {#1} { 2 } { -2 } } }
+      {
+        \tl_set:Ne \l__lx_refbase_tl { \tl_range:nnn {#1} { 2 } { -2 } }
+        \bool_set_true:N \l__lx_refbase_bracketed_bool
+      }
     \cs_set_eq:NN \lx@refbase@main \l__lx_refbase_tl
     \cs_set_eq:NN \lx@refbase@fn   \l__lx_refbase_tl
   }
 \cs_new_eq:NN \lx@refbase@custom \lx_refbase_custom:n
+%% What \ref prints for the example: the label as a number would be
+%% printed, brackets off and put back by \lx@labelCustom -- so \ExBareRefs
+%% and [langsci] give "7" where \ref of a number gives "3" -- or, without
+%% the example brackets, the label as it stands.  It is what
+%% \thelxCustomSerial prints, so everything that builds a reference from
+%% the counter builds this: \refstepcounter's \@currentlabel, cleveref's
+%% record, and the kernel's first aid for cleveref, which REBUILDS that
+%% record at \label from \@currentcounter and would undo anything set
+%% beside it.  Until 2026-10-04 the example recorded nothing: \ref of it
+%% printed an empty string, with no warning.
+%%
+%% The label's own tokens are kept from expansion (\exp_not:n) until a
+%% \label writes them, which is when LaTeX expands any \@currentlabel.
+%% \refstepcounter expands \thelxCustomSerial at once, and a label is
+%% free text that was never expanded before -- \exr's holds \pref -- so
+%% without this every custom label with a fragile command in it would
+%% have become an error, labelled or not.
+\cs_new_protected:Npn \lx_custom_reftext:n #1
+  {
+    \bool_if:NTF \l__lx_refbase_bracketed_bool
+      {
+        \tl_set:Ne \lx@custom@ref
+          {
+            \exp_not:N \lx@labelCustom
+              { \exp_not:N \exp_not:n { \exp_not:V \l__lx_refbase_tl } }
+          }
+      }
+      { \tl_set:Nn \lx@custom@ref { \exp_not:n {#1} } }
+  }
+\cs_new_eq:NN \lx@custom@reftext \lx_custom_reftext:n
 \ExplSyntaxOff
+%% \refstepcounter, not \stepcounter: the serial is what gives the example
+%% a destination of its own (lxCustomSerial.lxcex.<n>), \@currentHref and
+%% \@currentlabel, as ExNo gives a numbered one.  The text is fixed first,
+%% because \refstepcounter reads it.  The serial steps by TWO: cleveref
+%% compresses a list into a range when the counter values are consecutive,
+%% and consecutive serials made \cref{seven,twelve,fifteen} print "(7) to
+%% (15)" -- a range over labels that are not a sequence.  Even values are
+%% never consecutive.  \lx@endprevpar first, for the reason it opens
+%% \lx@main@core.
+\def\lx@custom@ref{}
+\def\thelxCustomSerial{\lx@custom@ref}
 \def\lx@custom@begin#1{%
+  \lx@endprevpar
   \lx@customextrue
+  \lx@refbase@custom{#1}%
+  \lx@custom@reftext{#1}%
   \stepcounter{lxCustomSerial}%
-  \lx@refbase@custom{#1}}
+  \refstepcounter{lxCustomSerial}}
 \def\lx@exstart@normal{\lx@main@core\lx@mainlist\lx@scanjudge}
 \def\lx@mainitem{\lx@main@core\lx@scanjudge}
 %% --- public API (Protocol A: top-level items) -------------------------
@@ -2974,7 +3052,7 @@
 %% stayed green over dead code.
 \def\lx@exi@go#1{\@ifnextchar[{\lx@exi@judged{#1}}{\lx@custom@item@here{#1}}}
 \def\lx@exi@judged#1[#2]#3{%
-  \def\lx@itemlabel{#1}\lx@setjudge{#2}\lx@makeitem#3}
+  \lx@custom@begin{#1}\def\lx@itemlabel{#1}\lx@setjudge{#2}\lx@makeitem#3}
 \def\lx@exi@err{%
   \PackageError{linguexx}{\string\exi\space outside an example}%
    {\string\exi\space labels an item of a list that is already open: put it
@@ -3722,8 +3800,11 @@
 \NewDocumentCommand\TextNext{o}{{\lx@setrelsub{#1}%
   \lx@fmtEx{\value{ExNo}+1}}\xspace}
 
-% parenthesis-free twins
-\newcommand\pref[1]{{\parenstrue\ref{#1}}}
+% parenthesis-free twins.  \pref is robust like \ref and its neighbours:
+% \exr and \exp put it in a custom label, and a \label on such an item
+% writes the label out, expanded -- where the \parenstrue of a fragile
+% \pref came apart as "Incomplete \iffalse".
+\NewDocumentCommand\pref{m}{{\parenstrue\ref{#1}}}
 \NewDocumentCommand\pLast{o}{{\parenstrue\IfValueTF{#1}{\Last[#1]}{\Last}}\xspace}
 \NewDocumentCommand\pNext{o}{{\parenstrue\IfValueTF{#1}{\Next[#1]}{\Next}}\xspace}
 \NewDocumentCommand\pNNext{o}%
@@ -6718,6 +6799,7 @@
   \@ifpackageloaded{cleveref}{%
     \lx@crefname{ExNo}\lx@crefname{SubExNo}%
     \lx@crefname{SubSubExNo}\lx@crefname{FnExNo}%
+    \lx@crefname{lxCustomSerial}%
   }{}}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

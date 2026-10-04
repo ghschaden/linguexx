@@ -440,6 +440,16 @@ number the original carries, whatever that turns out to be.
 \cs{exg.}\ takes the same argument, with one difference in how it is
 written, described where it is documented (section~\ref{sec:exgabbrev}).
 
+A custom-labelled example can be labelled and referred to like a numbered
+one. \cs{ex.}\texttt{[(7)]\textbackslash label\{ex:seven\}} makes
+\cs{ref}\texttt{\{ex:seven\}} print ``(7)'', and a sub-example of it
+``(7a)''. The brackets are those of the example numbers, so they follow
+\cs{ExBareRefs} and \opt{langsci} as a number's do: there, the same
+reference prints ``7''. A label written without them, \cs{ex.}\texttt{[A]},
+is referred to as it stands: ``A''. Each such example has a link target
+of its own, and \cs{cref} lists them without ever joining them into a
+range, since the labels need not follow one another.
+
 A custom label belongs to a whole example, and to nothing smaller:
 \cs{ex.}\ and \cs{exg.}\ take one, the sub-example commands
 \cs{a.}--\cs{f.}\ and \cs{ag.}--\cs{fg.}\ do not. A bracket after one of

@@ -510,6 +510,12 @@ def a_langsci_extra(p: Page):
     r.append(check(label_of("LEEXI") == "ident",
                    f"\\exi labels an item with what it is given; got "
                    f"{label_of('LEEXI')!r}"))
+    txt = " ".join(w.text for w in p.words)
+    want = "LEREFEXI ident LEREFEXR 1 LEREFID id2 LEREFEND"
+    r.append(check(want in txt,
+                   f"\\ref of an \\exi or \\exr item prints its label as "
+                   f"[langsci] prints a number; got "
+                   f"{txt[txt.find('LEREFEXI'):][:50]!r}"))
     r.append(check(label_of("LEEXR") == "(1)",
                    f"\\exr labels it with another example's number; got "
                    f"{label_of('LEEXR')!r}"))

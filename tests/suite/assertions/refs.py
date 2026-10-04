@@ -561,6 +561,13 @@ def a_cleveref(p: Page):
     r.append(check(re.search(r"CVREFRANGE \(1a-+b\)", norm),
                    f"\\refrange compresses the shared prefix; got "
                    f"{norm[norm.find('CVREFRANGE'):][:24]!r}"))
+    # Custom-labelled examples: the label, and a list of three never
+    # compressed into a range -- their serials are not a sequence of labels.
+    for want in ("CVCUSTOM (7) CVCLIST", "CVCLIST (7), (12) and (15) CVCMIX",
+                 "CVCMIX (1) and (7) CVCEND"):
+        r.append(check(want in txt,
+                       f"\\cref of custom labels: {want!r}; got "
+                       f"{txt[txt.find(want.split()[0]):][:40]!r}"))
     r.append(check("CVREFRANGE (1a) to (1b)" not in txt,
                    "\\refrange is not cleveref's spelling of the same range: "
                    "the two forms are distinct and neither replaces the other"))
@@ -640,6 +647,22 @@ def a_customlabel_refs(p: Page):
     r.append(check(got["cl:numa"] == "SubExNo.lxex.1.a",
                    f"the numbered example's sub-example keeps lxex.1.a "
                    f"(got {got['cl:numa']})"))
+    # A \label on the custom-labelled example itself: the label, as a
+    # number would print, and a destination of its own on the custom series.
+    for sent, want in (("CLREFSEVEN", "(7)"), ("CLREFBEE", "B")):
+        r.append(check(f"{sent} {want} " in txt + " ",
+                       f"\\ref of a custom-labelled example prints {want}; "
+                       f"got {txt[txt.find(sent):][:len(sent) + 8]!r}"))
+    r.append(check(p.find("CLFRAG") is not None
+                   and p.find("CLFRAGB") is not None,
+                   "a custom label with a fragile command in it is set, "
+                   "with or without the example brackets, when nothing "
+                   "labels it"))
+    own = [anchor("cl:seven"), anchor("cl:bee")]
+    r.append(check(all(own) and len(set(own + custom)) == len(own + custom)
+                   and all(a.startswith("lxCustomSerial.lxcex.") for a in own),
+                   f"each has a destination of its own on the custom series "
+                   f"(got {own})"))
     log = getattr(p, "log", "")
     for phrase in ("same identifier", "duplicate destination"):
         r.append(check(phrase not in log,

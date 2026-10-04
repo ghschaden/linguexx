@@ -15,6 +15,12 @@
 
 \ex.\label{cv:two} CVTWO second.
 
+\ex.[(7)]\label{cv:c7} CVCSEVEN custom.
+
+\ex.[(12)]\label{cv:c12} CVCTWELVE custom.
+
+\ex.[(15)]\label{cv:c15} CVCFIFTEEN custom.
+
 CVFN host.\footnote{\ex.\label{cv:fn} CVFNEX in a footnote.
 
 }
@@ -40,4 +46,7 @@ CVCREFRANGE \crefrange{cv:a}{cv:b} CVCREFRANGEMAIN \crefrange{cv:one}{cv:two}
 %% over the same pair; nothing asserted that before, so "cleveref already
 %% does ranges" looked like grounds for deleting \refrange.
 CVREFRANGE \refrange{cv:sa}{cv:sb}
+
+CVCUSTOM \cref{cv:c7} CVCLIST \cref{cv:c7,cv:c12,cv:c15} CVCMIX
+\cref{cv:one,cv:c7} CVCEND
 \end{document}

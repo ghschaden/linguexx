@@ -8,15 +8,20 @@
 %% and neither may reintroduce it.  \exp additionally keeps the LaTeX
 %% kernel's math operator, which upstream overwrites -- the last line of
 %% this case is what says so.
+%%
+%% \label on an \exi or \exr item, the judged \exi included: \ref prints
+%% the item's label as [langsci] prints a number, bare -- "ident", and
+%% "1" for \exr, whose label spells its brackets as \theExLBr/\theExRBr --
+%% where until 2026-10-04 it printed the label of whatever preceded it.
 \input{_preamble-langsci}
 \begin{document}
 \begin{exe}
 \ex\label{le:host} LEHOST the host example.
-\exi{ident} LEEXI a custom label.
-\exr{le:host} LEEXR the referenced number.
+\exi{ident}\label{le:exi} LEEXI a custom label.
+\exr{le:host}\label{le:exr} LEEXR the referenced number.
 \exp{le:host} LEEXP the referenced number, primed.
 \sn LESN no label at all.
-\exi{id2}[*]{LEJUDGEDEXI a custom label with a bracket judgment.}
+\exi{id2}[*]{\label{le:id2}LEJUDGEDEXI a custom label with a bracket judgment.}
 \ex[*]{LEJUDGED still hangs its mark.}
 \ex LEJAM an example with a note.\jambox{(Greek)}
 \end{exe}
@@ -33,6 +38,8 @@ that stops short of the margin says nothing whatever about where the margin
 is.
 
 LEXREF \xref{le:host} and LEXXREF \xxref{le:host}{le:host}.
+
+LEREFEXI \ref{le:exi} LEREFEXR \ref{le:exr} LEREFID \ref{le:id2} LEREFEND
 
 %% Both boxes on one line, so that the two alignments are measured against
 %% the same baseline.  LEACBASE is a sentinel and not the word "and": the

@@ -13,8 +13,20 @@
 %% after a numbered example the wrong number would be that example's, and
 %% the case would still pass on a reference that happened to coincide.
 %% The bare label "A" has no brackets to take off and is used as it is.
+%%
+%% And a \label on the custom-labelled example ITSELF, which recorded
+%% nothing at all until 2026-10-04: \ref printed an empty string, with no
+%% warning.  It prints the label as a number would be printed -- "(7)",
+%% and "B" for a label without the example brackets -- and the example has
+%% a destination of its own, on the custom series like its sub-examples.
+%% A label is free text that was never expanded before, so one with a
+%% FRAGILE command in it -- \lxfragile is built like \pref was, an
+%% assignment in a group -- must still compile when nothing labels it.
 \input{_preamble}
 \usepackage{hyperref}
+\makeatletter
+\newcommand\lxfragile{{\parenstrue 3}}
+\makeatother
 \begin{document}
 \ex.[(5)] \a.\label{cl:fivea} CLFIVEA first custom, letter a.
 \b. CLFIVEB first custom, letter b.
@@ -25,9 +37,18 @@
 \ex.[A] \a.\label{cl:aa} CLAA bare label, letter a.
 \b. CLAB bare label, letter b.
 
+\ex.[(7)]\label{cl:seven} CLSEVEN a custom label on the example itself.
+
+\ex.[B]\label{cl:bee} CLBEE one without the example brackets.
+
+\ex.[(\lxfragile)] CLFRAG a fragile command in the label, and nothing labels it.
+
+\ex.[\lxfragile] CLFRAGB the same without the example brackets.
+
 \ex. \a.\label{cl:numa} CLNUMA first numbered, letter a.
 \b. CLNUMB first numbered, letter b.
 
 CLREFFIVE \ref{cl:fivea} CLREFSIXA \ref{cl:sixa} CLREFSIXB \ref{cl:sixb}
 CLREFA \ref{cl:aa} CLREFNUM \ref{cl:numa}
+CLREFSEVEN \ref{cl:seven} CLREFBEE \ref{cl:bee} CLEND
 \end{document}
