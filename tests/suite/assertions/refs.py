@@ -564,7 +564,10 @@ def a_cleveref(p: Page):
     # Custom-labelled examples: the label, and a list of three never
     # compressed into a range -- their serials are not a sequence of labels.
     for want in ("CVCUSTOM (7) CVCLIST", "CVCLIST (7), (12) and (15) CVCMIX",
-                 "CVCMIX (1) and (7) CVCEND"):
+                 "CVCMIX (1) and (7) CVCEND",
+                 "CVMIXA (1), (2) and (7) CVMIXB",
+                 "CVMIXB (1), (3) and (7) CVMIXEND",
+                 "CVSECREF section 1 CVSECREFTWO section 2 CVMIXA"):
         r.append(check(want in txt,
                        f"\\cref of custom labels: {want!r}; got "
                        f"{txt[txt.find(want.split()[0]):][:40]!r}"))

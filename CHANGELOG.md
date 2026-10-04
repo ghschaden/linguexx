@@ -25,12 +25,16 @@ version string.
   another command's argument (`\footnote{...}`) still cannot hold
   verbatim text, and says so in an error; other verbatim commands and
   environments still need the `exe` syntax.
+- Fixed: with `cleveref`, a `\label` in the prose after an example
+  (`\section{..} \ex. .. Prose.\label{s}`) was referred to by `\cref` as
+  the example, "(1)" for "section 1", while `\ref` printed it right.
 - Fixed: `\label` on a custom-labelled example (`\ex.[(7)]\label{x}`)
   recorded nothing, so `\ref{x}` printed an empty string, with no
   warning. It now prints the label as a number would be printed, "(7)"
   (or "7" under `\ExBareRefs` and `[langsci]`; a label without the example
   brackets as it stands), and the example has a link target of its own.
-  `\cref` lists several of them without joining them into a range. The
+  `\cref` lists several of them without joining them into a range, and
+  puts them after the numbered ones in a list that mixes the two. The
   same holds for `[langsci]`'s `\exi` and `\exr`, where a `\label` used to
   record the previous item's label. `\pref` is now robust, like `\ref`.
 - Fixed: a sub-example under a custom label (`\ex.[(5)] \a. ...`) referred

@@ -312,6 +312,17 @@
 \newcounter{lxExSerial}
 \newcounter{lxFnExSerial}
 \newcounter{lxCustomSerial}
+% It counts from 2^30, in steps of two (see \lx@custom@begin), and
+% \lx@customserial gives back 1, 2, 3 ... for the anchor names.  The
+% offset is for cleveref, which reads the counter's VALUE: it puts a
+% custom-labelled and a numbered example in one group (both have empty
+% names, so identical formats) and sorts and compresses that group by
+% value, so a custom example whose serial was 2 sorted between examples
+% (1) and (3) and vanished into "(1) to (3)".  No example number gets
+% near 2^30, so the two never form a range, and custom examples simply
+% come after the numbered ones in a list.
+\setcounter{lxCustomSerial}{1073741824}
+\def\lx@customserial{\the\numexpr(\value{lxCustomSerial}-1073741824)/2\relax}
 \newif\iflx@customex
 % beamer sets a frame once per overlay slide, restoring the counters it was
 % told about -- linguex's ExNo, SubExNo and SubSubExNo, which beamer
@@ -489,12 +500,12 @@
 % claim one anchor.  The custom series has its own stem; \iflx@customex is
 % a plain \newif, expandable like \if@noftnote.
 \def\theHExNo{lxex.\arabic{lxExSerial}}
-\def\lx@Hexstem{\iflx@customex lxcex.\arabic{lxCustomSerial}%
+\def\lx@Hexstem{\iflx@customex lxcex.\lx@customserial%
   \else\if@noftnote lxex.\arabic{lxExSerial}\else lxfnex.\arabic{lxFnExSerial}\fi\fi}
 \def\theHSubExNo{\lx@Hexstem.\alph{SubExNo}}
 \def\theHSubSubExNo{\lx@Hexstem.\alph{SubExNo}.\arabic{SubSubExNo}}
 \def\theHFnExNo{lxfnex.\arabic{lxFnExSerial}}
-\def\theHlxCustomSerial{lxcex.\arabic{lxCustomSerial}}
+\def\theHlxCustomSerial{lxcex.\lx@customserial}
 
 % The same anchors as \hyperlink TARGETS.  hyperref prefixes the name it
 % builds from \theH<counter> with the counter's own name, so the
@@ -1853,7 +1864,11 @@
 %% \@currentlabel/\@currentHref (set locally by \refstepcounter BEFORE
 %% the list opens, because [legacy] sizes the label box off the label)
 %% are saved here and restored in \lx@bodyend, so a \label after the
-%% example still refers to whatever preceded it.
+%% example still refers to whatever preceded it.  \@currentcounter with
+%% them: the kernel's first aid for cleveref rebuilds cleveref's record at
+%% every \label from it, so with only the other two restored, a \label in
+%% the prose after an example printed right with \ref and as the example
+%% with \cref -- "(1)" for "section 1".
 %% The setup half is factored out under its own name because it, and not
 %% \lx@run@ex, is what a front-end needs: \lx@run@ex additionally commits
 %% to the dot syntax's \lx@exstart (which peeks for a "[" custom label)
@@ -1865,6 +1880,7 @@
   \lx@subdepth\z@
   \setcounter{SubExNo}{0}\setcounter{SubSubExNo}{0}%
   \let\lx@saved@currentlabel\@currentlabel
+  \let\lx@saved@currentcounter\@currentcounter
   \ifdefined\@currentHref
     \let\lx@saved@currentHref\@currentHref
   \fi
@@ -1922,6 +1938,7 @@
   % text-unit bookkeeping.
   \if@endpe\everypar{}\@endpefalse\lx@tag@close@textunit\fi
   \let\@currentlabel\lx@saved@currentlabel
+  \let\@currentcounter\lx@saved@currentcounter
   \ifdefined\lx@saved@currentHref
     \let\@currentHref\lx@saved@currentHref
   \fi}
@@ -2079,7 +2096,8 @@
 %% compresses a list into a range when the counter values are consecutive,
 %% and consecutive serials made \cref{seven,twelve,fifteen} print "(7) to
 %% (15)" -- a range over labels that are not a sequence.  Even values are
-%% never consecutive.  \lx@endprevpar first, for the reason it opens
+%% never consecutive.  (And it starts at 2^30, against ranges with the
+%% NUMBERED examples: see the counter.)  \lx@endprevpar first, for the reason it opens
 %% \lx@main@core.
 \def\lx@custom@ref{}
 \def\thelxCustomSerial{\lx@custom@ref}

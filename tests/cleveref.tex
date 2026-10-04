@@ -49,4 +49,26 @@ CVREFRANGE \refrange{cv:sa}{cv:sb}
 
 CVCUSTOM \cref{cv:c7} CVCLIST \cref{cv:c7,cv:c12,cv:c15} CVCMIX
 \cref{cv:one,cv:c7} CVCEND
+
+%% A \label in the PROSE after an example belongs to what the prose is in,
+%% here a section: linguexx restored \@currentlabel after the example but
+%% not \@currentcounter, from which the kernel rebuilds cleveref's record,
+%% so \ref printed "1" and \cref "(3)".  After a custom-labelled example
+%% too, once that stepped a counter of its own.
+\section{CVSECTION}
+\ex.\label{cv:three} CVSECEX a numbered example.
+
+CVSECPROSE prose after it.\label{cv:sec}
+
+\section{CVSECTIONTWO}
+\ex.[(9)] CVSECCUS a custom-labelled example.
+
+CVSECPROSETWO prose after it.\label{cv:sectwo}
+
+%% And lists that mix numbered and custom-labelled examples.  cleveref
+%% groups the two (both names are empty) and compresses the group by
+%% counter value, so a custom example whose serial equalled a number in
+%% between was swallowed: "(1) to (3)" for (1), (3) and (7).
+CVSECREF \cref{cv:sec} CVSECREFTWO \cref{cv:sectwo} CVMIXA
+\cref{cv:one,cv:two,cv:c7} CVMIXB \cref{cv:one,cv:three,cv:c7} CVMIXEND
 \end{document}
