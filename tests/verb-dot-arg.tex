@@ -1,0 +1,13 @@
+%% A dot-syntax example inside a command argument -- \footnote{...} -- with
+%% a \verb in it.  The argument was read before the example was, so the
+%% verbatim text is tokens already, and no \verb anywhere can work there.
+%% The reader sees that (a brace or a space token where only characters
+%% can come from the file) and says so in linguexx's own words; before it
+%% did, the message was an internal macro's "extra }".  The working cases
+%% are verb-dot.tex.
+\input{_preamble}
+\begin{document}
+Text.\footnote{\ex. VDARG a \verb|a  b{}c| tail.
+
+}
+\end{document}

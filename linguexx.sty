@@ -1520,8 +1520,195 @@
         { \color@endgroup }
           { \__lx_body_close:Nnnn \l__lx_body_col_int {#1}
               { \string\color@endgroup } \color@endgroup }
+        { \verb }
+          { \peek_analysis_map_break:n { \__lx_body_verb:nnnn { verb } 1 0 0 } }
+        { \Verb }
+          { \peek_analysis_map_break:n { \__lx_body_verb:nnnn { Verb } 1 1 0 } }
+        { \lstinline }
+          { \peek_analysis_map_break:n
+              { \__lx_body_verb:nnnn { lstinline } 0 1 1 } }
       }
       { \__lx_body_keep:n {#1} }
+  }
+%% Inline verbatim in a body: \verb, fancyvrb's \Verb, listings'
+%% \lstinline.  The argument has not been read yet -- the collector takes
+%% one token at a time, and the character after a control word is not a
+%% token until something asks for it -- so it is read here, with the
+%% catcodes \verb itself would use, and kept as a string: the command's
+%% name and every character after it up to the closing delimiter.  At
+%% typesetting time the string is read again by \scantokens and the
+%% command itself runs on it, so the font, the ligatures, the star and the
+%% options (\fvset, \lstset, basicstyle=...) are its own.  Only at brace
+%% depth 0, which is where these commands work anyway: not inside an
+%% argument.
+%%
+%% The reader knows each command's SHAPE and nothing else.  #1 = the name,
+%% #2 = it takes a star, #3 = [options], #4 = {...} as well as a character
+%% for delimiter.  As measured on TeX Live 2026: \verb[*]|...|,
+%% \Verb[*][options]|...|, \lstinline[options]|...| or {...}.  \lstinline's
+%% {...} ends at the first }, unbalanced, as listings ends it; options end
+%% at the first ] outside braces, as a LaTeX optional argument does.  A
+%% command not loaded is never met, so nothing here needs the package.
+%%
+%% The characters are read one at a time, so the end of the line stops
+%% the text as it stops \verb: a missing delimiter is an error on its own
+%% line, not a search through the rest of the file.  \peek_analysis also
+%% tells fresh characters from tokens: with these catcodes a character
+%% read from the file is a letter or "other", and anything else -- a
+%% brace, a space, a subscript -- was read BEFORE, as part of an argument
+%% the example sits in (\footnote{...}).  There the command cannot work,
+%% as anywhere in an argument, and saying so beats the message the token
+%% would cause further on.
+\tl_new:N   \l__lx_body_verb_tl         % the characters after the name
+\tl_new:N   \l__lx_body_verb_name_tl
+\tl_new:N   \l__lx_body_verb_end_tl     % the closing delimiter
+\int_new:N  \l__lx_body_verb_phase_int  % 0 star, 1 [, 2 options, 3 delimiter, 4 text
+\int_new:N  \l__lx_body_verb_depth_int  % braces inside the options
+\bool_new:N \l__lx_body_verb_opt_bool
+\bool_new:N \l__lx_body_verb_brace_bool
+\tl_const:Ne \c__lx_body_cr_tl { \char_generate:nn { 13 } { 12 } }
+\cs_new_protected:Npn \__lx_body_verb:nnnn #1#2#3#4
+  {
+    \group_begin:
+      \cs_set_eq:NN \do \char_set_catcode_other:N
+      \dospecials
+      \char_set_catcode_other:n { 32 }
+      \char_set_catcode_other:n { 9 }
+      \char_set_catcode_other:n { 13 }
+      \tl_set:Nn \l__lx_body_verb_name_tl {#1}
+      \tl_clear:N \l__lx_body_verb_tl
+      \int_set:Nn \l__lx_body_verb_phase_int
+        { \int_compare:nNnTF {#2} = { 1 } { 0 } { 1 } }
+      \bool_set:Nn \l__lx_body_verb_opt_bool { \int_compare_p:nNn {#3} = { 1 } }
+      \bool_set:Nn \l__lx_body_verb_brace_bool { \int_compare_p:nNn {#4} = { 1 } }
+      \peek_analysis_map_inline:n
+        {
+          \bool_lazy_or:nnTF
+            { \str_if_eq_p:nn {##3} { B } }
+            { \str_if_eq_p:nn {##3} { C } }
+            { \__lx_body_verb_step:e {##1} }
+            {
+              \peek_analysis_map_break:n
+                { \__lx_body_verb_fail:n { verb-argument } }
+            }
+        }
+  }
+\cs_new_protected:Npn \__lx_body_verb_keep:n #1
+  { \tl_put_right:Nn \l__lx_body_verb_tl {#1} }
+\cs_new_protected:Npn \__lx_body_verb_step:n #1
+  {
+    \int_case:nn { \l__lx_body_verb_phase_int }
+      {
+        { 0 }
+          {
+            \int_set:Nn \l__lx_body_verb_phase_int { 1 }
+            \str_if_eq:nnTF {#1} { * }
+              { \__lx_body_verb_keep:n {#1} }
+              { \__lx_body_verb_step:n {#1} }
+          }
+        { 1 }
+          {
+            \bool_lazy_and:nnTF
+              { \l__lx_body_verb_opt_bool }
+              { \str_if_eq_p:nn {#1} { [ } }
+              {
+                \int_set:Nn \l__lx_body_verb_phase_int { 2 }
+                \int_zero:N \l__lx_body_verb_depth_int
+                \__lx_body_verb_keep:n {#1}
+              }
+              {
+                \int_set:Nn \l__lx_body_verb_phase_int { 3 }
+                \__lx_body_verb_step:n {#1}
+              }
+          }
+        { 2 }
+          {
+            \__lx_body_verb_keep:n {#1}
+            \str_if_eq:eeT {#1} { \c_left_brace_str }
+              { \int_incr:N \l__lx_body_verb_depth_int }
+            \str_if_eq:eeT {#1} { \c_right_brace_str }
+              { \int_decr:N \l__lx_body_verb_depth_int }
+            \bool_lazy_and:nnT
+              { \str_if_eq_p:nn {#1} { ] } }
+              { \int_compare_p:nNn { \l__lx_body_verb_depth_int } = { 0 } }
+              { \int_set:Nn \l__lx_body_verb_phase_int { 3 } }
+          }
+        { 3 }
+          {
+            \__lx_body_verb_if_cr:nF {#1}
+              {
+                \tl_set:Ne \l__lx_body_verb_end_tl
+                  {
+                    \bool_lazy_and:nnTF
+                      { \l__lx_body_verb_brace_bool }
+                      { \str_if_eq_p:ee {#1} { \c_left_brace_str } }
+                      { \c_right_brace_str } {#1}
+                  }
+                \__lx_body_verb_keep:n {#1}
+                \int_set:Nn \l__lx_body_verb_phase_int { 4 }
+              }
+          }
+        { 4 }
+          {
+            \str_if_eq:eeTF {#1} { \l__lx_body_verb_end_tl }
+              {
+                \__lx_body_verb_keep:n {#1}
+                \peek_analysis_map_break:n { \__lx_body_verb_done: }
+              }
+              {
+                \__lx_body_verb_if_cr:nF {#1}
+                  { \__lx_body_verb_keep:n {#1} }
+              }
+          }
+      }
+  }
+\cs_generate_variant:Nn \__lx_body_verb_step:n { e }
+\cs_new_protected:Npn \__lx_body_verb_if_cr:nF #1#2
+  {
+    \str_if_eq:eeTF {#1} { \c__lx_body_cr_tl }
+      { \peek_analysis_map_break:n { \__lx_body_verb_fail:n { verb-eol } } }
+      {#2}
+  }
+\cs_new_protected:Npn \__lx_body_verb_done:
+  {
+    \use:e
+      {
+        \group_end:
+        \tl_put_right:Nn \exp_not:N \l__lx_body_tl
+          {
+            \exp_not:N \lx@verb@rescan
+              {
+                \c_backslash_str \l__lx_body_verb_name_tl
+                \exp_not:V \l__lx_body_verb_tl
+              }
+          }
+      }
+    \__lx_body_loop:
+  }
+\cs_new_protected:Npn \__lx_body_verb_fail:n #1
+  {
+    \use:e
+      {
+        \group_end:
+        \msg_error:nnn { linguexx } {#1} { \l__lx_body_verb_name_tl }
+      }
+    \__lx_body_loop:
+  }
+\msg_new:nnnn { linguexx } { verb-argument }
+  { \iow_char:N \\#1~in~an~example~inside~a~command~argument. }
+  {
+    The~example~is~in~the~argument~of~another~command,~such~as~
+    \iow_char:N \\footnote,~so~its~text~was~read~before~
+    \iow_char:N \\#1~could~protect~it.~Its~verbatim~text~is~dropped.
+  }
+\msg_new:nnn { linguexx } { verb-eol }
+  { \iow_char:N \\#1~in~an~example~ended~by~end~of~line. }
+\cs_new_protected:Npn \lx@verb@rescan #1
+  {
+    \group_begin:
+      \int_set:Nn \tex_endlinechar:D { -1 }
+      \tex_scantokens:D {#1}
+    \group_end:
   }
 \cs_new_protected:Npn \lx@runbody
   { \exp_args:NV \lx@body@cont \l__lx_body_tl }

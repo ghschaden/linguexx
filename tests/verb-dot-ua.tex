@@ -1,0 +1,32 @@
+%% verb-dot.tex's three commands under PDF/UA-2: veraPDF passes the file,
+%% and each verbatim run is tagged INSIDE its own example -- the text is
+%% typeset by \scantokens long after the collector read it, and a run that
+%% landed outside the example's structure would read on the page exactly
+%% as one inside it.
+%% _preamble-ua.tex written out, since it begins the document and these
+%% two packages have to come before that.
+\DocumentMetadata{lang=en,pdfversion=2.0,pdfstandard=ua-2,tagging=on}
+\documentclass{article}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else
+  \usepackage{fontspec}
+\fi
+\usepackage{linguexx}
+\usepackage{fancyvrb}
+\usepackage{listings}
+\usepackage{hyperref}
+\hypersetup{pdftitle={linguexx inline verbatim under PDF/UA},
+            pdfdisplaydoctitle=true}
+\pagestyle{empty}
+\begin{document}
+\ex. UAVERB \verb|uv_%$#{}| tail.
+
+\ex. UAFVRB \Verb*|uf x| tail.
+
+\ex. UALIST \lstinline[basicstyle={\ttfamily}]{ul_1} tail.
+
+UAPROSE after.
+\end{document}

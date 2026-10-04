@@ -2,10 +2,11 @@
 %%
 %% \ex[j]{text} takes its body as a MACRO ARGUMENT, so the tokens are read
 %% -- with the catcodes in force at the \ex -- before the body is ever
-%% used.  That is the same predicament as the collected dot-syntax body of
-%% verb-dot.tex, reached by a different route, and it produces the same
-%% error from the same payload: the "_" arrives at the typesetter as a
-%% subscript, "Missing $ inserted", on all three engines.
+%% used, and no code of linguexx's sees them first.  (The collected
+%% dot-syntax body had the same predicament until 2026-10-04, when its
+%% collector learned to read inline verbatim itself: verb-dot.tex.)  The
+%% "_" arrives at the typesetter as a subscript, "Missing $ inserted", on
+%% all three engines.
 %%
 %% It is worth pinning separately BECAUSE the route differs.  This case
 %% lives under exe, where verb.tex proves \verb does work with an unbraced
@@ -16,8 +17,8 @@
 %% \verb removed, this exact file compiles clean on every engine.
 %%
 %% The manual (§ Notes and limitations) states the whole matrix and calls
-%% this cell "the one exception"; verb.tex pins the working half and
-%% verb-dot.tex the collected half.
+%% this cell the exception; verb.tex pins the environment syntax and
+%% verb-dot.tex the dot syntax, where it works too.
 \input{_preamble-gb4e}
 \begin{document}
 \begin{exe}

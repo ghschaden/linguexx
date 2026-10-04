@@ -1,21 +1,58 @@
-%% The other half of the \verb matrix: in the DOT syntax it cannot work.
+%% Inline verbatim in the DOT syntax: \verb, fancyvrb's \Verb and listings'
+%% \lstinline, which work there since 2026-10-04.
 %%
-%% A dot-syntax body is collected token by token before it is typeset --
-%% which is exactly what lets a blank line end it and \z. pop a level -- so
-%% by the time the body is set, its characters have been read with the
-%% catcodes in force at the \ex., and \verb, which has to change those
-%% catcodes WHILE reading, finds nothing left to protect.  The failure is
-%% TeX's, not the package's: the "_" of the payload reaches the typesetter
-%% as a subscript, which is "Missing $ inserted" on all three engines.
+%% A dot-syntax body is collected token by token before it is typeset, and
+%% until then \verb could not work in it: its characters had been read with
+%% the catcodes in force at the \ex. by the time it ran.  The manual called
+%% that inherent.  It is not: the character after a control word is not a
+%% token until something asks for it, so the collector, on meeting one of
+%% these commands, reads its argument itself with verbatim catcodes and
+%% keeps the characters; at typesetting time \scantokens hands them to the
+%% command, which reads them as it would anywhere.  The reader knows each
+%% command's SHAPE -- star, [options], {...} as delimiter -- and this case
+%% has one line per shape, so a mutation of any one of them shows here:
 %%
-%% This is documented as inherent to a blank-line-delimited body rather
-%% than a defect (linguex grabs at \par and has it too), so the error is
-%% the specification.  Pinning it means a change that made \verb work here
-%% would have to be a decision -- the case turns green-by-accident into a
-%% visible failure ("expected the error ...; got a clean compile").
-%% The working half is verb.tex.
+%%   VDPLAIN  \verb, the payload carrying every character that breaks a
+%%            collected body ("&" left out: pdftotext's XML escapes it).
+%%   VDSTAR   \verb*: the star is read, and the space is a visible one.
+%%   VDSUB    \Verb, in a sub-example.
+%%   VDVSTAR  \Verb*[options]: star AND options, and a "]" inside braces
+%%            in the options, which must not end them.
+%%   VDLST    \lstinline|...|.
+%%   VDLSTB   \lstinline[options]{...}: braces as delimiter, closed at the
+%%            FIRST } as listings closes it, so "{y" stays in and "} z"
+%%            is body text again.
+%%   VDTWO    two on one line: the collector resumes after each, and no
+%%            space is added after one (\scantokens ends its "line").
+%%   VDG      one of each as a word of a gloss: one column apiece.
+%%   VDMONO   \verb's text in a fixed-advance font; \textrm is the control.
+%%   VDNEXT   the example after them all starts on its own: the blank line
+%%            still ends a body that holds verbatim.
+%%
+%% The errors are verb-dot-eol and verb-dot-arg, the tagging verb-dot-ua;
+%% the environment syntax is verb.tex, the braced \ex[j]{} verb-braced.
 \input{_preamble}
+\usepackage{fancyvrb}
+\usepackage{listings}
 \begin{document}
-\ex. VBDOT a collected body with \verb|x_y| in it.
+\ex. VDPLAIN \verb|dv_%$#{}~^\| tail.
 
+\ex. VDSTAR \verb*|dv star| tail.
+
+\ex. \a. VDSUB \Verb|dV_%$#{}| tail.
+\b. VDVSTAR \Verb*[formatcom={\def\lxtest{]}}]|dV star| tail.
+\c. VDLST \lstinline|dl_%$#{}| tail.
+\d. VDLSTB \lstinline[basicstyle={\ttfamily}]{dlb_%#{y} z tail.
+
+\ex. VDTWO \verb|dvone| mid \verb|dvtwo| tail.
+
+\ex. \gll VDG \verb|g_1| \Verb|h_1| \lstinline{k_1} end\\
+          GA GB GC GD GE\\
+
+\ex. VDMONO \verb|MONOiiiiii| \verb|MONOWWWWWW| \textrm{ROMNiiiiii}
+     \textrm{ROMNWWWWWW} tail.
+
+\ex. VDNEXT plain.
+
+VDPROSE after the examples.
 \end{document}

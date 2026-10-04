@@ -1,0 +1,12 @@
+%% A \verb in a dot-syntax body whose delimiter never comes: the line ends
+%% it, as it ends \verb anywhere, with linguexx's message on the line of
+%% the \verb.  Without the stop the reader would run on through the rest
+%% of the file looking for a "|" -- and find one, pages later, in some
+%% other example.  The working cases are verb-dot.tex.
+\input{_preamble}
+\begin{document}
+\ex. VDEOL a \verb|never closed
+on this line.
+
+\ex. VDLATER \verb|x| tail.
+\end{document}

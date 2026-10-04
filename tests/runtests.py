@@ -139,7 +139,7 @@ ENGINES_FOR = {
     "utf8-unicode": ("xelatex", "lualatex"),
 }
 DEFAULT_PASSES = 2
-PASSES = {"ua": 3, "frontend": 3, "langsci-ua": 3, "exannot-ua": 3,
+PASSES = {"ua": 3, "verb-dot-ua": 3, "frontend": 3, "langsci-ua": 3, "exannot-ua": 3,
           "exannot-fit": 2, "exannot-fitbody": 2,
           "exannot-beamer": 2,
           # one run on purpose: it is the run that has to ask for another
@@ -188,18 +188,17 @@ EXPECT_ERROR = {
     "glt-side-sub": "for top-level examples only",
     "glt-side-annot": "cannot go on a gloss with a side",
     "straysub": "no example to attach it to",
-    # Not a package error but TeX's own, and deliberately so: a dot-syntax
-    # body is collected before it is typeset, so \verb cannot protect
-    # anything in it and the "_" of the payload arrives as a subscript.
-    # The manual documents that limitation; this pins it, and verb.tex
-    # pins the environment syntax where \verb does work.
-    "verb-dot": "Missing $ inserted",
-    # The third cell of the same matrix, and the same error from the same
-    # payload by a different route: \ex[j]{text} reads its body as a macro
-    # argument, so the catcodes are fixed before the body is used exactly as
-    # a collected one's are.  Separate from verb-dot because the route is:
-    # this one sits under exe, where verb.tex shows an unbraced \ex handling
-    # \verb fine, so the braced form is the only thing on trial.
+    # Inline verbatim in a dot-syntax body works (verb-dot); these are its
+    # two ways of failing, each in linguexx's own words: a delimiter that
+    # never comes stops at the end of the line, as \verb's does, and an
+    # example inside a command argument cannot hold verbatim at all.
+    "verb-dot-eol": "in an example ended by end of line",
+    "verb-dot-arg": "in an example inside a command argument",
+    # The braced \ex[j]{text} reads its body as a macro argument, so the
+    # catcodes are fixed before the body is used, and no reader of linguexx's
+    # sees it: TeX's own error, and the manual says so.  It sits under exe,
+    # where verb.tex shows an unbraced \ex handling \verb fine, so the
+    # braced form is the only thing on trial.
     "verb-braced": "Missing $ inserted",
 }
 #: The external tools the suite runs on, and how CI is expected to provide

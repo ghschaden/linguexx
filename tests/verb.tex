@@ -1,14 +1,15 @@
-%% \verb in an example body -- the half of the documented matrix that WORKS.
+%% \verb in an example body, in the ENVIRONMENT syntax.
 %%
-%% The manual states a matrix (§ Notes and limitations): \verb cannot work
-%% in the dot syntax, whose body is COLLECTED before it is typeset, so the
-%% catcodes are long fixed by the time \verb would change them (that half is
-%% pinned by verb-dot.tex), nor in the braced \ex[j]{text} form, whose body
-%% is a macro argument and is read the same way -- but it works normally
-%% under exe/xlist with an unbraced \ex, including inside an "\a." written
-%% within the batch.  Nothing pinned the working half, so a change that
-%% routed the environment syntax through the collector too would silently
-%% make the manual wrong while every other case stayed green.
+%% The manual states a matrix (§ Notes and limitations): \verb works under
+%% exe/xlist with an unbraced \ex, including inside an "\a." written within
+%% the batch, because that body goes straight to TeX; it works in the dot
+%% syntax because the collector reads it specially (verb-dot.tex); and it
+%% cannot work in the braced \ex[j]{text} form, whose body is a macro
+%% argument (verb-braced.tex); langsci's \ea ... \z streams like exe
+%% (verb-langsci.tex).  This pins the first cell, so a change that
+%% routed the environment syntax through the collector -- which reads only
+%% \verb, \Verb and \lstinline specially, not every verbatim command an
+%% exe body takes -- would show here.
 %%
 %% The payloads carry catcode-active characters, each behind a sentinel of
 %% its own so that the extracted token is unique.  "&" is deliberately not

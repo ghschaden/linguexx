@@ -2986,33 +2986,52 @@ validation substitutes for it.
 \item \textbf{\cs{z.}\ at brace depth 0.} \cs{z.}\ is recognized in the
   body of an example, not inside a brace group within it.
 
-\item \textbf{\cs{verb} in an example body.} It cannot work in the dot
-  syntax. A dot-syntax body is \emph{collected} before it is typeset ---
-  that is exactly what lets a blank line end it and \cs{z.}\ pop a level
-  --- and by then its tokens have long since been read, with the catcodes
-  in force where the \cs{ex.}\ stood. \cs{verb} has to change those
-  catcodes \emph{while} reading, so it finds nothing left to protect and
-  fails, usually as ``Missing \$ inserted''. The same goes for
-  \texttt{verbatim}, \pkg{listings} and \pkg{fancyvrb}'s environments, and
-  for anything else that reads its own argument specially. This is
-  inherent to a blank-line-delimited body rather than a defect to be fixed
-  someday --- \pkg{linguex} grabs its bodies at \cs{par} and has it too.
-
-  The environment syntax does \emph{not} collect, so there \cs{verb} works
-  normally, including inside an \cs{a.}\ or an \texttt{xlist} written
-  within the batch:
+\item \textbf{Verbatim in an example body.} A dot-syntax body is
+  \emph{collected} before it is typeset --- that is what lets a blank line
+  end it and \cs{z.}\ pop a level --- and a command that reads its
+  argument verbatim has to set its catcodes \emph{before} the characters
+  are read. The collector therefore reads the argument of three such
+  commands itself, and hands it over at typesetting time: \cs{verb}
+  (and \cs{verb*}), \pkg{fancyvrb}'s \cs{Verb}, and \pkg{listings}'
+  \cs{lstinline}, with their stars, options and delimiters, including
+  \cs{lstinline}'s \texttt{\{...\}}. They work as they do anywhere else,
+  in sub-examples and as words of a gloss:
 
 \begin{code}
+\ex. The bound variable \verb|x_1| is written \Verb*|x 1| in the source.
+\end{code}
+
+\rendered
+\ex. The bound variable \verb|x_1| is written \Verb*|x 1| in the source.
+
+\afterex
+
+  Two things still cannot work. An example inside another command's
+  argument --- \cs{footnote}\marg{\dots}, a beamer frame without
+  \texttt{[fragile]} --- cannot hold verbatim text, exactly as no
+  \cs{verb} can in an argument; \pkg{linguexx} says so in an error. And
+  no other verbatim command is read specially: \texttt{verbatim},
+  \texttt{lstlisting}, \pkg{fancyvrb}'s \texttt{Verbatim}, short
+  verbatim made with \cs{MakeShortVerb}, \cs{DefineShortVerb} or
+  \cs{lstMakeShortInline}, and \pkg{minted}'s \cs{mintinline} fail in a
+  dot-syntax body, with whatever error their first special character
+  causes --- often ``Missing \$ inserted''.
+
+  For those, use the environment syntax, which does \emph{not} collect,
+  so that any verbatim command works there as in running text, including
+  inside an \cs{a.}\ or an \texttt{xlist} written within the batch. The
+  same holds for \opt{langsci}'s \cs{ea}\,\dots\,\cs{z}:
+
+\begin{code}
+\MakeShortVerb{\|}  % shortvrb
 \begin{exe}
-\ex A body with \verb|x_y| in it.
+\ex A body with |x_y| in it.
 \end{exe}
 \end{code}
 
   The one exception is the braced judgment form
   \cs{ex}\oarg{judgment}\marg{text}, whose body is a macro argument and is
-  therefore read before it is used, exactly like a collected one. So: for
-  verbatim material in an example, use \texttt{exe} with an unbraced
-  \cs{ex}.
+  therefore read before it is used: no verbatim command works there.
 
 \item \textbf{Examples in a \texttt{minipage} footnote.} They are numbered
   on the main series, not on the footnote series: \cs{footnote} inside a

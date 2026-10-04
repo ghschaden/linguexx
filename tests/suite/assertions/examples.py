@@ -6,10 +6,14 @@ built with check(), which is the whole protocol.
 """
 
 
+import re
+import subprocess
+
 from suite.check import check, warning_body
 from suite.pdf import (
     TOL, Page, example_targets,
 )
+from suite.structure import verapdf_report
 
 def a_numbering(p: Page):
     got = p.labels()
@@ -112,16 +116,15 @@ def a_termination(p: Page):
 
 
 def a_verb(p: Page):
-    r"""\verb in an example body: the half of the matrix that works.
+    r"""\verb in an example body, in the environment syntax.
 
-    The manual documents that \verb cannot work in the dot syntax, whose
-    body is COLLECTED before it is typeset, nor in the braced \ex[j]{text}
-    form, whose body is a macro argument read the same way -- verb-dot.tex
-    pins the first -- but that it works normally under exe/xlist with an
-    unbraced \ex, including inside an "\a." written within the batch.  Only
-    the environment syntax hands its body straight to TeX, and nothing
-    pinned that, so a change routing it through the collector too would
-    have made the manual wrong with the whole suite still green.
+    The manual documents the matrix: \verb works under exe/xlist with an
+    unbraced \ex, including inside an "\a." written within the batch,
+    because only the environment syntax hands its body straight to TeX; the
+    dot syntax reads \verb, \Verb and \lstinline specially (verb-dot.tex);
+    the braced \ex[j]{text} cannot (verb-braced.tex).  Nothing pinned this
+    cell, so a change routing exe through the collector too would have
+    narrowed what it accepts with the whole suite still green.
     """
     r = []
     rows = [("VBEXE", "exe_%$#{}", "unbraced \\ex in exe"),
@@ -170,6 +173,140 @@ def a_verb(p: Page):
     r.append(check(rw - ri > 20.0,
                    f"control: the body font is not fixed-advance, so the "
                    f"check above is not vacuous ({ri:.2f}pt vs {rw:.2f}pt)"))
+    return r
+
+
+def a_verb_dot(p: Page):
+    r"""Inline verbatim in the DOT syntax: \verb, \Verb, \lstinline.
+
+    The collector reads each command's argument itself, as characters, and
+    hands it to the command at typesetting time; it knows the commands'
+    shapes and nothing else, so each shape has a line, and each line a
+    payload of the characters a collected body used to break on.
+    """
+    r = []
+    rows = [("VDPLAIN", "dv_%$#{}~^\\", "\\verb"),
+            ("VDSTAR", "dv␣star", "\\verb*, with a visible space"),
+            ("VDSUB", "dV_%$#{}", "\\Verb, in a sub-example"),
+            ("VDVSTAR", "dV␣star", "\\Verb*[options], ] in braces in them"),
+            ("VDLST", "dl_%$#{}", "\\lstinline|...|"),
+            ("VDLSTB", "dlb_%#{y", "\\lstinline[options]{...}"),
+            ("VDTWO", "dvone", "the first of two on a line"),
+            ("VDTWO", "dvtwo", "and the second")]
+    # Character for character, ON the line of its own example and right of
+    # its sentinel: text that reached the page from anywhere else, or read
+    # with the wrong catcodes, does neither.
+    for sent, payload, where in rows:
+        s = p.find(sent)
+        line = p.line_of(s)
+        v = [w for w in line if w.text == payload]
+        r.append(check(len(v) == 1 and v[0].x0 > s.x1,
+                       f"{where}: {payload!r} is set intact after {sent} "
+                       f"(line reads {[w.text for w in line]})"))
+    # \scantokens reads its text as a line, and a line ends in a space
+    # unless \endlinechar says otherwise: the gap after a verbatim run is
+    # the gap before it, not one and a half of them.
+    line = p.line_of(p.find("VDTWO"))
+    t = {w.text: w for w in line}
+    if all(k in t for k in ("VDTWO", "dvone", "mid")):
+        before = t["dvone"].x0 - t["VDTWO"].x1
+        after = t["mid"].x0 - t["dvone"].x1
+        r.append(check(abs(after - before) < 0.6,
+                       f"no space is added after a verbatim run ({before:.2f}pt "
+                       f"before dvone, {after:.2f}pt after)"))
+    else:
+        r.append(check(False, f"VDTWO's line has its words ({list(t)})"))
+    # \lstinline's {...} ends at the FIRST }, as listings ends it: what
+    # follows is body text again, and the closing } is not printed.
+    line = [w.text for w in p.line_of(p.find("VDLSTB"))]
+    r.append(check(line[-3:] == ["dlb_%#{y", "z", "tail."],
+                   f"\\lstinline{{...}} closes at the first }} and the body "
+                   f"goes on after it (line reads {line})"))
+    # A gloss: one column apiece, each object word over its own gloss.
+    for obj, gl in (("g_1", "GB"), ("h_1", "GC"), ("k_1", "GD")):
+        o, g = p.find(obj), p.find(gl)
+        r.append(check(o is not None and g is not None
+                       and abs(o.x0 - g.x0) < 0.5,
+                       f"in a gloss, {obj} is one column, over {gl} "
+                       f"({o and round(o.x0, 2)} vs {g and round(g.x0, 2)})"))
+    # Set by \verb itself, so in its font: six i's as wide as six W's, which
+    # the body font -- the \textrm control -- is nowhere near.
+    def width(tok):
+        w = p.find(tok)
+        return w.x1 - w.x0
+
+    mi, mw = width("MONOiiiiii"), width("MONOWWWWWW")
+    ri, rw = width("ROMNiiiiii"), width("ROMNWWWWWW")
+    r.append(check(abs(mi - mw) < TOL and rw - ri > 20.0,
+                   f"\\verb's text is in a fixed-advance font (iiiiii "
+                   f"{mi:.2f}pt vs WWWWWW {mw:.2f}pt; control {ri:.2f} vs "
+                   f"{rw:.2f})"))
+    # The blank line still ends a body that holds verbatim: every example
+    # is numbered, and the prose after the last is not in it.
+    want = [f"({i})" for i in range(1, 8)]
+    r.append(check(p.labels() == want,
+                   f"the examples number straight through; got {p.labels()}"))
+    r.append(check(p.find("VDPROSE").x0 < p.find("VDNEXT").x0 - 10,
+                   "the prose after the last example is outside it"))
+    return r
+
+
+def a_verb_dot_ua(p: Page):
+    r"""verb-dot under PDF/UA-2: valid, and each run inside its example.
+
+    The text is typeset by \scantokens long after the collector read it, so
+    the run's place in the tree is asserted rather than assumed: between
+    its own example's sentinel and the next example's label.  Only \verb
+    gets a Code element; \Verb and \lstinline get none outside an example
+    either, which is their packages' business, not this one's.
+    """
+    r = []
+    verdicts, failures, _ = verapdf_report(p.path)
+    r.append(check(bool(verdicts) and all(ok for _, ok in verdicts),
+                   f"veraPDF: compliant on every profile ({verdicts}; "
+                   f"{failures[:3]})"))
+    out = subprocess.run(["pdfinfo", "-struct-text", str(p.path)],
+                         capture_output=True, text=True,
+                         errors="replace").stdout.replace(" ", "")
+    for sent, payload, nxt in (("UAVERB", "uv_%$#{}", '"(2)"'),
+                               ("UAFVRB", "uf␣x", '"(3)"'),
+                               ("UALIST", "ul_1", "UAPROSE")):
+        i = out.find(sent)
+        j = out.find(payload, i)
+        k = out.find(nxt, i)
+        r.append(check(-1 < i < j < k,
+                       f"{payload!r} is tagged inside its example, after "
+                       f"{sent} and before {nxt}"))
+    code = re.findall(r"Code<[^>]*>\(inline\)\s*\"([^\"]*)\"", out)
+    r.append(check(code == ["uv_%$#{}"],
+                   f"\\verb's run is a Code element, as in prose (got "
+                   f"{code})"))
+    return r
+
+
+def a_verb_langsci(p: Page):
+    r"""\verb in langsci's \ea ... \z, top level and nested.
+
+    \ea streams its body to TeX like exe, so \verb is TeX's own here; this
+    pins that, so routing \ea through the dot syntax's collector would show.
+    """
+    r = []
+    rows = [("LSVERB", "ls_%$#{}", "\\ea at the top level"),
+            ("LSSUB", "ls␣sub", "\\verb* in a nested \\ea"),
+            ("LSSUBTWO", "ls_two", "\\ex after a nested \\ea")]
+    for sent, payload, where in rows:
+        s = p.find(sent)
+        line = p.line_of(s)
+        v = [w for w in line if w.text == payload]
+        r.append(check(len(v) == 1 and v[0].x0 > s.x1,
+                       f"{where}: {payload!r} is set intact after {sent} "
+                       f"(line reads {[w.text for w in line]})"))
+    r.append(check(p.find("LSSUB").x0 > p.find("LSHOST").x0 + 2,
+                   "the nested \\ea is a sub-example, indented a level"))
+    r.append(check(p.labels() == ["(1)", "(2)"]
+                   and p.find("LSPROSE").x0 < p.find("LSVERB").x0 - 10,
+                   f"two examples, and the prose after them outside both "
+                   f"(labels {p.labels()})"))
     return r
 
 

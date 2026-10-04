@@ -17,6 +17,14 @@ version string.
   the arrow is an artifact and the base position is read as "__ (moved)";
   `\SetMoveSpoken` changes the note. Long names `\lxMoveFrom`,
   `\lxMoveTo`, for a document where the short ones are taken.
+- New: inline verbatim in a dot-syntax example. `\verb`, `\verb*`,
+  fancyvrb's `\Verb` and listings' `\lstinline` work in `\ex.`, in
+  sub-examples and as words of a gloss, with their own stars, options and
+  delimiters; until now they stopped the document with "Missing $
+  inserted", and the manual called that inherent. An example inside
+  another command's argument (`\footnote{...}`) still cannot hold
+  verbatim text, and says so in an error; other verbatim commands and
+  environments still need the `exe` syntax.
 - Fixed: a sub-example under a custom label (`\ex.[(5)] \a. ...`) referred
   to itself with the example counter's value instead of its label: `\ref`
   to letter a printed "(0a)" before any numbered example, and the number

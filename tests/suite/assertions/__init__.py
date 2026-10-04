@@ -15,6 +15,9 @@ from suite.assertions.examples import (  # noqa: F401
     a_option_unknown,
     a_termination,
     a_verb,
+    a_verb_dot,
+    a_verb_dot_ua,
+    a_verb_langsci,
     a_zpop,
 )
 from suite.assertions.judgments import (  # noqa: F401
@@ -162,6 +165,9 @@ ASSERTIONS = {
     "babel-fr-order": a_babel_fr_order,
     "termination": a_termination,
     "verb": a_verb,
+    "verb-dot": a_verb_dot,
+    "verb-dot-ua": a_verb_dot_ua,
+    "verb-langsci": a_verb_langsci,
     "exlbr": a_exlbr,
     "clash-input": a_clash_input,
     "refs": a_refs,

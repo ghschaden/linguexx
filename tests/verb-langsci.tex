@@ -1,0 +1,24 @@
+%% \verb in the langsci front-end, \ea ... \z, at the top level and in a
+%% sub-example opened by a nested \ea.
+%%
+%% The fourth cell of the \verb matrix (see verb.tex).  \ea does not go
+%% through the collector of the dot syntax: like exe, it hands its body
+%% straight to TeX, so \verb works here as in running text, and so does any
+%% other verbatim command (short verbatim, tried on 2026-10-04).  Nothing
+%% pinned it, so a change routing \ea through the collector -- which reads
+%% only three commands specially -- would have narrowed it with every other
+%% case green.  Same payload discipline as verb.tex: one sentinel per line,
+%% the characters a collected body breaks on, no "&".
+\input{_preamble-langsci}
+\begin{document}
+\ea LSVERB \verb|ls_%$#{}| tail.
+\z
+
+\ea LSHOST the host.
+  \ea LSSUB \verb*|ls sub| tail.
+  \ex LSSUBTWO \verb|ls_two| tail.
+  \z
+\z
+
+LSPROSE after the examples.
+\end{document}
