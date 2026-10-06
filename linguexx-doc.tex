@@ -76,8 +76,24 @@
   {frame=leftline,framerule=1pt,rulecolor=\color{gray!40},
    xleftmargin=8pt,fontsize=\small,samepage=true}
 
+% The listings of the right-to-left section show Hebrew, which Latin Modern
+% Mono does not have: |hebcode(...) sets a run in \hebfont, right to left,
+% as an editor with bidi support shows the source.  | and parentheses are
+% free in those listings, so they can be the command characters there.
+\DefineVerbatimEnvironment{rtlcode}{Verbatim}
+  {frame=leftline,framerule=1pt,rulecolor=\color{gray!40},
+   xleftmargin=8pt,fontsize=\small,samepage=true,commandchars=|()}
+\newcommand{\hebcode}[1]{{\hebfont\textdir TRT #1}}
+
 \newcommand{\rendered}{\par\medskip\noindent\textcolor{gray!70}{\small renders as:}\par\nobreak\smallskip}
 \newcommand{\afterex}{\par\addvspace{\medskipamount}}
+% Hebrew for the right-to-left examples.  Loaded through luaotfload
+% directly, not fontspec: fontspec would take over the document's fonts, and
+% the manual needs the kernel's own Latin Modern (see CLAUDE.md).  FreeSerif
+% is TeX Live's (gnu-freefont); the size follows the surrounding text.
+\newcommand{\hebfont}{%
+  \font\lxdochebrew={file:FreeSerif.otf:mode=node;script=hebr}
+    at \fontdimen6\font\lxdochebrew}
 
 \title{The \pkg{linguexx} package\\[4pt]
   \large Numbered examples, interlinear glosses and grammaticality
@@ -1589,6 +1605,109 @@ it, and reverts at the end of the example. Both hooks are empty by default,
 so a document that sets neither is unaffected in its output and in its
 tagging alike.
 
+
+\subsection{Right-to-left languages}\label{sec:rtl}
+
+Data in Hebrew, Arabic, Persian, Urdu or Yiddish can be glossed in two
+ways, and \pkg{linguexx} supports both: the native script as a line of its
+own above an ordinary gloss of a transliteration, which is what most
+linguistic publications do, or a gloss whose grid itself runs from right
+to left, with the native script aligned word by word. Both need
+Lua\LaTeX\ (recommended) or Xe\LaTeX; pdf\LaTeX\ cannot set right-to-left
+text properly, and both commands below stop there with an error that
+says so. The font is the author's, as for any tier: load one with
+\pkg{fontspec} and give it to the tier with \cs{GlossTierFont}.
+
+\paragraph{A line in the native script.} \cs{glscript}\marg{lang}\marg{text}
+sets \meta{text} as one unaligned line, in its own direction, above the
+gloss that follows; under tagging it carries \meta{lang} as its
+\texttt{/Lang}:
+
+\begin{rtlcode}
+\newfontfamily\hebfont{FreeSerif.otf}[Script=Hebrew]  % fontspec
+\GlossTierLang{1}{he-Latn}
+\ex. \glscript{he}{\hebfont |hebcode(הילד אכל את התפוח)}
+\gll ha-yeled axal et ha-tapuax \\
+     \lpzg{def}-boy ate \lpzg{acc} \lpzg{def}-apple \\
+\glt `The boy ate the apple.'
+\end{rtlcode}
+
+\rendered
+{\GlossTierLang{1}{he-Latn}%
+\ex. \glscript{he}{\hebfont הילד אכל את התפוח}
+\gll ha-yeled axal et ha-tapuax \\
+     \lpzg{def}-boy ate \lpzg{acc} \lpzg{def}-apple \\
+\glt `The boy ate the apple.'
+
+}
+
+\afterex
+\cs{glscript} works for a left-to-right script too --- a Greek or Cyrillic
+line over a transliteration --- and then under pdf\LaTeX\ as well.
+
+\paragraph{A right-to-left grid.} \cs{GlossRTL} sets the following glosses
+from right to left: the first word stands in the rightmost column, the
+columns run leftwards, and a gloss too long for the line goes on from the
+right. Which tiers are written right to left is not declared a second
+time: it is read off \cs{GlossTierLang}. A language written right to left
+--- \texttt{he}, \texttt{ar}, \texttt{fa}, \texttt{ur}, \texttt{yi},
+\texttt{ps}, \texttt{syr} and a few others --- makes its tier
+right-to-left, and a script subtag decides when there is one, so
+\texttt{he-Latn}, a transliteration, is left to right and
+\texttt{az-Arab} right to left. The other tiers keep their own direction
+inside their columns:
+
+\begin{rtlcode}
+\GlossTierLang{1}{he}
+\GlossTierLang{2}{he-Latn}
+\GlossTierFont{1}{\hebfont}
+\GlossRTL
+\ex. \glll |hebcode(הילד אכל את התפוח) \\
+           ha-yeled axal et ha-tapuax \\
+           \lpzg{def}-boy ate \lpzg{acc} \lpzg{def}-apple \\
+\glt `The boy ate the apple.'
+\end{rtlcode}
+
+\rendered
+{\GlossTierLang{1}{he}\GlossTierLang{2}{he-Latn}%
+\GlossTierFont{1}{\hebfont}\GlossRTL
+\ex. \glll הילד אכל את התפוח \\
+           ha-yeled axal et ha-tapuax \\
+           \lpzg{def}-boy ate \lpzg{acc} \lpzg{def}-apple \\
+\glt `The boy ate the apple.'
+
+}
+
+\afterex
+\cs{GlossRTL} is a declaration with the usual scope; \cs{GlossRTLOff}
+returns to left-to-right grids. The example number, the free translation
+and anything else around the grid stay where they are in a left-to-right
+document. A grid that fits on one line sits next to its number, as a
+left-to-right one does; to find out whether it fits, the gloss is set
+once without being shown, so a grid containing an \cs{altg} or a movement
+arrow --- commands that must run exactly once --- is placed against the
+right margin instead.
+
+Under tagging nothing about the order changes: the engine reverses the
+columns on the page, while the structure tree keeps the words in reading
+order, first word first, each tier in its own language. Xe\TeX\ writes
+right-to-left text into the PDF in visual order, so there each
+right-to-left word also carries its text as \texttt{/ActualText}; with
+Lua\TeX\ none is needed. This is one reason to prefer Lua\LaTeX; the
+other is that Xe\LaTeX\ refuses a movement arrow inside a right-to-left
+grid, because it would reverse the drawing of the arrow along with the
+text. \cs{exannot} cannot go on a right-to-left gloss, and
+\cs{GlossTransSide} gives way to it, with a warning, and puts the
+translation underneath.
+
+Two behaviours are provisional, and recorded as such in the package's
+notes on deferred decisions: a judgment mark hangs on the left, where it
+does in every example, although the word it judges is at the right; and
+under \cs{GlossMorphAlign} (section~\ref{sec:morphalign}) a morpheme sits
+at the end of its box, so that every word ends at its column's edge, and
+a hyphen closes the morpheme before it rather than opening the next one
+(\texttt{ha-}\,\texttt{yeled} over \texttt{DEF-}\,\texttt{boy}). Either may
+change.
 
 \subsection{Abbreviations: \cs{exg.}\ and \cs{ag.}}\label{sec:exgabbrev}
 
@@ -3496,6 +3615,8 @@ exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package opt
 \textbackslash GlossPhantomChars\allowbreak\marg{marks} & Leading marks that alignment skips; one token is one mark, characters and commands alike (default \texttt{*?([<} plus \textbackslash\# \textbackslash\%). \\
 \textbackslash GlossPhantom\allowbreak\marg{material} & Manual override: pad a gloss word by an invisible box the width of \meta{material}, in the object font. \\
 \textbackslash GlossMorphAlign & Align morphemes inside each column, at \texttt{-} and \texttt{=} (off by default; section~\ref{sec:morphalign}); \cs{GlossMorphAlignOff} reverts. \\
+\textbackslash GlossRTL & Set glosses as right-to-left grids, Lua\LaTeX\ or Xe\LaTeX\ only (section~\ref{sec:rtl}); \cs{GlossRTLOff} reverts. \\
+\textbackslash glscript\marg{lang}\marg{text} & An unaligned line in the native script above a gloss, in its own direction and language (section~\ref{sec:rtl}). \\
 \addlinespace
 \multicolumn{2}{@{}l}{\itshape References} \\
 \textbackslash label, \textbackslash ref & As usual; references print in parentheses. \\

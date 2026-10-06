@@ -1,0 +1,12 @@
+\input{_preamble}
+%% \glscript with a right-to-left language under pdfLaTeX is refused like
+%% \GlossRTL; with a left-to-right one it is fine (tests/rtl-ua.tex has
+%% none, so it is here: el, Greek, compiles without complaint).
+\begin{document}
+\ex. \glscript{el}{GREEKLINE}
+\gll AAA BBB \\ aaa bbb \\
+
+\ex. \glscript{he}{HEBREWLINE}
+\gll CCC DDD \\ ccc ddd \\
+
+\end{document}

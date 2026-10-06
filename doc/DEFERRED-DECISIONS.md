@@ -762,3 +762,51 @@ lengths, is a different bug and should be treated as one.
 does not pin: `a_judgment_align` asserts that the example *text* clears the
 letter, which it does throughout the collision above; nothing asserts that
 the marks do, deliberately, because that is the thing left to the author.
+
+---
+
+## Right-to-left grids: where judgment marks go, and how morphemes align
+
+*PROVISIONAL, 2026-10-06, by Gerhard: the current behaviour is a temporary
+choice, taken to have something that works, and explicitly not the final
+answer. Both came up while integrating `\GlossRTL` from the probe in
+`experiments/rtl`, whose README has the comparisons.*
+
+**Current behaviour.**
+
+1. *Judgment marks.* In a right-to-left grid (`\GlossRTL`) a judgment mark
+   hangs on the left, where it hangs in every example, although the word
+   it judges is the first word and so stands at the right. Nothing in the
+   grid code moves it: the mark is set by the example's judgment scanner
+   before `\lx@gloss@multi` runs, outside the grid's box.
+2. *Morpheme alignment.* `\GlossMorphAlign` works in a right-to-left grid,
+   with two differences from a left-to-right one, both in the morpheme
+   code (`\__lx_gl_morph_split:NN`, `\__lx_gl_morph_cell:nn`): a morpheme
+   sits against the END of its box, so that every word ends at its
+   column's right edge, where the column's cells are aligned; and a
+   delimiter closes the morpheme before it (`ha-` | `yeled`) instead of
+   opening the next, so that the hyphens still line up and stay with their
+   morphemes. The price is a visible gap inside a word whose morpheme is
+   narrower than its partner's (`DEF-  boy`). Compared side by side,
+   Gerhard first preferred the grid without morpheme alignment at all
+   (`experiments/rtl/rtl-package-word-*` against `rtl-package-morph-*`);
+   the right-aligned variant is what was asked for next, as a try.
+
+**Why this is not settled.** Both are questions of how a reader takes in a
+mixed-direction example in a left-to-right document, and the probe had one
+reader. For the mark, the left keeps every example of a document alike and
+the right keeps the mark beside the word it judges; for the morphemes,
+there are at least the three variants above (none, left-aligned, the
+current right-aligned one), and whether alignment helps at all where a
+column already ends flush is open.
+
+**What would decide it.** Real examples from someone who glosses an RTL
+language in an LTR publication, or a house style that prescribes one of
+the variants; failing that, a look at published Hebrew or Arabic glossing
+in, say, Language Science Press books.
+
+**If it is changed:** the mark is the judgment scanner's business, not the
+grid's, and moving it to the right means hanging it off the right edge of
+the grid's box (`\__lx_gl_rtl_place:`). The morpheme behaviour is pinned by
+`tests/rtl-morph.tex`, which would change with it; `tests/rtl.tex` pins the
+mark on the left.

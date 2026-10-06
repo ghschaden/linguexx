@@ -1,0 +1,57 @@
+\input{_preamble}
+%% \GlossRTL on the page: columns from the right, a short grid beside its
+%% number, a long one wrapping from the right, the number and a judgment
+%% mark on the left, and \GlossRTLOff back to normal.
+%%
+%% Measured on the Latin tiers only: pdftotext reads Hebrew in visual
+%% order under XeTeX, and the Latin words are sentinels.  FreeSerif is
+%% TeX Live's (gnu-freefont), by file name so that both engines find it.
+\newfontfamily\hebfont{FreeSerif.otf}[Script=Hebrew]
+\begin{document}
+\GlossTierLang{1}{he}
+\GlossTierFont{1}{\hebfont}
+% tier 2 is a transliteration: its script subtag makes it left to right,
+% so its words read as typed (a right-to-left tier 2 would reverse them)
+\GlossTierLang{2}{he-Latn}
+\GlossRTL
+
+% (1) a short grid.  Columns run leftwards; in each column the cells sit
+% against its right edge (RBONEXX is wider than RAONE on purpose); and
+% the grid starts at the text margin, beside its number, where the
+% translation does.
+\ex. \glll הילד אכל את \\
+           RAONE RATWO RATHREE \\
+           RBONEXX RBTWO RBTHREE \\
+\glt RTRANSONE starts at the text margin.
+
+% (2) a grid too long for one line: LWAA is the first word, so the
+% rightmost of the first line, and both lines end at the right margin.
+\ex. \gll הילד אכל את התפוח הגדול שקנינו אתמול בשוק של העיר העתיקה ליד הנמל הישן \\
+          LWAA LWAB LWAC LWAD LWAE LWAF LWAG LWAH LWAI LWAJ LWAK LWAL LWAM LWAN \\
+\glt RTRANSTWO
+
+% (3) sub-examples, and a judgment mark: on the left, where it hangs in
+% any example (provisional -- see doc/DEFERRED-DECISIONS.md).
+\ex. \a. \gll הילד אכל \\ SUBONE SUBTWO \\
+     \b. *\gll אכל הילד \\ JUDONE JUDTWO \\
+
+% (5) the grid is measured before it is placed, so it is set twice: a
+% morpheme mismatch is still reported once, not once per setting.
+\GlossMorphAlign
+\ex. \glll הילד \\ MMA-mb \\
+          mx-my-mz \\
+\GlossMorphAlignOff
+
+% (4) off again: left to right.
+\GlossRTLOff
+\GlossTierFont{1}{\textnormal}\GlossTierLang{1}{de}
+\ex. \gll Der Hund \\ OFFONE OFFTWO \\
+
+% (6) a script line, right to left whether or not the grid is: its first
+% word (the one with the dalet) stands to the right of its second (the one
+% with the kaf).  Under LuaTeX pdftotext gives single letters, under XeTeX
+% whole words; the comparison holds for both.
+\ex. \glscript{he}{\hebfont הילד אכל}
+\gll SCRA SCRB \\ scra scrb \\
+
+\end{document}

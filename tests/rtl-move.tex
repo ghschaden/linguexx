@@ -1,0 +1,17 @@
+\input{_preamble}
+%% A movement arrow in a right-to-left grid, under LuaTeX.  The arrow
+%% refuses to run twice, so the grid is not measured: it compiles, and it
+%% sits at the right margin instead of beside its number.  (Under XeTeX
+%% the combination is refused: tests/rtl-move-xetex.tex.)
+\newfontfamily\hebfont{FreeSerif.otf}[Script=Hebrew]
+\begin{document}
+\GlossTierLang{1}{he}
+\GlossTierFont{1}{\hebfont}
+
+\ex. MVREF is a line long enough to reach the right margin, against which
+the grid below is measured, and then some more words.
+
+\GlossRTL
+\ex. \gll \mvto{q}{הילד} אכל \mvfrom{q}{את} \\ MVONE MVTWO MVTHREE \\
+
+\end{document}

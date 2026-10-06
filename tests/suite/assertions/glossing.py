@@ -608,16 +608,96 @@ def a_morphalign_ua(p: Page):
     return r
 
 
-def a_morphalign_rtl(p: Page):
-    r"""Segmented tiers are equally wide, so right-aligned cells -- a
-    right-to-left grid -- keep their morphemes aligned (see the case)."""
-    a, c = p.find("Aa"), p.find("Cccccccccc-dd")
-    b = p.find("-Bbbbbbbbbbb")
+def a_rtl(p: Page):
+    r"""\GlossRTL on the page; see the case's header."""
+    r = []
+    one, two, three = p.find("RAONE"), p.find("RATWO"), p.find("RATHREE")
+    r.append(check(one.x0 > two.x0 > three.x0,
+                   f"columns run from the right: first word rightmost "
+                   f"({one.x0:.2f} > {two.x0:.2f} > {three.x0:.2f})"))
+    b1 = p.find("RBONEXX")
+    r.append(check(abs(one.x1 - b1.x1) < TOL and b1.x0 < one.x0 - 2,
+                   f"a column's cells sit against its right edge "
+                   f"({one.x1:.2f} vs {b1.x1:.2f})"))
+    t1, b3 = p.find("RTRANSONE"), p.find("RBTHREE")
+    r.append(check(abs(b3.x0 - t1.x0) < TOL,
+                   f"a short grid sits beside its number, starting at the "
+                   f"text margin like its translation ({b3.x0:.2f} vs "
+                   f"{t1.x0:.2f})"))
+    first, last = p.find("LWAA"), p.find("LWAN")
+    line1 = [w for w in p.line_of(first) if w.text.startswith("LWA")]
+    r.append(check(first.x0 == max(w.x0 for w in line1),
+                   "a long grid: the first word is the rightmost of its line"))
+    line2 = [w for w in p.line_of(last) if w.text.startswith("LWA")]
+    end1, end2 = max(w.x1 for w in line1), max(w.x1 for w in line2)
+    r.append(check(last.y0 > first.y0 + 5 and abs(end1 - end2) < TOL,
+                   f"... it wraps, and both lines end at one right edge "
+                   f"({end1:.2f} vs {end2:.2f})"))
+    star = [w for w in p.words if w.text == "*"]
+    jud = p.find("JUDTWO")
+    r.append(check(len(star) == 1 and star[0].x1 <= jud.x0,
+                   f"a judgment mark hangs on the left of the grid "
+                   f"({star[0].x1 if star else None} vs {jud.x0:.2f})"))
+    r.append(check(p.log.count("which do not match") == 1,
+                   f"a mismatch in a measured grid is reported once, not "
+                   f"once per setting: {p.log.count('which do not match')}"))
+    off1, off2 = p.find("OFFONE"), p.find("OFFTWO")
+    r.append(check(off1.x0 < off2.x0,
+                   "\\GlossRTLOff: left to right again"))
+    script = p.line_of(p.find("(6)"))
+    dalet = [w for w in script if "\u05d3" in w.text]
+    kaf = [w for w in script if "\u05db" in w.text]
+    r.append(check(len(dalet) == 1 and len(kaf) == 1
+                   and dalet[0].x0 > kaf[0].x0,
+                   f"\\glscript sets its line right to left: the first word "
+                   f"right of the second ({[w.text for w in script]})"))
+    return r
+
+
+def a_rtl_side(p: Page):
+    r"""\GlossTransSide gives way to \GlossRTL, with a warning, and the
+    translation goes underneath the grid."""
+    body = warning_body(p.log, "Package linguexx Warning:")
+    t, g = p.find("SIDETRANS"), p.find("sone")
     return [
-        check(abs(a.x0 - c.x0) < TOL,
-              f"right-aligned cells of equal width start at one x "
-              f"({a.x0:.2f} vs {c.x0:.2f})"),
-        check(b.x0 - a.x1 > 2,
-              f"... and the second morpheme follows the wider first one "
-              f"({b.x0 - a.x1:.2f}pt after 'Aa')"),
+        check("cannot be combined with" in body,
+              f"the combination is reported: {body!r}"),
+        check(t.y0 > g.y0 + 5,
+              f"the translation is underneath the grid, not beside it "
+              f"({t.y0:.2f} vs {g.y0:.2f})"),
+    ]
+
+
+def a_rtl_move(p: Page):
+    r"""A movement arrow in a right-to-left grid, under LuaTeX: the grid is
+    not measured (the arrow refuses to run twice), so it compiles and sits
+    at the right margin, and the arrow's line gets its room."""
+    one, three = p.find("MVONE"), p.find("MVTHREE")
+    margin = max(w.x1 for w in p.line_of(p.find("MVREF")))
+    return [
+        check(one.x0 > three.x0,
+              f"the grid runs from the right ({one.x0:.2f} > {three.x0:.2f})"),
+        check(abs(one.x1 - margin) < TOL,
+              f"not measured: it ends at the right margin, where the full "
+              f"line above it does ({one.x1:.2f} vs {margin:.2f})"),
+    ]
+
+
+def a_rtl_morph(p: Page):
+    r"""\GlossMorphAlign in a right-to-left grid; see the case's header."""
+    pq, r1, ss = p.find("Pa-Qqqqqqqqq"), p.find("Rrrrrrrrr-"), p.find("ss")
+    ta, uu = p.find("ta-"), p.find("uu")
+    return [
+        check(r1.text == "Rrrrrrrrr-" and ta.text == "ta-",
+              "the delimiter closes the morpheme before it: 'Rrrrrrrrr-' and "
+              "'ta-' are words of their own"),
+        check(abs(r1.x1 - ta.x1) < TOL,
+              f"the boundary is at one x in two tiers ({r1.x1:.2f} vs "
+              f"{ta.x1:.2f})"),
+        check(abs(ss.x1 - uu.x1) < TOL and abs(pq.x1 - uu.x1) < TOL,
+              f"every word ends at the column's right edge ({pq.x1:.2f}, "
+              f"{ss.x1:.2f}, {uu.x1:.2f})"),
+        check(pq.x0 > r1.x0 + 2,
+              f"a narrower morpheme sits at the end of its box, not the start "
+              f"({pq.x0:.2f} vs {r1.x0:.2f})"),
     ]

@@ -4,6 +4,20 @@ All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
 ## Unreleased
+- New: right-to-left glosses, under LuaLaTeX (recommended) or XeLaTeX.
+  `\GlossRTL` sets a gloss as a right-to-left grid: the first word in the
+  rightmost column, wrapping from the right, a short grid beside its
+  number; `\GlossRTLOff` turns it off. Which tiers are right-to-left
+  script is read off `\GlossTierLang` (`he`, `ar`, `fa`, `ur`, `yi`, ...;
+  a script subtag decides, so `he-Latn` stays left to right).
+  `\glscript{lang}{text}` sets the native script as one unaligned line
+  above an ordinary gloss of a transliteration. Under tagging the tree
+  stays in reading order, each tier in its language; under XeLaTeX each
+  right-to-left word carries `/ActualText`, since XeTeX writes it in
+  visual order. pdfLaTeX gets an error. Provisional, and recorded in
+  `doc/DEFERRED-DECISIONS.md`: judgment marks hang on the left, and under
+  `\GlossMorphAlign` morphemes are set against the end of their boxes,
+  with the hyphen closing the morpheme before it.
 - Changed: a translation without `\GlossTransLang` of its own now takes the
   language of the gloss's last tier, when that tier has one declared --
   translations are almost always in the language of the glosses, so

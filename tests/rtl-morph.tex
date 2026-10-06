@@ -1,0 +1,30 @@
+\input{_preamble}
+%% \GlossMorphAlign in a right-to-left grid (provisional: see
+%% doc/DEFERRED-DECISIONS.md).  A column's cells sit on its right edge, so
+%% the morphemes are set against the END of their boxes, and a delimiter
+%% closes the morpheme before it instead of opening the next: the
+%% boundaries line up, every word ends at the column's edge, and each
+%% hyphen stays with its morpheme.
+%%
+%% Three segmented Latin tiers under an unsegmented Hebrew one.  Tier 3
+%% holds the wider first morpheme, tier 2 the wider second, tier 4 neither,
+%% so tier 4 shows every position on its own:
+%%   tier 2   [   Pa-][Qqqqqqqqq]   one word: Pa- right-aligned in its box
+%%   tier 3   [Rrrrrrrrr-][    ss]  the hyphen ends the first morpheme
+%%   tier 4   [   ta-][    uu]      both boundaries readable
+%% Each segment is boxed to its common width, the last one too, which is
+%% what keeps tier 4's boundary where tier 3's is.
+\newfontfamily\hebfont{FreeSerif.otf}[Script=Hebrew]
+\begin{document}
+\GlossTierLang{1}{he}
+\GlossTierFont{1}{\hebfont}
+\GlossRTL
+\GlossMorphAlign
+
+\ex. \gl הילד \\
+         Pa-Qqqqqqqqq \\
+         Rrrrrrrrr-ss \\
+         ta-uu \\
+     \endgl
+
+\end{document}

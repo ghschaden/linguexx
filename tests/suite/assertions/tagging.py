@@ -1138,3 +1138,39 @@ def a_gltlang_default_ua(p: Page):
     r.append(check(len(depths) >= 7 and len({d for _, d in depths}) == 1,
                    f"every example number at one depth: {depths}"))
     return r
+
+
+def _tag_texts(pdf):
+    """The marked content of the tree, in tree order, as show-pdf-tags
+    resolves it (its tree form: the XML puts the text in processing
+    instructions, which ElementTree drops)."""
+    out = subprocess.run(["show-pdf-tags", str(pdf)], capture_output=True,
+                         text=True, errors="replace")
+    return re.findall(r"Marked content on page \d+: (.*)", out.stdout)
+
+
+def a_rtl_ua(p: Page):
+    r"""\GlossRTL and \glscript under PDF/UA-2; see the case's header."""
+    r = []
+    verdicts, failures, _ = verapdf_report(p.path)
+    r.append(check(bool(verdicts) and all(ok for _, ok in verdicts),
+                   f"veraPDF: compliant on every profile ({verdicts}; "
+                   f"{failures})"))
+    heb = [t.strip() for t in _tag_texts(p.path)
+           if re.search("[\u0590-\u05ff]", t)]
+    want = ["הילד אכל את התפוח", "הילד", "אכל", "את", "התפוח"]
+    r.append(check(heb == want,
+                   f"the Hebrew in the tree is the script line, then the "
+                   f"grid's words, first word first, each in logical order: "
+                   f"{heb}"))
+    langs = struct_langs(inflated(p.raw))
+    r.append(check(langs.count("he") == 5 and langs.count("he-Latn") == 8,
+                   f"he on the script line and the four object words, "
+                   f"he-Latn on the eight transliterated ones (both "
+                   f"examples): he {langs.count('he')}, he-Latn "
+                   f"{langs.count('he-Latn')}"))
+    depths = struct_label_depths(p.path)
+    r.append(check(len(depths) == 3 and len({d for _, d in depths}) == 1,
+                   f"the grid's box leaves the tree as it found it: every "
+                   f"example number at one depth: {depths}"))
+    return r

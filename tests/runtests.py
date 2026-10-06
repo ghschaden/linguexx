@@ -137,12 +137,22 @@ DEFAULT_JOBS = min(6, os.cpu_count() or 1)
 #: can typeset belongs in a case that runs everywhere.
 ENGINES_FOR = {
     "utf8-unicode": ("xelatex", "lualatex"),
-    "morphalign-rtl": ("lualatex",),
+    # right-to-left: LuaTeX and XeTeX only, and pdfTeX's refusal of it
+    "rtl": ("xelatex", "lualatex"),
+    "rtl-ua": ("xelatex", "lualatex"),
+    "rtl-pdflatex": ("pdflatex",),
+    "rtl-script-pdflatex": ("pdflatex",),
+    "rtl-annot": ("xelatex", "lualatex"),
+    "rtl-side": ("xelatex", "lualatex"),
+    "rtl-move": ("lualatex",),
+    "rtl-morph": ("xelatex", "lualatex"),
+    "rtl-move-xetex": ("xelatex",),
 }
 DEFAULT_PASSES = 2
 PASSES = {"ua": 3, "verb-dot-ua": 3, "frontend": 3, "langsci-ua": 3, "exannot-ua": 3,
           "morphalign-ua": 3, "tierlang-ua": 3, "gltlang-items-ua": 3,
           "gltlang-default-ua": 3,
+          "rtl-ua": 3,
           "exannot-fit": 2, "exannot-fitbody": 2,
           "exannot-beamer": 2,
           # one run on purpose: it is the run that has to ask for another
@@ -154,6 +164,12 @@ PASSES = {"ua": 3, "verb-dot-ua": 3, "frontend": 3, "langsci-ua": 3, "exannot-ua
 #: stays green.  These have no assertion function; the raised error is the
 #: assertion.
 EXPECT_ERROR = {
+    # pdfTeX cannot set right-to-left text, and linguexx says so rather
+    # than set it left to right without a word.
+    "rtl-pdflatex": "needs LuaLaTeX or XeLaTeX",
+    "rtl-script-pdflatex": "needs LuaLaTeX or XeLaTeX",
+    "rtl-annot": "cannot go on a right-to-left gloss",
+    "rtl-move-xetex": "A movement arrow in a right-to-left gloss",
     "altg-unpaired": "has no partner",
     # A package this one REPLACES, loaded alongside it.  Both orders: the
     # old \usepackage line left in front (clash-linguex) and a second

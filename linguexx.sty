@@ -4893,21 +4893,37 @@
 %% plain marked content as before.  Neither half of the helper fits: the
 %% struct is conditional but the marked content is not, and there is no
 %% ambient MC to suspend -- the column Span already suspended it.
+%%
+%% In a right-to-left grid (\GlossRTL) the word also gets its direction
+%% here, in three layers from the outside in: the cell as a whole is a
+%% left-to-right run, the tagging opens inside it, and a tier in a
+%% right-to-left script turns right-to-left again inside the tagging.  See
+%% \__lx_gl_rtl_cellbegin:n for why each layer sits where it does.
 \cs_new_protected:Npn \lx@gl@wordbegin #1
-  { \lx@tag@if@active:T
+  {
+    \bool_if:NT \l__lx_gl_rtl_bool { \__lx_gl_rtl_cellbegin:n {#1} }
+    \lx@tag@if@active:T
       {
         \prop_get:NnNTF \l_lx_gl_lang_prop {#1} \l__lx_gl_lang_tl
           { \exp_args:Ne \tag_struct_begin:n
               { tag = Span , lang = \l__lx_gl_lang_tl } }
           { }
-        \tag_mc_begin:n { tag = Span }
-      } }
+        \bool_if:NTF \l__lx_gl_rtl_bool
+          { \__lx_gl_rtl_mcbegin:n {#1} }
+          { \tag_mc_begin:n { tag = Span } }
+      }
+    \bool_if:NT \l__lx_gl_rtl_bool { \__lx_gl_rtl_textbegin:n {#1} }
+  }
 \cs_new_protected:Npn \lx@gl@wordend #1
-  { \lx@tag@if@active:T
+  {
+    \bool_if:NT \l__lx_gl_rtl_bool { \__lx_gl_rtl_textend:n {#1} }
+    \lx@tag@if@active:T
       {
         \tag_mc_end:
         \prop_if_in:NnT \l_lx_gl_lang_prop {#1} { \tag_struct_end: }
-      } }
+      }
+    \bool_if:NT \l__lx_gl_rtl_bool { \__lx_gl_rtl_cellend: }
+  }
 \ExplSyntaxOff
 \ExplSyntaxOn
 %% Phantom bracket alignment (opt-in, off by default).  When a word in the
@@ -5220,6 +5236,8 @@
 \seq_new:N  \l__lx_gl_morph_eq_seq
 \tl_new:N   \l__lx_gl_morph_word_tl
 \tl_new:N   \l__lx_gl_morph_counts_tl
+\tl_new:N   \l__lx_gl_morph_delim_tl
+\tl_new:N   \l__lx_gl_morph_prev_tl
 \box_new:N  \l__lx_gl_morph_box
 %% Both spellings: the short names are aliases claimed for the long ones,
 %% and a source may use either.
@@ -5248,7 +5266,7 @@
             \int_incr:N \l__lx_gl_morph_j_int
             \tl_if_blank:nT {####1}
               { \bool_set_true:N \l__lx_gl_morph_bad_bool }
-            \seq_put_right:Ne #1
+            \tl_set:Ne \l__lx_gl_morph_delim_tl
               {
                 \int_compare:nNnTF { \l__lx_gl_morph_j_int } > { 1 }
                   { = }
@@ -5256,7 +5274,32 @@
                     \int_compare:nNnT { \l__lx_gl_morph_i_int } > { 1 }
                       { - }
                   }
-                \exp_not:n {####1}
+              }
+            %% Left to right, the delimiter opens the morpheme it
+            %% introduces, so the hyphens line up where the boxes start.
+            %% In a right-to-left grid the boxes are aligned on their END
+            %% (see \__lx_gl_morph_cell:nn), so the delimiter closes the
+            %% morpheme before it: ha- | yeled over DEF- | boy, the hyphens
+            %% again in one column and each with its own morpheme, rather
+            %% than pushed across the gap a narrower morpheme leaves.
+            \bool_lazy_and:nnTF
+              { \l__lx_gl_rtl_bool }
+              { ! \tl_if_empty_p:N \l__lx_gl_morph_delim_tl }
+              {
+                \seq_pop_right:NN #1 \l__lx_gl_morph_prev_tl
+                \seq_put_right:Ne #1
+                  {
+                    \exp_not:V \l__lx_gl_morph_prev_tl
+                    \exp_not:V \l__lx_gl_morph_delim_tl
+                  }
+                \seq_put_right:Nn #1 {####1}
+              }
+              {
+                \seq_put_right:Ne #1
+                  {
+                    \exp_not:V \l__lx_gl_morph_delim_tl
+                    \exp_not:n {####1}
+                  }
               }
           }
       }
@@ -5312,7 +5355,8 @@
       }
     \bool_if:NT \l__lx_gl_morph_mismatch_bool
       {
-        \bool_if:NF \l__lx_gl_morph_guard_bool
+        \bool_lazy_or:nnF
+          { \l__lx_gl_morph_guard_bool } { \l__lx_gl_measuring_bool }
           {
             \msg_warning:nnee { linguexx } { morph-mismatch }
               {#1} { \l__lx_gl_morph_counts_tl }
@@ -5399,9 +5443,17 @@
                   { - \dim_use:c { l__lx_gl_morph_pad_ #1 _dim } }
               }
               {
+                %% Against the start of the box, or in a right-to-left
+                %% grid against its end: there a column's cells sit on
+                %% its right edge, and a morpheme at the left of its box
+                %% left the word short of it -- ba-šuk 16pt short of the
+                %% Hebrew word above, because -šuk is narrower than the
+                %% -market under it.  Flush right, morphemes line up by
+                %% their ends and the word ends where its column does.
+                \bool_if:NT \l__lx_gl_rtl_bool { \hfil }
                 \lx@glfontuse {#1}
                   { \seq_item:cn { l__lx_gl_morph_ #1 _seq } {##1} }
-                \hfil
+                \bool_if:NF \l__lx_gl_rtl_bool { \hfil }
               }
           }
       }
@@ -5650,8 +5702,27 @@
       { \tl_gset_eq:NN \g__lx_gl_glosslang_tl \l__lx_gl_lang_tl }
       { \tl_gclear:N \g__lx_gl_glosslang_tl }
     \lx@gl@side@decide:
-    \bool_if:NT \l__lx_gl_side_bool
-      { \lx@gl@vtop_set:Nw \l__lx_gl_gridbox }
+    \bool_if:NTF \l__lx_gl_rtl_bool
+      { \__lx_gl_rtl_grid: }
+      {
+        \bool_if:NT \l__lx_gl_side_bool
+          { \lx@gl@vtop_set:Nw \l__lx_gl_gridbox }
+        \__lx_gl_grid_body:
+        %% The box is closed here and PLACED at the example's exit, because
+        %% the translation that goes beside it has not been read yet.
+        \bool_if:NT \l__lx_gl_side_bool
+          {
+            \lx@gl@vtop_set_end:
+            \bool_gset_true:N \g__lx_gl_sidepending_bool
+          }
+      }
+  }
+%% The grid itself: the columns, set as one ragged paragraph in a group of
+%% its own.  Apart from \lx@gloss@multi so that it can be set more than
+%% once -- a right-to-left grid is measured before it is placed (see
+%% \__lx_gl_rtl_grid:).  It reads what \lx@gloss@multi parsed.
+\cs_new_protected:Npn \__lx_gl_grid_body:
+  {
     \group_begin:
     \bool_if:NT \l__lx_gl_side_bool
       { \hsize \l__lx_gl_gridwd \linewidth \l__lx_gl_gridwd }
@@ -5666,10 +5737,12 @@
     \leavevmode
     \raggedright
     \lx@glossfont
+    \bool_if:NT \l__lx_gl_rtl_bool { \__lx_gl_rtl_par: }
     \bool_set_true:N \l_lx_gl_inside_bool
     \int_gset:Nn \g__lxp_altg_role_int { 0 }
     \int_step_inline:nn { \l__lx_gl_maxwords_int }
       { % column ##1
+        \int_set:Nn \l__lx_gl_col_int {##1}
         \lx@gl@colbegin
         \bool_if:NTF \l__lx_gl_phantom_bool
           {
@@ -5752,13 +5825,355 @@
     \tl_if_empty:NF \l__lx_gl_annot_tl { \__lx_gl_annot_emit: }
     \par
     \group_end:
-    %% The box is closed here and PLACED at the example's exit, because the
-    %% translation that goes beside it has not been read yet.
+  }
+%% ---- right-to-left glosses -------------------------------------------------
+%% \GlossRTL sets a gloss as a right-to-left grid: the first word in the
+%% rightmost column, the columns running leftwards, a wrapped grid going on
+%% from the right.  Which tiers are in a right-to-left SCRIPT is not
+%% declared again: it is read off \GlossTierLang (\__lx_lang_if_rtl:n), so
+%% \GlossTierLang{1}{he} makes tier 1 right-to-left and he-Latn, a
+%% transliteration, does not.  \glscript{lang}{text} is the other way of
+%% glossing such data: the native script as one unaligned line above an
+%% ordinary gloss of a transliteration.  Prototyped in experiments/rtl,
+%% whose README has the findings this code is built on; the numbers below
+%% refer to them.
+%%
+%% What the engines need, and why it is not the same:
+%%   * The reversal is the ENGINE's, never the macros': the columns are
+%%     emitted in reading order, as always, and the tags come out in that
+%%     order -- column by column, first word first -- with nothing changed.
+%%     Emitting them backwards would reverse the structure tree with them.
+%%   * LuaTeX: \pardir and \textdir.  The paragraph direction is read when
+%%     a paragraph starts (finding 2), so it is set in the grid's box before
+%%     the body opens its paragraph.
+%%   * XeTeX: TeX--XeT, \beginR ... \endR.  It reverses the INSIDE of every
+%%     box in an R segment as well (finding 4), BDC/EMC specials included,
+%%     so each cell is an explicit L segment with its marked content inside.
+%%     Its text layer is in visual order (finding 5): a right-to-left word
+%%     carries its logical text as /ActualText, which veraPDF cannot ask
+%%     for and show-pdf-tags shows.
+%%   * pdfTeX: refused.  It has TeX--XeT, but no way to set Hebrew or Arabic
+%%     text that is worth supporting.
+%%
+%% The grid is a box of its own (finding 1): set inline, in the paragraph
+%% that carries the example number, a right-to-left run swallows the
+%% number.  \leavevmode sets the number off in the item's own paragraph,
+%% then the grid is built in a \vtop and placed with the paragraph's marked
+%% content suspended, as \GlossTransSide places its boxes.  Paragraph
+%% tagging is off inside the box, which otherwise opens a P inside the P
+%% (finding 3); the cells carry the only marked content.
+%%
+%% A grid that fits on one line sits next to its number at its natural
+%% width; one that wraps fills the measure from the right.  Deciding which
+%% takes a measuring pass: the body is set once with tagging suspended, its
+%% lines counted (\prevgraf) and its single line measured.  That executes
+%% the gloss twice, so a gloss holding a movement arrow -- which refuses to
+%% run twice -- or an \altg is not measured and sits at the right margin.
+%% Under XeTeX a movement arrow is refused altogether: TeX--XeT reverses
+%% the arrow's drawing instructions with the text, and the rest of the page
+%% came out turned.  LuaTeX draws it, from the base to the landing site.
+%%
+%% Provisional, recorded in doc/DEFERRED-DECISIONS.md: a judgment mark
+%% hangs at the left, where it does in any example, although the word it
+%% judges is at the right; and under \GlossMorphAlign a morpheme sits at
+%% the end of its box and a delimiter closes the morpheme before it (see
+%% \__lx_gl_morph_split:NN and \__lx_gl_morph_cell:nn).
+\bool_new:N \l__lx_gl_rtl_bool
+\bool_new:N \l__lx_gl_measuring_bool
+\int_new:N  \l__lx_gl_col_int
+\int_new:N  \g__lx_gl_rtl_lines_int
+\dim_new:N  \g__lx_gl_rtl_wd_dim
+\dim_new:N  \l__lx_gl_rtl_wd_dim
+\box_new:N  \l__lx_gl_rtl_box
+\box_new:N  \l__lx_gl_rtl_line_box
+\tl_new:N   \l__lx_gl_rtl_word_tl
+\seq_new:N  \l__lx_lang_parts_seq
+\str_new:N  \l__lx_lang_primary_str
+\str_new:N  \l__lx_lang_script_str
+\msg_new:nnnn { linguexx } { rtl-pdftex }
+  { #1~needs~LuaLaTeX~or~XeLaTeX. }
+  {
+    pdfLaTeX~cannot~set~right-to-left~text~properly,~so~linguexx~does~not~
+    try:~compile~with~lualatex~(recommended)~or~xelatex.~#2
+  }
+\msg_new:nnnn { linguexx } { rtl-move-xetex }
+  { A~movement~arrow~in~a~right-to-left~gloss~needs~LuaLaTeX. }
+  {
+    XeTeX~reverses~the~arrow's~drawing~along~with~the~text,~which~turns~
+    the~rest~of~the~page.~The~gloss~is~set~left~to~right;~compile~with~
+    lualatex~to~have~both.
+  }
+\clist_const:Nn \c__lx_gl_move_clist
+  { \mvfrom , \lxMoveFrom , \mvto , \lxMoveTo }
+\msg_new:nnn { linguexx } { rtl-side }
+  {
+    \iow_char:N \\GlossTransSide~cannot~be~combined~with~\iow_char:N
+    \\GlossRTL;~the~translation~goes~underneath.
+  }
+\msg_new:nnnn { linguexx } { rtl-annot }
+  { \iow_char:N \\exannot~cannot~go~on~a~right-to-left~gloss. }
+  {
+    The~annotation~column~is~measured~from~the~left~of~the~text~block,~
+    which~a~right-to-left~grid~does~not~share.~It~is~left~out.
+  }
+%% The languages written right to left, by primary subtag, and the scripts.
+%% A script subtag decides when there is one -- he-Latn is a
+%% transliteration, az-Arab is Azerbaijani in Arabic script -- and the
+%% primary subtag otherwise.  Compared as strings, case-folded.
+\clist_const:Nn \c__lx_rtl_langs_clist
+  { ar , arc , ckb , dv , fa , he , iw , ji , ks , pnb , prs , ps , sd ,
+    syr , ug , ur , yi }
+\clist_const:Nn \c__lx_rtl_scripts_clist
+  { arab , hebr , syrc , thaa , nkoo , adlm , rohg , samr , mand }
+\prg_new_protected_conditional:Npnn \__lx_lang_if_rtl:n #1 { TF , T , F }
+  {
+    \str_set:Ne \l__lx_lang_primary_str { \str_lowercase:n {#1} }
+    \seq_set_split:NnV \l__lx_lang_parts_seq { - } \l__lx_lang_primary_str
+    \seq_pop_left:NN \l__lx_lang_parts_seq \l__lx_lang_primary_str
+    \str_clear:N \l__lx_lang_script_str
+    \seq_map_inline:Nn \l__lx_lang_parts_seq
+      {
+        \int_compare:nNnT { \str_count:n {##1} } = { 4 }
+          { \str_set:Nn \l__lx_lang_script_str {##1} \seq_map_break: }
+      }
+    \str_if_empty:NTF \l__lx_lang_script_str
+      { \__lx_str_if_in_clist:NNTF \l__lx_lang_primary_str \c__lx_rtl_langs_clist }
+      { \__lx_str_if_in_clist:NNTF \l__lx_lang_script_str \c__lx_rtl_scripts_clist }
+      { \prg_return_true: } { \prg_return_false: }
+  }
+\prg_new_protected_conditional:Npnn \__lx_str_if_in_clist:NN #1#2 { TF }
+  {
+    \bool_set_false:N \l_tmpa_bool
+    \clist_map_inline:Nn #2
+      { \str_if_eq:VnT #1 {##1} { \bool_set_true:N \l_tmpa_bool \clist_map_break: } }
+    \bool_if:NTF \l_tmpa_bool { \prg_return_true: } { \prg_return_false: }
+  }
+\prg_new_protected_conditional:Npnn \__lx_gl_tier_if_rtl:n #1 { TF , T }
+  {
+    \prop_get:NnNTF \l_lx_gl_lang_prop {#1} \l__lx_gl_lang_tl
+      { \exp_args:NV \__lx_lang_if_rtl:nTF \l__lx_gl_lang_tl
+          { \prg_return_true: } { \prg_return_false: } }
+      { \prg_return_false: }
+  }
+%% TeX--XeT has to be on when the page is SHIPPED, which is where XeTeX
+%% does the reversing; switched on globally at the first use, and never
+%% for a document that does not use any of this.
+\cs_new_protected:Npn \__lx_rtl_xetex_on:
+  { \sys_if_engine_xetex:T { \tex_global:D \tex_TeXXeTstate:D = 1 \scan_stop: } }
+\cs_new_protected:Npn \GlossRTL
+  {
+    \sys_if_engine_pdftex:TF
+      { \msg_error:nnnn { linguexx } { rtl-pdftex } { \iow_char:N \\GlossRTL }
+          { The~gloss~is~set~left~to~right. } }
+      { \__lx_rtl_xetex_on: \bool_set_true:N \l__lx_gl_rtl_bool }
+  }
+\cs_new_protected:Npn \GlossRTLOff
+  { \bool_set_false:N \l__lx_gl_rtl_bool }
+%% The layers of one word (\lx@gl@wordbegin/wordend).  XeTeX: the whole
+%% cell an L segment, with the marked content inside it; a right-to-left
+%% tier an R segment inside the marked content.  LuaTeX: the cell box
+%% inherits the grid's TRT, harmless while a cell is one piece and wrong as
+%% soon as it is several (morpheme segments came out "-yeled ha"), so the
+%% cell is TLT as a whole and a right-to-left tier TRT inside.
+\cs_new_protected:Npn \__lx_gl_rtl_cellbegin:n #1
+  {
+    \sys_if_engine_xetex:TF
+      { \tex_beginL:D }
+      { \sys_if_engine_luatex:T { \tex_textdir:D TLT ~ } }
+  }
+\cs_new_protected:Npn \__lx_gl_rtl_cellend:
+  { \sys_if_engine_xetex:T { \tex_endL:D } }
+\cs_new_protected:Npn \__lx_gl_rtl_textbegin:n #1
+  {
+    \__lx_gl_tier_if_rtl:nT {#1}
+      {
+        \sys_if_engine_xetex:TF
+          { \tex_beginR:D }
+          { \sys_if_engine_luatex:T { \tex_textdir:D TRT ~ } }
+      }
+  }
+\cs_new_protected:Npn \__lx_gl_rtl_textend:n #1
+  { \sys_if_engine_xetex:T { \__lx_gl_tier_if_rtl:nT {#1} { \tex_endR:D } } }
+%% XeTeX writes a right-to-left word's glyphs in visual order, so the word
+%% carries its logical text.  Purified: what is spoken is the text, not the
+%% font commands around it.
+\cs_new_protected:Npn \__lx_gl_rtl_mcbegin:n #1
+  {
+    \sys_if_engine_xetex:TF
+      {
+        \__lx_gl_tier_if_rtl:nTF {#1}
+          {
+            \__lx_gl_word_get:Ncn \l__lx_gl_rtl_word_tl
+              { l__lx_gl_tier_ #1 _seq } { \l__lx_gl_col_int }
+            \exp_args:Ne \tag_mc_begin:n
+              {
+                tag = Span ,
+                actualtext = { \text_purify:V \l__lx_gl_rtl_word_tl }
+              }
+          }
+          { \tag_mc_begin:n { tag = Span } }
+      }
+      { \tag_mc_begin:n { tag = Span } }
+  }
+%% The paragraph of the grid.  LuaTeX has it from the box already; XeTeX
+%% needs the whole line in one R segment, and the line set from the right:
+%% its \leftskip takes the slack, after the body's \raggedright.
+\cs_new_protected:Npn \__lx_gl_rtl_par:
+  {
+    \sys_if_engine_xetex:T
+      {
+        \skip_set:Nn \tex_leftskip:D { 0pt plus 1fil }
+        \skip_zero:N \tex_rightskip:D
+        \skip_zero:N \tex_parfillskip:D
+        \tex_beginR:D
+      }
+  }
+\cs_new_protected:Npn \__lx_gl_rtl_boxsetup:
+  {
+    \lx@tag@if@active:T { \tagpdfsetup { para/tagging = false } }
+    \parindent \c_zero_dim
+    \sys_if_engine_luatex:T { \tex_pardir:D TRT ~ \tex_textdir:D TRT ~ }
+  }
+%% Whether the gloss may be set twice: not with a movement arrow or \altg
+%% in it (see above).  Same tokens as the morpheme alignment's guard.
+\bool_new:N \l__lx_gl_rtl_measurable_bool
+\cs_new_protected:Npn \__lx_gl_rtl_check_measurable:
+  {
+    \bool_set_true:N \l__lx_gl_rtl_measurable_bool
+    \__lx_gl_tiers_if_hold:NT \c__lx_gl_morph_guard_clist
+      { \bool_set_false:N \l__lx_gl_rtl_measurable_bool }
+  }
+\cs_new_protected:Npn \__lx_gl_rtl_measure:
+  {
+    \tag_suspend:n { lx-gl-rtl }
+    \group_begin:
+      \bool_set_true:N \l__lx_gl_measuring_bool
+      \tex_setbox:D \l__lx_gl_rtl_box \tex_vtop:D \c_group_begin_token
+        \hsize \linewidth
+        \__lx_gl_rtl_boxsetup:
+        \__lx_gl_grid_body:
+        \int_gset:Nn \g__lx_gl_rtl_lines_int { \tex_prevgraf:D }
+        \unskip \unpenalty
+        \tex_setbox:D \l__lx_gl_rtl_line_box \tex_lastbox:D
+        \hbox_set:Nn \l__lx_gl_rtl_line_box
+          { \hbox_unpack:N \l__lx_gl_rtl_line_box }
+        \dim_gset:Nn \g__lx_gl_rtl_wd_dim { \box_wd:N \l__lx_gl_rtl_line_box }
+      \c_group_end_token
+    \group_end:
+    \tag_resume:n { lx-gl-rtl }
+  }
+\cs_new_protected:Npn \__lx_gl_rtl_grid:
+  {
     \bool_if:NT \l__lx_gl_side_bool
       {
-        \lx@gl@vtop_set_end:
-        \bool_gset_true:N \g__lx_gl_sidepending_bool
+        \msg_warning:nn { linguexx } { rtl-side }
+        \bool_set_false:N \l__lx_gl_side_bool
       }
+    \tl_if_empty:NF \l__lx_gl_annot_tl
+      {
+        \msg_error:nn { linguexx } { rtl-annot }
+        \tl_clear:N \l__lx_gl_annot_tl
+      }
+    \sys_if_engine_xetex:T
+      {
+        \__lx_gl_tiers_if_hold:NT \c__lx_gl_move_clist
+          {
+            \msg_error:nn { linguexx } { rtl-move-xetex }
+            \bool_set_false:N \l__lx_gl_rtl_bool
+          }
+      }
+    \bool_if:NTF \l__lx_gl_rtl_bool
+      { \__lx_gl_rtl_place: }
+      { \__lx_gl_grid_body: }
+  }
+%% Whether any word of any tier holds one of the tokens of #1.
+\prg_new_protected_conditional:Npnn \__lx_gl_tiers_if_hold:N #1 { T , F }
+  {
+    \bool_set_false:N \l_tmpa_bool
+    \int_step_inline:nn { \l__lx_gl_ntiers_int }
+      {
+        \seq_map_inline:cn { l__lx_gl_tier_ ##1 _seq }
+          {
+            \clist_map_inline:Nn #1
+              {
+                \tl_if_in:nnT {####1} {########1}
+                  { \bool_set_true:N \l_tmpa_bool }
+              }
+          }
+      }
+    \bool_if:NTF \l_tmpa_bool { \prg_return_true: } { \prg_return_false: }
+  }
+\cs_new_protected:Npn \__lx_gl_rtl_place:
+  {
+    \leavevmode
+    \dim_set_eq:NN \l__lx_gl_rtl_wd_dim \linewidth
+    \__lx_gl_rtl_check_measurable:
+    \bool_if:NT \l__lx_gl_rtl_measurable_bool
+      {
+        \__lx_gl_rtl_measure:
+        \int_compare:nNnT { \g__lx_gl_rtl_lines_int } = { 1 }
+          { \dim_set_eq:NN \l__lx_gl_rtl_wd_dim \g__lx_gl_rtl_wd_dim }
+      }
+    \lx@tag@if@active:T { \tag_mc_end_push: }
+    \tex_setbox:D \l__lx_gl_rtl_box \tex_vtop:D \c_group_begin_token
+      \hsize \l__lx_gl_rtl_wd_dim \linewidth \l__lx_gl_rtl_wd_dim
+      \__lx_gl_rtl_boxsetup:
+      \__lx_gl_grid_body:
+    \c_group_end_token
+    \box_use_drop:N \l__lx_gl_rtl_box
+    \lx@tag@if@active:T { \tag_mc_begin_pop:n { } }
+    \par
+  }
+%% \glscript{lang}{text}: the native script as one line above the gloss, in
+%% its own direction, tagged with its language.  An LTR script works too
+%% (a Greek line over a transliteration); only a right-to-left one needs
+%% LuaTeX or XeTeX.  The font is the author's, as for any tier.
+\cs_generate_variant:Nn \text_purify:n { V }
+\NewDocumentCommand \glscript { m m }
+  {
+    \__lx_lang_if_rtl:nTF {#1}
+      {
+        \sys_if_engine_pdftex:TF
+          {
+            \msg_error:nnnn { linguexx } { rtl-pdftex }
+              { \iow_char:N \\glscript\iow_char:N \{#1\iow_char:N \} }
+              { The~line~is~set~left~to~right. }
+            \__lx_glscript:nnn {#1} {#2} { ltr }
+          }
+          { \__lx_rtl_xetex_on: \__lx_glscript:nnn {#1} {#2} { rtl } }
+      }
+      { \__lx_glscript:nnn {#1} {#2} { ltr } }
+  }
+\cs_new_protected:Npn \__lx_glscript:nnn #1#2#3
+  {
+    \leavevmode
+    \lx@tag@if@active:T
+      {
+        \tag_mc_end_push:
+        \tl_if_blank:nTF {#1}
+          { \tag_struct_begin:n { tag = Span } }
+          { \tag_struct_begin:n { tag = Span , lang = #1 } }
+        \bool_lazy_and:nnTF
+          { \sys_if_engine_xetex_p: } { \str_if_eq_p:nn {#3} { rtl } }
+          {
+            \exp_args:Ne \tag_mc_begin:n
+              { tag = Span , actualtext = { \text_purify:n {#2} } }
+          }
+          { \tag_mc_begin:n { tag = Span } }
+      }
+    \hbox:n
+      {
+        \str_if_eq:nnTF {#3} { rtl }
+          {
+            \sys_if_engine_xetex:TF
+              { \tex_beginR:D #2 \tex_endR:D }
+              { \tex_textdir:D TRT ~ #2 }
+          }
+          {#2}
+      }
+    \lx@tag@if@active:T
+      { \tag_mc_end: \tag_struct_end: \tag_mc_begin_pop:n { } }
+    \par \nobreak
   }
 \ExplSyntaxOff
 
