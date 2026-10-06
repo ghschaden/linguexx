@@ -38,6 +38,8 @@ from suite.assertions.glossing import (  # noqa: F401
     a_gloss,
     a_glt,
     a_glt_side,
+    a_morphalign,
+    a_morphalign_ua,
     a_utf8,
     a_utf8_unicode,
 )
@@ -153,6 +155,8 @@ ASSERTIONS = {
     "lpzglist": a_lpzglist,
     "lpzgsetup": a_lpzgsetup,
     "phantomalign": a_phantomalign,
+    "morphalign": a_morphalign,
+    "morphalign-ua": a_morphalign_ua,
     "tierlang-ua": a_tierlang_ua,
     "gltlang-items-ua": a_gltlang_items_ua,
     "gltlang-default-ua": a_gltlang_default_ua,

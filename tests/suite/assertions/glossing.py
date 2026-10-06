@@ -7,9 +7,12 @@ built with check(), which is the whole protocol.
 
 import re
 
-from suite.check import check
+from suite.check import check, warning_body
 from suite.pdf import (
-    TOL, Page, bookmark_titles,
+    TOL, Page, bookmark_titles, inflated,
+)
+from suite.structure import (
+    struct_alts, struct_exps, verapdf_report,
 )
 
 def a_gloss(p: Page):
@@ -481,4 +484,125 @@ def a_babel_de(p: Page):
                                    f'{where}: {tok}'))
     for sent in ("DEMAIN", "DESUB", "DEOBJ", "DEGLOSS", "DEALT"):
         r.append(check(p.find(sent) is not None, f"typeset: {sent}"))
+    return r
+
+
+def a_morphalign(p: Page):
+    r"""\GlossMorphAlign: within a column, each morpheme starts at one x.
+
+    Read off the tiers that are NOT widest at a boundary (see the case's
+    header): there the next segment is a word of its own, and two such
+    readings of one segment start must coincide.
+    """
+    r = []
+
+    def gap(left, right):
+        return p.find(right).x0 - p.find(left).x1
+
+    # (1) the staircase: each segment start read in two tiers
+    b2, c2 = p.find("-Bbbbbbbbb-bc"), p.find("-cb")
+    r.append(check(abs(b2.x0 - c2.x0) < TOL,
+                   f"segment 2 starts at one x in tiers 2 and 3 "
+                   f"({b2.x0:.2f} vs {c2.x0:.2f})"))
+    a3, c3 = p.find("-ac"), p.find("-Ccccccccc")
+    r.append(check(abs(a3.x0 - c3.x0) < TOL,
+                   f"segment 3 starts at one x in tiers 1 and 3 "
+                   f"({a3.x0:.2f} vs {c3.x0:.2f})"))
+    r.append(check(gap("ca", "-cb") > 2,
+                   f"a narrower segment leaves room to the next "
+                   f"({gap('ca', '-cb'):.2f}pt after 'ca')"))
+    # (2) = is a boundary
+    r.append(check(gap("ea", "=Ebbbbbbbbb") > 2,
+                   f"a clitic boundary splits: '=Ebbbbbbbbb' is set after "
+                   f"the object's first segment ({gap('ea', '=Ebbbbbbbbb'):.2f}pt)"))
+    # (3) a braced unit is one segment, and the braces do not print
+    r.append(check(gap("ha-hx", "-hb") > 2,
+                   f"{{ha-hx}} is one segment, so the gloss is aligned "
+                   f"({gap('ha-hx', '-hb'):.2f}pt before '-hb')"))
+    r.append(check(not any("{" in w.text or "}" in w.text for w in p.words),
+                   "no brace is printed"))
+    # (3b) a word braced whole is one segment: the gloss under it is alone
+    # in splitting, so it is not spread
+    r.append(check(p.find("hq-Hb").text == "hq-Hb",
+                   "a word braced whole is one morpheme: the gloss under it "
+                   "is not aligned against its inside"))
+    # ... and the flag belongs to the braced word alone, not to the next one
+    r.append(check(gap("ia", "-Ibbbbbbbbb") > 2,
+                   f"the word after a braced one is split as usual "
+                   f"({gap('ia', '-Ibbbbbbbbb'):.2f}pt before '-Ibbbbbbbbb')"))
+    # (4) a mismatch is set by word, and says so once
+    k1, k2 = p.find("Kkkkkkkkk-kb"), p.find("kx-ky-kz")
+    r.append(check(abs(k1.x0 - k2.x0) < TOL,
+                   f"2 against 3 morphemes: both tiers whole at the column "
+                   f"origin ({k1.x0:.2f} vs {k2.x0:.2f})"))
+    k3 = p.find("kq-Kbbbbbbbbb")
+    r.append(check(k3.text == "kq-Kbbbbbbbbb" and abs(k3.x0 - k1.x0) < TOL,
+                   "... and the whole column: the tier that agrees with tier "
+                   "1 is not aligned with it either"))
+    body = warning_body(p.log, "Package linguexx Warning: Gloss column")
+    r.append(check("Gloss column 1: the segmented tiers split into 2 and 3 and 2 "
+                   "morphemes" in body and "aligned by word" in body,
+                   f"the mismatch is reported with its column and counts: "
+                   f"{body!r}"))
+    r.append(check(p.log.count("which do not match") == 1,
+                   f"exactly one mismatch warning in the log, got "
+                   f"{p.log.count('which do not match')}"))
+    # (5) a leading hyphen is not a boundary
+    m, n = p.find("-Mm"), p.find("Nnnnnnnnn-nb")
+    r.append(check(abs(m.x0 - n.x0) < TOL,
+                   f"-Mm is one segment and stays at the column origin "
+                   f"({m.x0:.2f} vs {n.x0:.2f})"))
+    # (6) an unsegmented tier does not block the others
+    r.append(check(gap("pa", "-Pbbbbbbbbb") > 2,
+                   f"tiers 2 and 3 are aligned past an unsegmented tier 1 "
+                   f"({gap('pa', '-Pbbbbbbbbb'):.2f}pt before '-Pbbbbbbbbb')"))
+    # (7) each tier in its own font: tier 1 is widest and stays one word
+    r.append(check(len(p.find_all("Rrrrrrrr")) == 1
+                   and p.find("Rrrrrrrr-rb").text == "Rrrrrrrr-rb",
+                   "a \\tiny tier is measured \\tiny: the object's first "
+                   "segment is still the widest, and its word unbroken"))
+    r.append(check(gap("ssssssssss", "-sb") > 2,
+                   f"the \\tiny tier is aligned ({gap('ssssssssss', '-sb'):.2f}pt "
+                   f"before '-sb')"))
+    # (8) the pad counts into the first segment
+    v2, x2 = p.find("-Vbbbbbbbbb"), p.find("-xb")
+    r.append(check(abs(v2.x0 - x2.x0) < TOL,
+                   f"with [phantomalign], segment 2 starts at one x in the "
+                   f"unpadded and a padded tier ({v2.x0:.2f} vs {x2.x0:.2f})"))
+    r.append(check("Overfull \\hbox" not in p.log,
+                   "every segment fits its box: no overfull \\hbox (a pad "
+                   "left out of the measuring overflows the first segment)"))
+    w = p.find("Wwwwwwwwww-xb")
+    r.append(check(abs(w.x1 - x2.x1) < TOL,
+                   f"... and in the padded tier holding the widest first "
+                   f"segment, whose word ends where '-xb' does "
+                   f"({w.x1:.2f} vs {x2.x1:.2f})"))
+    # (10) off: one word per tier, at the column origin
+    d = p.find("Ddddddddd-db-dc")
+    for tok in ("fa-Fbbbbbbbbb-fc", "ga-gb-Ggggggggg"):
+        t = p.find(tok)
+        r.append(check(abs(t.x0 - d.x0) < TOL,
+                       f"\\GlossMorphAlignOff: {tok} is one word at the column "
+                       f"origin ({t.x0:.2f} vs {d.x0:.2f})"))
+    return r
+
+
+def a_morphalign_ua(p: Page):
+    r"""The alignment moves ink and nothing else: the tree of an aligned
+    gloss is the tree of the same gloss set by word, and the measuring
+    leaves no structure behind (veraPDF passes that either way, so the
+    counts are the guard)."""
+    r = []
+    verdicts, failures, _ = verapdf_report(p.path)
+    r.append(check(bool(verdicts) and all(ok for _, ok in verdicts),
+                   f"veraPDF: compliant on every profile ({verdicts}; "
+                   f"{failures})"))
+    exps = struct_exps(inflated(p.raw))
+    want = ["plural", "locative", "present"]
+    r.append(check(exps == want + want,
+                   f"each \\lpzg expansion once per gloss, the aligned and "
+                   f"the word-set alike, none from the measuring: {exps}"))
+    alts = struct_alts(p.raw)
+    r.append(check(alts == ["ir or er", "ir or er"],
+                   f"the \\altn's spoken form once per gloss: {alts}"))
     return r

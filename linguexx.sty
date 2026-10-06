@@ -3973,12 +3973,20 @@
 \seq_new:N \l__lx_gl_split_seq
 \tl_new:N  \l__lx_gl_word_tl
 \tl_new:N  \l__lx_gl_bare_tl
+%%
+%% Beside the words, \l__lx_gl_split_braced_seq says of each one whether
+%% it lost a brace pair here (1) or not (0).  Only the morpheme alignment
+%% reads it -- a word braced whole is one morpheme, and the braces are the
+%% only evidence -- and it changes nothing about the words themselves.
+\seq_new:N \l__lx_gl_split_braced_seq
+\bool_new:N \l__lx_gl_split_braced_bool
 \cs_new_protected:Npn \__lx_split:Nn #1#2
   {
     \tl_set:Nn \l__lx_gl_tmp_tl { \q__lx_word #2 }
     \tl_replace_all:Nnn \l__lx_gl_tmp_tl { ~ } { \q__lx_sep \q__lx_word }
     \seq_set_split:NnV \l__lx_gl_split_seq { \q__lx_sep } \l__lx_gl_tmp_tl
     \seq_clear:N #1
+    \seq_clear:N \l__lx_gl_split_braced_seq
     \seq_map_inline:Nn \l__lx_gl_split_seq
       { \__lx_split_word:Nn #1 {##1} }
   }
@@ -3987,6 +3995,7 @@
     \tl_set:No \l__lx_gl_word_tl { \use_none:n #2 }
     \tl_if_empty:NF \l__lx_gl_word_tl
       {
+        \bool_set_false:N \l__lx_gl_split_braced_bool
         \bool_lazy_and:nnT
           { \exp_args:NV \tl_if_head_is_group_p:n \l__lx_gl_word_tl }
           { \int_compare_p:nNn { \tl_count:N \l__lx_gl_word_tl } = { 1 } }
@@ -3994,9 +4003,14 @@
             \tl_set:Ne \l__lx_gl_bare_tl
               { \exp_after:wN \exp_not:n \l__lx_gl_word_tl }
             \tl_if_empty:NF \l__lx_gl_bare_tl
-              { \tl_set_eq:NN \l__lx_gl_word_tl \l__lx_gl_bare_tl }
+              {
+                \tl_set_eq:NN \l__lx_gl_word_tl \l__lx_gl_bare_tl
+                \bool_set_true:N \l__lx_gl_split_braced_bool
+              }
           }
         \seq_put_right:NV #1 \l__lx_gl_word_tl
+        \seq_put_right:Ne \l__lx_gl_split_braced_seq
+          { \bool_if:NTF \l__lx_gl_split_braced_bool { 1 } { 0 } }
       }
   }
 \cs_generate_variant:Nn \__lx_split:Nn { cn , cV }
@@ -5108,7 +5122,15 @@
 %% tree, so replacing it with a raw \hbox_set:Nn was a quiet regression --
 %% two ghost Formulae per column where there had been none, valid under
 %% veraPDF (which passes either way) and wrong for a reader.
+%% Measuring and emitting are two steps so that the morpheme alignment
+%% below can ask how wide the pad of a tier will be before any of the
+%% column is set: a padded tier's first segment has that much less room.
 \cs_new_protected:Npn \__lx_gl_pad:nn #1#2
+  {
+    \__lx_gl_pad_measure:nn {#1} {#2}
+    \hbox_to_wd:nn { \dim_max:nn { \c_zero_dim } { \l__lx_gl_pad_dim } } { }
+  }
+\cs_new_protected:Npn \__lx_gl_pad_measure:nn #1#2
   {
     \__lx_gl_word_get:Ncn \l__lx_gl_tierword_tl
       { l__lx_gl_tier_ #1 _seq } {#2}
@@ -5122,7 +5144,269 @@
       { \lx@glfontuse {#1} { \l__lx_gl_tierprefix_tl } }
     \dim_sub:Nn \l__lx_gl_pad_dim { \box_wd:N \l__lx_gl_pad_box }
     \tag_resume:n { lx-gl-pad }
-    \hbox_to_wd:nn { \dim_max:nn { \c_zero_dim } { \l__lx_gl_pad_dim } } { }
+  }
+%% ---- morpheme alignment inside a column (opt-in) -------------------------
+%% \GlossMorphAlign: within a column, each morpheme starts at the same x in
+%% every tier that is segmented, so "ev-ler-de" over "house-PL-LOC" puts
+%% "-ler" over "-PL" instead of leaving both words merely left-aligned.
+%% \GlossMorphAlignOff turns it off; group-scoped like \GlossPhantomAlign, off
+%% by default, and with it off nothing below runs.
+%%
+%% No markup of its own.  A word is split at the boundaries a Leipzig
+%% source already types, - and =, at brace depth 0, and the delimiter
+%% opens the segment it introduces, so the hyphens line up too.  What is
+%% NOT a boundary:
+%%   * anything in braces.  {in-law}-mother is two segments, and a word
+%%     braced whole is one.  The latter needs \l__lx_gl_split_braced_seq,
+%%     because the word splitter strips a whole-word brace pair on purpose
+%%     ({ein Beispiel} is the words "ein Beispiel") and by the time a
+%%     column is set the braces are gone.  Keeping them on the word instead
+%%     was tried in the probe (experiments/morph); it changes what the
+%%     phantom scan and the \altg detection see at the head of a word, and
+%%     a flag beside the word changes nothing.
+%%   * a delimiter with nothing on one side of it.  A leading or trailing
+%%     one, or two in a row, makes the word a single segment: a citation
+%%     suffix -t and an en dash 1914--1918 are not morpheme boundaries.
+%%
+%% Per column, the tiers whose word has two or more segments are aligned
+%% segment by segment; a tier whose word does not split is set whole.  That
+%% is what \glll with an unsegmented first tier needs, and it means that
+%% schlaf-t over sleep.3SG is no mismatch: the gloss simply has no
+%% boundary.  Segmented tiers that disagree on the count are a mismatch:
+%% the column is set by word and a warning names it.  Leipzig's rule 2 says
+%% the counts match, so it is usually a typo, and a typo is no reason to
+%% stop a build.
+%%
+%% Segment k is as wide as the widest k-th segment among the segmented
+%% tiers, each measured in its own tier's font.  The last segment is set
+%% at its natural width.  A tier padded by [phantomalign] counts its pad
+%% into its first segment, so the pad and the alignment do not add up.
+%%
+%% The measuring typesets each segment into a box that is dropped, and
+%% that is the cost: everything in a segment is executed twice.  Under
+%% \tag_suspend:n for the tree, as in \__lx_gl_pad_measure:nn.  \lpzg
+%% records its key with an immediate write behind a duplicate guard, so a
+%% second execution is harmless, and so is an \altn: measured, it aligns
+%% like any other segment.  \altg is not: its object/gloss protocol is a
+%% global toggle flipped once per call, and the measuring runs only the
+%% tiers that split -- an object \altg in a segmented word over a gloss
+%% \altg in an unsegmented one is measured alone, leaves the toggle set,
+%% and the real calls then end in "has no partner".  A movement arrow run
+%% twice is "Two \mvto{q} in one example".  A column holding either is set
+%% by word, as it was before this existed, without a warning: nothing is
+%% wrong with it.  (Both were tried with the guard removed; that is how
+%% these two errors are known, and why \altn is not on the list.)
+\bool_new:N \l__lx_gl_morph_bool
+\cs_new_protected:Npn \GlossMorphAlign
+  { \bool_set_true:N \l__lx_gl_morph_bool }
+\cs_new_protected:Npn \GlossMorphAlignOff
+  { \bool_set_false:N \l__lx_gl_morph_bool }
+%% Segments of this column, 0 when it is set by word.
+\int_new:N  \l__lx_gl_morph_n_int
+\int_new:N  \l__lx_gl_morph_i_int
+\int_new:N  \l__lx_gl_morph_j_int
+\int_new:N  \l__lx_gl_morph_first_int
+\bool_new:N \l__lx_gl_morph_bad_bool
+\bool_new:N \l__lx_gl_morph_mismatch_bool
+\bool_new:N \l__lx_gl_morph_guard_bool
+\seq_new:N  \l__lx_gl_morph_dash_seq
+\seq_new:N  \l__lx_gl_morph_eq_seq
+\tl_new:N   \l__lx_gl_morph_word_tl
+\tl_new:N   \l__lx_gl_morph_counts_tl
+\box_new:N  \l__lx_gl_morph_box
+%% Both spellings: the short names are aliases claimed for the long ones,
+%% and a source may use either.
+\clist_const:Nn \c__lx_gl_morph_guard_clist
+  { \altg , \lxAltg , \mvfrom , \lxMoveFrom , \mvto , \lxMoveTo }
+\msg_new:nnn { linguexx } { morph-mismatch }
+  {
+    Gloss~column~#1:~the~segmented~tiers~split~into~#2~morphemes,~
+    which~do~not~match;~the~column~is~aligned~by~word.
+  }
+%% #1 the seq to fill, #2 a tl holding the word.
+\cs_new_protected:Npn \__lx_gl_morph_split:NN #1#2
+  {
+    \seq_clear:N #1
+    \bool_set_false:N \l__lx_gl_morph_bad_bool
+    \exp_args:NNnV \seq_set_split_keep_spaces:Nnn
+      \l__lx_gl_morph_dash_seq { - } #2
+    \int_zero:N \l__lx_gl_morph_i_int
+    \seq_map_inline:Nn \l__lx_gl_morph_dash_seq
+      {
+        \int_incr:N \l__lx_gl_morph_i_int
+        \seq_set_split_keep_spaces:Nnn \l__lx_gl_morph_eq_seq { = } {##1}
+        \int_zero:N \l__lx_gl_morph_j_int
+        \seq_map_inline:Nn \l__lx_gl_morph_eq_seq
+          {
+            \int_incr:N \l__lx_gl_morph_j_int
+            \tl_if_blank:nT {####1}
+              { \bool_set_true:N \l__lx_gl_morph_bad_bool }
+            \seq_put_right:Ne #1
+              {
+                \int_compare:nNnTF { \l__lx_gl_morph_j_int } > { 1 }
+                  { = }
+                  {
+                    \int_compare:nNnT { \l__lx_gl_morph_i_int } > { 1 }
+                      { - }
+                  }
+                \exp_not:n {####1}
+              }
+          }
+      }
+    \bool_if:NT \l__lx_gl_morph_bad_bool
+      { \seq_clear:N #1 \seq_put_right:NV #1 #2 }
+  }
+%% Run once per column, before its cells: decides whether the column is
+%% aligned, and if so how wide each segment is.  #1 is the column.
+\cs_new_protected:Npn \__lx_gl_morph_column:n #1
+  {
+    \int_zero:N \l__lx_gl_morph_n_int
+    \int_zero:N \l__lx_gl_morph_first_int
+    \bool_set_false:N \l__lx_gl_morph_mismatch_bool
+    \bool_set_false:N \l__lx_gl_morph_guard_bool
+    \tl_clear:N \l__lx_gl_morph_counts_tl
+    \int_step_inline:nn { \l__lx_gl_ntiers_int }
+      {
+        \seq_clear_new:c { l__lx_gl_morph_ ##1 _seq }
+        \__lx_gl_word_get:Ncn \l__lx_gl_morph_word_tl
+          { l__lx_gl_tier_ ##1 _seq } {#1}
+        \clist_map_inline:Nn \c__lx_gl_morph_guard_clist
+          {
+            \tl_if_in:NnT \l__lx_gl_morph_word_tl {####1}
+              { \bool_set_true:N \l__lx_gl_morph_guard_bool }
+          }
+        \str_if_eq:eeTF
+          { \seq_item:cn { l__lx_gl_tier_ ##1 _braced_seq } {#1} } { 1 }
+          { \seq_put_right:cV { l__lx_gl_morph_ ##1 _seq }
+              \l__lx_gl_morph_word_tl }
+          { \__lx_gl_morph_split:cN { l__lx_gl_morph_ ##1 _seq }
+              \l__lx_gl_morph_word_tl }
+        \int_compare:nNnT
+          { \seq_count:c { l__lx_gl_morph_ ##1 _seq } } > { 1 }
+          {
+            \tl_put_right:Ne \l__lx_gl_morph_counts_tl
+              {
+                \tl_if_empty:NF \l__lx_gl_morph_counts_tl { ~and~ }
+                \seq_count:c { l__lx_gl_morph_ ##1 _seq }
+              }
+            \int_compare:nNnTF { \l__lx_gl_morph_first_int } = { 0 }
+              {
+                \int_set:Nn \l__lx_gl_morph_first_int {##1}
+                \int_set:Nn \l__lx_gl_morph_n_int
+                  { \seq_count:c { l__lx_gl_morph_ ##1 _seq } }
+              }
+              {
+                \int_compare:nNnF
+                  { \seq_count:c { l__lx_gl_morph_ ##1 _seq } }
+                  = { \l__lx_gl_morph_n_int }
+                  { \bool_set_true:N \l__lx_gl_morph_mismatch_bool }
+              }
+          }
+      }
+    \bool_if:NT \l__lx_gl_morph_mismatch_bool
+      {
+        \bool_if:NF \l__lx_gl_morph_guard_bool
+          {
+            \msg_warning:nnee { linguexx } { morph-mismatch }
+              {#1} { \l__lx_gl_morph_counts_tl }
+          }
+      }
+    \bool_lazy_or:nnT
+      { \l__lx_gl_morph_mismatch_bool } { \l__lx_gl_morph_guard_bool }
+      { \int_zero:N \l__lx_gl_morph_n_int }
+    \int_compare:nNnT { \l__lx_gl_morph_n_int } > { 0 }
+      { \__lx_gl_morph_widths:n {#1} }
+  }
+\cs_generate_variant:Nn \__lx_gl_morph_split:NN { cN }
+\cs_generate_variant:Nn \seq_put_right:Nn { cV }
+%% The pads first, each under its own suspension, then every segment.
+\cs_new_protected:Npn \__lx_gl_morph_widths:n #1
+  {
+    \int_step_inline:nn { \l__lx_gl_ntiers_int }
+      {
+        \dim_zero_new:c { l__lx_gl_morph_pad_ ##1 _dim }
+        \bool_lazy_and:nnT
+          { \int_compare_p:nNn {##1} > { 1 } }
+          { ! \tl_if_empty_p:N \l__lx_gl_prefix_tl }
+          {
+            \__lx_gl_pad_measure:nn {##1} {#1}
+            \dim_set:cn { l__lx_gl_morph_pad_ ##1 _dim }
+              { \dim_max:nn { \c_zero_dim } { \l__lx_gl_pad_dim } }
+          }
+      }
+    \int_step_inline:nn { \l__lx_gl_morph_n_int }
+      { \dim_zero_new:c { l__lx_gl_morph_w_ ##1 _dim } }
+    \tag_suspend:n { lx-gl-morph }
+    \int_step_inline:nn { \l__lx_gl_ntiers_int }
+      {
+        \int_compare:nNnT
+          { \seq_count:c { l__lx_gl_morph_ ##1 _seq } }
+          = { \l__lx_gl_morph_n_int }
+          {
+            \int_step_inline:nn { \l__lx_gl_morph_n_int }
+              {
+                \hbox_set:Nn \l__lx_gl_morph_box
+                  {
+                    \lx@glfontuse {##1}
+                      { \seq_item:cn { l__lx_gl_morph_ ##1 _seq } {####1} }
+                  }
+                \int_compare:nNnT {####1} = { 1 }
+                  {
+                    \box_set_wd:Nn \l__lx_gl_morph_box
+                      {
+                        \box_wd:N \l__lx_gl_morph_box
+                        + \dim_use:c { l__lx_gl_morph_pad_ ##1 _dim }
+                      }
+                  }
+                \dim_set:cn { l__lx_gl_morph_w_ ####1 _dim }
+                  {
+                    \dim_max:nn
+                      { \dim_use:c { l__lx_gl_morph_w_ ####1 _dim } }
+                      { \box_wd:N \l__lx_gl_morph_box }
+                  }
+              }
+          }
+      }
+    \tag_resume:n { lx-gl-morph }
+  }
+%% One cell: #1 the tier, #2 the column.  Inside the word's own marked
+%% content, so the segments are boxes within it and the tree does not
+%% change: the tags of an aligned gloss are those of the same gloss set by
+%% word.
+\cs_new_protected:Npn \__lx_gl_morph_cell:nn #1#2
+  {
+    \bool_lazy_and:nnTF
+      { \int_compare_p:nNn { \l__lx_gl_morph_n_int } > { 0 } }
+      {
+        \int_compare_p:nNn
+          { \seq_count:c { l__lx_gl_morph_ #1 _seq } }
+          = { \l__lx_gl_morph_n_int }
+      }
+      {
+        \int_step_inline:nn { \l__lx_gl_morph_n_int - 1 }
+          {
+            \hbox_to_wd:nn
+              {
+                \dim_use:c { l__lx_gl_morph_w_ ##1 _dim }
+                \int_compare:nNnT {##1} = { 1 }
+                  { - \dim_use:c { l__lx_gl_morph_pad_ #1 _dim } }
+              }
+              {
+                \lx@glfontuse {#1}
+                  { \seq_item:cn { l__lx_gl_morph_ #1 _seq } {##1} }
+                \hfil
+              }
+          }
+        \lx@glfontuse {#1}
+          {
+            \seq_item:cn { l__lx_gl_morph_ #1 _seq }
+              { \l__lx_gl_morph_n_int }
+          }
+      }
+      {
+        \lx@glfontuse {#1}
+          { \seq_item:cn { l__lx_gl_tier_ #1 _seq } {#2} }
+      }
   }
 %% An \exannot on the OBJECT line of a gloss.  It is lifted off tier 1
 %% before the columns are built and set after them, on the object tier's
@@ -5344,6 +5628,14 @@
         \__lx_split:cV
           { l__lx_gl_tier_ \int_use:N \l__lx_gl_ntiers_int _seq }
           \l__lx_gl_line_tl
+        \bool_if:NT \l__lx_gl_morph_bool
+          {
+            \seq_clear_new:c
+              { l__lx_gl_tier_ \int_use:N \l__lx_gl_ntiers_int _braced_seq }
+            \seq_set_eq:cN
+              { l__lx_gl_tier_ \int_use:N \l__lx_gl_ntiers_int _braced_seq }
+              \l__lx_gl_split_braced_seq
+          }
         \int_set:Nn \l__lx_gl_maxwords_int
           { \int_max:nn { \l__lx_gl_maxwords_int }
               { \seq_count:c
@@ -5391,6 +5683,9 @@
             \__lx_gl_leadprefix:N \l__lx_gl_obj_tl
           }
           { \tl_clear:N \l__lx_gl_prefix_tl }
+        %% After the prefix, which the alignment reads for the pads.
+        \bool_if:NT \l__lx_gl_morph_bool
+          { \__lx_gl_morph_column:n {##1} }
         \vtop
           {
             \int_step_inline:nn { \l__lx_gl_ntiers_int }
@@ -5406,8 +5701,12 @@
                       { \tl_if_empty:NF \l__lx_gl_prefix_tl
                           { \__lx_gl_pad:nn {####1} {##1} } }
                     \lx@gl@wordbegin {####1}
-                    \lx@glfontuse {####1}
-                      { \seq_item:cn { l__lx_gl_tier_ ####1 _seq } {##1} }
+                    \bool_if:NTF \l__lx_gl_morph_bool
+                      { \__lx_gl_morph_cell:nn {####1} {##1} }
+                      {
+                        \lx@glfontuse {####1}
+                          { \seq_item:cn { l__lx_gl_tier_ ####1 _seq } {##1} }
+                      }
                     \lx@gl@wordend {####1} }
               }
           }%

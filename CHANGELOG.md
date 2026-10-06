@@ -13,6 +13,16 @@ version string.
   `\GlossTransLang` still wins, and `\GlossTransLang{}` lets translations
   follow the glosses again. Documents that declare no tier language beyond
   the object line are unchanged.
+- New: morpheme alignment in glosses. Under `\GlossMorphAlign` each
+  morpheme of a column starts at the same point in every segmented tier,
+  hyphens included: `ev-ler-de` over `house-PL-LOC` puts `-ler` over
+  `-PL`. No new markup -- words split at `-` and `=`, braces keep a unit
+  whole (`{in-law}-mother`), and a citation form `-t` or an en dash is not
+  split. A tier that does not split is set whole; segmented tiers that
+  disagree on the count are set by word for that column, with a warning
+  naming it. Off by default and group-scoped; `\GlossMorphAlignOff` turns it
+  off. Works with `[phantomalign]`; a column holding `\altg` or a movement
+  arrow stays aligned by word. Changes nothing in the structure tree.
 - Fixed: under `\GlossTransLang`, a translated sub-example, or a translated
   `\ex` in an `exe` list, left its translation's language open into the
   next item. That item was built inside it, every later example number sat

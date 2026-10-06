@@ -1,0 +1,102 @@
+\input{_preamble}
+%% Morpheme alignment inside a gloss column (\GlossMorphAlign, opt-in).
+%%
+%% How it is measured.  Segments touch, and pdftotext merges glyphs closer
+%% than about 2pt into one word, so in the tier that holds the widest k-th
+%% segment, segment k+1 is not a word of its own and its position cannot
+%% be read.  In every OTHER tier it can: a narrower segment leaves a gap,
+%% and what follows the gap starts a new word exactly where segment k+1
+%% begins.  So the probes are built as staircases -- each tier holds the
+%% widest segment once -- and every segment start is read in two tiers and
+%% asserted to coincide.  Every word is a sentinel, unique on the page.
+\begin{document}
+\GlossMorphAlign
+
+% (1) the staircase.  Widest first segment in tier 1, widest second in
+% tier 2, widest third in tier 3.  Segment 2 starts are read in tiers 2
+% and 3 ("-Bbbbbbbbb-bc", "-cb"), segment 3 starts in tiers 1 and 3
+% ("-ac", "-Ccccccccc").
+\ex. \glll Aaaaaaaaa-ab-ac \\
+           ba-Bbbbbbbbb-bc \\
+           ca-cb-Ccccccccc \\
+
+% (2) a clitic boundary is a boundary: = splits as - does.
+\ex. \gll Eeeeeeeee=eb \\
+          ea=Ebbbbbbbbb \\
+
+% (3) braces keep a unit whole.  {ha-hx} is ONE segment, so the gloss has
+% two against the object's two and is aligned; were the braces lost on the
+% way, it would have three, mismatch, and be set by word.
+\ex. \gll Gggggggggg-gb \\
+          {ha-hx}-hb \\
+
+% (3b) ... and a word braced whole is one segment, so it does not take
+% part and the gloss under it, alone, is not spread; split, it would align
+% with hq-Hb and open a gap after hq.  But only that word: the column after
+% it is aligned as usual.
+\ex. \gll {Hhhhhhhhh-hh} Iiiiiiiii-ib \\
+          hq-Hb ia-Ibbbbbbbbb \\
+
+% (4) a mismatch (2 against 3): the column is set by word, with a warning
+% -- ALL of it, including tier 3, which agrees with tier 1 and would
+% otherwise be aligned with it.
+\ex. \glll Kkkkkkkkk-kb \\
+           kx-ky-kz \\
+           kq-Kbbbbbbbbb \\
+
+% (5) a leading hyphen is not a boundary.  -Mm is one segment, so tier 1
+% does not take part and stays at the column origin; split, it would be
+% "" and "-Mm" and land after Nnnnnnnnn.
+\ex. \gll -Mm \\
+          Nnnnnnnnn-nb \\
+
+% (6) a tier that does not split is set whole and does not block the
+% others: tiers 2 and 3 are aligned past an unsegmented tier 1.
+\ex. \glll Ppp \\
+           pa-Pbbbbbbbbb \\
+           Qqqqqqqqq-qb \\
+
+% (7) each tier is measured in its own font.  Ten \tiny s are narrower
+% than Rrrrrrrr, so tier 1 holds the widest first segment and stays one
+% word; measured in tier 1's font they would be wider, and tier 1 would
+% open a gap after Rrrrrrrr.
+{\GlossTierFont{2}{\tiny}%
+\ex. \gll Rrrrrrrr-rb \\
+          ssssssssss-sb \\
+
+}
+
+% (8) [phantomalign]: the pad of a lower tier counts into its first
+% segment.  Tier 2 holds the widest first segment (pad + Wwwwwwwwww); tiers
+% 1 and 3 open a gap, so the segment-2 start is read in both ("-Vbbbbbbbbb",
+% "-xb"), and tier 2's word must END where tier 3's "-xb" ends.  Its
+% first segment must also fit its box: measured without the pad, the box
+% is the pad too narrow, and TeX reports an overfull \hbox -- which no
+% example in this case may produce.
+{\GlossPhantomAlign
+\ex. \glll [va-Vbbbbbbbbb \\
+           Wwwwwwwwww-xb \\
+           xa-xb \\
+
+}
+
+% (9) guards.  An \altg in a segmented object word over an unsegmented
+% gloss \altg, and a movement arrow in a segmented word: measured, the
+% first ends in "has no partner" and the second in "Two \mvto{q} in one
+% example".  The columns are set by word instead, so this compiles.  The
+% \altg column overprints its suffix: that is \altg with anything attached
+% to the stack, and it does so without \GlossMorphAlign too.
+\ex. \gll \altg{YALTA}{YALTB}-mt Ttt \\
+          \altg{yalta}{yaltb} tx \\
+
+\ex. \gll Uuuuuuuu-\mvto{q}{ULAND} geht ua-\mvfrom{q}{UBASE} \\
+          ux-x goes uy-y \\
+
+% (10) off again: the same staircase as (1), set by word.  Every tier is
+% one word at the column origin.
+\GlossMorphAlignOff
+\ex. \glll Ddddddddd-db-dc \\
+           fa-Fbbbbbbbbb-fc \\
+           ga-gb-Ggggggggg \\
+
+\end{document}

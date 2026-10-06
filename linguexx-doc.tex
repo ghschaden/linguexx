@@ -1438,6 +1438,67 @@ not kern with the letter that follows it in the object word. Brackets,
 parentheses and judgment marks do not kern with letters, so in practice this
 never bites; a leading slash or the like might land a fraction off.
 
+\subsection{Aligning morphemes}\label{sec:morphalign}
+
+A column of a gloss is aligned by word: the gloss starts under the object
+word, and nothing inside the two lines up. In a heavily segmented example
+that leaves the reader to count hyphens. \cs{GlossMorphAlign} aligns the
+morphemes as well, so that each one starts at the same point in every tier
+that is segmented, its hyphen included:
+
+\begin{code}
+\GlossMorphAlign
+\ex. \gll ev-ler-imiz-de otur-uyor-uz \\
+          house-\lpzg{pl}-\lpzg{1pl.poss}-\lpzg{loc}
+          sit-\lpzg{prog}-\lpzg{1pl} \\
+\glt `We are sitting in our houses.'
+\end{code}
+
+\rendered
+{\GlossMorphAlign
+\ex. \gll ev-ler-imiz-de otur-uyor-uz \\
+     house-\lpzg{pl}-\lpzg{1pl.poss}-\lpzg{loc} sit-\lpzg{prog}-\lpzg{1pl} \\
+\glt `We are sitting in our houses.'
+
+}
+
+\afterex
+There is no markup to learn: a word is split at the boundaries a source
+written to the Leipzig rules already has, \texttt{-} between affixes and
+\texttt{=} before a clitic. Each segment is as wide as the widest segment
+in its position, so in the tier that holds the widest one the segments
+simply follow each other, and the alignment shows in the other tiers.
+
+\begin{itemize}
+\item \emph{Braces keep a unit whole.} A gloss of several words that the
+  author writes with hyphens, \verb|{in-law}-mother|, is two segments, not
+  three; a word braced as a whole is one.
+\item \emph{A delimiter with nothing on one side is not a boundary.} A
+  citation form such as \texttt{-t} and an en dash such as
+  \texttt{1914-{}-1918} are left alone.
+\item \emph{A tier that does not split is set whole.} It does not take part,
+  which is what a three-tier gloss with an unsegmented first line needs; and
+  \texttt{schlaf-t} over \texttt{sleep.\lpzg{3sg}} is simply a segmented word
+  over a gloss with no boundary.
+\item \emph{Segmented tiers must agree.} If two of them split one column into
+  different numbers of morphemes --- usually a typo, since the Leipzig rules
+  ask for the counts to match --- that column is aligned by word, and the
+  log names it:
+  ``Gloss column 2: the segmented tiers split into 3 and 4 morphemes, which
+  do not match''. The rest of the gloss is still aligned.
+\end{itemize}
+
+\cs{GlossMorphAlign} is a declaration, off by default, and obeys the usual
+scope rule: in the preamble it covers the document, inside a group a single
+example, and \cs{GlossMorphAlignOff} turns it off again. It works with the
+\opt{phantomalign} padding of section~\ref{sec:phantomalign}, which counts
+into the first morpheme of the tier it pads. A column that holds an
+\cs{altg} or a movement arrow (\cs{mvfrom}, \cs{mvto}) is aligned by word:
+finding the widths means typesetting each morpheme once more, and those two
+are commands that must run exactly once. Under tagging nothing changes: the
+morphemes are placed within the word they belong to, and the structure tree
+of an aligned gloss is that of the same gloss aligned by word.
+
 \subsection{The language of a tier (tagged PDFs)}\label{sec:glosslang}
 The object line of a gloss is usually in a different language from the
 document. In a tagged PDF that difference can be recorded so that a screen
@@ -3434,6 +3495,7 @@ exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package opt
 \textbackslash GlossPhantomAlign & Align gloss words past leading brackets, parentheses and judgment marks (\emph{recommended}; section~\ref{sec:phantomalign}). Also the package option \opt{phantomalign}; \cs{GlossPhantomAlignOff} reverts. \\
 \textbackslash GlossPhantomChars\allowbreak\marg{marks} & Leading marks that alignment skips; one token is one mark, characters and commands alike (default \texttt{*?([<} plus \textbackslash\# \textbackslash\%). \\
 \textbackslash GlossPhantom\allowbreak\marg{material} & Manual override: pad a gloss word by an invisible box the width of \meta{material}, in the object font. \\
+\textbackslash GlossMorphAlign & Align morphemes inside each column, at \texttt{-} and \texttt{=} (off by default; section~\ref{sec:morphalign}); \cs{GlossMorphAlignOff} reverts. \\
 \addlinespace
 \multicolumn{2}{@{}l}{\itshape References} \\
 \textbackslash label, \textbackslash ref & As usual; references print in parentheses. \\

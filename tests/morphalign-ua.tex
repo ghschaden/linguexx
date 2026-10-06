@@ -1,0 +1,26 @@
+%% Morpheme alignment under PDF/UA-2: it moves ink and nothing else.
+%%
+%% The segments of an aligned word are boxes inside the word's own marked
+%% content, so the tree of an aligned gloss must be the tree of the same
+%% gloss set by word.  What could make them differ is the measuring: each
+%% segment is typeset into a box that is dropped, and tagpdf builds the
+%% tree as material is executed, not when a box is used.  An \lpzg in a
+%% measured segment would then leave a Span with an /E expansion behind
+%% for every measurement, and an \altn a spoken /Alt -- veraPDF passes
+%% both, so the counts are the guard.
+%%
+%% The same gloss twice, aligned and then by word: every expansion and
+%% every spoken form must come out twice, the two halves equal.
+\input{_preamble-ua}
+\GlossTierLang{1}{tr}
+\GlossMorphAlign
+\ex. \gll ev-ler-de gel-\altn{ir}{er} \\
+          house-\lpzg{pl}-\lpzg{loc} come-\lpzg{prs} \\
+\glt `in the houses; comes'
+
+\GlossMorphAlignOff
+\ex. \gll ev-ler-de gel-\altn{ir}{er} \\
+          house-\lpzg{pl}-\lpzg{loc} come-\lpzg{prs} \\
+\glt `in the houses; comes'
+
+\end{document}
