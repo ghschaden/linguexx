@@ -76,6 +76,7 @@ from suite.assertions.tagging import (  # noqa: F401
     a_lpzgsetup,
     a_gltlang_items_ua,
     a_tagged,
+    a_tierlang_ua,
     a_ua,
 )
 from suite.assertions.movement import (  # noqa: F401
@@ -151,6 +152,7 @@ ASSERTIONS = {
     "lpzglist": a_lpzglist,
     "lpzgsetup": a_lpzgsetup,
     "phantomalign": a_phantomalign,
+    "tierlang-ua": a_tierlang_ua,
     "gltlang-items-ua": a_gltlang_items_ua,
     "parens-glossing-align": a_parens_glossing_align,
     "phantommarks": a_phantommarks,

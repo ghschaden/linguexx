@@ -1,0 +1,30 @@
+%% \GlossTierLang with an empty code clears the tier's language.
+%%
+%% It used to store the empty string and write /Lang () on every word of
+%% the tier -- not a language tag, so veraPDF fails the file (8.4.4-2) --
+%% and there was no other way to take a declaration back.  Cleared, a tier
+%% has no /Lang of its own and is read in the document's (en), which PDF
+%% inheritance gives without anything being written.
+%%
+%% Tier 1 is German throughout, so the de count is the yardstick: 2 words
+%% in each of the 4 examples.  Tier 2 is French by default, and the fr
+%% count says where the clearing reached:
+%%   (1)  default            -> fr fr
+%%   (2)  cleared inside     -> none, and only for this example
+%%   (3)  default again      -> fr fr
+%%   (4)  cleared, blank     -> none (a code of spaces is empty too)
+\input{_preamble-ua}
+\GlossTierLang{1}{de}
+\GlossTierLang{2}{fr}
+
+\ex. \gll Der Hund \\ le chien \\
+
+\ex. \GlossTierLang{2}{}
+\gll Die Katze \\ le chat \\
+
+\ex. \gll Das Pferd \\ le cheval \\
+
+\GlossTierLang{2}{ }
+\ex. \gll Die Kuh \\ the cow \\
+
+\end{document}

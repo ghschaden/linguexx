@@ -1477,6 +1477,14 @@ tagging is active (section~\ref{sec:tagging}): it changes nothing in the
 printed gloss and nothing in an untagged document. A tier with no declared
 language behaves exactly as before.
 
+An empty code takes a declaration back: after
+\verb|\GlossTierLang{2}{}| tier~2 has no language of its own again, under
+the same scope rule (inside an example, for that example only). Such a
+tier is read in the language of the document --- the one given to
+\cs{DocumentMetadata} --- because a PDF element without a language takes
+that of what contains it; nothing needs to be written for it.
+\verb|\GlossTransLang{}| does the same for the translation.
+
 The free translation is a tier of its own kind, and usually in a third
 language: neither the object language nor, in a paper written in one
 language and glossing into another, the language of the document.

@@ -10,6 +10,11 @@ version string.
   one level deeper in the structure tree than it should, and the PDF failed
   PDF/UA (an `LI` inside an `LI`). The translation's language now ends
   with its item.
+- Fixed: `\GlossTierLang{2}{}` wrote an empty `/Lang ()` on every word of
+  tier 2, which is not a language tag and fails PDF/UA (veraPDF 8.4.4-2).
+  An empty code now clears the tier's declaration, as `\GlossTransLang{}`
+  always has: the tier is read in the document's language, and inside an
+  example the clearing lasts for that example only.
 
 ## 1.4
 - New: movement arrows. `\mvto{a}{What} did John buy \mvfrom{a}{\_\_}?`

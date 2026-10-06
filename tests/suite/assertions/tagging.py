@@ -1068,6 +1068,31 @@ def a_lpzg_mod(p: Page):
     return r
 
 
+def a_tierlang_ua(p: Page):
+    r"""\GlossTierLang with an empty code clears the tier's language: no
+    /Lang () (not a language tag, veraPDF 8.4.4-2), and the tier is read in
+    the document's language by inheritance.  The counts say how far each
+    clearing reached -- see the case's header for the table."""
+    r = []
+    verdicts, failures, _ = verapdf_report(p.path)
+    r.append(check(bool(verdicts) and all(ok for _, ok in verdicts),
+                   f"veraPDF: compliant on every profile ({verdicts}; "
+                   f"{failures})"))
+    langs = struct_langs(inflated(p.raw))
+    blank = [lang for lang in langs if not lang.strip()]
+    r.append(check(not blank,
+                   f"no empty or blank /Lang anywhere in the tree "
+                   f"(found {blank!r})"))
+    r.append(check(langs.count("de") == 8,
+                   f"tier 1 keeps its language in all four examples: 8 de, "
+                   f"got {langs.count('de')}"))
+    r.append(check(langs.count("fr") == 4,
+                   f"tier 2 is French in (1) and (3) only: cleared inside "
+                   f"(2) for that example alone, and from (4) on; 4 fr, got "
+                   f"{langs.count('fr')}"))
+    return r
+
+
 def a_gltlang_items_ua(p: Page):
     r"""A translation's language Span closes with its item: four
     translations, four fr Spans, and no item built inside another (which is

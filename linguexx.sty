@@ -4027,10 +4027,25 @@
 %% default (it persists to the end of its enclosing group); issued inside
 %% an example -- whose body is typeset within the example's list group --
 %% it overrides only that example and reverts afterwards.
+%%
+%% An empty (or blank) code CLEARS the tier's declaration, under the same
+%% scoping: the tier then has no language of its own and is read in the
+%% language of what contains it -- in the end the document's, from
+%% \DocumentMetadata -- which is what PDF's /Lang inheritance gives for
+%% free.  \GlossTransLang{} has always meant that.  This one used to store
+%% the empty string and write /Lang () on every word of the tier, which is
+%% no language tag at all (veraPDF 8.4.4-2), and left no way to undo a
+%% declaration short of a group.  The document's language is deliberately
+%% not written out in its place: inherited, it is right by construction,
+%% and a document that declares none has a problem a guess here would hide.
 \prop_new:N \l_lx_gl_lang_prop
 \tl_new:N  \l__lx_gl_lang_tl
 \NewDocumentCommand \GlossTierLang { m m }
-  { \prop_put:Nnn \l_lx_gl_lang_prop {#1} {#2} }
+  {
+    \tl_if_blank:nTF {#2}
+      { \prop_remove:Nn \l_lx_gl_lang_prop {#1} }
+      { \prop_put:Nnn \l_lx_gl_lang_prop {#1} {#2} }
+  }
 
 %% Objective 6: Leipzig glossing abbreviations with spoken expansions.
 %% \lpzg{sg} typesets the abbreviation in small caps and, under tagging,
