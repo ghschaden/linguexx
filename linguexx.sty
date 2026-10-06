@@ -1986,7 +1986,18 @@
 %% \unskip twice, and the \if@inlabel guard, are \@item's own: \item is
 %% what would otherwise be doing this, and a pending label (an \item whose
 %% paragraph has not started) must be left for it to open.
-\def\lx@endprevpar{\if@inlabel\else\ifhmode\unskip\unskip\par\fi\fi}
+%%
+%% \lx@glt@langend first, while the previous item's paragraph is still the
+%% current one: a translation's language Span (\GlossTransLang) is closed
+%% by the example's exits, and an item boundary is not one.  Without it the
+%% Span of (a)'s translation was still open when (b) began, (b) was built
+%% inside it -- an LI inside an LI, every later example number one level
+%% too deep, veraPDF LI-LI-1 on all profiles -- and the same for
+%% consecutive \ex items of one exe list.  It is a no-op when no Span is
+%% open, which is every item of a document without \GlossTransLang.
+\def\lx@endprevpar{%
+  \lx@glt@langend
+  \if@inlabel\else\ifhmode\unskip\unskip\par\fi\fi}
 \def\lx@main@core{%
   \lx@endprevpar
   \lx@customexfalse

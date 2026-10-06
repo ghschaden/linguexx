@@ -15,7 +15,7 @@ from suite.geometry import (
 )
 from suite.pdf import (
     _band_lines,
-    TOL, Page,
+    TOL, Page, inflated,
 )
 from suite.structure import (
     struct_alts, struct_elems,
@@ -1065,4 +1065,24 @@ def a_lpzg_mod(p: Page):
     r.append(check(ink[0] - brace[2] > 0.8,
                    f"and clear of the brace's tip "
                    f"({ink[0] - brace[2]:.2f}pt of daylight)"))
+    return r
+
+
+def a_gltlang_items_ua(p: Page):
+    r"""A translation's language Span closes with its item: four
+    translations, four fr Spans, and no item built inside another (which is
+    spec-valid enough to need the depth check, and LI-LI-1 to veraPDF)."""
+    r = []
+    verdicts, failures, _ = verapdf_report(p.path)
+    r.append(check(bool(verdicts) and all(ok for _, ok in verdicts),
+                   f"veraPDF: compliant on every profile ({verdicts}; "
+                   f"{failures})"))
+    langs = struct_langs(inflated(p.raw))
+    r.append(check(langs.count("fr") == 4,
+                   f"each of the four translations has its own fr Span, "
+                   f"got {langs.count('fr')}"))
+    depths = struct_label_depths(p.path)
+    r.append(check(len(depths) >= 4 and len({d for _, d in depths}) == 1,
+                   f"every top-level example number sits at one depth, the "
+                   f"ones after the translated items included: {depths}"))
     return r

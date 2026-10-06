@@ -1,0 +1,33 @@
+%% A translation's language Span ends with its ITEM, not only with its
+%% example.
+%%
+%% \GlossTransLang wraps a translation in a Span carrying /Lang, closed by
+%% the example's exits.  An item boundary is not an exit: with (a)'s Span
+%% still open, (b) was built inside it -- an LI inside an LI, every later
+%% example number one level too deep, and veraPDF LI-LI-1 on all three
+%% profiles.  Found in 1.4 while giving the translation a default language,
+%% which would have made it the common case.
+%%
+%% Both routes to a new item: dot-syntax sub-examples, and consecutive \ex
+%% items of one exe list.  Four translations, each its own fr Span; the
+%% examples after them must sit where every other example number does.
+\input{_preamble-ua}
+\GlossTransLang{fr}
+
+\ex. \a. \gll Der Hund \\ the dog \\
+\glt TRANSA
+\b. \gll Die Katze \\ the cat \\
+\glt TRANSB
+
+\begin{exe}
+\ex \gll Das Pferd \\ the horse \\
+\glt TRANSC
+\ex \gll Die Kuh \\ the cow \\
+\glt TRANSD
+\end{exe}
+
+\ex. AFTERONE stands where every example does.
+
+\ex. AFTERTWO stands there too.
+
+\end{document}

@@ -3,6 +3,14 @@
 All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
+## Unreleased
+- Fixed: under `\GlossTransLang`, a translated sub-example, or a translated
+  `\ex` in an `exe` list, left its translation's language open into the
+  next item. That item was built inside it, every later example number sat
+  one level deeper in the structure tree than it should, and the PDF failed
+  PDF/UA (an `LI` inside an `LI`). The translation's language now ends
+  with its item.
+
 ## 1.4
 - New: movement arrows. `\mvto{a}{What} did John buy \mvfrom{a}{\_\_}?`
   draws an arrow from the base position (`\mvfrom`) to the landing site

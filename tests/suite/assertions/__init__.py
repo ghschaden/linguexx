@@ -74,6 +74,7 @@ from suite.assertions.tagging import (  # noqa: F401
     a_lpzgcheck,
     a_lpzglist,
     a_lpzgsetup,
+    a_gltlang_items_ua,
     a_tagged,
     a_ua,
 )
@@ -150,6 +151,7 @@ ASSERTIONS = {
     "lpzglist": a_lpzglist,
     "lpzgsetup": a_lpzgsetup,
     "phantomalign": a_phantomalign,
+    "gltlang-items-ua": a_gltlang_items_ua,
     "parens-glossing-align": a_parens_glossing_align,
     "phantommarks": a_phantommarks,
     "phantommarks-tagged": a_phantommarks_tagged,
