@@ -141,6 +141,7 @@ ENGINES_FOR = {
 DEFAULT_PASSES = 2
 PASSES = {"ua": 3, "verb-dot-ua": 3, "frontend": 3, "langsci-ua": 3, "exannot-ua": 3,
           "tierlang-ua": 3, "gltlang-items-ua": 3,
+          "gltlang-default-ua": 3,
           "exannot-fit": 2, "exannot-fitbody": 2,
           "exannot-beamer": 2,
           # one run on purpose: it is the run that has to ask for another

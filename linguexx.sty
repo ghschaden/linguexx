@@ -5349,6 +5349,12 @@
               { \seq_count:c
                   { l__lx_gl_tier_ \int_use:N \l__lx_gl_ntiers_int _seq } } }
       }
+    %% The language a following \glt defaults to: the last tier's, if
+    %% declared (see \lx@glt@langbegin).
+    \prop_get:NeNTF \l_lx_gl_lang_prop
+      { \int_use:N \l__lx_gl_ntiers_int } \l__lx_gl_lang_tl
+      { \tl_gset_eq:NN \g__lx_gl_glosslang_tl \l__lx_gl_lang_tl }
+      { \tl_gclear:N \g__lx_gl_glosslang_tl }
     \lx@gl@side@decide:
     \bool_if:NT \l__lx_gl_side_bool
       { \lx@gl@vtop_set:Nw \l__lx_gl_gridbox }
@@ -5515,18 +5521,47 @@
 %% \lx@hangjudge documents) -- and closed by \lx@glt@langend, which every
 %% example exit runs while the translation paragraph is still open.
 \ExplSyntaxOn
+%%
+%% Without a \GlossTransLang of its own, a translation takes the language
+%% of the LAST tier of the gloss above it, if that tier has one declared:
+%% the translation is almost always in the language the glosses are in,
+%% and a paper in one language glossing into another would otherwise have
+%% to say so twice.  The last tier and only the last -- not "the last tier
+%% that has a language": in the common case only the object tier (1) is
+%% declared, and borrowing from it would read an English translation as
+%% German; with a transliteration tier declared and the gloss tier not,
+%% as the transliteration.  A wrong language is worse than none, since an
+%% undeclared translation is read in the document's language, and veraPDF
+%% accepts any well-formed tag.  So: the last tier, or nothing, and a \gl
+%% ending in a category line (D N V) needs \GlossTransLang if the
+%% document's language is not the glosses'.  \GlossTransLang{} makes a
+%% translation follow the gloss again.
+%%
+%% The gloss records that language in \g__lx_gl_glosslang_tl -- or clears
+%% it, so the LAST gloss of an item is the one that counts -- and the
+%% item's translations read it.  Global, because a gloss and its
+%% translation need not share a group; cleared at every item boundary and
+%% exit (which all run \lx@glt@langend), so a gloss without a translation
+%% does not hand its language to a later translation with no gloss above
+%% it.
 \tl_new:N   \l_lx_gl_translang_tl
+\tl_new:N   \g__lx_gl_glosslang_tl
+\cs_generate_variant:Nn \prop_get:NnNTF { Ne }
+\tl_new:N   \l__lx_gl_translang_use_tl
 \bool_new:N \g__lx_gl_transopen_bool
 \NewDocumentCommand \GlossTransLang { m }
   { \tl_set:Nn \l_lx_gl_translang_tl {#1} }
 \cs_new_protected:Npn \lx@glt@langbegin
   {
-    \tl_if_empty:NF \l_lx_gl_translang_tl
+    \tl_if_blank:VTF \l_lx_gl_translang_tl
+      { \tl_set_eq:NN \l__lx_gl_translang_use_tl \g__lx_gl_glosslang_tl }
+      { \tl_set_eq:NN \l__lx_gl_translang_use_tl \l_lx_gl_translang_tl }
+    \tl_if_empty:NF \l__lx_gl_translang_use_tl
       {
         \lx@tag@if@active:T
           {
             \lx@tag@span@begin:e
-              { tag = Span , lang = \l_lx_gl_translang_tl }
+              { tag = Span , lang = \l__lx_gl_translang_use_tl }
             \bool_gset_true:N \g__lx_gl_transopen_bool
           }
       }
@@ -5538,6 +5573,7 @@
 %% for an example with no \glt, with no \GlossTransLang, or without tagging.
 \cs_new_protected:Npn \lx@glt@langend
   {
+    \tl_gclear:N \g__lx_gl_glosslang_tl
     \bool_if:NT \g__lx_gl_transopen_bool
       {
         \lx@tag@span@end:

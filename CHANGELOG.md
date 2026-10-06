@@ -4,6 +4,15 @@ All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
 ## Unreleased
+- Changed: a translation without `\GlossTransLang` of its own now takes the
+  language of the gloss's last tier, when that tier has one declared --
+  translations are almost always in the language of the glosses, so
+  `\GlossTierLang{2}{en}` covers both. Only the last tier: a translation
+  never borrows the object line's language, and when the last tier
+  declares nothing it is read in the document's language, as before.
+  `\GlossTransLang` still wins, and `\GlossTransLang{}` lets translations
+  follow the glosses again. Documents that declare no tier language beyond
+  the object line are unchanged.
 - Fixed: under `\GlossTransLang`, a translated sub-example, or a translated
   `\ex` in an `exe` list, left its translation's language open into the
   next item. That item was built inside it, every later example number sat

@@ -1483,24 +1483,38 @@ the same scope rule (inside an example, for that example only). Such a
 tier is read in the language of the document --- the one given to
 \cs{DocumentMetadata} --- because a PDF element without a language takes
 that of what contains it; nothing needs to be written for it.
-\verb|\GlossTransLang{}| does the same for the translation.
 
-The free translation is a tier of its own kind, and usually in a third
-language: neither the object language nor, in a paper written in one
-language and glossing into another, the language of the document.
-\cs{GlossTransLang}\marg{code} marks it, and under tagging the translation
-is wrapped in a span carrying \texttt{/Lang}:
+The free translation is almost always in the language of the glosses ---
+which, in a paper written in one language and glossing into another, is
+not the language of the document. So a translation takes the language of
+the gloss's \emph{last} tier, when that tier has one declared: a French
+paper glossing into English says so once, and its translations are read
+as English too.
 
 \begin{code}
 \GlossTierLang{1}{de}          % object line is German
-\GlossTransLang{en}            % free translations are English
+\GlossTierLang{2}{en}          % glosses -- and so translations -- English
 \end{code}
 
-\noindent This is worth setting explicitly even in a document that already
-declares its language to \cs{DocumentMetadata}: \pkg{babel}'s
-\cs{foreignlanguage} does \emph{not} reach the structure tree, so without
-\cs{GlossTransLang} a translation in another language carries no
-\texttt{/Lang} of its own and is read out with the document's phonetics.
+\noindent The last tier and only that one: when it declares nothing, as in
+the common case where only the object line has a language, the translation
+has no language of its own and is read in the document's, exactly as an
+undeclared tier is. It never borrows the language of the object line, or of
+a transliteration line above the glosses. A \cs{gl} whose last line is not
+a gloss --- a line of categories, say --- therefore passes nothing on.
+
+\cs{GlossTransLang}\marg{code} sets the translation's language directly, and
+wins over the gloss's; \verb|\GlossTransLang{}| lets translations follow the
+glosses again. It obeys the usual scope rule, like \cs{GlossTierLang}:
+
+\begin{code}
+\GlossTransLang{en}            % translations English, whatever the glosses
+\end{code}
+
+\noindent Either way the language reaches the structure tree only through
+these declarations: \pkg{babel}'s \cs{foreignlanguage} does \emph{not}, so
+a translation in a language that neither its gloss nor
+\cs{GlossTransLang} declares is read out with the document's phonetics.
 
 The translation can also be styled, with the declaration
 \cs{GlossTransStyle} --- many venues want it italic, or a size smaller:
@@ -3401,7 +3415,7 @@ exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package opt
 \textbackslash GlossTierFont\allowbreak\marg{n}\marg{cmd} & Font command for tier \meta{n}. \\
 \textbackslash GlossTierLang\allowbreak\marg{n}\marg{code} & Language of tier \meta{n} for tagged PDFs (section~\ref{sec:glosslang}). \\
 \textbackslash GlossTransStyle & Declaration applied to the free translation after \cs{glt}; empty by default. \\
-\textbackslash GlossTransLang\marg{code} & Language of the free translation for tagged PDFs (section~\ref{sec:glosslang}). \\
+\textbackslash GlossTransLang\marg{code} & Language of the free translation for tagged PDFs; without it, the gloss's last tier's, if declared (section~\ref{sec:glosslang}). \\
 \textbackslash GlossTransSide & Set the free translation in a column \emph{beside} the gloss rather than under it (section~\ref{sec:transside}); \cs{GlossTransBelow} restores the default. A declaration, and it must come before the example. Top-level examples only, and not on a gloss carrying an \cs{exannot}. \\
 \textbackslash GlossTransRatio & Share of the measure the gloss gets beside a side translation (\texttt{.6}, a factor, not a length). \\
 \textbackslash GlossTransSep & Gap between the two columns (\texttt{2em}). \\

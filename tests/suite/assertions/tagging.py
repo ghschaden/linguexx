@@ -1111,3 +1111,30 @@ def a_gltlang_items_ua(p: Page):
                    f"every top-level example number sits at one depth, the "
                    f"ones after the translated items included: {depths}"))
     return r
+
+
+def a_gltlang_default_ua(p: Page):
+    r"""A translation without \GlossTransLang takes the language of the
+    gloss's last tier when that tier declares one, and none otherwise.  The
+    case's header has the table the counts come from."""
+    r = []
+    verdicts, failures, _ = verapdf_report(p.path)
+    r.append(check(bool(verdicts) and all(ok for _, ok in verdicts),
+                   f"veraPDF: compliant on every profile ({verdicts}; "
+                   f"{failures})"))
+    langs = struct_langs(inflated(p.raw))
+    for lang, n, why in [
+        ("de", 8, "the object tier only: no translation borrows tier 1's "
+                  "language, not even with tier 2 cleared (7)"),
+        ("es", 9, "seven tier-2 words and two translations, (1) and (5): "
+                  "not (2), whose last gloss's last tier declares nothing, "
+                  "and not (6b), whose item has no gloss"),
+        ("fr", 1, "the example's own \\GlossTransLang wins over the gloss (3)"),
+        ("it", 1, "a document-wide \\GlossTransLang wins too (4)"),
+    ]:
+        r.append(check(langs.count(lang) == n,
+                       f"{n} x {lang}: {why}; got {langs.count(lang)}"))
+    depths = struct_label_depths(p.path)
+    r.append(check(len(depths) >= 7 and len({d for _, d in depths}) == 1,
+                   f"every example number at one depth: {depths}"))
+    return r

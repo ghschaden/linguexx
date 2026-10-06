@@ -1,0 +1,51 @@
+%% A translation without \GlossTransLang takes the language of the gloss's
+%% LAST tier, if that tier has one declared -- and nothing otherwise, so it
+%% is read in the document's (en).  The last tier only: borrowing from an
+%% earlier one would read the translation as the object language.
+%%
+%% Tier 1 is German and tier 2 Spanish throughout, unless an example says
+%% otherwise; every gloss is a single column, so each tier is one word and
+%% the counts are exact.  Each translation is TRANS<n>; what it must carry:
+%%   (1) \gll, tier 2 es                          -> es
+%%   (2) a \gll, then a \glll with tier 3
+%%       undeclared: the last gloss counts        -> none (not tier 2's es)
+%%   (3) \GlossTransLang{fr} in the example       -> fr, over the gloss
+%%   (4) \GlossTransLang{it} from here on         -> it
+%%   (5) \GlossTransLang{} from here on           -> es again, from the gloss
+%%   (6) (a) a gloss with no translation,
+%%       (b) a translation with no gloss          -> none: (a)'s es ends with (a)
+%%   (7) tier 2 cleared in the example            -> none (not tier 1's de)
+%% Totals: de 8 (tier 1 of the eight glosses, never a translation),
+%% es 7 tier-2 words + 2 translations = 9, fr 1, it 1.
+\input{_preamble-ua}
+\GlossTierLang{1}{de}
+\GlossTierLang{2}{es}
+
+\ex. \gll Hund \\ perro \\
+\glt TRANSONE
+
+\ex. \gll Katze \\ gato \\
+\glll Katze \\ gato \\ cat \\
+\glt TRANSTWO
+
+\ex. \GlossTransLang{fr}
+\gll Pferd \\ caballo \\
+\glt TRANSTHREE
+
+\GlossTransLang{it}
+\ex. \gll Kuh \\ vaca \\
+\glt TRANSFOUR
+
+\GlossTransLang{}
+\ex. \gll Maus \\ ratón \\
+\glt TRANSFIVE
+
+\ex. \a. \gll Vogel \\ pájaro \\
+\b. A sub-example with no gloss.
+\glt TRANSSIX
+
+\ex. \GlossTierLang{2}{}
+\gll Fisch \\ fish \\
+\glt TRANSSEVEN
+
+\end{document}
