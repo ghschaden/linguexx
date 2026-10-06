@@ -5178,8 +5178,15 @@
 %% stop a build.
 %%
 %% Segment k is as wide as the widest k-th segment among the segmented
-%% tiers, each measured in its own tier's font.  The last segment is set
-%% at its natural width.  A tier padded by [phantomalign] counts its pad
+%% tiers, each measured in its own tier's font -- the last one too, so that
+%% every segmented tier of a column is exactly as wide as the others.  In a
+%% left-to-right grid that changes nothing on the page: what the last box
+%% adds is blank space at the end of a narrower tier, inside a column that
+%% was already that wide.  It matters wherever a cell is aligned on its
+%% RIGHT edge, as in a right-to-left grid (experiments/rtl): with natural
+%% last segments the tiers differ in width, and aligning their right edges
+%% moved every boundary by the difference -- 6.4pt measured, "ha" not over
+%% "DEF" in ha-yeled / DEF-boy.  A tier padded by [phantomalign] counts its pad
 %% into its first segment, so the pad and the alignment do not add up.
 %%
 %% The measuring typesets each segment into a box that is dropped, and
@@ -5383,7 +5390,7 @@
           = { \l__lx_gl_morph_n_int }
       }
       {
-        \int_step_inline:nn { \l__lx_gl_morph_n_int - 1 }
+        \int_step_inline:nn { \l__lx_gl_morph_n_int }
           {
             \hbox_to_wd:nn
               {
@@ -5396,11 +5403,6 @@
                   { \seq_item:cn { l__lx_gl_morph_ #1 _seq } {##1} }
                 \hfil
               }
-          }
-        \lx@glfontuse {#1}
-          {
-            \seq_item:cn { l__lx_gl_morph_ #1 _seq }
-              { \l__lx_gl_morph_n_int }
           }
       }
       {

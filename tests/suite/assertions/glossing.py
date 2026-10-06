@@ -606,3 +606,18 @@ def a_morphalign_ua(p: Page):
     r.append(check(alts == ["ir or er", "ir or er"],
                    f"the \\altn's spoken form once per gloss: {alts}"))
     return r
+
+
+def a_morphalign_rtl(p: Page):
+    r"""Segmented tiers are equally wide, so right-aligned cells -- a
+    right-to-left grid -- keep their morphemes aligned (see the case)."""
+    a, c = p.find("Aa"), p.find("Cccccccccc-dd")
+    b = p.find("-Bbbbbbbbbbb")
+    return [
+        check(abs(a.x0 - c.x0) < TOL,
+              f"right-aligned cells of equal width start at one x "
+              f"({a.x0:.2f} vs {c.x0:.2f})"),
+        check(b.x0 - a.x1 > 2,
+              f"... and the second morpheme follows the wider first one "
+              f"({b.x0 - a.x1:.2f}pt after 'Aa')"),
+    ]

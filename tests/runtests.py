@@ -137,6 +137,7 @@ DEFAULT_JOBS = min(6, os.cpu_count() or 1)
 #: can typeset belongs in a case that runs everywhere.
 ENGINES_FOR = {
     "utf8-unicode": ("xelatex", "lualatex"),
+    "morphalign-rtl": ("lualatex",),
 }
 DEFAULT_PASSES = 2
 PASSES = {"ua": 3, "verb-dot-ua": 3, "frontend": 3, "langsci-ua": 3, "exannot-ua": 3,

@@ -1,0 +1,32 @@
+\input{_preamble}
+%% Every segmented tier of an aligned column is exactly as wide as the
+%% others: the last segment is boxed to its common width like the rest.
+%%
+%% In a left-to-right grid that cannot be seen -- the extra width is blank,
+%% at the end of a narrower tier, in a column already that wide -- and the
+%% left-to-right cases render byte-identically with or without it.  It
+%% shows wherever a cell is aligned on its RIGHT edge, which is what a
+%% right-to-left grid does (experiments/rtl): each Latin cell is one LTR run
+%% in a right-to-left column.  With natural last segments the tiers differ
+%% in width, and aligning their right edges moved every boundary by the
+%% difference (6.4pt in the probe, "ha" not over "DEF").
+%%
+%% This is that arrangement in miniature, through the two hooks the probe
+%% uses: the gloss runs right to left (\lx@glossfont), and each cell is a
+%% left-to-right run as a whole (\lx@gl@wordbegin).  LuaTeX only: \textdir
+%% is its primitive.
+\makeatletter
+\def\lx@glossfont{\textdir TRT}
+\let\lxtest@wordbegin\lx@gl@wordbegin
+\def\lx@gl@wordbegin#1{\textdir TLT\lxtest@wordbegin{#1}}
+\makeatother
+\begin{document}
+\GlossMorphAlign
+
+% Tier 2 holds the wider first segment, tier 1 the wider second.  Both
+% cells must start at one x, and tier 1's second segment where tier 2's
+% does: after Cccccccccc, so with a gap after Aa.
+\ex. \gll Aa-Bbbbbbbbbbb \\
+          Cccccccccc-dd \\
+
+\end{document}
