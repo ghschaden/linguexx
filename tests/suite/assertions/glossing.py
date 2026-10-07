@@ -608,6 +608,116 @@ def a_morphalign_ua(p: Page):
     return r
 
 
+def _staircase(p: Page, seg2, seg3, where):
+    r"""The two readings of a three-tier staircase (see morphalign.tex):
+    the start of segment 2 in tiers 2 and 3, that of segment 3 in tiers 1
+    and 3.  Each pair is (word, word); `where` names the gloss.
+
+    Matched exactly, not with p.find: its containment fallback would find
+    "-scb" inside the unsplit "sca-scb-SCcccccccc" of a gloss set by word,
+    where both readings sit at the column origin and coincide anyway."""
+    r = []
+    for k, (a, b) in ((2, seg2), (3, seg3)):
+        wa = [w for w in p.words if w.text == a]
+        wb = [w for w in p.words if w.text == b]
+        r.append(check(len(wa) == 1 and len(wb) == 1,
+                       f"{where}: {a} and {b} are words of their own, so the "
+                       f"tiers were split ({len(wa)}, {len(wb)})"))
+        if not (wa and wb):
+            continue
+        wa, wb = wa[0], wb[0]
+        r.append(check(abs(wa.x0 - wb.x0) < TOL,
+                       f"{where}: segment {k} starts at one x in two tiers "
+                       f"({a} {wa.x0:.2f} vs {b} {wb.x0:.2f})"))
+    return r
+
+
+def a_morphalign_mix(p: Page):
+    r"""\GlossMorphAlign inside \GlossTransSide, beside an \exannot, and in
+    a gloss that wraps; see the case's header."""
+    r = []
+    # (1) \GlossTransSide: aligned, and the side column where it is by word
+    r += _staircase(p, ("-SBbbbbbbbb-sbc", "-scb"), ("-sac", "-SCcccccccc"),
+                    "\\GlossTransSide")
+    ta, tb = p.find("STRANSA"), p.find("STRANSB")
+    r.append(check(abs(ta.x0 - tb.x0) < TOL,
+                   f"the side translation is where it is by word "
+                   f"({ta.x0:.2f} vs {tb.x0:.2f})"))
+    grid = ("SAaaaaaaaa-sab", "-sac", "-SBbbbbbbbb-sbc", "-SCcccccccc")
+    right = max(p.find(w).x1 for w in grid)
+    r.append(check(ta in p.line_of(p.find("SAaaaaaaaa-sab"))
+                   and ta.x0 > right,
+                   f"... beside the aligned grid, on its first line and "
+                   f"clear of it ({ta.x0:.2f} vs {right:.2f})"))
+    # (2) \exannot: aligned, and the annotation clear of the aligned grid
+    r += _staircase(p, ("-XBbbbbbbbb-xbc", "-xcb"), ("-xac", "-XCcccccccc"),
+                    "\\exannot")
+    an = p.find("[XANNOT]")
+    right = max(p.find(w).x1 for w in ("-xac", "-XBbbbbbbbb-xbc",
+                                       "-XCcccccccc"))
+    r.append(check(an in p.line_of(p.find("XAaaaaaaaa-xab"))
+                   and an.x0 > right,
+                   f"the annotation is on the object line, clear of the "
+                   f"aligned grid ({an.x0:.2f} vs {right:.2f})"))
+    # (3) a gloss that wraps: every column aligned, on every line
+    for n in range(1, 9):
+        r += _staircase(p, (f"-V{n}bbbbbbbb-v{n}c", f"-u{n}b"),
+                        (f"-w{n}c", f"-U{n}cccccccc"),
+                        f"wrapped gloss, column {n}")
+    first, last = p.find("W1aaaaaaaa-w1b"), p.find("W8aaaaaaaa-w8b")
+    r.append(check(last.y0 > first.y0 + 30,
+                   f"the long gloss wraps ({first.y0:.2f} -> {last.y0:.2f})"))
+    # the leftmost object word of each line (the first line also holds the
+    # example number)
+    starts = [min(w.x0 for w in p.line_of(word) if w.text.startswith("W"))
+              for word in (first, last)]
+    r.append(check(abs(starts[0] - starts[1]) < TOL,
+                   f"... and its last line starts where its first does "
+                   f"({starts[0]:.2f} vs {starts[1]:.2f})"))
+    return r
+
+
+def a_morphalign_mix_ua(p: Page):
+    r"""morphalign-mix under PDF/UA-2: compliant, and the measuring of the
+    side grid, the annotated grid and the wrapped grid leaves no structure
+    behind (see the case's header)."""
+    r = []
+    verdicts, failures, _ = verapdf_report(p.path)
+    r.append(check(bool(verdicts) and all(ok for _, ok in verdicts),
+                   f"veraPDF: compliant on every profile ({verdicts}; "
+                   f"{failures})"))
+    exps = struct_exps(inflated(p.raw))
+    want = ["plural", "locative", "present"]
+    r.append(check(exps == want * 3,
+                   f"each \\lpzg expansion once per gloss, in the side, the "
+                   f"annotated and the wrapped grid alike: {exps}"))
+    return r
+
+
+def a_morphalign_beamer(p: Page):
+    r"""\GlossMorphAlign in a beamer frame; see the case's header."""
+    r = []
+    seg2, seg3 = ("-BBbbbbbbbb-bbc", "-bcb"), ("-bac", "-BCcccccccc")
+
+    def exact(tok):
+        # not find_all: "-bcb" is also inside the unaligned "bca-bcb-..."
+        return [w for w in p.words if w.text == tok]
+
+    for tok in seg2 + seg3:
+        r.append(check(len(exact(tok)) == 2,
+                       f"the first example is set, aligned, on both slides "
+                       f"({tok} found {len(exact(tok))} times)"))
+    for k, (a, b) in ((2, seg2), (3, seg3)):
+        wa, wb = exact(a), exact(b)
+        xs = [w.x0 for w in wa + wb]
+        r.append(check(len(xs) == 4 and max(xs) - min(xs) < TOL,
+                       f"segment {k} starts at one x in two tiers and on "
+                       f"both slides: {[round(x, 2) for x in xs]}"))
+    r += _staircase(p, ("-BEbbbbbbbb-bec", "-bfb"), ("-bdc", "-BFcccccccc"),
+                    "an example after \\pause")
+    return r
+
+
 def a_rtl(p: Page):
     r"""\GlossRTL on the page; see the case's header."""
     r = []

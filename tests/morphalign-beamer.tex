@@ -1,0 +1,29 @@
+%% \GlossMorphAlign in a beamer deck, which is where glosses get written
+%% (see exannot-beamer.tex on why beamer is a case of its own).
+%%
+%% What beamer changes for the alignment:
+%%
+%%   * the font.  Segments are measured in each tier's font, and beamer's
+%%     is sans-serif at its own size; measured in anything else, the boxes
+%%     would be the wrong width.
+%%   * the frame is typeset once per overlay slide.  The measuring is done
+%%     again on each slide, so an aligned gloss that spans slides must come
+%%     out at the same x on both, and one that arrives after a \pause must
+%%     be aligned like the rest.
+%%
+%% The glosses are the three-tier staircase of morphalign.tex; see there
+%% for how a segment start is read.  The one on both slides of its frame
+%% is found twice; the others once.
+\input{_preamble-beamer}
+\GlossMorphAlign
+\begin{document}
+\begin{frame}{BMHEAD}
+\ex. \glll BAaaaaaaaa-bab-bac \\
+           bba-BBbbbbbbbb-bbc \\
+           bca-bcb-BCcccccccc \\
+\pause
+\ex. \glll BDaaaaaaaa-bdb-bdc \\
+           bea-BEbbbbbbbb-bec \\
+           bfa-bfb-BFcccccccc \\
+\end{frame}
+\end{document}

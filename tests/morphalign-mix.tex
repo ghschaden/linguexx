@@ -1,0 +1,57 @@
+\input{_preamble}
+%% \GlossMorphAlign together with the gloss layouts it was not built
+%% against: \GlossTransSide, \exannot, and a gloss that wraps.  Each of
+%% them sets the grid in a box or a column of its own, so each is a place
+%% where the alignment could be measured in one setting and used in
+%% another, or where the other feature measures the grid before the
+%% segments are boxed.
+%%
+%% Read as in morphalign.tex: segments touch, so a segment start is only
+%% visible in a tier that is NOT the widest at that boundary.  Every gloss
+%% here is the three-tier staircase of that case (the widest first segment
+%% in tier 1, the widest second in tier 2, the widest third in tier 3), so
+%% the start of segment 2 is read in tiers 2 and 3 and that of segment 3
+%% in tiers 1 and 3, and each pair must coincide.  Every word is a
+%% sentinel, unique on the page.
+\begin{document}
+\GlossMorphAlign
+
+% (1) \GlossTransSide: the grid is a box of its own beside the translation.
+{\GlossTransSide
+\ex. \glll SAaaaaaaaa-sab-sac \\
+           sba-SBbbbbbbbb-sbc \\
+           sca-scb-SCcccccccc \\
+     \glt `STRANSA'
+
+}
+
+% (1b) the same, by word: the side column must not move when the grid is
+% aligned, or the alignment widened the grid without saying so.
+{\GlossTransSide\GlossMorphAlignOff
+\ex. \glll SDaaaaaaaa-sdb-sdc \\
+           sea-SEbbbbbbbb-sec \\
+           sfa-sfb-SFcccccccc \\
+     \glt `STRANSB'
+
+}
+
+% (2) \exannot on the object tier: the annotation is measured against the
+% grid, which must be the aligned one.
+\ex. \glll XAaaaaaaaa-xab-xac\exannot{[XANNOT]} \\
+           xba-XBbbbbbbbb-xbc \\
+           xca-xcb-XCcccccccc \\
+
+% (3) a gloss that wraps: twelve staircase columns.  Each column is aligned
+% on its own, so the columns that land on the second line are as aligned
+% as those on the first.  W<n>... is the column's first tier.
+\ex. \glll W1aaaaaaaa-w1b-w1c W2aaaaaaaa-w2b-w2c W3aaaaaaaa-w3b-w3c
+           W4aaaaaaaa-w4b-w4c W5aaaaaaaa-w5b-w5c W6aaaaaaaa-w6b-w6c
+           W7aaaaaaaa-w7b-w7c W8aaaaaaaa-w8b-w8c \\
+           v1a-V1bbbbbbbb-v1c v2a-V2bbbbbbbb-v2c v3a-V3bbbbbbbb-v3c
+           v4a-V4bbbbbbbb-v4c v5a-V5bbbbbbbb-v5c v6a-V6bbbbbbbb-v6c
+           v7a-V7bbbbbbbb-v7c v8a-V8bbbbbbbb-v8c \\
+           u1a-u1b-U1cccccccc u2a-u2b-U2cccccccc u3a-u3b-U3cccccccc
+           u4a-u4b-U4cccccccc u5a-u5b-U5cccccccc u6a-u6b-U6cccccccc
+           u7a-u7b-U7cccccccc u8a-u8b-U8cccccccc \\
+
+\end{document}

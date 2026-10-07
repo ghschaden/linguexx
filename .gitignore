@@ -85,6 +85,10 @@ linguexx-doc-previous.*
 # all true of one working copy.
 .claude/settings.local.json
 .claude/.state/
+# what the engine lays into a mod folder when it loads it: this build's API
+# types and a tsconfig extending them.  Regenerated on every load.
+.claude/skills/*/.claude-plugin/types/
+.claude/skills/*/tsconfig.json
 
 # dist/: what `make ctan` assembles for an upload.  Regenerable from a
 # clean tree by tools/ctan.py, and the one thing in here that must never

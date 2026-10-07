@@ -80,6 +80,11 @@ untracked module makes the hook fail as though a test broke.
   label-depth and no-Formula invariants. `lxx ua PDF` — veraPDF's 190 kB
   report as one line per failed rule with a location.
 - `lxx diff A.pdf B.pdf` — which pages differ and the box the change sits in.
+- `lxx stamp [--brief]` — what the last green run covered; `--brief` is one
+  line, green or `STALE:` with the sources that changed (the stamp keeps a
+  hash per file for that; the verdict is still the one hash the hooks
+  compare). The `lxx-gate` mod in `.claude/skills/` puts that line in the
+  status bar, refreshed after each tool call and every 30 s.
 - Three hooks enforce the section below rather than trusting memory: a commit
   is held back when `linguexx.sty` or a case has changed since the last green
   run (`LXX_SKIP_GATE=1` overrides), a turn that CLAIMS completion on such a

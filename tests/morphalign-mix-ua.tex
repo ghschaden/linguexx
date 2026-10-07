@@ -1,0 +1,31 @@
+%% morphalign-mix.tex under PDF/UA-2: \GlossMorphAlign inside the layouts
+%% that box or measure the grid themselves -- \GlossTransSide, \exannot, a
+%% gloss that wraps.  Each is one more place where a grid is typeset into
+%% a box, and the alignment measures every segment into a box of its own
+%% under \tag_stop:, so the question is morphalign-ua.tex's again: does
+%% any of that measuring leave structure behind?  veraPDF passes duplicated
+%% structure, so the counts are the guard: every \lpzg expansion once per
+%% gloss, in source order.
+\input{_preamble-ua}
+\GlossTierLang{1}{tr}
+\GlossMorphAlign
+
+{\GlossTransSide
+\ex. \gll ev-ler-de gel-ir \\
+          house-\lpzg{pl}-\lpzg{loc} come-\lpzg{prs} \\
+\glt `in the houses; comes'
+
+}
+
+\ex. \gll ev-ler-de\exannot{[NP]} gel-ir \\
+          house-\lpzg{pl}-\lpzg{loc} come-\lpzg{prs} \\
+\glt `in the houses; comes'
+
+\ex. \gll ev-ler-de gel-ir ev-ler-de gel-ir ev-ler-de gel-ir ev-ler-de
+          gel-ir ev-ler-de gel-ir ev-ler-de gel-ir ev-ler-de gel-ir \\
+          house-PL-LOC come-PRS house-PL-LOC come-PRS house-PL-LOC come-PRS
+          house-PL-LOC come-PRS house-PL-LOC come-PRS house-PL-LOC come-PRS
+          house-\lpzg{pl}-\lpzg{loc} come-\lpzg{prs} \\
+\glt `in the houses; comes, fourteen columns, so that it wraps'
+
+\end{document}

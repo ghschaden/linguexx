@@ -19,7 +19,7 @@ helper cannot drift away from the assertion that relies on it.
     lxx struct PDF             the tag tree, folded, plus its invariants
     lxx ua PDF                 veraPDF, summarised to the failing rules
     lxx diff A.pdf B.pdf       which pages of two PDFs differ, and where
-    lxx stamp                  what the last green run covered
+    lxx stamp [--brief]        what the last green run covered
 
 Every command is quiet by default and prints paths rather than dumping
 what they point at, so the next step can be a targeted read.
@@ -69,6 +69,17 @@ def source_hash():
         h.update(p.name.encode())
         h.update(p.read_bytes() if p.exists() else b"<missing>")
     return h.hexdigest()[:16]
+
+
+def file_hashes():
+    """Each source's own hash, so a stale stamp can say WHICH file moved.
+
+    Informational only: the verdict is still source_hash(), which is what
+    the hooks compare.  A stamp written before this existed has no "files"
+    and simply cannot name them."""
+    return {str(p.relative_to(ROOT)):
+            hashlib.sha256(p.read_bytes()).hexdigest()[:12]
+            for p in sources() if p.exists()}
 
 
 def runtests():
@@ -774,7 +785,7 @@ def write_stamp(extra):
     import json
     head = sh(["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"]).stdout.strip()
     data = {"hash": source_hash(), "when": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "git": head, **extra}
+            "git": head, **extra, "files": file_hashes()}
     STATE.mkdir(parents=True, exist_ok=True)
     STAMP.write_text(json.dumps(data, indent=1))
     return data
@@ -861,14 +872,37 @@ def cmd_doc(a):
     return 0 if good else 1
 
 
+def stamp_brief(st, now):
+    """One line for a status bar: green, or stale and what changed."""
+    when = st.get("when", "?")[5:16]           # "10-06 13:15"
+    if st.get("hash") == now:
+        return f"suite green ({st.get('scope', '?')}, {when})"
+    old = st.get("files")
+    if old is None:
+        return f"suite STALE since {when} (rerun lxx test)"
+    cur = file_hashes()
+    moved = sorted(k for k in old.keys() | cur.keys()
+                   if old.get(k) != cur.get(k))
+    names = [Path(k).name + ("" if k in cur else " (gone)")
+             + ("" if k in old else " (new)") for k in moved]
+    shown = ", ".join(names[:3]) + (f" +{len(names) - 3}" if len(names) > 3
+                                    else "")
+    return f"suite STALE: {shown}"
+
+
 def cmd_stamp(a):
     import json
     if not STAMP.exists():
-        print("no green run recorded")
+        print("no green run recorded" if not a.brief
+              else "suite: no green run recorded")
         return 1
     st = json.loads(STAMP.read_text())
     now = source_hash()
     fresh = st.get("hash") == now
+    if a.brief:
+        print(stamp_brief(st, now))
+        return 0 if fresh else 1
+    st.pop("files", None)
     print(json.dumps(st, indent=1))
     print(f"sources now {now}: {'MATCHES the stamp' if fresh else 'CHANGED since it'}")
     return 0 if fresh else 1
@@ -968,6 +1002,8 @@ def main():
     p.set_defaults(fn=cmd_doc)
 
     p = sub.add_parser("stamp", help="what the last green run covered")
+    p.add_argument("--brief", action="store_true",
+                   help="one line: green, or which sources changed since")
     p.set_defaults(fn=cmd_stamp)
 
     a = ap.parse_args()

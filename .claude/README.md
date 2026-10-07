@@ -11,6 +11,11 @@ the answer spent on output nobody reads.
                        stamp when a raw runtests.py run comes out green
     agents/            log-triage (haiku), for scanning MANY logs at once
     commands/          /verify and /repro
+    skills/lxx-gate/   a Claude Code mod (auto-loaded from here): the status
+                       line says whether the suite is green for the tree as it
+                       stands, or which sources changed since -- the verdict
+                       is `lxx stamp --brief`'s, so it is the hooks' own.
+                       `claude plugin test .claude/skills/lxx-gate` tests it
     settings.json      wires the hook up and pre-approves the harness
     .state/            build dirs, renderings, and the green-run stamp
                        (regenerable; ignored)
