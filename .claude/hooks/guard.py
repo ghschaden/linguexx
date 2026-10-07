@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Four guards, each about something that has actually gone wrong here.
+"""Six guards, each about something that has actually gone wrong here.
 
 CLAUDE.md calls the verification non-negotiable, and the one thing that
 makes a rule like that fail is that it is remembered rather than checked.
@@ -8,6 +8,8 @@ and a turn that says the work is done -- and gets out of the way otherwise.
 
   PreToolUse/Bash   a commit whose sources changed since the last green run
   PreToolUse/Read   a large TeX .log read whole (40 kB for ~5 useful lines)
+  PreToolUse/edits  a version bump, or the release build, nobody asked for
+  PreToolUse/edits  this machine's paths written into the tracked CLAUDE.md
   Stop              a turn that CLAIMS completion on an unverified tree
   PostToolUse/Bash  a raw `python3 tests/runtests.py` that came out green:
                     record the stamp, so the documented command and the
@@ -15,18 +17,54 @@ and a turn that says the work is done -- and gets out of the way otherwise.
 
 None of these is a policy. The commit passes with LXX_SKIP_GATE=1 in front
 of it, and the Stop guard speaks once per state of the tree -- it is there
-to catch a slip, not to hold a conversation hostage.
+to catch a slip, not to hold a conversation hostage.  The release guard
+passes once RELEASE_OK exists, which only the user creates (see there).
 """
 import json
+import os
 import re
 import sys
 from pathlib import Path
 
 sys.dont_write_bytecode = True          # no __pycache__ in the repo
 ROOT = Path(__file__).resolve().parents[2]
-STATE = ROOT / ".claude" / ".state"
+#: test_guard.py points this elsewhere, so that testing the release switch
+#: never creates the real one.  A hook's environment is Claude Code's own,
+#: so a command cannot set this for the hook that judges it.
+STATE = Path(os.environ.get("LXX_GUARD_STATE") or ROOT / ".claude" / ".state")
 NAGGED = STATE / "stop-nagged"
 LOG_LIMIT = 6000                        # bytes; below this, read it directly
+
+#: The user's switch for a release: `! touch .claude/.state/release-ok`.
+#: Never Claude's -- creating it is itself refused -- and it lapses after
+#: RELEASE_OK_HOURS, so a release asked for on Monday does not license a
+#: bump on Thursday.  The version is Gerhard's decision (memory: "never
+#: bump the version unasked", 1.2 -> 1.5 in one session, all renumbered
+#: back), and so is building the upload.
+RELEASE_OK = STATE / "release-ok"
+RELEASE_OK_HOURS = 12
+
+#: Where the version is stated, and how to read it -- the three places
+#: tools/ctan.py's check_versions() holds to agreeing.  Its regexes, copied
+#: rather than imported because they read a FILE and this has to read the
+#: content an edit is about to write.  The \ProvidesPackage DATE is not
+#: guarded: it is not the version number, and the release check wants it
+#: current.
+VERSION_AT = {
+    "linguexx.sty": re.compile(r"\\ProvidesPackage\{linguexx\}\[[^\]]*?"
+                               r"v\.\s*([0-9]+(?:\.[0-9]+)*)\]"),
+    # every numbered heading: renaming "## Unreleased" to "## 1.5" is the
+    # bump, and so is a new one above it
+    "CHANGELOG.md": re.compile(r"(?m)^##\s+([0-9]+(?:\.[0-9]+)*)\s*$"),
+    "linguexx-doc.tex": re.compile(r"\\date\{Version\s+([0-9.]+)"),
+}
+
+#: What only holds on this computer and so belongs in CLAUDE.local.md
+#: (git-excluded), never in the tracked CLAUDE.md.  Added on 2026-10-04,
+#: after the TeX Live paths sat in CLAUDE.md where `git commit -a` would
+#: have swept them in.
+MACHINE = re.compile(r"~/texlive|texlive/20\d\d/bin|/home/\w+|x86_64-linux"
+                     r"|/usr/bin/\w*tex\b|\.zshrc|\.bashrc|\.emacs\.d")
 
 #: What a turn sounds like when it hands work back.  Deliberately about
 #: DELIVERY, not about progress: "I fixed the brace" ends a turn, "next I
@@ -110,6 +148,100 @@ def last_assistant_text(transcript):
     return ""
 
 
+def proposed(tool, inp):
+    """(path, text before, text after) for an edit, or None.
+
+    Edit and MultiEdit are applied to the file as it stands, the way the
+    tool will apply them; Write is its content.  An edit whose old_string
+    is not there fails in the tool anyway, so it is let through here."""
+    path = Path(str(inp.get("file_path", "")))
+    if not path.is_absolute():
+        return None
+    before = path.read_text(errors="replace") if path.is_file() else ""
+    if tool == "Write":
+        return path, before, str(inp.get("content", ""))
+    edits = ([inp] if tool == "Edit" else
+             inp.get("edits") or [] if tool == "MultiEdit" else None)
+    if edits is None:
+        return None
+    after = before
+    for e in edits:
+        old, new = str(e.get("old_string", "")), str(e.get("new_string", ""))
+        if not old or old not in after:
+            return None
+        after = (after.replace(old, new) if e.get("replace_all")
+                 else after.replace(old, new, 1))
+    return path, before, after
+
+
+def release_ok():
+    import time
+    return (RELEASE_OK.exists() and
+            time.time() - RELEASE_OK.stat().st_mtime < RELEASE_OK_HOURS * 3600)
+
+
+RELEASE_HELP = (
+    "The version number and the release build are Gerhard's decision, not a "
+    "side effect of the work (never bump the version unasked).  If he asked "
+    "for this release in this conversation, ask HIM to run\n"
+    "    ! touch .claude/.state/release-ok\n"
+    f"which allows it for {RELEASE_OK_HOURS} hours; never create that file "
+    "yourself.  Otherwise leave the version alone and say in your report "
+    "that a bump may be due.")
+
+
+def guard_edit(tool, inp):
+    """The two content guards, on what an edit is about to write."""
+    p = proposed(tool, inp)
+    if p is None:
+        return
+    path, before, after = p
+    try:
+        rel = path.resolve().relative_to(ROOT)
+    except ValueError:
+        return
+    if rel == Path(".claude/.state/release-ok"):
+        block("release-ok is the user's switch, not yours.\n" + RELEASE_HELP)
+    pat = VERSION_AT.get(str(rel))
+    if pat and not release_ok():
+        old, new = pat.findall(before), pat.findall(after)
+        if old != new:
+            block(f"Version change refused: {rel} would go from "
+                  f"{old or 'none'} to {new or 'none'}.\n" + RELEASE_HELP)
+    if rel == Path("CLAUDE.md"):
+        added = [m.group(0) for m in MACHINE.finditer(after)]
+        for m in MACHINE.finditer(before):
+            if m.group(0) in added:
+                added.remove(m.group(0))
+        if added:
+            block(f"CLAUDE.md is tracked, and this edit writes what only "
+                  f"holds on this computer into it: {sorted(set(added))}.\n"
+                  f"Notes about this machine (paths, installed versions, "
+                  f"shell and editor files) go in CLAUDE.local.md, which "
+                  f"git excludes.  Write them there instead.")
+
+
+def guard_release_bash(cmd):
+    # making it, not mentioning it: grep, ls and a heredoc that quotes the
+    # help text stay free.  One line at a time, each a command word or a
+    # redirection followed on that line by the path.
+    if re.search(r"(?m)(^|[\s;&|(])(touch|tee|cp|mv|ln|install|truncate|dd)"
+                 r"\s[^;&|\n]*\.state/release-ok"
+                 r"|>>?\s*\S*\.state/release-ok", cmd):
+        block("release-ok is the user's switch, not yours.\n" + RELEASE_HELP)
+    # Where a command starts (a line, or after ; & | or a paren), so that a
+    # heredoc or a commit message that MENTIONS the target is not running it.
+    at = r"(?m)(?:^|[;&|(])\s*(?:\w+=\S*\s+)*"
+    build = re.search(
+        at + r"(?:make\s+(?:-\S+\s+)*ctan(?:-tds)?\b"
+        r"|(?:python3?\s+)?(?:\./)?tools/ctan\.py(?!\s+--check\b))", cmd)
+    if build and not release_ok():
+        block("The release build (make ctan / tools/ctan.py) is refused: it "
+              "assembles a CTAN upload, and verification is `lxx verify`, "
+              "never the release target.  `tools/ctan.py --check` alone is "
+              "fine.\n" + RELEASE_HELP)
+
+
 # --------------------------------------------------------------------------
 def pre_tool(ev):
     tool, inp = ev.get("tool_name", ""), ev.get("tool_input") or {}
@@ -125,9 +257,14 @@ def pre_tool(ev):
                   f"need something it drops.)")
         return 0
 
+    if tool in ("Edit", "MultiEdit", "Write"):
+        guard_edit(tool, inp)
+        return 0
+
     if tool != "Bash":
         return 0
     cmd = str(inp.get("command", ""))
+    guard_release_bash(cmd)
     if not re.search(r"(^|[;&|]|\s)git\s+(-C\s+\S+\s+)?commit(\s|$)", cmd):
         return 0
     if "LXX_SKIP_GATE=1" in cmd:

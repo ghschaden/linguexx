@@ -94,6 +94,15 @@ untracked module makes the hook fail as though a test broke.
   `tests/suite/assertions/*.py` and the
   cases (`SOURCES`/`sources()` in `lxx`); a new suite module that is not in
   that glob is a stale green nobody sees.
+- Two more guards in the same hook hold rules that were only memories: a
+  change to the version number (`\ProvidesPackage`'s `v. N`, a numbered
+  `CHANGELOG.md` heading, the manual's `\date{Version ...}`) and the release
+  build (the `ctan` targets, `tools/ctan.py` without `--check`) are refused
+  unless the user has made the switch in `.claude/.state/` -- the refusal
+  names it; never make it yourself -- and an edit that writes this
+  machine's paths or shell and editor files into `CLAUDE.md` is refused in
+  favour of `CLAUDE.local.md`. `python3 .claude/hooks/test_guard.py` tests
+  all of it.
 - `tests/nominal-capture.sh` then `tests/nominal-verify.sh` — the pair for a
   change that is supposed to alter NOTHING on the page. Capture before, edit,
   verify after: the structure tree must be identical, every rendered page

@@ -7,8 +7,11 @@ the answer spent on output nobody reads.
     tools/lxx          the harness (see CLAUDE.md, or `lxx -h`)
     hooks/guard.py     refuses a commit on an unverified tree; stops a turn
                        that claims completion on one (once per tree state);
-                       refuses to read a 40 kB TeX log whole; and records the
-                       stamp when a raw runtests.py run comes out green
+                       refuses to read a 40 kB TeX log whole; records the
+                       stamp when a raw runtests.py run comes out green;
+                       refuses a version bump or the release build unless
+                       the user made the switch, and machine notes written
+                       into CLAUDE.md (test_guard.py tests the lot)
     agents/            log-triage (haiku), for scanning MANY logs at once
     commands/          /verify and /repro
     skills/lxx-gate/   a Claude Code mod (auto-loaded from here): the status
@@ -16,6 +19,11 @@ the answer spent on output nobody reads.
                        stands, or which sources changed since -- the verdict
                        is `lxx stamp --brief`'s, so it is the hooks' own.
                        `claude plugin test .claude/skills/lxx-gate` tests it
+    skills/lxx-render/ a mod: a pane ("Last rendering", /lxx-render) with the
+                       last PNG `lxx png` wrote or Claude read -- the page
+                       Claude judged -- and a file:// link to it.  The
+                       picture needs kitty graphics (kitty, Ghostty); in
+                       other terminals the pane is the link
     settings.json      wires the hook up and pre-approves the harness
     .state/            build dirs, renderings, and the green-run stamp
                        (regenerable; ignored)

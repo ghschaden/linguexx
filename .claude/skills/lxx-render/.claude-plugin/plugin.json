@@ -1,0 +1,1 @@
+{ "name": "lxx-render", "version": "0.1.0", "description": "A pane with the last rendering Claude made or looked at, so the person sees the page Claude judged", "author": { "name": "Gerhard Schaden" }, "types": "./types/index.d.ts" }
