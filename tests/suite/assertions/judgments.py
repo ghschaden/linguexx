@@ -252,6 +252,23 @@ def a_phantomalign(p: Page):
     r.append(check(abs(g9.x0 - o9.x0) < TOL,
                    f"pad clamped at zero: gloss keeps the column origin "
                    f"({g9.x0:.2f} vs {o9.x0:.2f})"))
+
+    # (10) the gloss's "(" is the START of the object's "([": the two "("
+    # sit flush and the pad goes behind the gloss's, so the stem is still
+    # under the stem.  The gap may or may not split the gloss into two
+    # words, so its "(" is the nearest word opening with one at or left of
+    # the stem.
+    o10 = p.find("([Zzz")
+    s10 = next(w for w in p.find_all("Zzz") if w is not o10)
+    paren10 = max((w for w in p.line_of(s10)
+                   if w.text.startswith("(") and w.x0 <= s10.x0 + TOL),
+                  key=lambda w: w.x0)
+    r.append(check(abs(paren10.x0 - o10.x0) < TOL,
+                   f"shared opening mark: the gloss's '(' sits under the "
+                   f"object's ({paren10.x0:.2f} vs {o10.x0:.2f})"))
+    r.append(check(abs(s10.x1 - o10.x1) < TOL,
+                   f"... and the stem still ends under the stem "
+                   f"({s10.x1:.2f} vs {o10.x1:.2f})"))
     return r
 
 

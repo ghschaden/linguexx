@@ -4,6 +4,15 @@ All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
 ## Unreleased
+- Fixed: under `[phantomalign]`, a gloss word whose own leading marks are
+  the START of the object word's run -- `(` under `(⌜` (a Quine corner
+  declared with `\GlossPhantomChars`), or `(` under `([` -- was padded in
+  front of its whole word, so its `(` sat under the corner or bracket
+  rather than under the object's `(`. The pad now goes behind the gloss's
+  own marks in that case, with the same total width, so the parentheses
+  are flush and the stems still aligned; under `\GlossMorphAlign` too.
+  Where the gloss's marks end the object's run, or match none of it,
+  nothing changes.
 - New: right-to-left glosses, under LuaLaTeX (recommended) or XeLaTeX.
   `\GlossRTL` sets a gloss as a right-to-left grid: the first word in the
   rightmost column, wrapping from the right, a short grid beside its

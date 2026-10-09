@@ -5141,10 +5141,21 @@
 %% Measuring and emitting are two steps so that the morpheme alignment
 %% below can ask how wide the pad of a tier will be before any of the
 %% column is set: a padded tier's first segment has that much less room.
+%%
+%% WHERE the pad goes is a second question, and \l__lx_gl_pad_after_dim
+%% answers it: that much of the pad goes after the tier's own marks
+%% instead of before them (see \__lx_gl_pad_split:).  It is zero unless
+%% those marks match a run of the object's that is not at its end, and
+%% then the whole pad is still the width above, only placed differently.
 \cs_new_protected:Npn \__lx_gl_pad:nn #1#2
   {
     \__lx_gl_pad_measure:nn {#1} {#2}
-    \hbox_to_wd:nn { \dim_max:nn { \c_zero_dim } { \l__lx_gl_pad_dim } } { }
+    \hbox_to_wd:nn
+      {
+        \dim_max:nn { \c_zero_dim } { \l__lx_gl_pad_dim }
+        - \l__lx_gl_pad_after_dim
+      }
+      { }
   }
 \cs_new_protected:Npn \__lx_gl_pad_measure:nn #1#2
   {
@@ -5159,7 +5170,108 @@
     \hbox_set:Nn \l__lx_gl_pad_box
       { \lx@glfontuse {#1} { \l__lx_gl_tierprefix_tl } }
     \dim_sub:Nn \l__lx_gl_pad_dim { \box_wd:N \l__lx_gl_pad_box }
+    \__lx_gl_pad_split:
     \tag_resume:n { lx-gl-pad }
+  }
+%% Which part of the pad goes AFTER the tier's own marks.  The pad used to
+%% go in front of the whole tier word, which is right when the tier's
+%% marks are the END of the object's run -- "(" under "*(", or the same
+%% "[" in a smaller tier, where the marks of both tiers then end where
+%% the stem begins.  It is wrong when they are its START.  A Quine corner
+%% inside a parenthesis, "(\qq ev" glossed "(house", padded the gloss by
+%% the corner's width and put that in front of its "(", so the gloss's
+%% parenthesis sat under the corner, a corner-width right of the one it
+%% reproduces.  The marks of a tier now sit under the marks they match:
+%% the tier's run is looked for in the object's, rightmost occurrence
+%% first, so the old placement is kept wherever it was already right;
+%% found anywhere but at the end, the pad is cut where the match starts.
+%% What lies before the match (in the object font) stays in front, and
+%% the rest goes between the tier's marks and its stem.  The total is
+%% unchanged, so the first real glyphs stay where they were.
+%%
+%% Not in a right-to-left grid, where no case has yet decided which edge
+%% a cell's marks should be anchored to; the pad stays whole there.
+\seq_new:N  \l__lx_gl_padobj_seq
+\seq_new:N  \l__lx_gl_padown_seq
+\int_new:N  \l__lx_gl_padk_int
+\int_new:N  \l__lx_gl_padi_int
+\bool_new:N \l__lx_gl_padeq_bool
+\tl_new:N   \l__lx_gl_padhead_tl
+\dim_new:N  \l__lx_gl_pad_after_dim
+\cs_new_protected:Npn \__lx_gl_pad_split:
+  {
+    \dim_zero:N \l__lx_gl_pad_after_dim
+    \bool_lazy_or:nnF
+      { \l__lx_gl_rtl_bool } { \tl_if_empty_p:N \l__lx_gl_tierprefix_tl }
+      {
+        \seq_clear:N \l__lx_gl_padobj_seq
+        \tl_map_inline:Nn \l__lx_gl_prefix_tl
+          { \seq_put_right:Ne \l__lx_gl_padobj_seq { \tl_to_str:n {##1} } }
+        \seq_clear:N \l__lx_gl_padown_seq
+        \tl_map_inline:Nn \l__lx_gl_tierprefix_tl
+          { \seq_put_right:Ne \l__lx_gl_padown_seq { \tl_to_str:n {##1} } }
+        %% \l__lx_gl_padk_int: how many object marks precede the
+        %% rightmost match, plus one; zero for no match at all.
+        \int_zero:N \l__lx_gl_padk_int
+        \int_step_inline:nnn { 0 }
+          {
+            \seq_count:N \l__lx_gl_padobj_seq
+            - \seq_count:N \l__lx_gl_padown_seq
+          }
+          {
+            \bool_set_true:N \l__lx_gl_padeq_bool
+            \int_step_inline:nn { \seq_count:N \l__lx_gl_padown_seq }
+              {
+                \str_if_eq:eeF
+                  { \seq_item:Nn \l__lx_gl_padobj_seq { ##1 + ####1 } }
+                  { \seq_item:Nn \l__lx_gl_padown_seq {####1} }
+                  { \bool_set_false:N \l__lx_gl_padeq_bool }
+              }
+            \bool_if:NT \l__lx_gl_padeq_bool
+              { \int_set:Nn \l__lx_gl_padk_int { ##1 + 1 } }
+          }
+        \bool_lazy_and:nnT
+          { \int_compare_p:nNn { \l__lx_gl_padk_int } > { 0 } }
+          {
+            \int_compare_p:nNn
+              {
+                \l__lx_gl_padk_int - 1
+                + \seq_count:N \l__lx_gl_padown_seq
+              }
+              < { \seq_count:N \l__lx_gl_padobj_seq }
+          }
+          {
+            \tl_clear:N \l__lx_gl_padhead_tl
+            \int_zero:N \l__lx_gl_padi_int
+            \tl_map_inline:Nn \l__lx_gl_prefix_tl
+              {
+                \int_incr:N \l__lx_gl_padi_int
+                \int_compare:nNnT
+                  { \l__lx_gl_padi_int } < { \l__lx_gl_padk_int }
+                  { \tl_put_right:Nn \l__lx_gl_padhead_tl {##1} }
+              }
+            \hbox_set:Nn \l__lx_gl_pad_box
+              { \lx@glfontuse {1} { \l__lx_gl_padhead_tl } }
+            \dim_set:Nn \l__lx_gl_pad_after_dim
+              {
+                \dim_max:nn { \c_zero_dim }
+                  {
+                    \dim_max:nn { \c_zero_dim } { \l__lx_gl_pad_dim }
+                    - \box_wd:N \l__lx_gl_pad_box
+                  }
+              }
+          }
+      }
+  }
+%% A tier word set with the second part of the pad between its own marks
+%% and the rest of it.  #1 the tier, #2 a tl var holding the word, or the
+%% first morpheme of it.  Only called when that part is not zero.
+\cs_new_protected:Npn \__lx_gl_pad_word:nN #1#2
+  {
+    \__lx_gl_peel:VNN #2 \l__lx_gl_tierprefix_tl \l__lx_gl_tierrest_tl
+    \lx@glfontuse {#1} { \l__lx_gl_tierprefix_tl }
+    \hbox_to_wd:nn { \l__lx_gl_pad_after_dim } { }
+    \lx@glfontuse {#1} { \l__lx_gl_tierrest_tl }
   }
 %% ---- morpheme alignment inside a column (opt-in) -------------------------
 %% \GlossMorphAlign: within a column, each morpheme starts at the same x in
@@ -5436,11 +5548,17 @@
       {
         \int_step_inline:nn { \l__lx_gl_morph_n_int }
           {
+            %% The pad in front of the word is what is left of it once
+            %% \__lx_gl_pad:nn has moved its second part inside, behind
+            %% the tier's own marks; that part stays in the first box.
             \hbox_to_wd:nn
               {
                 \dim_use:c { l__lx_gl_morph_w_ ##1 _dim }
                 \int_compare:nNnT {##1} = { 1 }
-                  { - \dim_use:c { l__lx_gl_morph_pad_ #1 _dim } }
+                  {
+                    - \dim_use:c { l__lx_gl_morph_pad_ #1 _dim }
+                    + \l__lx_gl_pad_after_dim
+                  }
               }
               {
                 %% Against the start of the box, or in a right-to-left
@@ -5451,11 +5569,35 @@
                 %% -market under it.  Flush right, morphemes line up by
                 %% their ends and the word ends where its column does.
                 \bool_if:NT \l__lx_gl_rtl_bool { \hfil }
-                \lx@glfontuse {#1}
-                  { \seq_item:cn { l__lx_gl_morph_ #1 _seq } {##1} }
+                \bool_lazy_and:nnTF
+                  { \int_compare_p:nNn {##1} = { 1 } }
+                  {
+                    \dim_compare_p:nNn
+                      { \l__lx_gl_pad_after_dim } > { \c_zero_dim }
+                  }
+                  {
+                    \__lx_gl_word_get:Ncn \l__lx_gl_tierword_tl
+                      { l__lx_gl_morph_ #1 _seq } { 1 }
+                    \__lx_gl_pad_word:nN {#1} \l__lx_gl_tierword_tl
+                  }
+                  {
+                    \lx@glfontuse {#1}
+                      { \seq_item:cn { l__lx_gl_morph_ #1 _seq } {##1} }
+                  }
                 \bool_if:NF \l__lx_gl_rtl_bool { \hfil }
               }
           }
+      }
+      { \__lx_gl_word_set:nn {#1} {#2} }
+  }
+%% A tier word set whole: #1 the tier, #2 the column.
+\cs_new_protected:Npn \__lx_gl_word_set:nn #1#2
+  {
+    \dim_compare:nNnTF { \l__lx_gl_pad_after_dim } > { \c_zero_dim }
+      {
+        \__lx_gl_word_get:Ncn \l__lx_gl_tierword_tl
+          { l__lx_gl_tier_ #1 _seq } {#2}
+        \__lx_gl_pad_word:nN {#1} \l__lx_gl_tierword_tl
       }
       {
         \lx@glfontuse {#1}
@@ -5772,16 +5914,14 @@
                     %% would zero anyway: that is the same answer, and it
                     %% keeps a gloss whose delimiters the object does not
                     %% share exactly where it was typed.
+                    \dim_zero:N \l__lx_gl_pad_after_dim
                     \int_compare:nNnT {####1} > { 1 }
                       { \tl_if_empty:NF \l__lx_gl_prefix_tl
                           { \__lx_gl_pad:nn {####1} {##1} } }
                     \lx@gl@wordbegin {####1}
                     \bool_if:NTF \l__lx_gl_morph_bool
                       { \__lx_gl_morph_cell:nn {####1} {##1} }
-                      {
-                        \lx@glfontuse {####1}
-                          { \seq_item:cn { l__lx_gl_tier_ ####1 _seq } {##1} }
-                      }
+                      { \__lx_gl_word_set:nn {####1} {##1} }
                     \lx@gl@wordend {####1} }
               }
           }%

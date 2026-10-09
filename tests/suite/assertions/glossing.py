@@ -577,6 +577,20 @@ def a_morphalign(p: Page):
                    f"... and in the padded tier holding the widest first "
                    f"segment, whose word ends where '-xb' does "
                    f"({w.x1:.2f} vs {x2.x1:.2f})"))
+    # (8b) a split pad: the "(" of both tiers flush, segment 2 at one x
+    # in the two tiers that open a gap before it
+    z1 = p.find("([za")
+    z2 = next(w for w in p.find_all("Zzzzzzzzzz") if w.y0 > z1.y0)
+    zparen = max((w for w in p.line_of(z2)
+                  if w.text.startswith("(") and w.x0 <= z2.x0 + TOL),
+                 key=lambda w: w.x0)
+    r.append(check(abs(zparen.x0 - z1.x0) < TOL,
+                   f"a pad split behind the tier's own '(': both '(' flush "
+                   f"({zparen.x0:.2f} vs {z1.x0:.2f})"))
+    zb, zs = p.find("-Zbbbbbbbbb"), p.find("-zc")
+    r.append(check(abs(zb.x0 - zs.x0) < TOL,
+                   f"... and segment 2 starts at one x in both tiers "
+                   f"({zb.x0:.2f} vs {zs.x0:.2f})"))
     # (10) off: one word per tier, at the column origin
     d = p.find("Ddddddddd-db-dc")
     for tok in ("fa-Fbbbbbbbbb-fc", "ga-gb-Ggggggggg"):
