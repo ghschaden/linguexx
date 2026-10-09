@@ -1,0 +1,106 @@
+% Demo: morpheme alignment (\GlossMorphAlign) together with phantom
+% alignment ([phantomalign]) past Quine corners declared as marks.
+% Builds with pdflatex, xelatex and lualatex.
+\DocumentMetadata{lang=en, pdfversion=2.0, pdfstandard=ua-2,
+  testphase={phase-III}}
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{amssymb}% \ulcorner, \urcorner
+\usepackage{linguexx}
+
+% Quine corners as single-token commands, so the phantom scan can see them
+% (manual, sec. "Aligning past brackets and judgment marks").
+\newcommand{\qq}{\ensuremath{\ulcorner}}
+\newcommand{\qqr}{\ensuremath{\urcorner}}
+\GlossPhantomChars{*?([<\#\%\qq}
+
+\title{Linguexx demo}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Morpheme alignment}
+
+By default a gloss column is aligned by word only. With
+\verb|\GlossMorphAlign| every morpheme, hyphen included, starts at the same
+point in all segmented tiers.
+
+\noindent Off (by word):
+
+\ex. \gll ev-ler-imiz-de otur-uyor-uz \\
+          house-\lpzg{pl}-\lpzg{1pl.poss}-\lpzg{loc} sit-\lpzg{prog}-\lpzg{1pl} \\
+\glt `We are sitting in our houses.'
+
+\noindent On (by morpheme):
+
+{\GlossMorphAlign
+\ex. \gll ev-ler-imiz-de otur-uyor-uz \\
+          house-\lpzg{pl}-\lpzg{1pl.poss}-\lpzg{loc} sit-\lpzg{prog}-\lpzg{1pl} \\
+\glt `We are sitting in our houses.'
+
+}
+
+\noindent A three-tier gloss whose first line is unsegmented (it is set
+whole and does not take part), a clitic boundary (\texttt{=}), and a braced
+multi-word gloss that counts as one morpheme:
+
+{\GlossMorphAlign
+\ex. \glll Sie sahen's gestern \\
+           sie sah-en=es gestern \\
+           they see.\lpzg{pst}-\lpzg{3pl}={it} yesterday \\
+\glt `They saw it yesterday.'
+
+\ex. \gll Schwieger-mütter-n \\
+          {in-law}-mother.\lpzg{pl}-\lpzg{dat.pl} \\
+\glt `mothers-in-law'
+
+}
+
+\section{Quine corners and phantom alignment}
+
+
+\noindent Phantom alignment off:
+
+\ex. \gll \qq{}ev-ler\qqr{} \qq{}kitap-lar\qqr{} \\
+          house-\lpzg{pl} book-\lpzg{pl} \\
+
+\noindent Phantom alignment on:
+
+{\GlossPhantomAlign
+\ex. \gll \qq{}ev-ler\qqr{} \qq{}kitap-lar\qqr{} \\
+          house-\lpzg{pl} book-\lpzg{pl} \\
+
+}
+
+\section{Both at once}
+
+With both switched on, the phantom pad is counted into the first morpheme
+of the gloss rather than added on top of it. The gloss carries its own
+bracket but no corner, so its bracket stays under the object's and the
+corner's width is padded behind it: \textit{house} sits under \textit{ev},
+and every morpheme boundary after it still lines up.
+
+{\GlossPhantomAlign\GlossMorphAlign
+\ex. \gll (\qq{}ev-ler-imiz-de\qqr{}) otur-uyor-uz \\
+          (house-\lpzg{pl}-\lpzg{1pl.poss}-\lpzg{loc}) sit-\lpzg{prog}-\lpzg{1pl} \\
+\glt `We are sitting in our houses.'
+
+\ex. \gll [\qq{}kitap-lar\qqr{}] \qq{}gel-di-ler\qqr{} \\
+          [book-\lpzg{pl}] come-\lpzg{pst}-\lpzg{3pl} \\
+\glt `(The) books came.'
+
+}
+
+\section{Alternatives}
+{\GlossPhantomAlign
+  \ex. \altn{This}{John}{My car} is \altn[l]{truly}{really}{?very} great!
+  \z.
+}  
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: LaTeX
+%%% TeX-master: t
+%%% End:
