@@ -4,9 +4,12 @@
     python3 .claude/hooks/test_guard.py
 
 Each case is one PreToolUse event and the verdict it must get: 2 (refused)
-or 0 (let through).  The release switch is tested in a scratch state
-directory (LXX_GUARD_STATE), never the real one.
+or 0 (let through); then which finished commands earn a green stamp
+(earns_stamp, called directly, so the real stamp is never written).  The
+release switch is tested in a scratch state directory (LXX_GUARD_STATE),
+never the real one.
 """
+import importlib.util
 import json
 import os
 import subprocess
@@ -107,6 +110,37 @@ def cases():
     ]
 
 
+def stamp_cases():
+    """earns_stamp: which finished Bash commands record a green run."""
+    green = "3217/3217 assertions passed across 3 engine(s).\nAll green.\n"
+    return [
+        ("raw suite, green", "python3 tests/runtests.py", green, True),
+        ("raw suite, red", "python3 tests/runtests.py",
+         "FAILED: pdflatex/x\n", False),
+        ("raw suite, filtered", "python3 tests/runtests.py -k rtl", green,
+         False),
+        ("raw suite, one engine", "python3 tests/runtests.py -e lualatex",
+         green, False),
+        # the case this function was split out for: the old guard skipped
+        # anything containing "lxx", so this recorded nothing
+        ("raw suite, then lxx stamp",
+         "python3 tests/runtests.py; .claude/tools/lxx stamp --brief",
+         green, True),
+        ("lxx test stamps itself", ".claude/tools/lxx test", green, False),
+        ("lxx verify stamps itself",
+         "cd x && .claude/tools/lxx verify && python3 tests/runtests.py",
+         green, False),
+        ("no suite at all", "echo All green.", "All green.\n", False),
+    ]
+
+
+def guard_module():
+    spec = importlib.util.spec_from_file_location("lxx_guard", GUARD)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def report(name, got, want, err=""):
     ok = got == want
     print(f"{'ok  ' if ok else 'FAIL'} {name}: {got} (want {want})"
@@ -132,6 +166,9 @@ def main():
         # ... and lapsed
         os.utime(state / "release-ok", (0, 0))
         fails += report("a lapsed switch", run(bash("make ctan"), state)[0], 2)
+    g = guard_module()
+    for name, cmd, out, want in stamp_cases():
+        fails += report(f"stamp: {name}", g.earns_stamp(cmd, out), want)
     print("all guard cases pass" if not fails else f"{fails} FAILED")
     return 1 if fails else 0
 

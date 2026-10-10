@@ -281,6 +281,26 @@ def pre_tool(ev):
     return 0
 
 
+def earns_stamp(cmd, out):
+    """Whether a Bash command and its output are a green, unfiltered run of
+    the whole suite through runtests.py.
+
+    `lxx test` and `lxx verify` write a stamp of their own, with the scope
+    they ran, and that is the only reason to look for lxx here -- a
+    command that merely MENTIONS it is still a raw run.  This used to skip
+    any command containing "lxx" at all, so `runtests.py; lxx stamp
+    --brief` printed "All green." and recorded nothing, and the stamp it
+    then showed was stale.
+    """
+    if "runtests.py" not in cmd:
+        return False
+    if re.search(r"(?:^|[\s;&|(/])lxx\s+(?:test|verify)\b", cmd):
+        return False                    # lxx stamps that run itself
+    if re.search(r"\s(-k|--filter|-e|--engine)(\s|=)", cmd):
+        return False                    # a partial run proves less
+    return "All green." in out
+
+
 def post_tool(ev):
     """A green unfiltered runtests.py run earns the same stamp as `lxx test`.
 
@@ -294,10 +314,6 @@ def post_tool(ev):
         return 0
     inp = ev.get("tool_input") or {}
     cmd = str(inp.get("command", ""))
-    if "runtests.py" not in cmd or "lxx" in cmd:
-        return 0
-    if re.search(r"\s(-k|--filter|-e|--engine)(\s|=)", cmd):
-        return 0                        # a partial run proves less
     cwd = str(ev.get("cwd") or ROOT)
     if not cwd.startswith(str(ROOT)):
         return 0
@@ -307,7 +323,7 @@ def post_tool(ev):
         out = str(resp.get("stdout", "")) + str(resp.get("stderr", ""))
     elif resp:
         out = str(resp)
-    if "All green." not in out:
+    if not earns_stamp(cmd, out):
         return 0
     m = lxx()
     summary = next((ln.strip() for ln in out.splitlines()
