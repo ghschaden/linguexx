@@ -810,3 +810,53 @@ grid's, and moving it to the right means hanging it off the right edge of
 the grid's box (`\__lx_gl_rtl_place:`). The morpheme behaviour is pinned by
 `tests/rtl-morph.tex`, which would change with it; `tests/rtl.tex` pins the
 mark on the left.
+
+## Examples in a right-to-left document
+
+*OPEN, 2026-10-10. Found while probing a Hebrew-main document (polyglossia
+`\setmainlanguage{hebrew}`) under both engines; nothing below was chosen,
+it is what the code happens to do.*
+
+**What is settled.** A plain example is the mirror image of a
+left-to-right one: number against the right margin, text the same
+distance in, a sub-example's label at the text's edge, a judgment mark to
+the right of what it judges, `\altn` braces opening on the right.
+`tests/rtl-main.tex` measures all of it against a left-to-right example
+in the same file, under XeLaTeX and LuaLaTeX.
+
+**Current behaviour of what is not.**
+
+1. *Interlinear glosses* are not designed for a right-to-left document,
+   and come out differently on the two engines. Under XeLaTeX the whole
+   grid, number included, stands at the left of the page and the
+   translation at the right; under LuaLaTeX the number and the grid are
+   on the right and the columns run from the right, but the paired
+   `\altg` braces of a gloss face inward and the grid's own placement is
+   not what a mirrored left-to-right gloss would be. `\GlossRTL` exists
+   for right-to-left object tiers in a LEFT-to-right document; whether a
+   right-to-left document should behave as if it were on, and what the
+   gloss tiers of a Hebrew example glossed in Hebrew would then look like,
+   is the question.
+2. *Sub-example labels* follow the document language's counting: under
+   polyglossia's Hebrew they are א, ב, not a, b, because linguexx asks
+   for `\alph` and polyglossia redefines it. Hebrew-language publications
+   may want exactly that, or Latin letters, or a choice.
+3. *Which side a number is on* follows each example's own direction: in
+   a Hebrew document an example inside `\begin{english}` is numbered on
+   the left, so one document numbers on both sides.
+
+**Why this is not settled.** Each is a question of house style in a
+publication language this package has no reader in yet, and the engines
+disagree on (1), so "what it does now" is not even one answer.
+
+**What would decide it.** Linguistics written in Hebrew or Arabic --
+journal papers, theses, a house style sheet -- showing how glossed
+examples, sub-example letters and the numbering of embedded
+left-to-right examples are set.
+
+**If it is changed:** (1) belongs with the right-to-left grid entry above,
+since `\GlossRTL` is where the grid is built; the paired `\altg` braces in
+a gloss are placed by `\__lxp_altg_shape_obj:` and
+`\__lxp_altg_shape_gloss:`, which the single-box fix for `\altn`
+(`\__lxp_unit:n`) deliberately does not touch. (2) is the label commands'
+use of `\alph`/`\roman`; (3) is wherever the list's direction is taken.

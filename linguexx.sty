@@ -2178,7 +2178,30 @@
 %% \labelwidth using its own alignment, which defaults to flush RIGHT; a
 %% label that already fills \labelwidth is left untouched.  Classic
 %% (untagged) output is identical.
-\def\lx@flushlabel#1{\makebox[\labelwidth][l]{\lx@labelfont#1}}
+%%
+%% "Flush left" means flush against the OUTER edge, away from the text,
+%% and in a right-to-left document that edge is the right one.  LuaTeX
+%% mirrors [l] with the paragraph direction by itself.  XeTeX does not:
+%% under bidi (which polyglossia loads for Hebrew, Arabic, ...) [l] stays
+%% physically left, so in a right-to-left list every number and letter sat
+%% against its text, 14pt and 8pt in from where the mirror of a
+%% left-to-right list puts them, while the text and the marks were in the
+%% right place.  So under XeTeX in a right-to-left paragraph the side is
+%% r.  bidi's \if@RTL says which; LuaTeX sets it too, and must not be
+%% given r, since there it would be mirrored a second time.
+\ExplSyntaxOn
+\cs_new:Npn \lx@labelside
+  {
+    \sys_if_engine_xetex:TF
+      {
+        \cs_if_exist:NTF \if@RTL
+          { \legacy_if:nTF { @RTL } { r } { l } }
+          { l }
+      }
+      { l }
+  }
+\ExplSyntaxOff
+\def\lx@flushlabel#1{\makebox[\labelwidth][\lx@labelside]{\lx@labelfont#1}}
 %% \lx@relref@anchor places the hyperref destination for this example when
 %% linguexx is the one making them (see \lx_relref_record:).  It goes
 %% after the judgment, so the mark still hangs from the label edge, and
@@ -7613,6 +7636,53 @@
 %% on it: width \AltBraceWidth, spanning #2 to #3, baseline on y = 0.
 %% \altn hands 0pt..height and raises the picture itself; \altg hands
 %% -depth..height and needs the baseline in the middle.
+%%
+%% Right to left.  The callers emit L brace, stack, R brace as three
+%% boxes, and in a right-to-left paragraph the engine lays them out right
+%% to left while the pictures inside are drawn as they are: the L shape
+%% landed on the right, cusp toward the stack, and an \altn read
+%% "}stack{" in a Hebrew-main document under both engines.  Drawing the
+%% other side's shape there is NOT the fix, although it looks like one and
+%% passed the first measurement: under LuaLaTeX polyglossia reorders a run
+%% of Latin text in a right-to-left paragraph back to left to right, takes
+%% the brace boxes along with it, and the swapped shapes then faced inward
+%% instead.  The order the three boxes come out in depends on their
+%% neighbours, which nothing here can know.  So in a right-to-left
+%% paragraph they go out as ONE box whose inside is left to right
+%% (\__lxp_unit:n): whatever moves it moves it whole, and the braces face
+%% outward on every side of every text.  The stack inside keeps the
+%% direction it was built in, so Hebrew alternatives read as they should.
+%% Outside a right-to-left paragraph \__lxp_unit:n is its argument, and a
+%% left-to-right document is set exactly as before.  Which paragraphs are
+%% right to left: LuaTeX says so itself (\textdirection is 1); XeTeX has no
+%% such register, and bidi's \if@RTL is what answers there.  Under XeTeX
+%% the box needs \beginL as well: bidi starts every box right to left in
+%% a right-to-left paragraph, so a plain \hbox was reversed too.
+\prg_new_conditional:Npnn \__lxp_if_rtl: { TF }
+  {
+    \sys_if_engine_luatex:TF
+      {
+        \int_compare:nNnTF { \tex_textdirection:D } = { 1 }
+          { \prg_return_true: } { \prg_return_false: }
+      }
+      {
+        \bool_lazy_and:nnTF
+          { \sys_if_engine_xetex_p: }
+          { \cs_if_exist_p:N \if@RTL }
+          { \legacy_if:nTF { @RTL } { \prg_return_true: } { \prg_return_false: } }
+          { \prg_return_false: }
+      }
+  }
+\cs_new_protected:Npn \__lxp_unit:n #1
+  {
+    \__lxp_if_rtl:TF
+      {
+        \sys_if_engine_luatex:TF
+          { \tex_hbox:D dir ~ TLT {#1} }
+          { \hbox:n { \tex_beginL:D #1 \tex_endL:D } }
+      }
+      {#1}
+  }
 \cs_new_protected:Npn \__lxp_brace:nnn #1#2#3
   {
     \fp_set:Nn \l__lxp_brace_len_fp { \dim_to_decimal:n { #3 - #2 } }
@@ -7889,9 +7959,14 @@
 %% whatever precedes/follows; the inner gap just separates the brace from
 %% the stack it braces.
 \cs_new_protected:Npn \__lxp_alt_emit:
-  { \leavevmode \hspace{\AltBraceOuterSep} \__lxp_alt_brace:n { L } \__lxp_alt_opensep:
-    \box_use:N \l__lxp_alt_box
-    \hspace{\AltBraceSep} \__lxp_alt_brace:n { R } \hspace{\AltBraceOuterSep} }
+  { \leavevmode \hspace{\AltBraceOuterSep}
+    \__lxp_unit:n
+      {
+        \__lxp_alt_brace:n { L } \__lxp_alt_opensep:
+        \box_use:N \l__lxp_alt_box
+        \hspace{\AltBraceSep} \__lxp_alt_brace:n { R }
+      }
+    \hspace{\AltBraceOuterSep} }
 %% the printed object wrapped in a Span carrying the spoken /Alt
 %%
 %% The stack is BUILT HERE, inside the open Span, and that ordering is the
@@ -7922,10 +7997,13 @@
     \leavevmode
     \hspace{\AltBraceOuterSep}
     \lx@tag@span@begin:e { tag = Span , alt = { \l__lxp_alt_alt_tl } }
-    \__lxp_alt_setstack:
-    \__lxp_alt_brace:n { L } \__lxp_alt_opensep:
-    \box_use:N \l__lxp_alt_box
-    \hspace{\AltBraceSep} \__lxp_alt_brace:n { R }
+    \__lxp_unit:n
+      {
+        \__lxp_alt_setstack:
+        \__lxp_alt_brace:n { L } \__lxp_alt_opensep:
+        \box_use:N \l__lxp_alt_box
+        \hspace{\AltBraceSep} \__lxp_alt_brace:n { R }
+      }
     \lx@tag@span@end:
     \hspace{\AltBraceOuterSep}
   }
@@ -8195,9 +8273,12 @@
 \cs_new_protected:Npn \__lxp_altg_shape_solo:
   {
     \hspace { \AltBraceOuterSep }
-    \__lxp_altg_brace:n { L } \__lxp_alt_opensep:
-    \box_use:N \l__lxp_altg_stack_box
-    \hspace { \AltBraceSep } \__lxp_altg_brace:n { R }
+    \__lxp_unit:n
+      {
+        \__lxp_altg_brace:n { L } \__lxp_alt_opensep:
+        \box_use:N \l__lxp_altg_stack_box
+        \hspace { \AltBraceSep } \__lxp_altg_brace:n { R }
+      }
     \hspace { \AltBraceOuterSep }
   }
 %% emit one shape, tag-guarded: under active tagging the shape is wrapped

@@ -8,6 +8,7 @@ built with check(), which is the whole protocol.
 import re
 
 from suite.check import check, warning_body
+from suite.geometry import brace_bulge
 from suite.pdf import (
     TOL, Page, bookmark_titles, inflated,
 )
@@ -883,3 +884,70 @@ def a_rtl_morph(p: Page):
               f"a narrower morpheme sits at the end of its box, not the start "
               f"({pq.x0:.2f} vs {r1.x0:.2f})"),
     ]
+
+
+def a_rtl_main(p: Page):
+    r"""A right-to-left document's examples mirror a left-to-right one's;
+    see the case's header.  Every expected position is derived from the
+    english example set in the same file."""
+    r = []
+    left = p.find("LTRMAIN")
+    L = min(w.x0 for w in p.line_of(left))          # the (1), on the margin
+    R = p.width - L                                  # symmetric margins
+    d_main = left.x0 - L
+    d_sub = p.find("LTRSUBA").x0 - L
+    ltr_b = p.find("LTRSUBB")
+    ltr_star = [w for w in p.left_of(ltr_b) if w.text == "*"]
+    gap = ltr_b.x0 - ltr_star[-1].x1 if ltr_star else None
+
+    main = p.find("RTLMAIN")
+    line = p.line_of(main)
+    r.append(check(abs(max(w.x1 for w in line) - R) < TOL,
+                   f"the number sits against the right margin: "
+                   f"{max(w.x1 for w in line):.2f} vs {R:.2f}"))
+    r.append(check(abs(main.x1 - (R - d_main)) < TOL,
+                   f"the text starts as far in from the right as the "
+                   f"reference's does from the left: {main.x1:.2f} vs "
+                   f"{R - d_main:.2f}"))
+    suba = p.find("RTLSUBA")
+    r.append(check(abs(suba.x1 - (R - d_sub)) < TOL,
+                   f"a sub-example's text, likewise: {suba.x1:.2f} vs "
+                   f"{R - d_sub:.2f}"))
+    label = [w for w in p.line_of(suba) if w.x0 >= suba.x1 - TOL]
+    lab_x1 = max((w.x1 for w in label), default=0)
+    r.append(check(abs(lab_x1 - (R - d_main)) < TOL,
+                   f"its letter stands at the main text's edge, not against "
+                   f"its own text: {lab_x1:.2f} vs {R - d_main:.2f}"))
+    subb = p.find("RTLSUBB")
+    star = [w for w in p.line_of(subb) if "*" in w.text and w.x0 >= subb.x1]
+    r.append(check(gap is not None and bool(star)
+                   and abs(star[0].x0 - subb.x1 - gap) < TOL,
+                   f"the mark hangs to the right of the text it judges, as "
+                   f"far from it as on the left in the reference: "
+                   f"{[w.text for w in star]} gap "
+                   f"{(star[0].x0 - subb.x1) if star else None} vs {gap}"))
+
+    # the braces: each one points AWAY from its stack, whichever side of
+    # it the engine has put which word
+    for a, b, what in (("STKA", "STKB", "an \\altn in Hebrew text"),
+                       ("STKC", "STKD", "an \\altn in a line of Latin text"),
+                       ("STKE", "STKF", "a solo \\altg")):
+        rows = [p.find(a), p.find(b)]
+        top, bot = min(w.y0 for w in rows), max(w.y1 for w in rows)
+        mid = (top + bot) / 2
+        band = [w for w in p.words if w not in rows
+                and abs((w.y0 + w.y1) / 2 - mid) < 6]
+        x0, x1 = min(w.x0 for w in rows), max(w.x1 for w in rows)
+        lnb = max((w.x1 for w in band if w.x1 <= x0 + TOL), default=None)
+        rnb = min((w.x0 for w in band if w.x0 >= x1 - TOL), default=None)
+        if lnb is None or rnb is None:
+            r.append(check(False, f"{what}: words on both sides of the "
+                                  f"stack ({lnb}, {rnb})"))
+            continue
+        lb = brace_bulge(p.path, lnb, x0, top, bot)
+        rb = brace_bulge(p.path, x1, rnb, top, bot)
+        r.append(check(lb < -5.0 and rb > 5.0,
+                       f"{what}: both braces point away from the stack "
+                       f"(left tip - ends = {lb:.1f}px, want < -5; right "
+                       f"{rb:.1f}px, want > +5)"))
+    return r

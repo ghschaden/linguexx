@@ -4,6 +4,17 @@ All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
 ## Unreleased
+- Fixed: in a right-to-left document under XeLaTeX (Hebrew, Arabic, ...
+  as polyglossia's main language, which loads bidi), example numbers and
+  sub-example letters stood against their text instead of against the
+  margin -- up to 14pt in -- while the text and the judgment marks were in
+  the right place. They are now where LuaLaTeX puts them, the mirror image
+  of a left-to-right list.
+- Fixed: in a right-to-left paragraph, the braces of `\altn` and of an
+  `\altg` outside a gloss faced the alternatives instead of facing away
+  from them ("}...{"), under both engines. Left-to-right documents are
+  unchanged. Glosses in a right-to-left document are a separate, open
+  question; see `doc/DEFERRED-DECISIONS.md`.
 - New: `\exrefcheck` lists, at the end of the run, every relative
   reference (`\Next`, `\Last`, `\NNext`, `\LLast`, `\TextNext` and their
   `\p...` twins) and both ends of every `\refrange`, `\prefrange` and

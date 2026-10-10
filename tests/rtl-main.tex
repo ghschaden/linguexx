@@ -1,0 +1,42 @@
+%% Examples in a right-to-left document must be the MIRROR of examples in
+%% a left-to-right one: number against the right margin, text the same
+%% distance in from it, a sub-example's letter at the text's edge, a
+%% judgment mark hanging to the right of what it judges.  The left-to-right
+%% example in the english environment is the reference, measured in the
+%% same file, so nothing here hard-codes a length.
+%%
+%% Two defects this case was written for.  Under XeLaTeX every label sat
+%% against its text instead of the margin, 14pt and 8pt inward: the label
+%% box was flush LEFT, and bidi leaves [l] physically left where LuaTeX
+%% mirrors it (\lx@labelside).  And under both engines an \altn stack read
+%% "}stack{": the braces are emitted L, stack, R in source order, a
+%% right-to-left paragraph lays that order out right to left, and the
+%% pictures inside the boxes are not mirrored (\__lxp_unit:n).  Three
+%% stacks: in Hebrew text; in a line of Latin text, which polyglossia
+%% reorders left to right under LuaLaTeX and which is what defeated
+%% drawing the other side's shape instead; and a solo \altg.  A brace is
+%% read off its neighbours' POSITIONS, never their names, because which
+%% word ends up on which side is the engines' business.
+%%
+%% Latin sentinels in Hebrew text: pdftotext reports them as words either
+%% engine, and their place in a right-to-left line is what is measured.
+\input{_preamble-rtlmain}
+\begin{document}
+\begin{english}
+\ex. LTRMAIN the reference.
+\a. LTRSUBA first.
+\b. *LTRSUBB second.
+\z.
+\end{english}
+
+\ex. RTLMAIN הילד אכל.
+\a. RTLSUBA הילד.
+\b. *RTLSUBB אכל.
+\z.
+
+\ex. אני ראיתי \altn{STKA}{STKB} אתמול.
+
+\ex. BEFORESTK \altn{STKC}{STKD} AFTERSTK.
+
+\ex. אני ראיתי \altg{STKE}{STKF} אתמול.
+\end{document}

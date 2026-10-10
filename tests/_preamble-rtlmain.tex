@@ -1,0 +1,14 @@
+%% A right-to-left DOCUMENT: Hebrew as polyglossia's main language, which
+%% under XeLaTeX means bidi, and English as the other.  Margins symmetric,
+%% so that a right-to-left list can be checked as the mirror image of a
+%% left-to-right one set in the same file.  XeLaTeX and LuaLaTeX only.
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=25mm]{geometry}
+\usepackage{fontspec}
+\setmainfont{FreeSerif.otf}
+\usepackage{polyglossia}
+\setmainlanguage{hebrew}
+\setotherlanguage{english}
+\newfontfamily\hebrewfont{FreeSerif.otf}[Script=Hebrew]
+\usepackage{linguexx}
+\pagestyle{empty}
