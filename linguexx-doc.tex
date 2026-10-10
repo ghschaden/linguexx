@@ -2001,6 +2001,11 @@ and \pkg{gb4e}'s \cs{ex}\oarg{judgment}\marg{text} by its argument. A plain
 straight from the input and is not read ahead of, so the list gives its
 number and page and says that its text was not recorded.
 
+Under \pkg{beamer}, a reference is listed once however many slides its
+frame has, and the pages given are the slides on which the reference and
+its example can be \emph{seen}: material after \cs{pause} is set on the
+frame's earlier slides too, only invisibly, and those are not counted.
+
 A relative reference finds its example by position, so it is listed
 correctly even after the example counter has been reset. A range is given
 by labels and resolves by number, so a range end whose number two examples

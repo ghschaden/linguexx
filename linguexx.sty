@@ -3946,6 +3946,7 @@
 \int_new:N   \l__lx_refcheck_skip_int     % brace depth inside a \label's argument
 \bool_new:N  \l__lx_refcheck_skiparg_bool % the next group is a \label's argument
 \bool_new:N  \l__lx_refcheck_aftercs_bool % the previous token was a command
+\bool_new:N  \l__lx_refcheck_overlay_bool % inside a beamer <...> after one
 %% Which relative command is resolving: set by each of them, read by the
 %% report.  The \p... twins call the plain command and report as it.
 \tl_new:N \lx@relcmd
@@ -4019,6 +4020,20 @@
       { \exp_args:NNe \iow_shipout_e:Nn \@auxout {#1} }
   }
 
+%% Under beamer, \pause, \uncover and \onslide RUN their material on every
+%% slide of the frame and only drop its ink where it is covered, so the
+%% first page an example or a reference is set on can be a slide where it
+%% cannot be seen -- the mistake \lx_relref_if_unseen_here: guards the
+%% links against.  A page is recorded only on a pass where the material
+%% is visible; the first such page is the one read back.
+\prg_new_conditional:Npnn \__lx_refcheck_if_covered: { T , F , TF }
+  {
+    \bool_lazy_and:nnTF
+      { \cs_if_exist_p:N \beamer@coveringdepth }
+      { \int_compare_p:nNn { \beamer@coveringdepth } > { 0 } }
+      { \prg_return_true: } { \prg_return_false: }
+  }
+
 %% --- opening words ---------------------------------------------------
 %% #1 = material, as tokens.  Leaves at most \g__lx_refcheck_words_int
 %% words of it in \l__lx_refcheck_str, with " ..." when there were more.
@@ -4027,7 +4042,8 @@
 %% under it.  Commands are dropped and leave a word break; a \label or
 %% \sublabel is dropped with its argument, so an example opened by one is
 %% quoted from its text; a "." straight after a command is the period of
-%% \a. and the like, and goes with it.  Characters are kept by their code,
+%% \a. and the like, and goes with it, and a "<...>" straight after one is
+%% a beamer overlay specification (\only<2->{...}), and goes too.  Characters are kept by their code,
 %% active ones included -- which is what keeps an inputenc-encoded UTF-8
 %% letter whole under pdfLaTeX, where both of its bytes are active.  The
 %% characters \ { } % # ^ are dropped: the words are written to the .aux
@@ -4040,6 +4056,7 @@
     \int_zero:N \l__lx_refcheck_skip_int
     \bool_set_false:N \l__lx_refcheck_skiparg_bool
     \bool_set_false:N \l__lx_refcheck_aftercs_bool
+    \bool_set_false:N \l__lx_refcheck_overlay_bool
     \exp_args:NV \tl_analysis_map_inline:nn \l__lx_refcheck_tmp_tl
       { \__lx_refcheck_token:nnn {##1} {##2} {##3} }
     \seq_set_split:NnV \l__lx_refcheck_words_seq { ~ } \l__lx_refcheck_str
@@ -4060,6 +4077,15 @@
       { \str_put_right:Nn \l__lx_refcheck_str { ~... } }
   }
 \cs_new_protected:Npn \__lx_refcheck_token:nnn #1#2#3
+  {
+    \bool_if:NTF \l__lx_refcheck_overlay_bool
+      {
+        \int_compare:nNnT {#2} = { `> }
+          { \bool_set_false:N \l__lx_refcheck_overlay_bool }
+      }
+      { \__lx_refcheck_token_aux:nnn {#1} {#2} {#3} }
+  }
+\cs_new_protected:Npn \__lx_refcheck_token_aux:nnn #1#2#3
   {
     \int_compare:nNnTF { \l__lx_refcheck_skip_int } > { 0 }
       {
@@ -4113,8 +4139,15 @@
   }
 \cs_new_protected:Npn \__lx_refcheck_char:n #1
   {
-    \bool_lazy_and:nnF
-      { \l__lx_refcheck_aftercs_bool } { \int_compare_p:nNn {#1} = { `. } }
+    \bool_lazy_and:nnT
+      { \l__lx_refcheck_aftercs_bool } { \int_compare_p:nNn {#1} = { `< } }
+      { \bool_set_true:N \l__lx_refcheck_overlay_bool }
+    \bool_lazy_or:nnF
+      { \l__lx_refcheck_overlay_bool }
+      {
+        \bool_lazy_and_p:nn
+          { \l__lx_refcheck_aftercs_bool } { \int_compare_p:nNn {#1} = { `. } }
+      }
       {
         \int_case:nnF {#1}
           {
@@ -4205,10 +4238,13 @@
             \token_to_str:N \lx@refcheck@num
               { \g__lx_refcheck_num_tl } { \g__lx_refcheck_key_tl }
           }
-        \__lx_refcheck_shipout:n
+        \__lx_refcheck_if_covered:F
           {
-            \token_to_str:N \lx@refcheck@page
-              { \g__lx_refcheck_key_tl } { \exp_not:N \thepage }
+            \__lx_refcheck_shipout:n
+              {
+                \token_to_str:N \lx@refcheck@page
+                  { \g__lx_refcheck_key_tl } { \exp_not:N \thepage }
+              }
           }
         \tl_if_empty:NF \g__lx_refcheck_body_tl
           {
@@ -4233,19 +4269,26 @@
       {
         \str_set:Ne \l__lx_refcheck_str
           { \int_use:N \inputlineno / #1 / #2 }
-        \prop_if_in:NVF \g__lx_refcheck_dedupe_prop \l__lx_refcheck_str
+        \prop_get:NVNF \g__lx_refcheck_dedupe_prop \l__lx_refcheck_str
+            \l__lx_refcheck_tmp_tl
           {
-            \prop_gput:NVn \g__lx_refcheck_dedupe_prop \l__lx_refcheck_str { }
             \int_gincr:N \g__lx_refcheck_ref_int
+            \tl_set:Ne \l__lx_refcheck_tmp_tl
+              { \int_use:N \g__lx_refcheck_ref_int }
+            \prop_gput:NVV \g__lx_refcheck_dedupe_prop \l__lx_refcheck_str
+              \l__lx_refcheck_tmp_tl
             \seq_gput_right:Ne \g__lx_refcheck_refs_seq
               {
                 { \int_use:N \inputlineno } {#1} {#2} {#3}
-                { \int_use:N \g__lx_refcheck_ref_int }
+                { \l__lx_refcheck_tmp_tl }
               }
+          }
+        \__lx_refcheck_if_covered:F
+          {
             \__lx_refcheck_shipout:n
               {
                 \token_to_str:N \lx@refcheck@at
-                  { \int_use:N \g__lx_refcheck_ref_int } { \exp_not:N \thepage }
+                  { \l__lx_refcheck_tmp_tl } { \exp_not:N \thepage }
               }
           }
       }

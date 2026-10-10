@@ -15,6 +15,10 @@ version string.
   list goes to the terminal and the log. Words are recorded for dot-syntax
   examples, for glosses in any syntax and for gb4e's `\ex[*]{...}`; a plain
   gb4e or `\ea` item is listed by number and page. `\ref` is not touched.
+  Under beamer a reference is listed once however many slides its frame
+  has, and a page is the slide the example or reference is SEEN on: after
+  `\pause` that is the next one, not the slide it was first set on while
+  covered. Overlay specifications (`\only<2->`) are not quoted.
 - Fixed: under LuaLaTeX with polyglossia's French, a judgment mark
   containing `?` -- `?`, `??`, `?*`, also through `\jdg` -- was printed on
   top of the first word of its example instead of hanging to its left.

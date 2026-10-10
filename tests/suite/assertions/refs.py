@@ -676,7 +676,8 @@ def a_customlabel_refs(p: Page):
 
 
 def refcheck_report(log):
-    """The \\exrefcheck listing from a .log: (command, rest) per entry.
+    """The \\exrefcheck listing from a .log: (command, rest, page) per
+    entry, `page` being the page the reference itself is on.
 
     The entries are wrapped by \\iow_wrap:nnnN with a four-space indent,
     and a long one runs on over several lines; an entry starts with its
@@ -699,8 +700,9 @@ def refcheck_report(log):
             entries[-1] += " " + line.strip()
     out = []
     for e in entries:
-        hit = re.match(r"l\.\d+, p\.\d+: \\(\S+) -> (.*)$", e)
-        out.append((hit.group(1), hit.group(2)) if hit else (None, e))
+        hit = re.match(r"l\.\d+, p\.(\d+): \\(\S+) -> (.*)$", e)
+        out.append((hit.group(2), hit.group(3), int(hit.group(1)))
+                   if hit else (None, e, None))
     return int(m.group(1)), out
 
 
@@ -711,7 +713,7 @@ def _refcheck_rows(p, want):
                    f"the report lists every reference once: announced {n}, "
                    f"listed {len(got)}, want {len(want)}"))
     for i, (cmd, rest, why) in enumerate(want):
-        have = got[i] if i < len(got) else (None, "")
+        have = got[i] if i < len(got) else (None, "", None)
         r.append(check(have[0] == cmd and have[1] == rest,
                        f"entry {i + 1}, {why}: want \\{cmd} -> {rest!r}, "
                        f"got \\{have[0]} -> {have[1]!r}"))
@@ -773,3 +775,23 @@ def a_refcheck_gb4e(p: Page):
         ("Last", '(i) on p.1: "GBFOOT eins zwei ..."',
          "the footnote series, by its roman number"),
     ])
+
+
+def a_refcheck_beamer(p: Page):
+    r"""\exrefcheck under beamer overlays; see the case's header."""
+    r = _refcheck_rows(p, [
+        ("Next", '(2) on p.2: "BMTWO second example. BMOVERLAY on slide ..."',
+         "the overlay specification is not quoted"),
+        ("Last", '(2) on p.2: "BMTWO second example. BMOVERLAY on slide ..."',
+         "a reference on a two-slide frame, listed once"),
+        ("Last", '(4) on p.5: "BMPAUSED visible only on the next ..."',
+         "an example after \\pause is on the slide it is SEEN on"),
+        ("Next", '(5) on p.7: "BMONLY appears on slide two."',
+         "an example inside \\only<2-> is on its own slide"),
+    ])
+    _, got = refcheck_report(p.log)
+    pages = [g[2] for g in got]
+    r.append(check(pages == [1, 2, 5, 6],
+                   f"each reference is on the first slide it is SEEN on, the "
+                   f"one after \\pause on p.5 and not p.4: {pages}"))
+    return r

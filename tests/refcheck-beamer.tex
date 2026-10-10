@@ -1,0 +1,39 @@
+%% \exrefcheck under beamer, where the decks are written.  A frame is set
+%% once per slide with the counters restored, so every reference below is
+%% read two or more times and must be listed once.  \pause RUNS the
+%% material after it on the first slide and only drops its ink, so
+%% BMPAUSED and the reference after it are first set on a slide where they
+%% cannot be seen: both must be reported on the NEXT page, the one a
+%% reader finds them on -- the same mistake \lx_relref_if_unseen_here:
+%% keeps out of the links.  \only<2-> is not run at all on slide 1, so
+%% BMONLY is first set, and seen, on the second.  And an overlay
+%% specification is markup, not text: BMTWO's quote must not read "<2->".
+%%
+%% Pages: 1 BMONE; 2-3 BMTWO (BMOVERLAY on 3); 4-5 BMSHOWN, BMPAUSED on 5;
+%% 6-7 BMBEFORE, BMONLY on 7.
+\input{_preamble-beamer}
+\exrefcheck
+\begin{document}
+\begin{frame}{F1}
+\ex. BMONE first example.
+
+BMNEXT \Next
+\end{frame}
+\begin{frame}{F2}
+\ex. BMTWO second example.
+\only<2->{BMOVERLAY on slide two.}
+
+BMLASTTWO \Last
+\end{frame}
+\begin{frame}{F3}
+\ex. BMSHOWN visible at once.
+\pause
+\ex. BMPAUSED visible only on the next slide.
+
+BMPAUSEDREF \Last
+\end{frame}
+\begin{frame}{F4}
+BMBEFORE \Next
+\only<2->{\ex. BMONLY appears on slide two.}
+\end{frame}
+\end{document}

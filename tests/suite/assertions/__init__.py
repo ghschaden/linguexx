@@ -72,6 +72,7 @@ from suite.assertions.refs import (  # noqa: F401
     a_relreflinks_off,
     a_relreflinks_reset,
     a_refcheck,
+    a_refcheck_beamer,
     a_refcheck_gb4e,
     a_relrefs,
 )
@@ -206,6 +207,7 @@ ASSERTIONS = {
     "relrefs": a_relrefs,
     "refcheck": a_refcheck,
     "refcheck-gb4e": a_refcheck_gb4e,
+    "refcheck-beamer": a_refcheck_beamer,
     "relreflinks": a_relreflinks,
     "relreflinks-off": a_relreflinks_off,
     "option-unknown": a_option_unknown,
