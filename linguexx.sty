@@ -1130,11 +1130,35 @@
 %% precisely the moment the \lx@tag@span: helper exists for: the kernel's
 %% own paragraph-tagging may already have an MC open for the not-yet-shown
 %% P, and the helper suspends it.  See its comment.
+%%
+%% A mark is not punctuation, and inside the \llap it must not be spaced
+%% as punctuation either.  polyglossia's French under LuaTeX puts a thin
+%% space before ? ! : ; from a pre_shaping_filter that runs on the box
+%% after it was packed, so the glue is never set again and the space
+%% shoves the mark RIGHT, onto the text it should hang beside: ?, ?? and
+%% ?* overprinted the first word, * did not (polyglossia-fr).  It reads
+%% the polyglossia_punct attribute, so unsetting that inside the box --
+%% the value -"7FFFFFFF is LuaTeX's "unset", what polyglossia itself
+%% writes to switch it off -- leaves the mark alone and nothing else.
+%% babel makes ? active instead and XeTeX uses interchar tokens; both
+%% space at the time the box is built, so neither needs this.
+\cs_new_protected:Npn \__lx_judge_no_punct:
+  {
+    \sys_if_engine_luatex:T
+      {
+        \lua_now:n
+          {
+            local~a~=~luatexbase.attributes.polyglossia_punct~
+            if~a~then~tex.setattribute(a,~-0x7FFFFFFF)~end
+          }
+      }
+  }
 \cs_new_protected:Npn \lx@hangjudge #1#2
   {
     \leavevmode
     \llap
       {
+        \__lx_judge_no_punct:
         \tl_if_blank:nTF {#1}
           { #2 }
           { \lx@tag@span:nn { tag = Span , alt = {#1} } {#2} }

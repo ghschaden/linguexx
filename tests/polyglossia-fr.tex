@@ -1,0 +1,37 @@
+%% French through polyglossia rather than babel: the judgment half of
+%% babel-fr.tex, and the other side of its \fg half.
+%%
+%% polyglossia leaves ? ! : ; alone as characters and adds the thin space
+%% before them by other means -- interchar tokens under XeTeX, a node
+%% callback under LuaTeX -- so the judgment scanner meets an ordinary ?
+%% here, and French spacing is inserted around marks it has collected.  A
+%% mark must still hang and be collected whole.
+%%
+%% polyglossia defines no \og/\fg, so \fg is free and linguexx claims \fg.
+%% for its sixth glossed sub-example, as it does in an English document.
+%% babel-fr asserts that babel's \fg survives; this asserts the shorthand
+%% is there when nothing owns the name.  polyglossia is loaded AFTER
+%% linguexx; rtl-polyglossia loads it before.
+\input{_preamble}
+\usepackage{polyglossia}
+\setdefaultlanguage{french}
+\begin{document}
+\ex. FRMAIN une phrase correcte.
+\a. FRPLAIN sous-exemple correct.
+\b. ?FRQ un point d'interrogation.
+\c. ??FRQQ deux points, collectes ensemble.
+\d. ?*FRQS un point et une etoile.
+\e. *FRST une etoile.
+\z.
+
+\ex. FRFINAL Est-ce que cette phrase est correcte ?
+
+\ex. FRGLOSS
+\ag. AGA le chat \\ AGB the cat \\
+\bg. BGA le chien \\ BGB the dog \\
+\cg. CGA la vache \\ CGB the cow \\
+\dg. DGA le loup \\ DGB the wolf \\
+\eg. EGA la chouette \\ EGB the owl \\
+\fg. FGA la souris \\ FGB the mouse \\
+\z.
+\end{document}

@@ -4,6 +4,13 @@ All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
 ## Unreleased
+- Fixed: under LuaLaTeX with polyglossia's French, a judgment mark
+  containing `?` -- `?`, `??`, `?*`, also through `\jdg` -- was printed on
+  top of the first word of its example instead of hanging to its left.
+  polyglossia spaces `? ! : ;` from a LuaTeX callback that runs after the
+  mark's box is built; the mark is now exempt from that spacing, as it is
+  under babel and under XeLaTeX. Text that the author writes, `?` included,
+  is spaced exactly as before.
 - Fixed: under `[phantomalign]`, a gloss word whose own leading marks are
   the START of the object word's run -- `(` under `(⌜` (a Quine corner
   declared with `\GlossPhantomChars`), or `(` under `([` -- was padded in

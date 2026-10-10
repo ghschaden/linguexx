@@ -400,14 +400,19 @@ def a_babel_fr(p: Page):
     and silently stop judgments working in French.  And \fg is babel's
     closing guillemet, which linguexx used to destroy in either load order.
     """
-    r = []
     txt = " ".join(w.text for w in p.words)
     # the guillemets survive: BOTH marks, the closing one being the casualty
-    r.append(check("«" in txt and "»" in txt,
-                   f"\\og...\\fg keeps both guillemets; got "
-                   f"{txt[txt.find('FRGUIL'):][:34]!r}"))
+    return [check("«" in txt and "»" in txt,
+                  f"\\og...\\fg keeps both guillemets; got "
+                  f"{txt[txt.find('FRGUIL'):][:34]!r}")] + _french_judgments(p)
+
+
+def _french_judgments(p: Page):
+    """The judgment half of babel-fr, shared with polyglossia-fr."""
+    r = []
+    txt = " ".join(w.text for w in p.words)
     # judgments hang and do not displace the text, exactly as elsewhere --
-    # but here every ? in the source is an active character
+    # but under babel every ? in the source is an active character
     base = p.find("FRPLAIN").x0
     for sent in ("FRQ", "FRQQ", "FRQS", "FRST"):
         w = p.find(sent)
@@ -438,6 +443,20 @@ def a_babel_fr(p: Page):
                    or "correcte ?" in txt,
                    f"a sentence-final ? stays punctuation; got "
                    f"{txt[txt.find('FRFINAL'):][:44]!r}"))
+    return r
+
+
+def a_polyglossia_fr(p: Page):
+    r"""French through polyglossia; see the case's header."""
+    r = _french_judgments(p)
+    rows = [("AGA", "a."), ("BGA", "b."), ("CGA", "c."), ("DGA", "d."),
+            ("EGA", "e."), ("FGA", "f.")]
+    for tok, want in rows:
+        left = p.left_of(p.find(tok))
+        got = left[0].text if left else None
+        r.append(check(got == want,
+                       f"\\{want[0]}g. sets a glossed sub-example "
+                       f"labelled {want}: got {got!r}"))
     return r
 
 

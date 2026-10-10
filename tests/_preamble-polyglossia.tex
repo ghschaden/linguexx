@@ -1,0 +1,14 @@
+%% _preamble.tex with polyglossia loaded BEFORE linguexx, Hebrew among its
+%% languages.  Under XeLaTeX that pulls in bidi, which redefines boxes,
+%% lists and footnotes wholesale -- the realistic setting for a right-to-
+%% left gloss, and one no other preamble here loads.  XeLaTeX and LuaLaTeX
+%% only: polyglossia is fontspec's.
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=25mm]{geometry}
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setdefaultlanguage{english}
+\setotherlanguages{hebrew,german}
+\newfontfamily\hebrewfont{FreeSerif.otf}[Script=Hebrew]
+\usepackage{linguexx}
+\pagestyle{empty}

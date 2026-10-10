@@ -1,0 +1,15 @@
+%% _preamble-ua.tex with polyglossia loaded before linguexx; see
+%% _preamble-polyglossia.tex for why.
+\DocumentMetadata{lang=en,pdfversion=2.0,pdfstandard=ua-2,tagging=on}
+\documentclass{article}
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setdefaultlanguage{english}
+\setotherlanguages{hebrew,german}
+\newfontfamily\hebrewfont{FreeSerif.otf}[Script=Hebrew]
+\usepackage[lazy,gb4e]{linguexx}
+\usepackage{hyperref}
+\hypersetup{pdftitle={linguexx PDF/UA regression case},
+            pdfdisplaydoctitle=true}
+\pagestyle{empty}
+\begin{document}

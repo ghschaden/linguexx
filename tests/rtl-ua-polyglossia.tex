@@ -1,0 +1,36 @@
+%% polyglossia: this is rtl-ua.tex with _preamble-ua-polyglossia, the body
+%% kept identical so that a_rtl_ua asserts on it unchanged.  A difference
+%% between the two is a difference polyglossia (and, under XeLaTeX,
+%% bidi) makes.  Keep the bodies in step.
+%%
+%% \GlossRTL and \glscript under PDF/UA-2: the tags in reading order.
+%%
+%% The engines reverse the grid, never the macros, so the tree reads
+%% column by column from the first word -- and a word's text must be its
+%% LOGICAL text: XeTeX writes right-to-left glyphs in visual order, and
+%% without /ActualText the first word would read "dliha" (finding 5 of
+%% experiments/rtl; veraPDF passes that).  The Hebrew strings in the tree,
+%% in order, are therefore exactly the script line and then the four words
+%% as typed.  Languages: he on the script line and the four object words,
+%% he-Latn on the four transliterated ones.
+\input{_preamble-ua-polyglossia}
+\newfontfamily\hebfont{FreeSerif.otf}[Script=Hebrew]
+\GlossTierFont{1}{\hebfont}
+
+\ex. \glscript{he}{\hebfont הילד אכל את התפוח}
+\GlossTierLang{1}{he-Latn}\GlossTierFont{1}{\textnormal}
+\gll ha-yeled axal et ha-tapuax \\
+     \lpzg{def}-boy ate \lpzg{acc} \lpzg{def}-apple \\
+\glt `The boy ate the apple.'
+
+\GlossTierLang{1}{he}
+\GlossTierLang{2}{he-Latn}
+\GlossRTL
+\ex. \glll הילד אכל את התפוח \\
+           ha-yeled axal et ha-tapuax \\
+           \lpzg{def}-boy ate \lpzg{acc} \lpzg{def}-apple \\
+\glt `The boy ate the apple.'
+
+\ex. NEXTEX stands where every example does.
+
+\end{document}

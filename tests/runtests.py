@@ -147,12 +147,24 @@ ENGINES_FOR = {
     "rtl-move": ("lualatex",),
     "rtl-morph": ("xelatex", "lualatex"),
     "rtl-move-xetex": ("xelatex",),
+    # polyglossia is fontspec's
+    "rtl-polyglossia": ("xelatex", "lualatex"),
+    "rtl-ua-polyglossia": ("xelatex", "lualatex"),
+    "polyglossia-fr": ("xelatex", "lualatex"),
+}
+#: Cases that are another case under a different preamble: the same body,
+#: asserted on by the same function, so that any difference is the
+#: preamble's.  suite_integrity holds them to that -- a twin whose body
+#: drifted would go on passing while testing something else.
+TWINS = {
+    "rtl-polyglossia": "rtl",
+    "rtl-ua-polyglossia": "rtl-ua",
 }
 DEFAULT_PASSES = 2
 PASSES = {"ua": 3, "verb-dot-ua": 3, "frontend": 3, "langsci-ua": 3, "exannot-ua": 3,
           "morphalign-ua": 3, "morphalign-mix-ua": 3, "tierlang-ua": 3, "gltlang-items-ua": 3,
           "gltlang-default-ua": 3,
-          "rtl-ua": 3,
+          "rtl-ua": 3, "rtl-ua-polyglossia": 3,
           "exannot-fit": 2, "exannot-fitbody": 2,
           "exannot-beamer": 2,
           # one run on purpose: it is the run that has to ask for another
@@ -476,6 +488,13 @@ def discover_cases():
             if not p.name.startswith(("_", "."))}
 
 
+def twin_body(name):
+    """A case's lines without comments and the preamble lines a twin swaps."""
+    setup = re.compile(r"\\(input\{_preamble|usepackage|setdefaultlanguage)")
+    return [ln for ln in (CASES / f"{name}.tex").read_text().splitlines()
+            if not ln.lstrip().startswith("%") and not setup.match(ln)]
+
+
 def suite_integrity():
     """Cross-check the case files on disk against ASSERTIONS.
 
@@ -515,6 +534,15 @@ def suite_integrity():
             if e not in ENGINES:
                 problems.append(
                     f"ENGINES_FOR['{name}'] names no known engine: {e!r}.")
+    for twin, orig in sorted(TWINS.items()):
+        if twin not in known or orig not in known:
+            problems.append(f"TWINS['{twin}'] names no known case.")
+        elif ASSERTIONS.get(twin) is not ASSERTIONS.get(orig):
+            problems.append(f"{twin} is a twin of {orig} and must be asserted "
+                            f"on by the same function.")
+        elif twin_body(twin) != twin_body(orig):
+            problems.append(f"{twin}.tex is a twin of {orig}.tex and its body "
+                            f"has drifted from it; keep the two in step.")
     for key in sorted(KNOWN_XFAIL):
         engine, _, name = key.partition("/")
         if engine not in ENGINES:
