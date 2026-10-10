@@ -1,0 +1,32 @@
+%% polyglossia's German with babelshorthands=true makes " active, as babel
+%% does, but defines a different set: the quotation marks "` "' "< ">, the
+%% hyphenation helpers "- "=, and the old-spelling breaks "ck "ff "ll ...
+%% -- not babel's "o "s, since its engines take ö and ß as input.  So this
+%% is not a twin of babel-de: it puts polyglossia's own shorthands where
+%% babel-de puts babel's, in the body, a sub-example, a gloss tier, the
+%% translation and an \altn stack, each of which walks its input
+%% separately.  DEQUOTE's example OPENS with the active ", which is where
+%% the judgment scanner looks.
+%%
+%% The oracle is the CONTROL line, set as plain text before any example:
+%% what polyglossia makes of each shorthand there is what linguexx must
+%% give inside its constructs.  That keeps polyglossia's own choices out
+%% of the assertion -- its "f, for one, gives "Schifffahrt", where babel's
+%% gives "Schiffahrt".
+\input{_preamble}
+\usepackage{polyglossia}
+\setdefaultlanguage[babelshorthands=true]{german}
+\begin{document}
+CONTROL "`H\"ohle"' Zucker"-guss "<s\"u\ss"> Schi"ffahrt "`gro\ss"' Zucker"=guss
+
+\ex. DEMAIN Das ist eine "`H\"ohle"'.
+\a. DESUB Der Zucker"-guss ist "<s\"u\ss">.
+\z.
+
+\ex. "`DEQUOTE beginnt mit einem Zitat"'.
+
+\exg. DEOBJ Die Schi"ffahrt ist gro\ss.\\ DEGLOSS the shipping is big\\
+\glt `DETRANS Die Schi"ffahrt ist "`gro\ss"'.'
+
+\ex. DEALT Ich sah \altn{die "`H\"ohle"'}{den Zucker"=guss} dort.
+\end{document}

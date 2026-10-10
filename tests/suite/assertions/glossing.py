@@ -506,6 +506,45 @@ def a_babel_de(p: Page):
     return r
 
 
+def a_polyglossia_de(p: Page):
+    r"""polyglossia's German shorthands inside linguexx constructs; see the
+    case's header.  Each word is compared with the same shorthand set as
+    plain text on the CONTROL line, never with a spelling written here."""
+    r = []
+    control = [w.text for w in p.line_of(p.find("CONTROL"))][1:]
+    r.append(check(len(control) == 6, f"the control line: {control}"))
+    # the comparison below is relative, so it would pass with the
+    # shorthands off; the control must show they are on
+    r.append(check(bool(control) and control[0].startswith("„")
+                   and not any('"' in w for w in control),
+                   f"the shorthands are active at all: {control}"))
+    want = dict(zip(("hoehle", "zuckerguss", "suess", "schiffahrt", "gross",
+                     "zuckerguss2"), [_nfc(w) for w in control]))
+
+    def line(tok):
+        # an \\altn stack's rows sit above and below the line it is on
+        words = p.words if tok == "DEALT" else p.line_of(p.find(tok))
+        return _nfc(" ".join(w.text for w in words))
+
+    for tok, key, where in (("DEMAIN", "hoehle", 'main example ("` "\')'),
+                            ("DESUB", "zuckerguss", 'sub-example ("-)'),
+                            ("DESUB", "suess", 'sub-example ("< ">)'),
+                            ("DEOBJ", "schiffahrt", 'gloss tier ("f)'),
+                            ("DETRANS", "gross", "translation"),
+                            ("DEALT", "zuckerguss2", '\\altn alternative ("=)')):
+        got = line(tok) if p.find(tok) else ""
+        r.append(check(want.get(key, "\0") in got,
+                       f"the shorthand comes out as in plain text in the "
+                       f"{where}: want {want.get(key)!r} in {got!r}"))
+    quote = p.find("DEQUOTE")
+    left = p.left_of(quote) if quote else []
+    r.append(check(quote is not None and quote.text.startswith("„")
+                   or bool(left) and left[-1].text == "„",
+                   f"an example may open with the active \": the quote is "
+                   f"typeset, not taken for a judgment: {quote}"))
+    return r
+
+
 def a_morphalign(p: Page):
     r"""\GlossMorphAlign: within a column, each morpheme starts at one x.
 

@@ -151,6 +151,7 @@ ENGINES_FOR = {
     "rtl-polyglossia": ("xelatex", "lualatex"),
     "rtl-ua-polyglossia": ("xelatex", "lualatex"),
     "polyglossia-fr": ("xelatex", "lualatex"),
+    "polyglossia-de": ("xelatex", "lualatex"),
 }
 #: Cases that are another case under a different preamble: the same body,
 #: asserted on by the same function, so that any difference is the
