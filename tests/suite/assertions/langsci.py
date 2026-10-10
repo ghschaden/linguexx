@@ -57,8 +57,7 @@ def a_gbfour(p: Page):
     # (the dagger has no reliable Unicode mapping, so test by position)
     gr = p.find("GBROMAN")
     lab = re.compile(r"^([a-f]\.|[ivx]+\.|\(\d+\))$")
-    hung = [w for w in p.line_of(gr)
-            if not lab.match(w.text) and w is not gr and w.x1 <= gr.x0 + TOL]
+    hung = [w for w in p.left_of(gr) if not lab.match(w.text)]
     r.append(check(hung,
                    f"arbitrary bracket mark hangs left of the text; found {hung}"))
     # cross-references resolve across syntaxes
@@ -112,8 +111,7 @@ def a_langsci(p: Page):
                    f"[judgment] does not displace the text "
                    f"({subb.x0:.2f} vs {suba.x0:.2f})"))
     lab = re.compile(r"^([a-f]\.|[ivx]+\.|\(\d+\))$")
-    hung = [w for w in p.line_of(subb)
-            if not lab.match(w.text) and w is not subb and w.x1 <= subb.x0 + TOL]
+    hung = [w for w in p.left_of(subb) if not lab.match(w.text)]
     r.append(check(hung, f"the mark hangs left of the text; found {hung}"))
     # --- \eal: a head with no text, and the letters under it ------------
     lsla, lslb = p.find("LSLA"), p.find("LSLB")
@@ -309,9 +307,7 @@ def a_langsci_lists(p: Page):
 
     def label_of(tok):
         """The leftmost word on the sentinel's line, when it is left of it."""
-        w = p.find(tok)
-        line = p.line_of(w)
-        left = [t for t in line if t.x1 <= w.x0 + TOL]
+        left = p.left_of(p.find(tok))
         return left[0].text if left else None
 
     want = [("LLDEFAULT", "a."), ("LLALPH", "a."), ("LLROMAN", "i."),
@@ -502,8 +498,7 @@ def a_langsci_extra(p: Page):
     r = []
 
     def label_of(tok):
-        w = p.find(tok)
-        left = [t for t in p.line_of(w) if t.x1 <= w.x0 + TOL]
+        left = p.left_of(p.find(tok))
         return left[0].text if left else None
 
     host = p.find("LEHOST")

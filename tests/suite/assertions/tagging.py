@@ -715,8 +715,7 @@ def a_frontend(p: Page):
     label = re.compile(r"^(\(\w+\)|[a-f]\.|[ivx]+\.)$")
     for tok in ("FEJUDGED", "FEARGJUDGE", "FEBATCHJ"):
         w = p.find(tok)
-        marks = [t for t in p.line_of(w)
-                 if not label.match(t.text) and t is not w and t.x1 <= w.x0 + TOL]
+        marks = [t for t in p.left_of(w) if not label.match(t.text)]
         r.append(check(marks, f"{tok}: the mark hangs left of the text block"))
     # --- sub-levels: \lx_sub_push: deepens, \lx_sub_next: does not ------
     host, suba, subb = p.find("FESUBHOST"), p.find("FESUBA"), p.find("FESUBB")

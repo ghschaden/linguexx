@@ -79,6 +79,11 @@ class Page:
 
         return sorted((w for w in self.words if same(w)), key=lambda w: w.x0)
 
+    def left_of(self, word):
+        """The words on `word`'s line that end at or before its left edge."""
+        return [w for w in self.line_of(word)
+                if w is not word and w.x1 <= word.x0 + TOL]
+
 
 def parse_pdf(pdf: Path) -> Page:
     out = subprocess.run(

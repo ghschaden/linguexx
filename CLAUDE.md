@@ -42,7 +42,7 @@ parsers: `lxx words` reimplements `parse_pdf` on purpose, because that one
 drops the page a word is on.
 
 ## The suite is a package, not a file
-`tests/runtests.py` (891 lines) is the entry point and the facade: the
+`tests/runtests.py` is the entry point and the facade: the
 runner, the engine/pass registries, the integrity checks, `main()`. The
 bulk is in `tests/suite/` — `pdf.py` (words and boxes), `geometry.py`
 (measured ink), `structure.py` (the tag tree, veraPDF, show-pdf-tags),
@@ -56,7 +56,7 @@ Adding a module there means adding it to git IN THE SAME COMMIT: the
 `commit-msg` hook exports the INDEX with `git checkout-index`, so an
 untracked module makes the hook fail as though a test broke.
 
-- `lxx test [-k F] [-e E]` — the suite with the 266 green lines folded away;
+- `lxx test [-k F] [-e E]` — the suite with its green lines folded away;
   failures grouped by CASE, engines named, so a defect that fails all three
   prints once. Every failure is re-run SERIALLY before it is reported: a
   concurrent xdvipdfmx temp-file race makes a xelatex case die about once in

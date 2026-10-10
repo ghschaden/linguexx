@@ -66,7 +66,7 @@ def sources():
 def source_hash():
     h = hashlib.sha256()
     for p in sources():
-        h.update(p.name.encode())
+        h.update(str(p.relative_to(ROOT)).encode())
         h.update(p.read_bytes() if p.exists() else b"<missing>")
     return h.hexdigest()[:16]
 
@@ -661,10 +661,10 @@ def cmd_diff(a):
 # the suite, and the gate
 # --------------------------------------------------------------------------
 def run_suite(engine=None, filt=None, jobs=None, verbose=False):
-    """runtests.py, with its 250 lines of green folded away.
+    """runtests.py, with its green lines folded away.
 
-    A passing case is 63 identical lines of no information per engine; a
-    failing one is what the run is for.  Failures are grouped by case
+    A passing case is a line of no information per engine; a failing one
+    is what the run is for.  Failures are grouped by case
     rather than by engine, because a real defect fails all three with the
     same message and printing it once names the engines instead.
     """
