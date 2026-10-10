@@ -1,0 +1,55 @@
+%% \exrefcheck, the dot syntax, in a PDF/UA build: the report names what
+%% each reference RESOLVED to by the target's opening words, which is the
+%% whole of the feature -- the number is right in the good case and the
+%% bad case alike, so the assertions are on the quoted text.
+%%
+%% The case is the failure the report exists for: RCNEXT's \Next was
+%% written for RCINTENDED, and RCINSERTED was put in between afterwards,
+%% so it now points at (1).  Also: six words and an ellipsis (RCINSERTED
+%% has nine), a \label dropped from the quote (RCSUBA), a gloss quoted by
+%% its object tier and not its glosses (RCGLOSS), an example with no
+%% text that a custom-labelled one
+%% after it must not lend its words to, though its gloss offers
+%% them (\strut, RCCUSTOM), a reference to
+%% nothing, the ends of the two ranges and a label that does not exist,
+%% and a number two examples print after \setcounter.
+%%
+%% The footnote series is in refcheck-gb4e: a footnote fails PDF/UA here
+%% under pdfLaTeX and XeLaTeX with no linguexx loaded at all (see ua.tex).
+%%
+%% \exrefcheck stands in the body here (the UA preamble begins the
+%% document): the flag it writes makes the next run record from the first
+%% example, and the report waits for that run.
+\input{_preamble-ua}
+\exrefcheck
+RCNEXT As \Next shows.
+
+\ex. \label{ex:ins} RCINSERTED une phrase ajoutée après coup, longue de plusieurs mots.
+
+\ex. *RCINTENDED Pierre est fatigué depuis mardi.
+
+RCLAST \Last and RCNNEXT \NNext.
+
+\exg. RCGLOSS Hund bellt\\
+RCGLOSSG dog barks\\
+`The dog barks.'
+
+\ex. \a. RCSUBA \label{ex:sub}erste.
+\b. RCSUBB zweite.
+\z.
+
+RCLLAST \LLast.
+
+\ex. \strut
+
+\ex.[X] \gll RCCUSTOM not\\ custom gloss\\
+
+RCAFTERCUSTOM \Last and RCDANGLE \NNext.
+
+See \refrange{ex:sub}{b} and \Refrange{ex:ins}{ex:missing}.
+
+\setcounter{ExNo}{0}
+\ex. RCRESET again one.
+
+RCAMBIG \Last.
+\end{document}

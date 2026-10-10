@@ -4,6 +4,17 @@ All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
 ## Unreleased
+- New: `\exrefcheck` lists, at the end of the run, every relative
+  reference (`\Next`, `\Last`, `\NNext`, `\LLast`, `\TextNext` and their
+  `\p...` twins) and both ends of every `\refrange`, `\prefrange` and
+  `\Refrange`, with the number and page each one resolved to and the
+  opening words of the example it reached -- six by default,
+  `\exrefcheck[words=n]` for more or fewer. It is for the mistake nothing on
+  the page shows: an example inserted between a `\Next` and the example it
+  was written for. Nothing is typeset and the document is unchanged; the
+  list goes to the terminal and the log. Words are recorded for dot-syntax
+  examples, for glosses in any syntax and for gb4e's `\ex[*]{...}`; a plain
+  gb4e or `\ea` item is listed by number and page. `\ref` is not touched.
 - Fixed: under LuaLaTeX with polyglossia's French, a judgment mark
   containing `?` -- `?`, `??`, `?*`, also through `\jdg` -- was printed on
   top of the first word of its example instead of hanging to its left.

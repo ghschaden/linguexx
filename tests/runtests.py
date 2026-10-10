@@ -165,6 +165,9 @@ PASSES = {"ua": 3, "verb-dot-ua": 3, "frontend": 3, "langsci-ua": 3, "exannot-ua
           "morphalign-ua": 3, "morphalign-mix-ua": 3, "tierlang-ua": 3, "gltlang-items-ua": 3,
           "gltlang-default-ua": 3,
           "rtl-ua": 3, "rtl-ua-polyglossia": 3,
+          # \exrefcheck in the body: run 1 writes the flag, run 2 records
+          # from the first example, run 3 is the converged report (UA)
+          "refcheck": 3,
           "exannot-fit": 2, "exannot-fitbody": 2,
           "exannot-beamer": 2,
           # one run on purpose: it is the run that has to ask for another

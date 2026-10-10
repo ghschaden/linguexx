@@ -1,0 +1,26 @@
+%% \exrefcheck with the gb4e syntax, in the preamble, at three words.
+%% gb4e sets a plain item straight from the input, so its text is not
+%% recorded and the report says so rather than guess; \ex[*]{...} is
+%% quoted from its argument, and a gloss from its object tier.  Also the
+%% footnote series, by its roman number: refcheck is a PDF/UA case, where
+%% a footnote cannot be (see ua.tex), so it is here, in the dot syntax
+%% the mixed preamble allows.
+\input{_preamble-gb4e}
+\exrefcheck[words=3]
+\begin{document}
+GBNEXT \Next shows it.
+
+\begin{exe}
+\ex GBPLAIN plain item text here.
+\ex[*]{GBARG eins zwei drei vier}
+\ex \gll GBOBJ Hund bellt laut\\
+         GBGL dog barks loudly\\
+    \glt `The dog barks loudly.'
+\end{exe}
+
+GBLLAST \LLast, GBLAST \Last.
+
+GBFN\footnote{\ex. GBFOOT eins zwei drei vier.
+
+GBFNLAST \Last}
+\end{document}

@@ -1954,6 +1954,58 @@ over two whole examples, as (10)--(12). The range dash is the macro
 \opt{legacy} --- and between letter and roman numeral \cs{secondrefdash}
 (\texttt{-} in both modes); see section~\ref{sec:layout}.
 
+\subsection{Checking what a reference points at: \cs{exrefcheck}}
+\label{sec:exrefcheck}
+
+A relative reference is positional. \cs{Next} is the example after the
+point where it stands, so when an example is inserted between the prose
+and the example it was written for, \cs{Next} quietly moves to the new one.
+Nothing is wrong on the page: the number is correct for where the
+reference now stands, and nothing anywhere says it is not the example
+that was meant. \cs{exrefcheck} lists, at the end of the run, every
+reference this package resolved, with the \emph{opening words} of the
+example it reached, so that a wrong one can be seen as wrong:
+
+\begin{code}
+\exrefcheck              % six words of each target
+\exrefcheck[words=10]    % or as many as you like
+\end{code}
+
+\noindent The list goes to the terminal and the \texttt{.log}; nothing is
+typeset, and the document comes out exactly as it does without the command.
+For a \cs{Next} written before an example that was added later, it reads:
+
+\begin{code}
+l.24, p.1: \Next -> (1) on p.1: "INSERTED une phrase ajoutée après coup, ..."
+\end{code}
+
+\noindent ---~the line and page of the reference, the number it printed,
+the page the example is on, and the example's own words. It covers
+\cs{Last}, \cs{Next}, \cs{NNext}, \cs{LLast} and \cs{TextNext} with their
+\cs{p}\dots\ twins (listed under the plain name), and both ends of
+\cs{refrange}, \cs{prefrange} and \cs{Refrange}. It does not cover
+\cs{ref}, which belongs to the kernel and to whichever of \pkg{hyperref},
+\pkg{cleveref} or \pkg{varioref} you load, and is left alone for that
+reason.
+
+The command can go in the preamble or anywhere in the document. Like
+\cs{ref} it reads what the previous run recorded, so its first run says
+that it needs another one; it also says so when the examples have changed
+since the run it is reporting on.
+
+Where the words come from depends on the syntax. A dot-syntax example
+(\cs{ex.}) is read in whole before it is set, and is quoted from that, its
+\cs{label}s left out. A gloss is quoted by its first line, in any syntax,
+and \pkg{gb4e}'s \cs{ex}\oarg{judgment}\marg{text} by its argument. A plain
+\cs{ex} item in an \texttt{exe} environment, or one opened by \cs{ea}, is set
+straight from the input and is not read ahead of, so the list gives its
+number and page and says that its text was not recorded.
+
+A relative reference finds its example by position, so it is listed
+correctly even after the example counter has been reset. A range is given
+by labels and resolves by number, so a range end whose number two examples
+carry is reported as such rather than guessed at.
+
 % ===========================================================================
 \section{Further apparatus}\label{sec:extras}
 % ===========================================================================
@@ -3638,6 +3690,7 @@ exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package opt
 \textbackslash pref, \textbackslash pNext, \dots & Parenthesis-free twins of all of the above. \\
 \textbackslash refrange\marg{a}\marg{b} & Compact range, as (3a--c). \\
 \textbackslash prefrange, \textbackslash Refrange & Without parentheses; over whole examples. \\
+\textbackslash exrefcheck\oarg{words=n} & List what each relative reference and range resolved to, with the target's opening words (section~\ref{sec:exrefcheck}). \\
 \addlinespace
 \multicolumn{2}{@{}l}{\itshape Further apparatus} \\
 \textbackslash altn\marg{$\dots$}\marg{$\dots$} & Stacked alternatives; \oarg{c/l/r} alignment. Fallback: \cs{lxAltn}. \\

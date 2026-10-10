@@ -1373,7 +1373,7 @@
   \or \lx@subsubitem@core
   \fi}
 \def\lx@item@judged#1{\lx@item@core\lx@setjudge{#1}\lx@makeitem}
-\long\def\lx@gbex@opt[#1]#2{\lx@item@judged{#1}#2}
+\long\def\lx@gbex@opt[#1]#2{\lx@refcheck@stash{#2}\lx@item@judged{#1}#2}
 %% --- public API (Protocol A: items at the current level) --------------
 %% \lx_item_core:      step the counter of whatever level is open and set
 %%                     its label.  Emits nothing, so a front-end may put
@@ -1910,7 +1910,7 @@
   \fi
   \lx@inexampletrue
   \lx@letters@on}
-\long\def\lx@run@ex#1{\lx@example@begin\lx@exstart#1\lx@bodyend}
+\long\def\lx@run@ex#1{\lx@refcheck@stash{#1}\lx@example@begin\lx@exstart#1\lx@bodyend}
 
 % closes the example: all open sublists, the main list, the group.
 % Doubles as the sentinel marking the end of the grabbed body, which is
@@ -2033,7 +2033,7 @@
     \stepcounter{lxFnExSerial}%
     \refstepcounter{FnExNo}\def\lx@itemlabel{\lx@labelFnExNo}%
   \fi
-  \lx@relref@record}
+  \lx@relref@record\lx@refcheck@main}
 %% A custom-labelled example steps no NUMBER (that is the point of a custom
 %% label) but it does step its own anchor serial, so that its sub-examples
 %% get anchors of their own (lxcex.<n>.a ...), and it gives its
@@ -2138,6 +2138,7 @@
 \def\thelxCustomSerial{\lx@custom@ref}
 \def\lx@custom@begin#1{%
   \lx@endprevpar
+  \lx@refcheck@custom
   \lx@customextrue
   \lx@refbase@custom{#1}%
   \lx@custom@reftext{#1}%
@@ -2184,7 +2185,7 @@
 %% before \ignorespaces, which must stay last.  It expands to nothing at
 %% all in a document whose anchors hyperref is placing itself.
 \def\lx@makeitem{\lx@kernel@item[\lx@itemlabel]\lx@emitjudge
-  \lx@relref@anchor\lx@mv@newitem\ignorespaces}
+  \lx@relref@anchor\lx@refcheck@item\lx@mv@newitem\ignorespaces}
 %% --- public API (Protocol A: emitting the item) -----------------------
 %% Emit the \item for the label currently in \lx@itemlabel and hang any
 %% judgment collected since the last scan.  The \lx_item_... commands
@@ -3721,6 +3722,8 @@
 %% between the two.
 \cs_new_protected:Npn \lx@fmtEx #1
   {
+    \lx@refcheck@ref { \lx@relcmd } { \int_eval:n {#1} }
+      { m \int_eval:n { \c@lxExSerial + (#1) - \c@ExNo } }
     \lx_relref_emit:nnn
       { \lx@Hexkey { \int_eval:n {#1} } }
       { \int_eval:n {#1} }
@@ -3728,6 +3731,8 @@
   }
 \cs_new_protected:Npn \lx@fmtFnEx #1
   {
+    \lx@refcheck@ref { \lx@relcmd } { \int_to_roman:n {#1} }
+      { f \int_eval:n { \c@lxFnExSerial + (#1) - \c@FnExNo } }
     \lx_relref_emit:nnn
       { \lx@Hfnexkey { \int_eval:n {#1} } }
       { \int_to_roman:n {#1} }
@@ -3818,7 +3823,7 @@
   }
 \ExplSyntaxOff
 
-\NewDocumentCommand\Last{o}{{\lx@setrelsub{#1}%
+\NewDocumentCommand\Last{o}{{\def\lx@relcmd{Last}\lx@setrelsub{#1}%
   \if@noftnote
     \lx@fmtEx{\value{ExNo}}%
   \else\ifnum\value{FnExNo}>\z@
@@ -3827,21 +3832,21 @@
     \lx@fmtEx{\value{ExNo}}%
   \fi\fi}\xspace}
 
-\NewDocumentCommand\Next{o}{{\lx@setrelsub{#1}%
+\NewDocumentCommand\Next{o}{{\def\lx@relcmd{Next}\lx@setrelsub{#1}%
   \if@noftnote
     \lx@fmtEx{\value{ExNo}+1}%
   \else
     \lx@fmtFnEx{\value{FnExNo}+1}%
   \fi}\xspace}
 
-\NewDocumentCommand\NNext{o}{{\lx@setrelsub{#1}%
+\NewDocumentCommand\NNext{o}{{\def\lx@relcmd{NNext}\lx@setrelsub{#1}%
   \if@noftnote
     \lx@fmtEx{\value{ExNo}+2}%
   \else
     \lx@fmtFnEx{\value{FnExNo}+2}%
   \fi}\xspace}
 
-\NewDocumentCommand\LLast{o}{{\lx@setrelsub{#1}%
+\NewDocumentCommand\LLast{o}{{\def\lx@relcmd{LLast}\lx@setrelsub{#1}%
   \if@noftnote
     \lx@fmtEx{\value{ExNo}-1}%
   \else\ifnum\value{FnExNo}>\@ne
@@ -3850,7 +3855,7 @@
     \lx@fmtEx{\value{ExNo}}%
   \fi\fi}\xspace}
 
-\NewDocumentCommand\TextNext{o}{{\lx@setrelsub{#1}%
+\NewDocumentCommand\TextNext{o}{{\def\lx@relcmd{TextNext}\lx@setrelsub{#1}%
   \lx@fmtEx{\value{ExNo}+1}}\xspace}
 
 % parenthesis-free twins.  \pref is robust like \ref and its neighbours:
@@ -3866,6 +3871,590 @@
   {{\parenstrue\IfValueTF{#1}{\LLast[#1]}{\LLast}}\xspace}
 \NewDocumentCommand\pTextNext{o}%
   {{\parenstrue\IfValueTF{#1}{\TextNext[#1]}{\TextNext}}\xspace}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  The reference report: \exrefcheck                                  %%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% A relative reference is positional: \Next is the example after this
+%% point, so an example inserted between the prose and the one it meant
+%% retargets it without a wrong key anywhere -- the number is right for
+%% where the reference now stands and wrong for what was meant, and
+%% nothing on the page can show that.  \exrefcheck lists, at the end of
+%% the run, every reference this package resolved: its line, what it
+%% asked for, the number and page it got, and the OPENING WORDS of the
+%% example behind that number, so that a wrong one reads as wrong.  The
+%% design, and why a highlight on the page is not it, is in
+%% doc/EXPEX-GAPS.md, section 3.
+%%
+%% What it covers is what this package prints: \Last, \Next, \NNext,
+%% \LLast, \TextNext and their \p... twins, and the two ends of \refrange,
+%% \prefrange and \Refrange.  Never \ref: the immunity to the order in
+%% which hyperref, cleveref and varioref load is worth more than an
+%% unreferenced-label check (doc/DEFERRED-DECISIONS.md).  The ranges are
+%% this package's own commands, and their labels are read back from the
+%% \r@ macros the kernel already defines, not by wrapping anything.
+%%
+%% Nothing is typeset and the tag tree is untouched: the report goes to
+%% the terminal and the log, as \lpzgcheck's does.  The records it needs
+%% go to the .aux, which is what costs a rerun; the page records are
+%% \write whatsits, and they are placed where an author's own \label in
+%% the same spot would be -- after the item, and inside the reference's
+%% paragraph -- so a proofing run is set like any other.
+%%
+%% Where the words come from.  The dot syntax collects an example's body
+%% before setting it, so the words are read off that.  A gloss offers its
+%% object tier, in every syntax, and gb4e's \ex[*]{...} its argument.  A
+%% plain gb4e or langsci item is set straight from the input, and reading
+%% ahead of it would freeze the catcodes of text that has not been read
+%% yet -- the trap the body collector's own comments are about -- so for
+%% those the report gives the number and the page and says the text was
+%% not recorded.  The first source to deliver wins, which is the example's
+%% own opening: a gloss further down does not replace it.
+%%
+%% Keys.  A reference asks for a NUMBER, so the report looks a number up.
+%% Words and pages are recorded per example SERIAL instead, and the number
+%% maps to the serial: a counter reset ([legacy]'s per chapter, a
+%% \setcounter) gives two examples one number, and looking that number up
+%% would quote whichever came first.  Such a number is reported as
+%% ambiguous, the same answer the links give (\lx_relref_emit:nnn).
+\ExplSyntaxOn
+\bool_new:N  \g__lx_refcheck_record_bool  % record examples and references
+\bool_new:N  \g__lx_refcheck_report_bool  % \exrefcheck was given this run
+\bool_new:N  \g__lx_refcheck_seen_bool    % last run's .aux asked for it
+\bool_new:N  \g__lx_refcheck_need_bool    % this example has no words yet
+\bool_new:N  \g__lx_refcheck_page_bool    % ... nor its page record
+\int_new:N   \g__lx_refcheck_words_int
+\int_gset:Nn \g__lx_refcheck_words_int { 6 }
+\int_new:N   \g__lx_refcheck_ref_int
+\tl_new:N    \g__lx_refcheck_num_tl       % the number this example printed
+\tl_new:N    \g__lx_refcheck_key_tl       % ... and its serial, as a key
+\tl_new:N    \g__lx_refcheck_body_tl      % a body handed over before its item
+\tl_new:N    \g__lx_refcheck_label_tl     % a range end's label, as printed
+\prop_new:N  \g__lx_refcheck_key_prop     % from the .aux: number -> serial
+\prop_new:N  \g__lx_refcheck_ambig_prop   %   numbers two examples printed
+\prop_new:N  \g__lx_refcheck_words_prop   %   serial -> opening words
+\prop_new:N  \g__lx_refcheck_page_prop    %   serial -> page
+\prop_new:N  \g__lx_refcheck_at_prop      %   reference -> its own page
+\prop_new:N  \g__lx_refcheck_dedupe_prop
+\seq_new:N   \g__lx_refcheck_refs_seq     % this run's references
+\seq_new:N   \g__lx_refcheck_old_seq      % records read from the .aux
+\seq_new:N   \g__lx_refcheck_new_seq      % records written this run
+\str_new:N   \l__lx_refcheck_str
+\tl_new:N    \l__lx_refcheck_tmp_tl
+\tl_new:N    \l__lx_refcheck_report_tl
+\seq_new:N   \l__lx_refcheck_words_seq
+\int_new:N   \l__lx_refcheck_skip_int     % brace depth inside a \label's argument
+\bool_new:N  \l__lx_refcheck_skiparg_bool % the next group is a \label's argument
+\bool_new:N  \l__lx_refcheck_aftercs_bool % the previous token was a command
+%% Which relative command is resolving: set by each of them, read by the
+%% report.  The \p... twins call the plain command and report as it.
+\tl_new:N \lx@relcmd
+
+%% --- the .aux side ---------------------------------------------------
+\cs_new_protected:Npn \lx@refcheck@on
+  {
+    \bool_gset_true:N \g__lx_refcheck_seen_bool
+    \bool_gset_true:N \g__lx_refcheck_record_bool
+  }
+%% #1 number, #2 serial key.  A second serial for one number is a reset.
+\cs_new_protected:Npn \lx@refcheck@num #1#2
+  {
+    \seq_gput_right:Nn \g__lx_refcheck_old_seq { #1 = #2 }
+    \prop_get:NnNTF \g__lx_refcheck_key_prop {#1} \l__lx_refcheck_tmp_tl
+      {
+        \tl_if_eq:NnF \l__lx_refcheck_tmp_tl {#2}
+          { \prop_gput:Nnn \g__lx_refcheck_ambig_prop {#1} { } }
+      }
+      { \prop_gput:Nnn \g__lx_refcheck_key_prop {#1} {#2} }
+  }
+\cs_new_protected:Npn \lx@refcheck@words #1#2
+  {
+    \seq_gput_right:Nn \g__lx_refcheck_old_seq { #1 : #2 }
+    \prop_if_in:NnF \g__lx_refcheck_words_prop {#1}
+      { \prop_gput:Nnn \g__lx_refcheck_words_prop {#1} {#2} }
+  }
+%% First page wins: under beamer an example is set once per overlay.
+\cs_new_protected:Npn \lx@refcheck@page #1#2
+  {
+    \prop_if_in:NnF \g__lx_refcheck_page_prop {#1}
+      { \prop_gput:Nnn \g__lx_refcheck_page_prop {#1} {#2} }
+  }
+\cs_new_protected:Npn \lx@refcheck@at #1#2
+  {
+    \prop_if_in:NnF \g__lx_refcheck_at_prop {#1}
+      { \prop_gput:Nnn \g__lx_refcheck_at_prop {#1} {#2} }
+  }
+%% As \lx_relref_enable: does for its record: a document that drops
+%% linguexx, or \exrefcheck, still reads last run's .aux.
+\cs_new_protected:Npn \__lx_refcheck_provide:
+  {
+    \legacy_if:nT { @filesw }
+      {
+        \iow_now:Ne \@auxout
+          {
+            \token_to_str:N \providecommand
+              \token_to_str:N \lx@refcheck@on { }
+            \token_to_str:N \providecommand
+              \token_to_str:N \lx@refcheck@num [2] { }
+            \token_to_str:N \providecommand
+              \token_to_str:N \lx@refcheck@words [2] { }
+            \token_to_str:N \providecommand
+              \token_to_str:N \lx@refcheck@page [2] { }
+            \token_to_str:N \providecommand
+              \token_to_str:N \lx@refcheck@at [2] { }
+          }
+      }
+  }
+\cs_new_protected:Npn \__lx_refcheck_write:n #1
+  { \legacy_if:nT { @filesw } { \iow_now:Ne \@auxout {#1} } }
+%% Deferred to the shipout, for \thepage: the page an item or a reference
+%% actually lands on, not the one being filled when it was read.  #1 is
+%% expanded NOW, so the record names the example it was made for, and
+%% once more at the shipout, which is what turns a \thepage left in it
+%% (as \exp_not:N \thepage) into the number.  \iow_shipout:Nn would write
+%% the \thepage itself: it protects its text from that second expansion.
+\cs_new_protected:Npn \__lx_refcheck_shipout:n #1
+  {
+    \legacy_if:nT { @filesw }
+      { \exp_args:NNe \iow_shipout_e:Nn \@auxout {#1} }
+  }
+
+%% --- opening words ---------------------------------------------------
+%% #1 = material, as tokens.  Leaves at most \g__lx_refcheck_words_int
+%% words of it in \l__lx_refcheck_str, with " ..." when there were more.
+%% Only the text before the first \\ at brace depth 0 is read: a gloss's
+%% object tier, which is what names the example, and not the glosses
+%% under it.  Commands are dropped and leave a word break; a \label or
+%% \sublabel is dropped with its argument, so an example opened by one is
+%% quoted from its text; a "." straight after a command is the period of
+%% \a. and the like, and goes with it.  Characters are kept by their code,
+%% active ones included -- which is what keeps an inputenc-encoded UTF-8
+%% letter whole under pdfLaTeX, where both of its bytes are active.  The
+%% characters \ { } % # ^ are dropped: the words are written to the .aux
+%% and read back, and each of those would mean something there.
+\cs_new_protected:Npn \__lx_refcheck_words:n #1
+  {
+    \seq_set_split:Nnn \l__lx_refcheck_words_seq { \\ } {#1}
+    \seq_get_left:NN \l__lx_refcheck_words_seq \l__lx_refcheck_tmp_tl
+    \str_clear:N \l__lx_refcheck_str
+    \int_zero:N \l__lx_refcheck_skip_int
+    \bool_set_false:N \l__lx_refcheck_skiparg_bool
+    \bool_set_false:N \l__lx_refcheck_aftercs_bool
+    \exp_args:NV \tl_analysis_map_inline:nn \l__lx_refcheck_tmp_tl
+      { \__lx_refcheck_token:nnn {##1} {##2} {##3} }
+    \seq_set_split:NnV \l__lx_refcheck_words_seq { ~ } \l__lx_refcheck_str
+    \seq_remove_all:Nn \l__lx_refcheck_words_seq { }
+    \str_clear:N \l__lx_refcheck_str
+    \int_step_inline:nn
+      { \int_min:nn { \seq_count:N \l__lx_refcheck_words_seq }
+                    { \g__lx_refcheck_words_int } }
+      {
+        \str_put_right:Ne \l__lx_refcheck_str
+          {
+            \int_compare:nNnF {##1} = { 1 } { ~ }
+            \seq_item:Nn \l__lx_refcheck_words_seq {##1}
+          }
+      }
+    \int_compare:nNnT { \seq_count:N \l__lx_refcheck_words_seq }
+        > { \g__lx_refcheck_words_int }
+      { \str_put_right:Nn \l__lx_refcheck_str { ~... } }
+  }
+\cs_new_protected:Npn \__lx_refcheck_token:nnn #1#2#3
+  {
+    \int_compare:nNnTF { \l__lx_refcheck_skip_int } > { 0 }
+      {
+        \str_case:nn {#3}
+          {
+            { 1 } { \int_incr:N \l__lx_refcheck_skip_int }
+            { 2 } { \int_decr:N \l__lx_refcheck_skip_int }
+          }
+      }
+      {
+        \bool_if:NTF \l__lx_refcheck_skiparg_bool
+          {
+            \bool_set_false:N \l__lx_refcheck_skiparg_bool
+            \str_if_eq:nnTF {#3} { 1 }
+              { \int_set:Nn \l__lx_refcheck_skip_int { 1 } }
+              { \__lx_refcheck_keep:nnn {#1} {#2} {#3} }
+          }
+          { \__lx_refcheck_keep:nnn {#1} {#2} {#3} }
+      }
+  }
+%% Catcodes as \tl_analysis_map_inline:nn gives them, a hex digit: 0 a
+%% command, A a space, B a letter, C other, D active.  Everything else --
+%% braces, math shift, alignment, parameter, super- and subscript -- is
+%% markup and goes.  An active ~ is a space.
+\cs_new_protected:Npn \__lx_refcheck_keep:nnn #1#2#3
+  {
+    \str_case:nn {#3}
+      {
+        { 0 }
+          {
+            \str_put_right:Nn \l__lx_refcheck_str { ~ }
+            \bool_set_true:N \l__lx_refcheck_aftercs_bool
+            %% the names bare: see the note above \__lx_body_keep:n
+            \str_case:enF {#1}
+              {
+                \label    { \bool_set_true:N \l__lx_refcheck_skiparg_bool }
+                \sublabel { \bool_set_true:N \l__lx_refcheck_skiparg_bool }
+              }
+              { }
+          }
+        { A } { \str_put_right:Nn \l__lx_refcheck_str { ~ } }
+        { B } { \__lx_refcheck_char:n {#2} }
+        { C } { \__lx_refcheck_char:n {#2} }
+        { D }
+          {
+            \int_compare:nNnTF {#2} = { `\~ }
+              { \str_put_right:Nn \l__lx_refcheck_str { ~ } }
+              { \__lx_refcheck_char:n {#2} }
+          }
+      }
+  }
+\cs_new_protected:Npn \__lx_refcheck_char:n #1
+  {
+    \bool_lazy_and:nnF
+      { \l__lx_refcheck_aftercs_bool } { \int_compare_p:nNn {#1} = { `. } }
+      {
+        \int_case:nnF {#1}
+          {
+            { `\\ } { } { `\{ } { } { `\} } { }
+            { `\% } { } { `\# } { } { `\^ } { }
+          }
+          { \str_put_right:Ne \l__lx_refcheck_str
+              { \char_generate:nn {#1} { 12 } } }
+      }
+    \bool_set_false:N \l__lx_refcheck_aftercs_bool
+  }
+%% Offer material to the example being recorded; the first offer with
+%% any words in it is the one written.
+\cs_new_protected:Npn \__lx_refcheck_offer:n #1
+  {
+    \bool_lazy_and:nnT
+      { \g__lx_refcheck_record_bool } { \g__lx_refcheck_need_bool }
+      {
+        \__lx_refcheck_words:n {#1}
+        \str_if_empty:NF \l__lx_refcheck_str
+          {
+            \bool_gset_false:N \g__lx_refcheck_need_bool
+            \seq_gput_right:Ne \g__lx_refcheck_new_seq
+              { \g__lx_refcheck_key_tl : \l__lx_refcheck_str }
+            \__lx_refcheck_write:n
+              {
+                \token_to_str:N \lx@refcheck@words
+                  { \g__lx_refcheck_key_tl } { \l__lx_refcheck_str }
+              }
+          }
+      }
+  }
+%% The dot syntax and gb4e's \ex[*]{...} hand the body over before the
+%% item exists; it is offered once the item does.
+\cs_new_protected:Npn \lx@refcheck@stash #1
+  {
+    \bool_if:NT \g__lx_refcheck_record_bool
+      { \tl_gset:Nn \g__lx_refcheck_body_tl {#1} }
+  }
+\cs_new_protected:Npn \lx@refcheck@gloss #1
+  {
+    \bool_if:NT \g__lx_refcheck_record_bool
+      {
+        \seq_get_left:NN #1 \l__lx_refcheck_tmp_tl
+        \exp_args:NV \__lx_refcheck_offer:n \l__lx_refcheck_tmp_tl
+      }
+  }
+
+%% --- the example side ------------------------------------------------
+%% From \lx@main@core: a numbered example has begun.
+\cs_new_protected:Npn \lx@refcheck@main
+  {
+    \bool_if:NT \g__lx_refcheck_record_bool
+      {
+        \legacy_if:nTF { @noftnote }
+          {
+            \tl_gset:Ne \g__lx_refcheck_num_tl { \int_use:N \c@ExNo }
+            \tl_gset:Ne \g__lx_refcheck_key_tl { m \int_use:N \c@lxExSerial }
+          }
+          {
+            \tl_gset:Ne \g__lx_refcheck_num_tl { \int_to_roman:n { \c@FnExNo } }
+            \tl_gset:Ne \g__lx_refcheck_key_tl { f \int_use:N \c@lxFnExSerial }
+          }
+        \bool_gset_true:N \g__lx_refcheck_need_bool
+        \bool_gset_true:N \g__lx_refcheck_page_bool
+      }
+  }
+%% From \lx@custom@begin: an example with a label of its own has no
+%% number for a relative reference to reach, and must not hand its words
+%% to the numbered example before it.
+\cs_new_protected:Npn \lx@refcheck@custom
+  {
+    \bool_gset_false:N \g__lx_refcheck_need_bool
+    \bool_gset_false:N \g__lx_refcheck_page_bool
+    \tl_gclear:N \g__lx_refcheck_body_tl
+  }
+%% From \lx@makeitem, after the item and its anchor: the place an
+%% author's \label would put its own whatsit.
+\cs_new_protected:Npn \lx@refcheck@item
+  {
+    \bool_if:NT \g__lx_refcheck_page_bool
+      {
+        \bool_gset_false:N \g__lx_refcheck_page_bool
+        \seq_gput_right:Ne \g__lx_refcheck_new_seq
+          { \g__lx_refcheck_num_tl = \g__lx_refcheck_key_tl }
+        \__lx_refcheck_write:n
+          {
+            \token_to_str:N \lx@refcheck@num
+              { \g__lx_refcheck_num_tl } { \g__lx_refcheck_key_tl }
+          }
+        \__lx_refcheck_shipout:n
+          {
+            \token_to_str:N \lx@refcheck@page
+              { \g__lx_refcheck_key_tl } { \exp_not:N \thepage }
+          }
+        \tl_if_empty:NF \g__lx_refcheck_body_tl
+          {
+            \exp_args:NV \__lx_refcheck_offer:n \g__lx_refcheck_body_tl
+            \tl_gclear:N \g__lx_refcheck_body_tl
+          }
+      }
+  }
+
+%% --- the reference side ----------------------------------------------
+%% #1 = what the report calls the reference, #2 = the number it asked for
+%% (as printed: arabic, or roman for the footnote series), #3 = the serial
+%% key of the example it MEANS, or empty to look #2 up.  A relative
+%% reference is positional, so it knows its target without the number:
+%% the serial of the current example moved by the same offset the number
+%% was, which a counter reset cannot make ambiguous.  A range end only
+%% has the number its label printed.  A reference set more than once from
+%% one line -- a beamer frame, once per overlay -- is reported once.
+\cs_new_protected:Npn \lx@refcheck@ref #1#2#3
+  {
+    \bool_if:NT \g__lx_refcheck_record_bool
+      {
+        \str_set:Ne \l__lx_refcheck_str
+          { \int_use:N \inputlineno / #1 / #2 }
+        \prop_if_in:NVF \g__lx_refcheck_dedupe_prop \l__lx_refcheck_str
+          {
+            \prop_gput:NVn \g__lx_refcheck_dedupe_prop \l__lx_refcheck_str { }
+            \int_gincr:N \g__lx_refcheck_ref_int
+            \seq_gput_right:Ne \g__lx_refcheck_refs_seq
+              {
+                { \int_use:N \inputlineno } {#1} {#2} {#3}
+                { \int_use:N \g__lx_refcheck_ref_int }
+              }
+            \__lx_refcheck_shipout:n
+              {
+                \token_to_str:N \lx@refcheck@at
+                  { \int_use:N \g__lx_refcheck_ref_int } { \exp_not:N \thepage }
+              }
+          }
+      }
+  }
+%% A range end: its number is read back from the label, brackets and the
+%% sub-example letter off.  #1 = the command, #2 = the label.
+\cs_new_protected:Npn \lx@refcheck@label #1#2
+  {
+    \bool_if:NT \g__lx_refcheck_record_bool
+      {
+        \cs_if_exist:cTF { r@ #2 }
+          {
+            \group_begin:
+              \cs_set_eq:NN \theExLBr   \prg_do_nothing:
+              \cs_set_eq:NN \theExRBr   \prg_do_nothing:
+              \cs_set_eq:NN \theFnExLBr \prg_do_nothing:
+              \cs_set_eq:NN \theFnExRBr \prg_do_nothing:
+              \tl_gset:Ne \g__lx_refcheck_label_tl
+                { \exp_args:Nv \tl_head:n { r@ #2 } }
+            \group_end:
+            \exp_args:NV \__lx_refcheck_words:n \g__lx_refcheck_label_tl
+            \exp_args:NnV \regex_extract_once:nnNTF
+              { \A (?: [0-9]+ | [ivxlcdm]+ ) }
+              \l__lx_refcheck_str \l__lx_refcheck_words_seq
+              { \exp_args:Nee \lx@refcheck@ref
+                  { #1 \c_left_brace_str #2 \c_right_brace_str }
+                  { \seq_item:Nn \l__lx_refcheck_words_seq { 1 } } { } }
+              { \lx@refcheck@ref
+                  { #1 \c_left_brace_str #2 \c_right_brace_str } { } { } }
+          }
+          { \lx@refcheck@ref
+              { #1 \c_left_brace_str #2 \c_right_brace_str } { } { } }
+      }
+  }
+
+%% --- the report ------------------------------------------------------
+%% The listing goes out an entry at a time through \iow_wrap:nnnN, to the
+%% terminal, which is the log as well: a message argument cannot carry it,
+%% because l3msg protects its arguments from the \\ that breaks a line,
+%% and written out raw TeX would break each long line wherever it reached
+%% the margin.  \iow_wrap:nnnN counts CHARACTERS and LuaTeX breaks the log
+%% at max_print_line counted in BYTES, so under LuaTeX an entry quoting
+%% "fatigué depuis" came out with its tail on an unindented line of its
+%% own; each entry is wrapped narrower by the extra bytes its UTF-8 takes,
+%% which keeps every line of it inside the margin either way.
+\msg_new:nnn { linguexx } { refcheck }
+  {
+    \iow_char:N \\exrefcheck:~#1~reference(s)~resolved~by~linguexx,~
+    listed~below.
+  }
+\msg_new:nnn { linguexx } { refcheck-none }
+  { \iow_char:N \\exrefcheck:~no~relative~references~or~ranges~to~report. }
+\msg_new:nnn { linguexx } { refcheck-rerun }
+  {
+    \iow_char:N \\exrefcheck~needs~another~run~to~report:~the~
+    records~it~reads~are~written~by~this~one.
+  }
+\msg_new:nnn { linguexx } { refcheck-stale }
+  {
+    The~examples~have~changed~since~the~last~run,~so~the~report~of~
+    \iow_char:N \\exrefcheck~may~be~out~of~date.~Rerun~LaTeX.
+  }
+%% One line: "l.<line>, p.<page>: \<command> -> (<n>) on p.<page>: "<words>"".
+%% #1 line, #2 command, #3 number, #4 key or empty, #5 reference serial.
+\cs_new_protected:Npn \__lx_refcheck_line:nnnnn #1#2#3#4#5
+  {
+    \tl_set:Ne \l__lx_refcheck_report_tl { l. #1 }
+    \prop_get:NnNT \g__lx_refcheck_at_prop {#5} \l__lx_refcheck_tmp_tl
+      {
+        \tl_put_right:Ne \l__lx_refcheck_report_tl
+          { ,~p. \exp_not:V \l__lx_refcheck_tmp_tl }
+      }
+    \tl_put_right:Ne \l__lx_refcheck_report_tl
+      { :~ \c_backslash_str #2 ~ -> ~ }
+    \tl_if_empty:nTF {#3}
+      { \tl_put_right:Nn \l__lx_refcheck_report_tl { no~such~label } }
+      {
+        \tl_put_right:Nn \l__lx_refcheck_report_tl { (#3) }
+        \tl_if_empty:nTF {#4}
+          { \__lx_refcheck_bynumber:n {#3} }
+          {
+            \prop_if_in:NnTF \g__lx_refcheck_page_prop {#4}
+              { \__lx_refcheck_target:n {#4} }
+              { \tl_put_right:Nn \l__lx_refcheck_report_tl
+                  { ~ no~such~example } }
+          }
+      }
+    \__lx_refcheck_print:
+  }
+
+%% A range end has only the number its label printed: look it up, and
+%% decline to choose when a counter reset gave it to two examples.
+\cs_new_protected:Npn \__lx_refcheck_bynumber:n #1
+  {
+    \prop_if_in:NnTF \g__lx_refcheck_ambig_prop {#1}
+      { \tl_put_right:Nn \l__lx_refcheck_report_tl
+          { ~ is~printed~by~more~than~one~example } }
+      {
+        \prop_get:NnNTF \g__lx_refcheck_key_prop {#1} \l__lx_refcheck_tmp_tl
+          { \__lx_refcheck_target:V \l__lx_refcheck_tmp_tl }
+          { \tl_put_right:Nn \l__lx_refcheck_report_tl
+              { ~ no~such~example } }
+      }
+  }
+\cs_new_protected:Npn \__lx_refcheck_target:n #1
+  {
+    \prop_get:NnNT \g__lx_refcheck_page_prop {#1} \l__lx_refcheck_tmp_tl
+      {
+        \tl_put_right:Ne \l__lx_refcheck_report_tl
+          { ~on~p. \exp_not:V \l__lx_refcheck_tmp_tl }
+      }
+    \prop_get:NnNTF \g__lx_refcheck_words_prop {#1} \l__lx_refcheck_tmp_tl
+      {
+        \tl_put_right:Ne \l__lx_refcheck_report_tl
+          { :~" \exp_not:V \l__lx_refcheck_tmp_tl " }
+      }
+      { \tl_put_right:Nn \l__lx_refcheck_report_tl
+          { :~(text~not~recorded) } }
+  }
+\cs_generate_variant:Nn \__lx_refcheck_target:n { V }
+\int_new:N \l__lx_refcheck_bytes_int
+\cs_new_protected:Npn \__lx_refcheck_print:
+  {
+    \group_begin:
+      \sys_if_engine_luatex:T
+        {
+          \int_zero:N \l__lx_refcheck_bytes_int
+          \str_set:Ne \l__lx_refcheck_str { \l__lx_refcheck_report_tl }
+          \str_map_inline:Nn \l__lx_refcheck_str
+            {
+              \int_add:Nn \l__lx_refcheck_bytes_int
+                {
+                  \int_compare:nNnTF { `##1 } < { "80 } { 0 }
+                    {
+                      \int_compare:nNnTF { `##1 } < { "800 } { 1 }
+                        { \int_compare:nNnTF { `##1 } < { "10000 } { 2 } { 3 } }
+                    }
+                }
+            }
+          \int_sub:Nn \l_iow_line_count_int { \l__lx_refcheck_bytes_int }
+        }
+      \iow_wrap:nnnN { \iow_indent:n { \l__lx_refcheck_report_tl } }
+        { } { } \iow_term:n
+    \group_end:
+  }
+\cs_new_protected:Npn \__lx_refcheck_report:
+  {
+    \bool_if:NT \g__lx_refcheck_report_bool
+      {
+        \bool_if:NTF \g__lx_refcheck_seen_bool
+          {
+            \seq_if_empty:NTF \g__lx_refcheck_refs_seq
+              { \msg_note:nn { linguexx } { refcheck-none } }
+              {
+                \msg_note:nne { linguexx } { refcheck }
+                  { \seq_count:N \g__lx_refcheck_refs_seq }
+                \seq_map_inline:Nn \g__lx_refcheck_refs_seq
+                  { \__lx_refcheck_line:nnnnn ##1 }
+              }
+            \str_if_eq:eeF
+              { \seq_use:Nn \g__lx_refcheck_old_seq { , } }
+              { \seq_use:Nn \g__lx_refcheck_new_seq { , } }
+              { \msg_warning:nn { linguexx } { refcheck-stale } }
+          }
+          { \msg_warning:nn { linguexx } { refcheck-rerun } }
+      }
+  }
+\AtEndDocument { \__lx_refcheck_report: }
+
+%% --- the user command ------------------------------------------------
+\keys_define:nn { lx / refcheck }
+  {
+    words .code:n =
+      {
+        \int_compare:nNnTF {#1} > { 0 }
+          { \int_gset:Nn \g__lx_refcheck_words_int {#1} }
+          { \msg_error:nnn { linguexx } { refcheck-words } {#1} }
+      } ,
+    words .value_required:n = true ,
+  }
+\msg_new:nnn { linguexx } { refcheck-words }
+  { \iow_char:N \\exrefcheck[words=#1]:~the~number~of~words~must~be~at~least~1. }
+%% Anywhere: in the preamble it records from the first example on; later,
+%% the flag it writes to the .aux makes the NEXT run record from the
+%% start, and the report waits for that run.
+\NewDocumentCommand \exrefcheck { O{} }
+  {
+    \keys_set:nn { lx / refcheck } {#1}
+    \bool_gset_true:N \g__lx_refcheck_report_bool
+    \bool_gset_true:N \g__lx_refcheck_record_bool
+    \legacy_if:nT { @filesw }
+      {
+        \cs_if_eq:NNT \@onlypreamble \@notprerr
+          {
+            \__lx_refcheck_provide:
+            \__lx_refcheck_write:n { \token_to_str:N \lx@refcheck@on }
+          }
+      }
+  }
+\AtBeginDocument
+  {
+    \bool_if:NT \g__lx_refcheck_record_bool
+      {
+        \__lx_refcheck_provide:
+        \bool_if:NT \g__lx_refcheck_report_bool
+          { \__lx_refcheck_write:n { \token_to_str:N \lx@refcheck@on } }
+      }
+  }
+\ExplSyntaxOff
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%  Interlinear glossing: \gll \glll \glt (cgloss4e replacement)       %%%%
@@ -5835,6 +6424,7 @@
   {
     \seq_set_split:Nnn \l__lx_gl_lines_seq { \\ } {#1}
     \seq_remove_all:Nn \l__lx_gl_lines_seq { }
+    \lx@refcheck@gloss \l__lx_gl_lines_seq
     \int_zero:N \l__lx_gl_ntiers_int
     \int_zero:N \l__lx_gl_maxwords_int
     \tl_clear:N \l__lx_gl_annot_tl
@@ -7731,12 +8321,13 @@
   \else
     \pref{#1}%
   \fi}
-\newcommand\prefrange[2]{\pref{#1}\rangedash\lx@subletter{#2}}
+\newcommand\prefrange[2]{\lx@refcheck@label{prefrange}{#1}\pref{#1}\rangedash\lx@subletter{#2}}
 \newcommand\refrange[2]{(\prefrange{#1}{#2})}
 %% Spelt with \pref and the delimiters rather than with \ref, so that the
 %% two full references it prints are parenthesised under \ExBareRefs too:
 %% what \Refrange promises is "(2)--(3)", not "whatever \ref gives, twice".
 \newcommand\Refrange[2]{%
+  \lx@refcheck@label{Refrange}{#1}\lx@refcheck@label{Refrange}{#2}%
   \theExLBr\pref{#1}\theExRBr\rangedash\theExLBr\pref{#2}\theExRBr}
 
 %% cleveref knows nothing about the example counters, so \cref{ex:one} comes

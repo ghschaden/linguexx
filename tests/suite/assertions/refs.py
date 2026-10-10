@@ -11,6 +11,7 @@ from suite.check import check, warning_body
 from suite.pdf import (
     Page, dest_page, example_targets, link_targets,
 )
+from suite.structure import struct_lbl_depths, verapdf_report
 
 def relref_record(name):
     """The .aux line a relative-reference anchor is recorded with: the
@@ -672,3 +673,103 @@ def a_customlabel_refs(p: Page):
                        f"no duplicate-destination warning ({phrase!r})"))
     return r
 
+
+
+def refcheck_report(log):
+    """The \\exrefcheck listing from a .log: (command, rest) per entry.
+
+    The entries are wrapped by \\iow_wrap:nnnN with a four-space indent,
+    and a long one runs on over several lines; an entry starts with its
+    "l.<line>".  `rest` is everything after the "->", unwrapped."""
+    m = re.search(r"\\exrefcheck: (\d+) reference\(s\)", log)
+    if not m:
+        return None, []
+    entries, started = [], False
+    for line in log[m.end():].splitlines()[2:]:
+        if not line.strip():
+            if started:
+                break
+            continue
+        if not line.startswith("    "):
+            break
+        started = True
+        if re.match(r"    l\.\d+", line):
+            entries.append(line.strip())
+        elif entries:
+            entries[-1] += " " + line.strip()
+    out = []
+    for e in entries:
+        hit = re.match(r"l\.\d+, p\.\d+: \\(\S+) -> (.*)$", e)
+        out.append((hit.group(1), hit.group(2)) if hit else (None, e))
+    return int(m.group(1)), out
+
+
+def _refcheck_rows(p, want):
+    r = []
+    n, got = refcheck_report(p.log)
+    r.append(check(n == len(want) and len(got) == len(want),
+                   f"the report lists every reference once: announced {n}, "
+                   f"listed {len(got)}, want {len(want)}"))
+    for i, (cmd, rest, why) in enumerate(want):
+        have = got[i] if i < len(got) else (None, "")
+        r.append(check(have[0] == cmd and have[1] == rest,
+                       f"entry {i + 1}, {why}: want \\{cmd} -> {rest!r}, "
+                       f"got \\{have[0]} -> {have[1]!r}"))
+    for msg in ("needs another run to report", "may be out of date"):
+        r.append(check(msg not in p.log,
+                       f"a converged run reports without {msg!r}"))
+    return r
+
+
+def a_refcheck(p: Page):
+    r"""\exrefcheck, dot syntax, PDF/UA; see the case's header.  The quoted
+    words are the assertion: a report of number and page alone would pass
+    every other check here and is exactly the useless version."""
+    r = _refcheck_rows(p, [
+        ("Next", '(1) on p.1: "RCINSERTED une phrase ajoutée après coup, ..."',
+         "the retargeted \\Next names what it now points at, six words "
+         "and an ellipsis, its \\label dropped"),
+        ("Last", '(2) on p.1: "*RCINTENDED Pierre est fatigué depuis mardi."',
+         "the judgment mark is part of the quote"),
+        ("NNext", '(4) on p.1: "RCSUBA erste. RCSUBB zweite."',
+         "sub-examples quoted from the body, a mid-text \\label dropped"),
+        ("LLast", '(3) on p.1: "RCGLOSS Hund bellt"',
+         "a gloss by its object tier only"),
+        ("Last", "(5) on p.1: (text not recorded)",
+         "an example with no text, and the custom-labelled one after it "
+         "has not lent it its words"),
+        ("NNext", "(7) no such example", "a reference to nothing"),
+        ("prefrange{ex:sub}", '(4) on p.1: "RCSUBA erste. RCSUBB zweite."',
+         "a range end, read back from its label"),
+        ("Refrange{ex:ins}", "(1) is printed by more than one example",
+         "a range end by NUMBER, which the reset gave to two examples"),
+        ("Refrange{ex:missing}", "no such label", "an undefined label"),
+        ("Last", '(1) on p.1: "RCRESET again one."',
+         "a relative reference after the reset is positional and finds the "
+         "second (1), not the first"),
+    ])
+    verdicts, failures, _ = verapdf_report(p.path)
+    r.append(check(bool(verdicts) and all(ok for _, ok in verdicts),
+                   f"veraPDF: compliant on every profile ({verdicts}; "
+                   f"{failures})"))
+    # struct_lbl_depths and not struct_label_depths: the references here
+    # are "(1)" in running text too, and only the labels are siblings
+    depths = struct_lbl_depths(p.path)
+    r.append(check(len(depths) == 6 and len({d for _, d in depths}) == 1,
+                   f"the records leave the tree as they found it: every "
+                   f"example number at one depth: {depths}"))
+    return r
+
+
+def a_refcheck_gb4e(p: Page):
+    r"""\exrefcheck with the gb4e syntax; see the case's header."""
+    return _refcheck_rows(p, [
+        ("Next", "(1) on p.1: (text not recorded)",
+         "a plain gb4e item is set from the input and not read ahead of"),
+        ("LLast", '(2) on p.1: "GBARG eins zwei ..."',
+         "\\ex[*]{...} from its argument, at words=3"),
+        ("Last", '(3) on p.1: "GBOBJ Hund bellt ..."',
+         "a gloss from its object tier, at words=3"),
+        ("Last", '(i) on p.1: "GBFOOT eins zwei ..."',
+         "the footnote series, by its roman number"),
+    ])

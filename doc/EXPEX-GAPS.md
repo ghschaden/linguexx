@@ -53,7 +53,7 @@ never had to ask, and for items 1 and 4 that question is the hard part.
 |---|---|---|---|
 | 1 | Free translation *beside* the gloss | **done, v1.3** | — |
 | 2 | Key-value façade and named styles | medium | the key names, which become API forever |
-| 3 | Reference checking | medium | whether `\ref` itself is in scope |
+| 3 | Reference checking | **done** (`\exrefcheck`) | — |
 | 4 | Named label types | medium | whether a type may change the *reference* format |
 
 **Item 1 is implemented** as of v1.3 (`\GlossTransSide`); this section is
@@ -492,6 +492,17 @@ documentation rather than code.
 ---
 
 ## 3. Reference checking
+
+**Implemented** as `\exrefcheck` (manual, "Checking what a reference
+points at"). Decided, 2026-10-10: `\ref` is out of scope, so there is no
+unreferenced-label check; the ranges are covered by reading their labels
+back, not by wrapping anything; six words by default, settable with
+`words=`; no highlight on the page. Two things the notes below did not
+foresee: a relative reference is keyed by the target's SERIAL, not its
+number, which makes it immune to counter resets (only a range end can be
+ambiguous); and the gb4e and `\ea` items are not quoted, because reading
+ahead of an item that is not collected would freeze catcodes. The rest of
+this section is the reasoning as it stood before.
 
 **What `expex` does.** `\refproofing` sets a flag; every reference it prints
 is then decorated — `\mathhigh@lightref` wraps it as
