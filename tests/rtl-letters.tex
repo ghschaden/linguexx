@@ -1,0 +1,28 @@
+%% Sub-example letters follow the document's language, and \Exalph is
+%% where an author chooses otherwise.  Under polyglossia's Hebrew \alph
+%% gives א, ב, and that is the default (decided 2026-10-10: letters as the
+%% language gives them).  \let\Exalph\ExLatinAlph gives a, b whatever the
+%% language, and \alph cannot: polyglossia redefines the \@alph under it.
+%% The switch is made between the two examples, so one file shows both;
+%% each has a cross-reference, because a reference prints the letter too.
+%% Roman numerals at the next level are not the language's to change
+%% under Hebrew, and stay i, ii either way.
+\input{_preamble-rtlmain}
+\begin{document}
+\ex. HEMAIN אחד.
+\a. HESUBA שתיים.
+\a. HESUBSUB שלוש.
+\z.
+\b. HESUBB ארבע.\label{he:b}
+\z.
+
+HEREF \ref{he:b}
+
+\let\Exalph\ExLatinAlph
+\ex. LAMAIN אחד.
+\a. LASUBA שתיים.
+\b. LASUBB ארבע.\label{la:b}
+\z.
+
+LAREF \ref{la:b}
+\end{document}

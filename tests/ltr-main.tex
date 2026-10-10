@@ -1,0 +1,38 @@
+%% A Hebrew example in an English document follows the MAIN language's
+%% direction (decided 2026-10-10): numbered at the LEFT margin, letters and
+%% marks on the left, laid out as the English reference example above it
+%% -- and only its words run right to left, a short line standing against
+%% the text edge next to its letter.  The mirror image of rtl-main.
+%%
+%% The mechanism differs by engine (see \lx@dir@listbegin): LuaTeX
+%% switches \linedirection after the label and must put the main
+%% direction back before a sub-level's group opens -- \a.'s, and xlist's,
+%% which is opened by \begin and reached through the environment hook, so
+%% the gb4e example is here for that; XeTeX opens a \beginR segment after
+%% the label and closes it before the paragraph's fill.
+%%
+%% Latin sentinels inside the Hebrew examples are in \textenglish: in a
+%% right-to-left stretch LuaTeX sets Latin letters right to left, as
+%% polyglossia's own \texthebrew does, and that is not this case's subject.
+\input{_preamble-ltrmain}
+\begin{document}
+\ex. ENMAIN the reference.
+\a. ENSUBA first.
+\b. *ENSUBB second.
+\z.
+
+\begin{hebrew}
+\ex. \textenglish{HEMAIN} הילד אכל את התפוח ואחר כך אכל עוד תפוח ואגס והלך הביתה לישון שוב ושוב ושוב ושוב ושוב.
+\a. \textenglish{HESUBA} הילד.
+\b. *\textenglish{HESUBB} אכל.
+\z.
+
+\begin{exe}
+\ex \textenglish{GBMAIN} הילד אכל.
+\begin{xlist}
+\ex \textenglish{GBSUBA} הילד.
+\ex[*]{\textenglish{GBSUBB} אכל.}
+\end{xlist}
+\end{exe}
+\end{hebrew}
+\end{document}

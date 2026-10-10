@@ -1,0 +1,26 @@
+%% A right-to-left document under PDF/UA-2: a Hebrew example, an english
+%% example mirrored into it, and an English example glossed in Hebrew --
+%% every direction mechanism of rtl-main and rtl-gloss at once, validated
+%% by veraPDF under LuaLaTeX (under XeLaTeX a tagged right-to-left
+%% document fails 8.2.2 with no linguexx loaded at all -- bidi's matter, see
+%% the assertion).  And the tree must READ right, on both: XeTeX writes a right-to-left
+%% word's glyphs in visual order, so the Hebrew glosses of the English grid
+%% carry their logical text (\__lx_gl_if_dircells:, the cell layers of
+%% \GlossRTL used in the left-to-right box too); without it a screen reader
+%% is handed "דליה" for "הילד", and nothing on the page shows it.
+\input{_preamble-rtlmain-ua}
+\ex. PLAINREF הילד.
+\a. SUBONE אכל.
+\b. *SUBTWO את.
+\z.
+
+\begin{english}
+\ex. ENMAIN an English example.
+\a. ENSUB first.
+\z.
+
+\ex. \gll ENA ENB ENC\\
+          הילד אכל את\\
+\glt 'ENTRANS starts here.'
+\end{english}
+\end{document}

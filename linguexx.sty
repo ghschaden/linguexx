@@ -347,6 +347,17 @@
 \let\Exarabic\arabic
 \let\Exalph\alph
 \let\Exroman\roman
+%% \Exalph is also THE place to choose sub-example letters, labels and
+%% references alike, and the manual documents it as such.  It follows
+%% \alph, and so the document's language: polyglossia's Hebrew gives
+%% א, ב.  An author who wants a, b whatever the language says
+%% \let\Exalph\ExLatinAlph.  It is built on \int_to_alph:n because \alph
+%% is no way back -- polyglossia redefines the \@alph underneath it, so
+%% the kernel's Latin letters are not reachable by name from a Hebrew
+%% document.  Expandable, as \alph is: a label writes it to the .aux.
+\ExplSyntaxOn
+\cs_new:Npn \ExLatinAlph #1 { \int_to_alph:n { \value {#1} } }
+\ExplSyntaxOff
 
 % Reference dashes and sub-label delimiters.  Only the NAMES are reserved
 % here; the values are set by the defaults block in the Layout section
@@ -1821,7 +1832,7 @@
   }
 \ExplSyntaxOff
 \def\lx@openlist#1{\begin{list}{}{#1}}
-\def\lx@closelist{\end{list}}
+\def\lx@closelist{\end{list}\lx@dir@listend}
 %% --- public API (Protocol A: the list funnel) -------------------------
 %% EVERY list a front-end opens must go through this pair.  Bypassing it
 %% with \list/\begin{list} loses the /ListNumbering attribute patched in
@@ -1854,6 +1865,7 @@
   \let\makelabel\lx@flushlabel
   \lx@bodyfont}
 \def\lx@mainlist{%
+  \lx@dir@listbegin
   \lx@openlist{\topsep\Extopsep
      \lx@geom@main
      \lx@listdefaults}}
@@ -2201,14 +2213,278 @@
       { l }
   }
 \ExplSyntaxOff
-\def\lx@flushlabel#1{\makebox[\labelwidth][\lx@labelside]{\lx@labelfont#1}}
+\def\lx@flushlabel#1{\makebox[\labelwidth][\lx@labelside]{\lx@dir@label{\lx@labelfont#1}}}
+
+%% Examples follow the direction of the document's MAIN language (decided
+%% 2026-10-10, doc/DEFERRED-DECISIONS.md): in a Hebrew document an example
+%% inside \begin{english} is laid out as every other example there --
+%% number against the right margin, text indented from the right, letters
+%% and marks to the right of what they label -- and only the words in each
+%% line run left to right.  The reverse holds for a Hebrew example in an
+%% English document.  So the example's LIST takes the main direction, and
+%% after each label the text switches to the example's OWN direction.
+%%
+%% The main direction is bidi's and luabidi's \if@RTLmain, which
+%% polyglossia sets for a right-to-left main language.  Without either
+%% package there is nothing to mirror and none of this runs.
+%%
+%% The two engines need two mechanisms, and each was found the hard way:
+%%  - LuaTeX switches with \linedirection after the label, which it carries
+%%    across line breaks.  But its direction stack respects TeX groups, and
+%%    a sub-level opens one (\a.'s \begingroup, xlist's \begin) WHILE the
+%%    main item's paragraph is still running: the main item's own
+%%    direction, left in force at the outer level, then re-opened around
+%%    the whole sub-item, label included, and the letter landed inside the
+%%    text.  So the main direction is put back before every sub-level group
+%%    opens (\lx@dir@beforegroup), with the paragraph's trailing space
+%%    removed first -- a direction node after it keeps \unskip from it,
+%%    and the line came out 3.6pt short.
+%%  - XeTeX has no direction register, only \beginL/\beginR segments, which
+%%    are nodes and not group state.  One is opened after the label and
+%%    closed in para/end, BEFORE \par adds \parfillskip: left open, the fill
+%%    went inside the segment and a short last line stood at the far end
+%%    of the measure, away from its label.
+\ExplSyntaxOn
+\bool_new:N \l__lx_dir_flip_bool        % this example's list is mirrored
+\int_new:N  \l__lx_dir_own_int          % its own direction: 0 LTR, 1 RTL
+\int_new:N  \l__lx_dir_main_int         % the document's main direction
+\bool_new:N \g__lx_dir_open_bool        % XeTeX: a segment is open
+\bool_new:N \l__lx_dir_inbox_bool       %   ... and we are in a box inside it
+\int_new:N  \g__lx_dir_open_int         %   ... and which: 0 L, 1 R
+\cs_new:Npn \__lx_dir_current:
+  {
+    \sys_if_engine_luatex:TF
+      { \int_use:N \tex_textdirection:D }
+      { \legacy_if:nTF { @RTL } { 1 } { 0 } }
+  }
+%% From \lx@mainlist, BEFORE the list's group opens: decide, and set the
+%% main direction at that level.  Not inside the list: LuaTeX wraps an
+%% item's paragraph in the direction of every enclosing group, so the
+%% hebrew environment's own direction, left outside, wrapped the number
+%% too and set it inside the text.  But the dot syntax opens no group of
+%% its own around the list, so what is set here outlives the example
+%% unless it is put back -- the next example in the same environment then
+%% found the wrong direction -- and \lx@dir@listend, from \lx@closelist,
+%% puts it back when the MAIN list closes.
+\cs_new_protected:Npn \lx@dir@listbegin
+  {
+    \bool_set_false:N \l__lx_dir_flip_bool
+    \bool_lazy_and:nnT
+      { \cs_if_exist_p:N \if@RTLmain }
+      { \bool_lazy_or_p:nn { \sys_if_engine_luatex_p: } { \sys_if_engine_xetex_p: } }
+      {
+        \int_set:Nn \l__lx_dir_own_int { \__lx_dir_current: }
+        \int_set:Nn \l__lx_dir_main_int { \legacy_if:nTF { @RTLmain } { 1 } { 0 } }
+        \int_compare:nNnF { \l__lx_dir_own_int } = { \l__lx_dir_main_int }
+          {
+            \bool_set_true:N \l__lx_dir_flip_bool
+            \int_compare:nNnTF { \l__lx_dir_main_int } = { 1 }
+              { \setRTL } { \setLTR }
+          }
+      }
+  }
+\cs_new_protected:Npn \lx@dir@listend
+  {
+    \bool_lazy_and:nnT
+      { \l__lx_dir_flip_bool } { \int_compare_p:nNn { \lx@subdepth } = { 0 } }
+      {
+        \bool_set_false:N \l__lx_dir_flip_bool
+        \int_compare:nNnTF { \l__lx_dir_own_int } = { 1 }
+          { \setRTL } { \setLTR }
+      }
+  }
+%% From \lx@makeitem, before the item: the label is set in the main
+%% direction, which an earlier item's switch may have left otherwise.
+\cs_new_protected:Npn \lx@dir@itembefore
+  {
+    \bool_if:NT \l__lx_dir_flip_bool
+      {
+        \sys_if_engine_luatex:T
+          { \tex_textdirection:D = \l__lx_dir_main_int \scan_stop: }
+      }
+  }
+%% ... and after it: the text in the example's own direction.  This ends
+%% \lx@makeitem and stands in for its \ignorespaces.  The paragraph is
+%% started here, after the label, and switched -- unless the item has no
+%% text of its own and a sub-level follows at once (\ex. \a. ..., or an
+%% xlist's \begin): LaTeX keeps such a label pending and sets it on the
+%% first sub-example's line, which a paragraph started here prevents (the
+%% number stood alone above), and the sub-item switches after both labels.
+%% Switching from the item's \everypar instead was tried and fails: under
+%% the kernel's paragraph hooks that no longer runs between label and text,
+%% and a Hebrew example's text came out left to right under LuaTeX.
+\cs_new_protected:Npn \lx@dir@itemafter
+  {
+    \bool_if:NTF \l__lx_dir_flip_bool
+      {
+        \mode_if_horizontal:TF
+          { \lx@dir@textswitch \tex_ignorespaces:D }
+          {
+            \peek_meaning_ignore_spaces:NTF \a
+              { }
+              { \peek_meaning:NTF \begin { } { \lx@dir@startswitch } }
+          }
+      }
+      { \tex_ignorespaces:D }
+  }
+\cs_new_protected:Npn \lx@dir@startswitch
+  { \mode_leave_vertical: \lx@dir@textswitch \tex_ignorespaces:D }
+\cs_new_protected:Npn \lx@dir@textswitch
+  {
+    \bool_lazy_and:nnT
+      { \l__lx_dir_flip_bool }
+      { ! \bool_lazy_and_p:nn { \g__lx_dir_open_bool } { ! \l__lx_dir_inbox_bool } }
+      {
+        \sys_if_engine_luatex:TF
+          { \tex_linedirection:D = \l__lx_dir_own_int \scan_stop: }
+          {
+            \int_compare:nNnTF { \l__lx_dir_own_int } = { 1 }
+              { \tex_beginR:D } { \tex_beginL:D }
+            \bool_gset_true:N \g__lx_dir_open_bool
+            \bool_set_false:N \l__lx_dir_inbox_bool
+            \int_gset_eq:NN \g__lx_dir_open_int \l__lx_dir_own_int
+          }
+      }
+  }
+%% A label reads in the DOCUMENT's direction (decided 2026-10-10): in a
+%% Hebrew document ".a" as well as ".א", the period between letter and text
+%% as in the mirror image of "a. text", and as bidi itself sets "a." in a
+%% right-to-left paragraph; in an English document "a." and "א.".  The
+%% label belongs to the example's frame, like the side its number is on,
+%% not to its text.  So it is set in the main direction: always in a
+%% right-to-left document, where the engines disagreed before (Latin
+%% letters of a Hebrew example: "a." under XeTeX, ".a" under LuaTeX), and
+%% in a mirrored example of a left-to-right one.  Anywhere else nothing is
+%% wrapped and nothing changes.
+\cs_new_protected:Npn \lx@dir@label #1
+  {
+    \bool_lazy_and:nnTF
+      {
+        \bool_lazy_or_p:nn
+          { \sys_if_engine_luatex_p: } { \sys_if_engine_xetex_p: }
+      }
+      {
+        \bool_lazy_and_p:nn
+          { \cs_if_exist_p:N \if@RTLmain }
+          {
+            \bool_lazy_or_p:nn
+              { \l__lx_dir_flip_bool } { \legacy_if_p:n { @RTLmain } }
+          }
+      }
+      {
+        \sys_if_engine_luatex:TF
+          {
+            \legacy_if:nTF { @RTLmain }
+              { \tex_hbox:D dir ~ TRT {#1} }
+              { \tex_hbox:D dir ~ TLT {#1} }
+          }
+          {
+            \legacy_if:nTF { @RTLmain }
+              { \hbox:n { \tex_beginR:D #1 \tex_endR:D } }
+              { \hbox:n { \tex_beginL:D #1 \tex_endL:D } }
+          }
+      }
+      {#1}
+  }
+%% XeTeX sets a run of letters as ONE word node, and reversing a segment
+%% reverses nodes, not what is inside them: "a." stayed "a." in a
+%% right-to-left label, while LuaTeX gave ".a".  A zero kern between the
+%% letter and its delimiter makes them two nodes.  Only where a label is
+%% set in a direction of its own (\lx@dir@label: XeTeX, a right-to-left
+%% document or a mirrored example -- a Hebrew one in an English document
+%% read ".א" for "א." the same way), because anywhere else it would part
+%% a kerning pair of the font and move the period.
+\cs_new_protected:Npn \lx@dir@labelsep
+  {
+    \bool_lazy_and:nnT
+      { \sys_if_engine_xetex_p: }
+      {
+        \bool_lazy_and_p:nn
+          { \cs_if_exist_p:N \if@RTLmain }
+          {
+            \bool_lazy_or_p:nn
+              { \l__lx_dir_flip_bool } { \legacy_if_p:n { @RTLmain } }
+          }
+      }
+      { \tex_kern:D \c_zero_dim }
+  }
+%% LuaTeX: before a sub-level's group opens (see above).
+\cs_new_protected:Npn \lx@dir@beforegroup
+  {
+    \bool_if:NT \l__lx_dir_flip_bool
+      {
+        \sys_if_engine_luatex:T
+          {
+            \mode_if_horizontal:T
+              {
+                \tex_unskip:D \tex_unskip:D
+                \tex_textdirection:D = \l__lx_dir_main_int \scan_stop:
+              }
+          }
+      }
+  }
+%% Also from \__lx_gl_rtl_place:, before a grid's box goes into the item's
+%% paragraph -- when the segment is an R one.  TeX--XeT reflects the lines
+%% OF a box it reverses: inside the item's R segment a wrapped Hebrew
+%% grid's short second line stood at the left.  An L segment is the
+%% opposite case and must stay open: in a right-to-left paragraph
+%% everything outside it is reversed, and an English grid's lines came out
+%% ragged on the left when it was closed too.
+%% XeTeX: close the segment before the paragraph's fill -- the paragraph
+%% that OPENED it.  A paragraph inside a box in it ends too, and runs
+%% para/end too: a gloss is a \vtop of its own paragraph, and closing the
+%% item's segment there left the item's real end with nothing to close, so
+%% the fill went inside the segment and the grid stood at the far end of
+%% the line from its number.  Every vertical box marks itself
+%% (\everyvbox, local to the box); the item clears the mark when it opens
+%% the segment, so an example set inside a minipage still works.
+\cs_new_protected:Npn \lx@dir@parend
+  {
+    \bool_lazy_and:nnT { \g__lx_dir_open_bool } { ! \l__lx_dir_inbox_bool }
+      {
+        \tex_unskip:D
+        \int_compare:nNnTF { \g__lx_dir_open_int } = { 1 }
+          { \tex_endR:D } { \tex_endL:D }
+        \bool_gset_false:N \g__lx_dir_open_bool
+      }
+  }
+%% XeTeX: the translation after \glt is a paragraph of the example with no
+%% label of its own, and is in the example's own direction too -- without
+%% this its English words came out in right-to-left order.  Called from
+%% \glt's own one-shot \everypar, which is where that paragraph starts; a
+%% para/begin hook was tried first and runs too early, before bidi has
+%% opened the paragraph's own segment.  LuaTeX needs nothing: the text
+%% direction an item set persists into the paragraphs after it.
+\cs_new_protected:Npn \lx@dir@parbegin
+  {
+    \bool_lazy_all:nT
+      {
+        { \l__lx_dir_flip_bool }
+        { \sys_if_engine_xetex_p: }
+        { ! \g__lx_dir_open_bool }
+        { ! \legacy_if_p:n { @inlabel } }
+      }
+      {
+        \int_compare:nNnTF { \l__lx_dir_own_int } = { 1 }
+          { \tex_beginR:D } { \tex_beginL:D }
+        \bool_gset_true:N \g__lx_dir_open_bool
+        \int_gset_eq:NN \g__lx_dir_open_int \l__lx_dir_own_int
+        \bool_set_false:N \l__lx_dir_inbox_bool
+      }
+  }
+\AddToHook { para/end } { \lx@dir@parend }
+\tex_everyvbox:D \exp_after:wN
+  { \tex_the:D \tex_everyvbox:D \bool_set_true:N \l__lx_dir_inbox_bool }
+\clist_map_inline:nn { xlist , xlista , xlisti , xlistn , xlistA , xlistI }
+  { \AddToHook { env / #1 / before } { \lx@dir@beforegroup } }
+\ExplSyntaxOff
 %% \lx@relref@anchor places the hyperref destination for this example when
 %% linguexx is the one making them (see \lx_relref_record:).  It goes
 %% after the judgment, so the mark still hangs from the label edge, and
 %% before \ignorespaces, which must stay last.  It expands to nothing at
 %% all in a document whose anchors hyperref is placing itself.
-\def\lx@makeitem{\lx@kernel@item[\lx@itemlabel]\lx@emitjudge
-  \lx@relref@anchor\lx@refcheck@item\lx@mv@newitem\ignorespaces}
+\def\lx@makeitem{\lx@dir@itembefore\lx@kernel@item[\lx@itemlabel]\lx@emitjudge
+  \lx@relref@anchor\lx@refcheck@item\lx@mv@newitem\lx@dir@itemafter}
 %% --- public API (Protocol A: emitting the item) -----------------------
 %% Emit the \item for the label currently in \lx@itemlabel and hang any
 %% judgment collected since the last scan.  The \lx_item_... commands
@@ -2545,10 +2821,12 @@
 %% that has no text of its own).  \lx@subopen@* must be called only where
 %% the depth dispatch has already happened -- \lx@subpush is that dispatch.
 \def\lx@subopen@i{%
+  \lx@dir@beforegroup
   \begingroup\advance\lx@subdepth\@ne
   \lx@letters@local
   \lx@sublist@i}
 \def\lx@subopen@ii{%
+  \lx@dir@beforegroup
   \begingroup\advance\lx@subdepth\@ne
   \lx@letters@local
   \lx@sublist@ii}
@@ -2685,8 +2963,8 @@
 %% other is a defect no rendering shows and veraPDF does not reject,
 %% because /ListNumbering /LowerRoman on a list printing "A." is
 %% well-formed PDF and simply false.
-\def\lx@sublabel{\SubExLBr\Exalph{SubExNo}\SubExRBr}
-\def\lx@subsublabel{\SubSubExLBr\Exroman{SubSubExNo}\SubSubExRBr}
+\def\lx@sublabel{\SubExLBr\Exalph{SubExNo}\lx@dir@labelsep\SubExRBr}
+\def\lx@subsublabel{\SubSubExLBr\Exroman{SubSubExNo}\lx@dir@labelsep\SubSubExRBr}
 \def\lx@sub@olclass{lxOLalpha}
 \def\lx@subsub@olclass{lxOLroman}
 \def\lx@subitem@core{%
@@ -3205,8 +3483,8 @@
 %% two delimiters, and sets both levels: which of the two is used depends on
 %% the depth the environment opens at, and only the one used has any effect.
 \def\lx@xlist@style#1#2#3#4{%
-  \def\lx@sublabel{#3#1{SubExNo}#4}%
-  \def\lx@subsublabel{#3#1{SubSubExNo}#4}%
+  \def\lx@sublabel{#3#1{SubExNo}\lx@dir@labelsep#4}%
+  \def\lx@subsublabel{#3#1{SubSubExNo}\lx@dir@labelsep#4}%
   \def\lx@sub@olclass{#2}\def\lx@subsub@olclass{#2}}
 \def\lx@xlist@env#1#2#3#4{%
   \lx@nomix@dot{a numbering variant of \string\begin{xlist}}%
@@ -5580,28 +5858,28 @@
 %% \__lx_gl_rtl_cellbegin:n for why each layer sits where it does.
 \cs_new_protected:Npn \lx@gl@wordbegin #1
   {
-    \bool_if:NT \l__lx_gl_rtl_bool { \__lx_gl_rtl_cellbegin:n {#1} }
+    \__lx_gl_if_dircells:T { \__lx_gl_rtl_cellbegin:n {#1} }
     \lx@tag@if@active:T
       {
         \prop_get:NnNTF \l_lx_gl_lang_prop {#1} \l__lx_gl_lang_tl
           { \exp_args:Ne \tag_struct_begin:n
               { tag = Span , lang = \l__lx_gl_lang_tl } }
           { }
-        \bool_if:NTF \l__lx_gl_rtl_bool
+        \__lx_gl_if_dircells:TF
           { \__lx_gl_rtl_mcbegin:n {#1} }
           { \tag_mc_begin:n { tag = Span } }
       }
-    \bool_if:NT \l__lx_gl_rtl_bool { \__lx_gl_rtl_textbegin:n {#1} }
+    \__lx_gl_if_dircells:T { \__lx_gl_rtl_textbegin:n {#1} }
   }
 \cs_new_protected:Npn \lx@gl@wordend #1
   {
-    \bool_if:NT \l__lx_gl_rtl_bool { \__lx_gl_rtl_textend:n {#1} }
+    \__lx_gl_if_dircells:T { \__lx_gl_rtl_textend:n {#1} }
     \lx@tag@if@active:T
       {
         \tag_mc_end:
         \prop_if_in:NnT \l_lx_gl_lang_prop {#1} { \tag_struct_end: }
       }
-    \bool_if:NT \l__lx_gl_rtl_bool { \__lx_gl_rtl_cellend: }
+    \__lx_gl_if_dircells:T { \__lx_gl_rtl_cellend: }
   }
 \ExplSyntaxOff
 \ExplSyntaxOn
@@ -6488,6 +6766,7 @@
   }
 \cs_gset_protected:Npn \lx@gloss@multi #1
   {
+    \__lx_gl_dir_begin:
     \seq_set_split:Nnn \l__lx_gl_lines_seq { \\ } {#1}
     \seq_remove_all:Nn \l__lx_gl_lines_seq { }
     \lx@refcheck@gloss \l__lx_gl_lines_seq
@@ -6527,17 +6806,77 @@
     \bool_if:NTF \l__lx_gl_rtl_bool
       { \__lx_gl_rtl_grid: }
       {
-        \bool_if:NT \l__lx_gl_side_bool
-          { \lx@gl@vtop_set:Nw \l__lx_gl_gridbox }
-        \__lx_gl_grid_body:
-        %% The box is closed here and PLACED at the example's exit, because
-        %% the translation that goes beside it has not been read yet.
-        \bool_if:NT \l__lx_gl_side_bool
+        \bool_if:NTF \l__lx_gl_ltrbox_bool
+          { \__lx_gl_rtl_place: }
           {
-            \lx@gl@vtop_set_end:
-            \bool_gset_true:N \g__lx_gl_sidepending_bool
+            \bool_if:NT \l__lx_gl_side_bool
+              { \lx@gl@vtop_set:Nw \l__lx_gl_gridbox }
+            \__lx_gl_grid_body:
+            %% The box is closed here and PLACED at the example's exit,
+            %% because the translation that goes beside it has not been
+            %% read yet.
+            \bool_if:NT \l__lx_gl_side_bool
+              {
+                \lx@gl@vtop_set_end:
+                \bool_gset_true:N \g__lx_gl_sidepending_bool
+              }
           }
       }
+    \__lx_gl_dir_end:
+  }
+%% A gloss in an example that runs against the document (\lx@dir@listbegin):
+%% the grid runs in the EXAMPLE's direction, the object language's, and is
+%% the mirror image of \GlossRTL in the other kind of document (decided
+%% 2026-10-10).  A Hebrew example in an English document is \GlossRTL's
+%% own case, so it takes that path as it is; an English example in a
+%% Hebrew document takes the same boxed placement with a left-to-right box
+%% (\l__lx_gl_ltrbox_bool, see \__lx_gl_rtl_boxsetup:) -- measured, so a
+%% short grid stands beside its number, and a long one with its lines
+%% starting at one edge, away from the number.  For THIS gloss only: the
+%% dot syntax opens no group around an example, and a \GlossRTL switched
+%% on here would have turned every later gloss in the document.
+\bool_new:N \l__lx_gl_ltrbox_bool
+\bool_new:N \l__lx_gl_rtl_saved_bool
+\cs_new_protected:Npn \__lx_gl_dir_begin:
+  {
+    \bool_set_eq:NN \l__lx_gl_rtl_saved_bool \l__lx_gl_rtl_bool
+    \bool_set_false:N \l__lx_gl_ltrbox_bool
+    \bool_if:NT \l__lx_dir_flip_bool
+      {
+        \int_compare:nNnTF { \l__lx_dir_own_int } = { 1 }
+          { \__lx_rtl_xetex_on: \bool_set_true:N \l__lx_gl_rtl_bool }
+          {
+            \bool_set_false:N \l__lx_gl_rtl_bool
+            \bool_set_true:N \l__lx_gl_ltrbox_bool
+          }
+      }
+  }
+\cs_new_protected:Npn \__lx_gl_dir_end:
+  {
+    \bool_set_eq:NN \l__lx_gl_rtl_bool \l__lx_gl_rtl_saved_bool
+    \bool_set_false:N \l__lx_gl_ltrbox_bool
+  }
+%% Ragged on the side the lines END on.  \raggedright everywhere, except
+%% under XeTeX in a right-to-left paragraph (bidi's \if@RTL): there TeX--XeT
+%% reverses the line but not the \rightskip around it, so the fill stayed
+%% physically on the right and pushed the whole line left -- a Hebrew gloss
+%% in a Hebrew document stood at the LEFT of the page with its number in
+%% the middle, while LuaTeX, which mirrors \rightskip itself, set it
+%% right.  The mirrored setting is what \__lx_gl_rtl_par: already uses
+%% inside a \GlossRTL box.
+\cs_new_protected:Npn \__lx_gl_ragged:
+  {
+    \bool_lazy_and:nnTF
+      { \sys_if_engine_xetex_p: }
+      { \bool_lazy_and_p:nn { \cs_if_exist_p:N \if@RTL }
+                             { \legacy_if_p:n { @RTL } } }
+      {
+        \skip_set:Nn \tex_leftskip:D { 0pt plus 1fil }
+        \skip_zero:N \tex_rightskip:D
+        \skip_zero:N \tex_parfillskip:D
+        \cs_set_eq:NN \\ \@centercr
+      }
+      { \raggedright }
   }
 %% The grid itself: the columns, set as one ragged paragraph in a group of
 %% its own.  Apart from \lx@gloss@multi so that it can be set more than
@@ -6557,7 +6896,7 @@
     %% it happened with a 60pt gloss in a 222pt column, and a wider column
     %% hid it rather than fixing it.
     \leavevmode
-    \raggedright
+    \__lx_gl_ragged:
     \lx@glossfont
     \bool_if:NT \l__lx_gl_rtl_bool { \__lx_gl_rtl_par: }
     \bool_set_true:N \l_lx_gl_inside_bool
@@ -6768,12 +7107,34 @@
       { \str_if_eq:VnT #1 {##1} { \bool_set_true:N \l_tmpa_bool \clist_map_break: } }
     \bool_if:NTF \l_tmpa_bool { \prg_return_true: } { \prg_return_false: }
   }
+%% A tier's direction: its declared language's (\GlossTierLang).  In an
+%% example that runs against the document (\lx@dir@listbegin) a tier that
+%% declares nothing takes the EXAMPLE's direction for the object line and
+%% the DOCUMENT's for the glosses -- an English example glossed in Hebrew,
+%% a Hebrew one glossed in English -- so that a plain \gll comes out right
+%% with no annotation at all.  Elsewhere it is left to right, as before.
 \prg_new_protected_conditional:Npnn \__lx_gl_tier_if_rtl:n #1 { TF , T }
   {
     \prop_get:NnNTF \l_lx_gl_lang_prop {#1} \l__lx_gl_lang_tl
       { \exp_args:NV \__lx_lang_if_rtl:nTF \l__lx_gl_lang_tl
           { \prg_return_true: } { \prg_return_false: } }
-      { \prg_return_false: }
+      {
+        \bool_if:NTF \l__lx_dir_flip_bool
+          {
+            \int_compare:nNnTF
+              { \int_compare:nNnTF {#1} = { 1 }
+                  { \l__lx_dir_own_int } { \l__lx_dir_main_int } } = { 1 }
+              { \prg_return_true: } { \prg_return_false: }
+          }
+          { \prg_return_false: }
+      }
+  }
+%% The layers of a cell (below) are needed in either kind of crossed grid:
+%% \GlossRTL's, and the left-to-right one in a right-to-left document.
+\prg_new_conditional:Npnn \__lx_gl_if_dircells: { T , TF }
+  {
+    \bool_lazy_or:nnTF { \l__lx_gl_rtl_bool } { \l__lx_gl_ltrbox_bool }
+      { \prg_return_true: } { \prg_return_false: }
   }
 %% TeX--XeT has to be on when the page is SHIPPED, which is where XeTeX
 %% does the reversing; switched on globally at the first use, and never
@@ -6852,7 +7213,9 @@
   {
     \lx@tag@if@active:T { \tagpdfsetup { para/tagging = false } }
     \parindent \c_zero_dim
-    \sys_if_engine_luatex:T { \tex_pardir:D TRT ~ \tex_textdir:D TRT ~ }
+    \bool_if:NTF \l__lx_gl_ltrbox_bool
+      { \setLTR }
+      { \sys_if_engine_luatex:T { \tex_pardir:D TRT ~ \tex_textdir:D TRT ~ } }
   }
 %% Whether the gloss may be set twice: not with a movement arrow or \altg
 %% in it (see above).  Same tokens as the morpheme alignment's guard.
@@ -6926,6 +7289,7 @@
 \cs_new_protected:Npn \__lx_gl_rtl_place:
   {
     \leavevmode
+    \int_compare:nNnT { \g__lx_dir_open_int } = { 1 } { \lx@dir@parend }
     \dim_set_eq:NN \l__lx_gl_rtl_wd_dim \linewidth
     \__lx_gl_rtl_check_measurable:
     \bool_if:NT \l__lx_gl_rtl_measurable_bool
@@ -7178,7 +7542,7 @@
   \par\nobreak
   \lx@gl@side@transopen
   \GlossTransStyle
-  \everypar{\everypar{}\lx@glt@langbegin}%
+  \everypar{\everypar{}\lx@glt@langbegin\lx@dir@parbegin}%
   \ignorespaces}
 \let\gln\glt % cgloss4e-compat alias
 

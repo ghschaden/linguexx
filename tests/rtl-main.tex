@@ -18,21 +18,51 @@
 %% read off its neighbours' POSITIONS, never their names, because which
 %% word ends up on which side is the engines' business.
 %%
+%% Numbers follow the MAIN language's direction (decided 2026-10-10): the
+%% english example ENMAIN is laid out exactly as the Hebrew one is -- number
+%% at the right margin, letters and marks to the right -- and only its
+%% words run left to right, its short last lines standing against the text
+%% edge.  Both are measured against the same mirrored distances.
+%%
+%% ENNOTEXT's example has no text of its own (\ex. \a. ...): LaTeX keeps
+%% its number pending and sets it on the first sub-example's line, and the
+%% mirroring must not start a paragraph of its own for it, which left the
+%% number alone on a line above (\lx@dir@itemafter).
+%%
 %% Latin sentinels in Hebrew text: pdftotext reports them as words either
 %% engine, and their place in a right-to-left line is what is measured.
 \input{_preamble-rtlmain}
 \begin{document}
+%% The reference is set as a LEFT-TO-RIGHT document would set it, which
+%% here takes clearing \@RTLmain around it: an english example in this
+%% document is otherwise mirrored like every other (ENMAIN below).
+\makeatletter
+{\@RTLmainfalse
 \begin{english}
 \ex. LTRMAIN the reference.
 \a. LTRSUBA first.
 \b. *LTRSUBB second.
 \z.
-\end{english}
+\end{english}}
+\makeatother
 
 \ex. RTLMAIN הילד אכל.
 \a. RTLSUBA הילד.
 \b. *RTLSUBB אכל.
 \z.
+
+\begin{english}
+\ex. ENMAIN an English example in the Hebrew document, long enough to run onto a second line of its own so that both lines are measured.
+\a. ENSUBA first.
+\b. *ENSUBB second.
+\z.
+\end{english}
+
+\begin{english}
+\ex. \a. ENNOTEXT first.
+\b. ENNOTEXTB second.
+\z.
+\end{english}
 
 \ex. אני ראיתי \altn{STKA}{STKB} אתמול.
 

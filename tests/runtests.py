@@ -153,6 +153,11 @@ ENGINES_FOR = {
     "polyglossia-fr": ("xelatex", "lualatex"),
     "polyglossia-de": ("xelatex", "lualatex"),
     "rtl-main": ("xelatex", "lualatex"),
+    "rtl-letters": ("xelatex", "lualatex"),
+    "ltr-main": ("xelatex", "lualatex"),
+    "rtl-gloss": ("xelatex", "lualatex"),
+    "ltr-gloss": ("xelatex", "lualatex"),
+    "rtl-gloss-ua": ("xelatex", "lualatex"),
 }
 #: Cases that are another case under a different preamble: the same body,
 #: asserted on by the same function, so that any difference is the
@@ -166,7 +171,7 @@ DEFAULT_PASSES = 2
 PASSES = {"ua": 3, "verb-dot-ua": 3, "frontend": 3, "langsci-ua": 3, "exannot-ua": 3,
           "morphalign-ua": 3, "morphalign-mix-ua": 3, "tierlang-ua": 3, "gltlang-items-ua": 3,
           "gltlang-default-ua": 3,
-          "rtl-ua": 3, "rtl-ua-polyglossia": 3,
+          "rtl-ua": 3, "rtl-ua-polyglossia": 3, "rtl-gloss-ua": 3,
           # \exrefcheck in the body: run 1 writes the flag, run 2 records
           # from the first example, run 3 is the converged report (UA)
           "refcheck": 3,

@@ -1,0 +1,17 @@
+%% _preamble-rtlmain as a PDF/UA-2 build: a right-to-left document whose
+%% structure tree veraPDF is asked to validate.
+\DocumentMetadata{lang=he,pdfversion=2.0,pdfstandard=ua-2,tagging=on}
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=25mm]{geometry}
+\usepackage{fontspec}
+\setmainfont{FreeSerif.otf}
+\usepackage{polyglossia}
+\setmainlanguage{hebrew}
+\setotherlanguage{english}
+\newfontfamily\hebrewfont{FreeSerif.otf}[Script=Hebrew]
+\usepackage{linguexx}
+\usepackage{hyperref}
+\hypersetup{pdftitle={linguexx right-to-left regression case},
+            pdfdisplaydoctitle=true}
+\pagestyle{empty}
+\begin{document}

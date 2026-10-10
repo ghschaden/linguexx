@@ -1,0 +1,25 @@
+%% The mirror image of rtl-gloss: a Hebrew example in an English document
+%% is glossed as \GlossRTL glosses -- a right-to-left grid, a short one
+%% beside its number, a long one with every line ending at the right
+%% margin -- with no \GlossRTL and no \GlossTierLang written: the object
+%% line takes the example's direction, the glosses the document's.  Under
+%% LuaTeX an undeclared object line was set left to right and its Hebrew
+%% words came out letter by letter reversed; under XeTeX a wrapped grid's
+%% second line stood at the LEFT, because the grid's box was placed inside
+%% the item's right-to-left segment and its lines were reflected with it.
+%%
+%% ENREF's left edge is where every example's text starts here.
+\input{_preamble-ltrmain}
+\begin{document}
+\ex. ENREF the reference.
+
+\begin{hebrew}
+\ex. \gll הילד אכל את\\
+          HGA HGB HGC\\
+\glt 'הילד אכל'
+
+\ex. \gll א ב ג ד ה ו ז ח ט י כ ל מ נ ס ע פ צ ק ר ש ת א ב ג ד ה ו\\
+          RLA RLB RLC RLD RLE RLF RLG RLH RLI RLJ RLK RLL RLM RLN RLO RLP RLQ RLR RLS RLT RLU RLV RLW RLX RLY RLZ RLAA RLAB\\
+\glt 'תרגום'
+\end{hebrew}
+\end{document}

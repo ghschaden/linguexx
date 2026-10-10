@@ -813,9 +813,10 @@ mark on the left.
 
 ## Examples in a right-to-left document
 
-*OPEN, 2026-10-10. Found while probing a Hebrew-main document (polyglossia
-`\setmainlanguage{hebrew}`) under both engines; nothing below was chosen,
-it is what the code happens to do.*
+*DECIDED, 2026-10-10, by Gerhard, all three points below, and implemented
+the same day; kept here for the reasoning and for what each replaced.
+Found while probing a Hebrew-main document (polyglossia
+`\setmainlanguage{hebrew}`) under both engines.*
 
 **What is settled.** A plain example is the mirror image of a
 left-to-right one: number against the right margin, text the same
@@ -826,7 +827,13 @@ in the same file, under XeLaTeX and LuaLaTeX.
 
 **Current behaviour of what is not.**
 
-1. *Interlinear glosses* are not designed for a right-to-left document,
+1. **DECIDED AND IMPLEMENTED, 2026-10-10, by Gerhard: a grid runs in the
+   direction of its EXAMPLE's language, and an English example's grid in a
+   Hebrew document is the mirror image of \GlossRTL in an English one; no
+   annotation is needed, an undeclared object line taking the example's
+   direction and undeclared gloss lines the document's.**
+   `tests/rtl-gloss.tex`, `ltr-gloss.tex`, `rtl-gloss-ua.tex`.  What it
+   replaced: *interlinear glosses* were not designed for a right-to-left document,
    and come out differently on the two engines. Under XeLaTeX the whole
    grid, number included, stands at the left of the page and the
    translation at the right; under LuaLaTeX the number and the grid are
@@ -839,13 +846,24 @@ in the same file, under XeLaTeX and LuaLaTeX.
    is the question.
 2. *Sub-example labels* follow the document language's counting: under
    polyglossia's Hebrew they are א, ב, not a, b, because linguexx asks
-   for `\alph` and polyglossia redefines it. Hebrew-language publications
-   may want exactly that, or Latin letters, or a choice.
+   for `\alph` and polyglossia redefines it.  **DECIDED, 2026-10-10, by
+   Gerhard: the language's letters by default, and configurable**:
+   `\Exalph` is documented as the hook, and `\let\Exalph\ExLatinAlph`
+   gives a, b in any language (`tests/rtl-letters.tex`).
 3. *Which side a number is on* follows each example's own direction: in
    a Hebrew document an example inside `\begin{english}` is numbered on
-   the left, so one document numbers on both sides.
+   the left, so one document numbers on both sides.  **DECIDED,
+   2026-10-10, by Gerhard: numbers follow the direction of the document's
+   MAIN language,** so that example is to be numbered on the right like
+   every other.  Implemented the same day, for both directions (an
+   English example in a Hebrew document, a Hebrew one in an English
+   document): the whole example is mirrored, not only its number --
+   letters and marks on the main language's side too, only the words in
+   each line in the example's own direction (Gerhard's choice between
+   that and moving the number alone).  `tests/rtl-main.tex` and
+   `tests/ltr-main.tex`.
 
-**Why this is not settled.** Each is a question of house style in a
+**Why it was not settled.** Each is a question of house style in a
 publication language this package has no reader in yet, and the engines
 disagree on (1), so "what it does now" is not even one answer.
 

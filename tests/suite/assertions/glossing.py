@@ -927,6 +927,67 @@ def a_rtl_main(p: Page):
                    f"{[w.text for w in star]} gap "
                    f"{(star[0].x0 - subb.x1) if star else None} vs {gap}"))
 
+    # an english example in this Hebrew document: mirrored like the rest
+    en = p.find("ENMAIN")
+    enlines = sorted({round(w.y0) for w in p.words
+                      if abs(w.x0 - en.x0) < 400 and en.y0 - 1 <= w.y0
+                      < p.find("ENSUBA").y0 - 1})
+    first = p.line_of(en)
+    r.append(check(abs(max(w.x1 for w in first) - R) < TOL,
+                   f"an english example is numbered at the RIGHT margin, as "
+                   f"the main language has it: "
+                   f"{max(w.x1 for w in first):.2f} vs {R:.2f}"))
+    text1 = [w for w in first if w.x1 < R - d_main + 2 * TOL]
+    r.append(check(abs(max(w.x1 for w in text1) - (R - d_main)) < 1.0
+                   and min(w.x0 for w in text1) < L + 2,
+                   f"its first line fills the mirrored text column: "
+                   f"{min(w.x0 for w in text1):.2f}-"
+                   f"{max(w.x1 for w in text1):.2f} vs {L:.2f}-"
+                   f"{R - d_main:.2f}"))
+    r.append(check(len(enlines) >= 2,
+                   f"it runs onto a second line: {len(enlines)}"))
+    last = [w for w in p.words if round(w.y0) == enlines[-1]] \
+        if enlines else []
+    r.append(check(bool(last) and abs(max(w.x1 for w in last)
+                                      - (R - d_main)) < TOL,
+                   f"its short last line stands against the text edge, no "
+                   f"space left before \\a. to push it off: "
+                   f"{max((w.x1 for w in last), default=0):.2f} vs "
+                   f"{R - d_main:.2f}"))
+    ensuba = p.find("ENSUBA")
+    r.append(check(abs(en.x0 - min(w.x0 for w in text1)) < TOL,
+                   f"its words run left to right: ENMAIN, the first word, is "
+                   f"the leftmost of its line ({en.x0:.2f})"))
+    sub_line = p.line_of(ensuba)
+    sub_text = [w for w in sub_line if w.x1 <= R - d_sub + TOL]
+    r.append(check(abs(max(w.x1 for w in sub_text) - (R - d_sub)) < TOL,
+                   f"a short sub-example line stands against the text edge "
+                   f"next to its letter, not at the far margin: "
+                   f"{max(w.x1 for w in sub_text):.2f} vs {R - d_sub:.2f}"))
+    enlab = [w for w in sub_line if w.x0 >= R - d_sub - TOL]
+    r.append(check(bool(enlab) and abs(max(w.x1 for w in enlab)
+                                       - (R - d_main)) < TOL,
+                   f"its letter stands at the main text's edge: "
+                   f"{[w.text for w in enlab]}"))
+    visual = "".join(w.text for w in sorted(enlab, key=lambda w: w.x0))
+    r.append(check(visual == ".a",
+                   f"its letter reads in the DOCUMENT's direction, \".a\" "
+                   f"as the Hebrew ones read \".א\": {visual!r}"))
+    ensubb = p.find("ENSUBB")
+    enstar = [w for w in p.line_of(ensubb) if "*" in w.text
+              and w.x0 >= R - d_sub - TOL]
+    r.append(check(gap is not None and bool(enstar)
+                   and abs(enstar[0].x0 - (R - d_sub) - gap) < TOL,
+                   f"its mark hangs to the right of the text: "
+                   f"{[(w.text, round(w.x0, 2)) for w in enstar]}"))
+
+    nt = p.find("ENNOTEXT")
+    ntline = p.line_of(nt)
+    r.append(check(abs(max(w.x1 for w in ntline) - R) < TOL,
+                   f"an example with no text of its own has its number on its "
+                   f"first sub-example's line, not alone above it: "
+                   f"{[w.text for w in ntline]}"))
+
     # the braces: each one points AWAY from its stack, whichever side of
     # it the engine has put which word
     for a, b, what in (("STKA", "STKB", "an \\altn in Hebrew text"),
@@ -950,4 +1011,215 @@ def a_rtl_main(p: Page):
                        f"{what}: both braces point away from the stack "
                        f"(left tip - ends = {lb:.1f}px, want < -5; right "
                        f"{rb:.1f}px, want > +5)"))
+    return r
+
+
+def a_rtl_letters(p: Page):
+    r"""Sub-example letters in a Hebrew document, the language's and then
+    Latin through \Exalph; see the case's header."""
+    r = []
+
+    def label(tok):
+        # the label stands to the RIGHT of its text in a right-to-left line;
+        # strip the period, which either engine may put on either side
+        w = p.find(tok)
+        right = [t for t in p.line_of(w) if t.x0 >= w.x1 - TOL]
+        return "".join(t.text for t in right).replace(".", "")
+
+    def ref(tok):
+        return "".join(t.text for t in p.line_of(p.find(tok))
+                       if t.text != tok)
+
+    for tok, want, why in (("HESUBA", "א", "the language's first letter"),
+                           ("HESUBB", "ב", "... and its second"),
+                           ("HESUBSUB", "i", "roman numerals stay Latin"),
+                           ("LASUBA", "a", "\\ExLatinAlph: Latin a"),
+                           ("LASUBB", "b", "... and b")):
+        got = label(tok)
+        r.append(check(got == want, f"{why}: {tok} is labelled {got!r}, "
+                                    f"want {want!r}"))
+    lab = [t for t in p.line_of(p.find("LASUBA"))
+           if t.x0 >= p.find("LASUBA").x1 - TOL]
+    visual = "".join(t.text for t in sorted(lab, key=lambda t: t.x0))
+    r.append(check(visual == ".a",
+                   f"a Latin letter in a Hebrew document reads in the "
+                   f"document's direction, \".a\", the same under both "
+                   f"engines: {visual!r}"))
+    for tok, want, why in (("HEREF", "ב", "a reference prints the "
+                                           "language's letter"),
+                           ("LAREF", "2b", "... and the Latin one, after "
+                                           "the switch")):
+        got = ref(tok)
+        r.append(check(want in got, f"{why}: {got!r}"))
+    return r
+
+
+def a_ltr_main(p: Page):
+    r"""A Hebrew example in an English document is laid out as the English
+    one is; see the case's header.  Distances from the English reference
+    in the same file."""
+    r = []
+    ref = p.find("ENMAIN")
+    L = min(w.x0 for w in p.line_of(ref))
+    d_main = ref.x0 - L
+    d_sub = p.find("ENSUBA").x0 - L
+    ref_b = p.find("ENSUBB")
+    ref_star = [w for w in p.left_of(ref_b) if w.text == "*"]
+    gap = ref_b.x0 - ref_star[-1].x1 if ref_star else None
+
+    for main, subs, what in (("HEMAIN", ("HESUBA", "HESUBB"), "dot syntax"),
+                             ("GBMAIN", ("GBSUBA", "GBSUBB"), "gb4e, xlist")):
+        m = p.find(main)
+        line = p.line_of(m)
+        # the example's own direction: its first word, a Latin sentinel,
+        # stands at the RIGHT end of its right-to-left text, not the left
+        for tok in (main,) + subs:
+            t = p.find(tok)
+            words = [w for w in p.line_of(t) if w.x0 >= L + d_sub - TOL
+                     and w.text not in ("*",)]
+            r.append(check(abs(t.x1 - max(w.x1 for w in words)) < TOL,
+                           f"{what}: {tok}'s text runs right to left, its "
+                           f"first word rightmost: {t.x1:.2f} vs "
+                           f"{max(w.x1 for w in words):.2f}"))
+        r.append(check(abs(min(w.x0 for w in line) - L) < TOL,
+                       f"{what}: the Hebrew example is numbered at the LEFT "
+                       f"margin: {min(w.x0 for w in line):.2f} vs {L:.2f}"))
+        if main == "HEMAIN":
+            below = p.find(subs[0]).y0
+            lines = sorted({round(w.y0) for w in p.words
+                            if m.y0 - 1 <= w.y0 < below - 1})
+            last = [w for w in p.words if round(w.y0) == lines[-1]]
+            r.append(check(len(lines) >= 2 and abs(min(w.x0 for w in last)
+                                                   - (L + d_main)) < TOL,
+                           f"{what}: a wrapped Hebrew example's short last "
+                           f"line stands against the text edge, no space "
+                           f"left before \\a. to push it off: "
+                           f"{min(w.x0 for w in last):.2f} vs "
+                           f"{L + d_main:.2f} ({len(lines)} lines)"))
+        a, b = p.find(subs[0]), p.find(subs[1])
+        aline = p.line_of(a)
+        text = [w for w in aline if w.x0 >= L + d_sub - TOL]
+        lab = [w for w in aline if w.x1 <= L + d_sub + TOL]
+        r.append(check(abs(min(w.x0 for w in text) - (L + d_sub)) < TOL,
+                       f"{what}: a short Hebrew sub-example line stands "
+                       f"against the text edge next to its letter: "
+                       f"{min(w.x0 for w in text):.2f} vs {L + d_sub:.2f}"))
+        r.append(check(bool(lab) and abs(min(w.x0 for w in lab)
+                                         - (L + d_main)) < TOL,
+                       f"{what}: its letter stands at the main text's edge: "
+                       f"{[w.text for w in lab]}"))
+        visual = "".join(w.text for w in sorted(lab, key=lambda w: w.x0))
+        r.append(check(visual == "א.",
+                       f"{what}: its letter reads in the DOCUMENT's "
+                       f"direction, \"א.\" as the English ones read "
+                       f"\"a.\": {visual!r}"))
+        bline = p.line_of(b)
+        star = [w for w in bline if "*" in w.text and w.x1 <= L + d_sub + TOL]
+        btext = min(w.x0 for w in bline if w.x0 >= L + d_sub - TOL)
+        r.append(check(gap is not None and bool(star)
+                       and abs(btext - star[-1].x1 - gap) < TOL,
+                       f"{what}: the mark hangs left of the text, as in the "
+                       f"reference: {[(w.text, round(w.x1, 2)) for w in star]}"
+                       f" text at {btext:.2f}, gap {gap}"))
+    return r
+
+
+def _hebrew_reads(p, x0, x1, y0, y1, want):
+    """Whether the Hebrew between x0..x1 on the band y0..y1 reads `want`.
+
+    The page is read, not the text layer's word: LuaTeX gives a glyph per
+    word box and XeTeX the whole word in visual order, so the glyphs are put
+    in VISUAL order, left to right, and reversed -- which is the reading
+    order of right-to-left text that is set right.  A word set letter by
+    letter backwards fills the same box and reads `want` reversed."""
+    glyphs = sorted((w for w in p.words
+                     if w.x0 >= x0 - TOL and w.x1 <= x1 + TOL
+                     and w.y0 >= y0 - TOL and w.y1 <= y1 + TOL),
+                    key=lambda w: w.x0)
+    visual = "".join(w.text for w in glyphs)
+    return visual[::-1] == want, visual[::-1]
+
+
+def _wrapped_lines(p, prefix):
+    """The rendered lines a long grid's sentinel tier runs over."""
+    ws = [w for w in p.words if re.fullmatch(prefix + r"[A-Z]{1,2}", w.text)]
+    ys = sorted({round(w.y0) for w in ws})
+    return [[w for w in ws if round(w.y0) == y] for y in ys]
+
+
+def a_rtl_gloss(p: Page):
+    r"""Glosses in a right-to-left document; see the case's header."""
+    r = []
+    ref = p.find("PLAINREF")
+    R = max(w.x1 for w in p.line_of(ref))
+    L = p.width - R
+    edge = ref.x1                      # where the text of an example starts
+    # a Hebrew example: right-to-left grid against the text edge
+    a, b, c = p.find("HGA"), p.find("HGB"), p.find("HGC")
+    r.append(check(abs(max(w.x1 for w in p.line_of(p.find("HGA"))
+                           if w.x1 <= edge + TOL) - edge) < TOL
+                   and a.x0 > b.x0 > c.x0,
+                   f"a Hebrew grid runs from the right, its first column "
+                   f"against the text edge ({a.x1:.2f}..; edge {edge:.2f})"))
+    num = [w for w in p.words if abs(w.y0 - a.y0) < 20 and w.x1 > R - TOL]
+    r.append(check(bool(num),
+                   f"... and its number stands at the right margin ({R:.2f})"))
+    rl = _wrapped_lines(p, "RL")
+    r.append(check(len(rl) >= 2 and all(abs(max(w.x1 for w in ln) - edge)
+                                        < TOL for ln in rl),
+                   f"a long Hebrew grid: every line ends at the text edge, "
+                   f"ragged on the left: "
+                   f"{[round(max(w.x1 for w in ln), 2) for ln in rl]}"))
+    # an English example: the mirror of \GlossRTL
+    ea, eb, ec = p.find("ENA"), p.find("ENB"), p.find("ENC")
+    row = [w for w in p.words if 4 < w.y0 - ea.y0 < 20
+           and w.x0 >= ea.x0 - TOL and w.x1 <= edge + TOL]
+    grid_right = max([ec.x1] + [w.x1 for w in row])
+    r.append(check(ea.x0 < eb.x0 < ec.x0 and abs(grid_right - edge) < TOL,
+                   f"an English grid runs from the left and, being short, "
+                   f"stands beside its number against the text edge: "
+                   f"{ea.x0:.2f}..{grid_right:.2f} vs edge {edge:.2f}"))
+    for obj, want in ((ea, "הילד"), (eb, "אכל"), (ec, "את")):
+        nxt = [o.x0 for o in (ea, eb, ec) if o.x0 > obj.x0]
+        right = min(nxt) - TOL if nxt else edge + TOL
+        ok, got = _hebrew_reads(p, obj.x0, right, obj.y1, obj.y1 + 14, want)
+        r.append(check(ok, f"the Hebrew gloss under {obj.text} is {want!r} "
+                           f"and reads right to left: {got!r}"))
+    tr = p.line_of(p.find("ENTRANS"))
+    trw = [w for w in tr if w.x1 <= edge + TOL]
+    r.append(check(abs(max(w.x1 for w in trw) - edge) < TOL
+                   and p.find("ENTRANS").x0 == min(w.x0 for w in trw),
+                   f"its translation runs left to right and stands against "
+                   f"the text edge: {[w.text for w in trw]}"))
+    lw = _wrapped_lines(p, "LW")
+    r.append(check(len(lw) >= 2 and all(abs(min(w.x0 for w in ln) - L) < TOL
+                                        for ln in lw),
+                   f"a long English grid: every line starts at the left "
+                   f"margin, as \\GlossRTL's end at the right: "
+                   f"{[round(min(w.x0 for w in ln), 2) for ln in lw]}"))
+    return r
+
+
+def a_ltr_gloss(p: Page):
+    r"""Hebrew glossed in an English document; see the case's header."""
+    r = []
+    ref = p.find("ENREF")
+    L = min(w.x0 for w in p.line_of(ref))
+    R = p.width - L
+    edge = ref.x0
+    a, b, c = p.find("HGA"), p.find("HGB"), p.find("HGC")
+    r.append(check(abs(c.x0 - edge) < 3 and a.x0 > b.x0 > c.x0,
+                   f"a short Hebrew grid stands beside its number, running "
+                   f"from the right: {c.x0:.2f} vs edge {edge:.2f}"))
+    for gl, want in ((a, "הילד"), (b, "אכל"), (c, "את")):
+        ok, got = _hebrew_reads(p, gl.x0 - 25, gl.x1 + 25, gl.y0 - 16,
+                                gl.y0 - 1, want)
+        r.append(check(ok or want in got,
+                       f"the Hebrew over {gl.text} reads {want!r}, right to "
+                       f"left: {got!r}"))
+    rl = _wrapped_lines(p, "RL")
+    r.append(check(len(rl) >= 2 and all(abs(max(w.x1 for w in ln) - R)
+                                        < TOL for ln in rl),
+                   f"a long Hebrew grid: every line ends at the right margin: "
+                   f"{[round(max(w.x1 for w in ln), 2) for ln in rl]}"))
     return r

@@ -1173,3 +1173,24 @@ def a_rtl_ua(p: Page):
                    f"the grid's box leaves the tree as it found it: every "
                    f"example number at one depth: {depths}"))
     return r
+
+
+def a_rtl_gloss_ua(p: Page):
+    r"""A right-to-left document under PDF/UA-2; see the case's header."""
+    r = []
+    # veraPDF under LuaLaTeX only: a tagged right-to-left document fails
+    # 8.2.2 under XeLaTeX with no linguexx loaded and one Hebrew paragraph
+    # in it -- bidi's, not ours to assert on, as ua.tex says of footnotes.
+    # The tree's reading order is asserted on both, and under XeLaTeX it is
+    # the half that matters.
+    if not p.log.lstrip().startswith("This is XeTeX"):
+        verdicts, failures, _ = verapdf_report(p.path)
+        r.append(check(bool(verdicts) and all(ok for _, ok in verdicts),
+                       f"veraPDF: compliant on every profile ({verdicts}; "
+                       f"{failures})"))
+    texts = [t.strip() for t in _tag_texts(p.path)]
+    for want in ("הילד", "אכל", "את"):
+        r.append(check(want in texts,
+                       f"the Hebrew gloss {want!r} reads in logical order in "
+                       f"the tree: {[t for t in texts if t and t[0] > 'z']}"))
+    return r

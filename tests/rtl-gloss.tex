@@ -1,0 +1,43 @@
+%% Glosses in a right-to-left document (decided 2026-10-10): a grid runs in
+%% the direction of its EXAMPLE's language, and one that runs against the
+%% document is the mirror image of \GlossRTL in a left-to-right one.  No
+%% annotations: a tier that declares no language takes the example's
+%% direction for the object line and the document's for the glosses.
+%%
+%%  - A Hebrew example: a right-to-left grid, its first column against the
+%%    text edge.  XeTeX set it at the LEFT of the page, with its number in
+%%    the middle: \raggedright's fill stays on the right under TeX--XeT
+%%    (\__lx_gl_ragged:).  A long one is ragged on the left.
+%%  - An English example (in the english environment): a left-to-right
+%%    grid, a short one standing beside its number against the text edge,
+%%    a long one with every line starting at the left margin -- the mirror
+%%    of \GlossRTL.  Its Hebrew glosses read right to left inside their
+%%    columns, each under its own word.  Its translation runs left to right
+%%    and stands against the text edge.  Under XeTeX the short grid stood at
+%%    the far end of its line (a \vtop's own paragraph had closed the
+%%    item's segment, \lx@dir@parend) and the translation's words came out
+%%    reversed (\lx@dir@parbegin from \glt).
+%%
+%% PLAINREF's right edge is where every example's text starts here.
+\input{_preamble-rtlmain}
+\begin{document}
+\ex. PLAINREF הילד.
+
+\ex. \gll הילד אכל את\\
+          HGA HGB HGC\\
+\glt 'הילד אכל'
+
+\ex. \gll א ב ג ד ה ו ז ח ט י כ ל מ נ ס ע פ צ ק ר ש ת א ב ג ד ה ו\\
+          RLA RLB RLC RLD RLE RLF RLG RLH RLI RLJ RLK RLL RLM RLN RLO RLP RLQ RLR RLS RLT RLU RLV RLW RLX RLY RLZ RLAA RLAB\\
+\glt 'תרגום'
+
+\begin{english}
+\ex. \gll ENA ENB ENC\\
+          הילד אכל את\\
+\glt 'ENTRANS starts here.'
+
+\ex. \gll LWA LWB LWC LWD LWE LWF LWG LWH LWI LWJ LWK LWL LWM LWN LWO LWP LWQ LWR\\
+          א ב ג ד ה ו ז ח ט י כ ל מ נ ס ע פ צ\\
+\glt 'LWTRANS'
+\end{english}
+\end{document}

@@ -1,0 +1,13 @@
+%% The other way round from _preamble-rtlmain: English as polyglossia's
+%% main language, Hebrew as the other, so a Hebrew example sits in a
+%% left-to-right document.  Symmetric margins; XeLaTeX and LuaLaTeX only.
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=25mm]{geometry}
+\usepackage{fontspec}
+\setmainfont{FreeSerif.otf}
+\usepackage{polyglossia}
+\setmainlanguage{english}
+\setotherlanguage{hebrew}
+\newfontfamily\hebrewfont{FreeSerif.otf}[Script=Hebrew]
+\usepackage[lazy,gb4e]{linguexx}
+\pagestyle{empty}

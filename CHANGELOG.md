@@ -4,6 +4,33 @@ All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
 ## Unreleased
+- Changed: in a document whose main language is written right to left
+  (polyglossia, LuaLaTeX or XeLaTeX), every example follows the main
+  language's direction: an example inside `\begin{english}` in a Hebrew
+  document is numbered at the right margin with its letters and marks on
+  the right, and only its words run left to right; a Hebrew example in an
+  English document is laid out like the English ones. Before, such an
+  example was numbered on its own language's side, so one document
+  numbered on both. A label reads in the document's direction too: ".a"
+  in a Hebrew document, where XeLaTeX used to print "a." and LuaLaTeX
+  ".a" for the Latin letters of a Hebrew example. Documents with one
+  direction throughout are unchanged.
+- Fixed and new: glosses in a right-to-left document. A gloss runs in its
+  example's direction: a Hebrew example's grid from the right -- under
+  XeLaTeX it used to stand at the left of the page with its number in the
+  middle -- and an English example's, in a Hebrew document, from the
+  left, as the mirror image of `\GlossRTL`: a short grid beside its
+  number, a long one starting every line at the left margin, its
+  translation in its own direction. A Hebrew example in an English
+  document is glossed as `\GlossRTL` glosses, without `\GlossRTL`. No tier
+  needs `\GlossTierLang`: in such an example the object line is read in
+  the example's language and the glosses in the document's. Under
+  XeLaTeX the Hebrew glosses of an English grid carry their logical text
+  in a tagged PDF.
+- New: `\Exalph` and `\Exroman` are documented as the place to choose the
+  sub-example letters and numerals. By default they follow the language
+  (alef, bet under polyglossia's Hebrew); `\let\Exalph\ExLatinAlph`
+  gives a, b in any language, in labels and references.
 - Fixed: in a right-to-left document under XeLaTeX (Hebrew, Arabic, ...
   as polyglossia's main language, which loads bidi), example numbers and
   sub-example letters stood against their text instead of against the

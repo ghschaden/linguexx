@@ -1721,6 +1721,59 @@ a hyphen closes the morpheme before it rather than opening the next one
 (\texttt{ha-}\,\texttt{yeled} over \texttt{DEF-}\,\texttt{boy}). Either may
 change.
 
+\paragraph{A right-to-left document.} Everything above is about
+right-to-left material in a left-to-right document. When the document's
+\emph{main} language is written right to left --- \pkg{polyglossia}'s
+\cs{setmainlanguage}\verb|{hebrew}|, under Lua\LaTeX\ or Xe\LaTeX\ ---
+examples are the mirror image of what they are in a left-to-right
+document: the number stands against the right margin, the text the same
+distance in from it, a sub-example's letter at the text's edge, and a
+judgment mark to the right of what it judges. Braces open on the right.
+
+Examples follow the direction of the document's main language, whatever
+the language of the example. An example inside
+\verb|\begin{english}| in a Hebrew document is laid out like every other
+example there --- numbered on the right, letters and marks on the right
+--- and only its words run left to right; a short line stands against the
+text, next to its letter. A Hebrew example in an English document is the
+same the other way round. A label reads in the document's direction
+too, since it belongs to the example's frame and not to its text: in a
+Hebrew document a sub-example is ``.a'' as well as alef with its period
+on the left, the period standing between the letter and the text as it
+does in ``a.~text''; in an English document a Hebrew example's letter is
+alef with its period on the right.
+
+Sub-examples are lettered as the main language letters them (alef, bet,
+\dots\ in Hebrew); \verb|\let\Exalph\ExLatinAlph| gives a, b instead
+(section~\ref{sec:layout}). Under Lua\LaTeX, Latin words inside a
+right-to-left example are set right to left, letter by letter, as they
+are in \pkg{polyglossia}'s own \cs{texthebrew}: put them in
+\cs{textenglish}.
+
+A gloss runs in the direction of its example's language, the language
+being glossed. In a Hebrew document a Hebrew example's grid runs from the
+right, as everything there does; an English example's grid, inside
+\verb|\begin{english}|, runs from the left, and is the mirror image of
+what \cs{GlossRTL} makes of a Hebrew example in an English document: a
+short grid stands beside its number, against the text edge, and a long
+one starts every line at the left margin. The translation follows in the
+example's language. The other way round, a Hebrew example in an English
+document is glossed as \cs{GlossRTL} glosses, without \cs{GlossRTL} being
+written. Nothing needs declaring for either: in such an example a tier
+whose language is not declared with \cs{GlossTierLang} is read as the
+example's language on the object line and as the document's on the gloss
+lines --- English glossed in Hebrew, or Hebrew glossed in English --- and
+a declared language still decides.
+
+\begin{code}
+% in a Hebrew document
+\begin{english}
+\ex. \gll The boy-s have eat-en\\
+          ...Hebrew glosses...\\
+\glt `The boys have eaten.'
+\end{english}
+\end{code}
+
 \subsection{Abbreviations: \cs{exg.}\ and \cs{ag.}}\label{sec:exgabbrev}
 
 \cs{exg.}\ abbreviates \cs{ex.}\ \cs{gll}, and \cs{ag.}\ through
@@ -2863,6 +2916,24 @@ The counters are \texttt{ExNo}, \texttt{SubExNo}, \texttt{SubSubExNo} and
 \texttt{FnExNo} (footnotes). To change the style of the numbering,
 redefine \cs{theExNo} and its relatives in the usual \LaTeX{} way.
 
+The sub-example letters, in labels and in references alike, are
+\cs{Exalph}\marg{counter}, and the numerals of the level below are
+\cs{Exroman}\marg{counter} (\pkg{linguex}'s names again). By default they are
+\cs{alph} and \cs{roman}, so they follow the document's language: under
+\pkg{polyglossia}'s Hebrew the sub-examples are lettered alef, bet, and so
+on, in Hebrew script. For
+Latin letters whatever the language, say
+
+\begin{code}
+\let\Exalph\ExLatinAlph
+\end{code}
+
+\noindent in the preamble, or anywhere from then on. \cs{alph} itself
+cannot do this, because a language package that changes the letters
+changes what \cs{alph} produces. Any other style is a matter of defining
+\cs{Exalph} as a one-argument command that takes the counter's name and
+expands to the letter.
+
 \paragraph{The default scheme and \opt{legacy}.} The values in the table
 are the \emph{default} scheme. The option \opt{legacy} selects instead the
 exact geometry and conventions of \pkg{linguex}: the number box is sized
@@ -3382,8 +3453,10 @@ validation substitutes for it.
   blank line or \cs{z.}\ rather than letting it run into the footnote's own
   end.
 
-\item \textbf{Glosses and alternatives do not combine.} See
-  section~\ref{sec:extras}.
+\item \textbf{\cs{altn} has no gloss tier.} It stacks bare
+  constituents; alternatives that each need a gloss of their own are
+  \cs{altg}'s, written once in the object line and once in the gloss line
+  (section~\ref{sec:altg}).
 
 \item \textbf{Where \pkg{expex} still does more.} Tier \emph{count} and
   tier \emph{fonts} are unrestricted here, but the vertical layout of a
@@ -3717,6 +3790,7 @@ exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package opt
 \opt{legacy} & Package option: the geometry and dash conventions of \pkg{linguex}; orthogonal to the syntax options. \\
 \opt{norelreflinks} & Package option: print \textbackslash Next and \textbackslash Last without the \pkg{hyperref} link. \\
 \textbackslash resetExdefaults & Restore all layout lengths to the current mode's defaults. \\
+\textbackslash Exalph, \textbackslash Exroman & The sub-example letter and numeral, from a counter's name; \cs{alph} and \cs{roman} by default, so the language's. \cs{let}\cs{Exalph}\cs{ExLatinAlph} for Latin letters in any language. \\
 \textbackslash firstrefdash & Number--letter dash in ``(3a)''; empty by default, \texttt{-} under \opt{legacy}. \\
 \textbackslash secondrefdash & Letter--roman dash in ``(3a-i)''; \texttt{-} in both modes. \\
 \textbackslash rangedash & Dash in a whole-example range. \\

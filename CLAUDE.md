@@ -170,6 +170,27 @@ untracked module makes the hook fail as though a test broke.
   mistakes shipped and were reported from a lecture deck; neither leaves a
   trace on the page, which is why the tests assert on `.aux` records and on
   the page a destination resolves to.
+- In a right-to-left paragraph a brace stack goes out as ONE box that is
+  left to right inside (`\__lxp_unit:n`), never as brace, stack, brace.
+  Drawing the other side's shape instead looks like the fix and passes a
+  first measurement in Hebrew text, but under LuaLaTeX polyglossia
+  reorders a run of Latin text back to left to right, boxes included, and
+  the swapped braces then face inward. Which side a box lands on depends
+  on its neighbours, which no macro can know; `tests/rtl-main.tex` pins
+  it with a stack in each kind of text.
+- An example whose direction differs from the document's main one
+  (`\lx@dir@listbegin`) is set at the level OUTSIDE its list and put back
+  when the main list closes (`\lx@dir@listend`); under LuaTeX the main
+  direction is also restored before every sub-level group opens
+  (`\lx@dir@beforegroup`, `\a.` and the xlist environments). Each of the
+  three alternatives was tried and each fails without an error: set
+  inside the list, LuaTeX wraps the number in the enclosing group's
+  direction and sets it in the text; set and not put back, the next
+  example in the environment inherits it; not restored before a
+  sub-level, the letters land inside the text. `rtl-main` and `ltr-main`.
+- A list label's side is `\lx@labelside`, never a literal `[l]`: LuaTeX
+  mirrors `[l]` with the paragraph, XeTeX under bidi does not, and a
+  right-to-left list then sets its numbers against the text.
 - Tagging idiom: `\tag_mc_end_push:` … `\tag_mc_begin_pop:n{}`.
 - `[legacy]` mode = geometric fidelity to linguex; orthogonal to `[lazy]`/`[gb4e]`.
 
