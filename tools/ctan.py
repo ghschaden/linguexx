@@ -76,8 +76,17 @@ MANUAL_PDF = REPO / "linguexx-doc.pdf"
 #: makes true.  It is also what this package's peers do: l3kernel,
 #: l3packages, beamer and pdfmanagement-testphase all ship CHANGELOG.md
 #: into doc/latex/<pkg>/ and keep no version log in the .sty at all.
+#:
+#: rtl-hebrew.tex and rtl-hebrew.pdf are a complete right-to-left document
+#: and its output, which the manual shows in section 5.10 -- the listing,
+#: and the PDF's page as its render.  Shipped because the manual's source
+#: includes the PDF and could not be rebuilt without it, and because a
+#: reader setting up a Hebrew document wants the file, not a transcription
+#: (decided 2026-10-10).  The PDF is built with the manual, from the .sty
+#: being shipped, like the manual itself; the source lives in examples/.
 PAYLOAD = ["README.md", "LICENSE", "CHANGELOG.md", "linguexx.sty",
-           "linguexx-doc.tex", "linguexx-doc.pdf"]
+           "linguexx-doc.tex", "linguexx-doc.pdf",
+           "rtl-hebrew.tex", "rtl-hebrew.pdf"]
 
 #: The TDS layout, for the optional linguexx.tds.zip: where a TeX
 #: distribution would put each of those files.  The manual's source goes
@@ -86,7 +95,8 @@ PAYLOAD = ["README.md", "LICENSE", "CHANGELOG.md", "linguexx.sty",
 TDS = {
     "tex/latex/linguexx": ["linguexx.sty"],
     "doc/latex/linguexx": ["README.md", "LICENSE", "CHANGELOG.md",
-                           "linguexx-doc.tex", "linguexx-doc.pdf"],
+                           "linguexx-doc.tex", "linguexx-doc.pdf",
+                           "rtl-hebrew.tex", "rtl-hebrew.pdf"],
 }
 
 #: The probe compiled against the UNPACKED archive.  Small, and not a smoke
@@ -268,8 +278,11 @@ def stage(outdir: Path, manual_pdf: Path):
     if tree.exists():
         shutil.rmtree(tree)
     tree.mkdir(parents=True)
+    built = {"linguexx-doc.pdf": manual_pdf,
+             "rtl-hebrew.pdf": manual_pdf.parent / "rtl-hebrew.pdf"}
+    kept = {"rtl-hebrew.tex": REPO / "examples" / "rtl-hebrew.tex"}
     for name in PAYLOAD:
-        src = manual_pdf if name == "linguexx-doc.pdf" else REPO / name
+        src = built.get(name) or kept.get(name) or REPO / name
         if not src.is_file():
             raise SystemExit(f"the archive wants {name} and there is none.")
         shutil.copy(src, tree / name)

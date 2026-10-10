@@ -34,6 +34,10 @@
 \usepackage{fancyvrb}
 \usepackage{amsmath}
 \usepackage{graphicx}
+% rtl-hebrew.pdf, the rendered right-to-left example (section 5.10): in
+% the repository it is built in examples/, beside its source; in the
+% release and the gate's own build it lies beside this file.
+\graphicspath{{examples/}}
 \usepackage[normalem]{ulem}
 \usepackage[lazy,langsci]{linguexx}
 % This manual is written in linguex's reference convention -- its prose says
@@ -1767,9 +1771,8 @@ lines --- English glossed in Hebrew, or Hebrew glossed in English --- and
 a declared language still decides.
 
 A complete document, an English example glossed in Hebrew and a Hebrew
-one glossed in English, for Lua\LaTeX\ or Xe\LaTeX; it is the package's
-\texttt{examples/rtl-hebrew.tex}, shown with the Hebrew as an editor
-with bidirectional support shows it:
+one glossed in English, for Lua\LaTeX\ or Xe\LaTeX, shown with the
+Hebrew as an editor with bidirectional support shows it:
 
 % The listing is examples/rtl-hebrew.tex, the Hebrew runs wrapped in
 % |hebcode(...); tests/runtests.py checks that the two stay the same.
@@ -1783,6 +1786,7 @@ with bidirectional support shows it:
 \setotherlanguage{english}
 \newfontfamily\hebrewfont{FreeSerif.otf}[Script=Hebrew]
 \usepackage{linguexx}
+\pagestyle{empty}
 \begin{document}
 |hebcode(באנגלית, הפועל העזר נושא את הזמן:)
 
@@ -1800,10 +1804,20 @@ with bidirectional support shows it:
 \end{document}
 \end{rtlcode}
 
+\rendered
+% rtl-hebrew.pdf is built with this manual (tests/runtests.py, the
+% Makefile, tools/ctan.py) and shipped beside it; the crop is its text
+% block, and the gate fails when the example's ink outgrows it.
+\noindent\fcolorbox{gray!40}{white}{%
+  \includegraphics[trim=123 526 124 116,clip]{rtl-hebrew}}
+
+\afterex
 \noindent The first example is numbered at the right margin; its English
 words run from the left, each Hebrew gloss under its word, and its
 translation reads right to left like the rest of the page. The second is
-an ordinary Hebrew example, its grid running from the right.
+an ordinary Hebrew example, its grid running from the right. The file and
+its output come with this manual, as \texttt{rtl-hebrew.tex} and
+\texttt{rtl-hebrew.pdf}.
 
 \subsection{Abbreviations: \cs{exg.}\ and \cs{ag.}}\label{sec:exgabbrev}
 

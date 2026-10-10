@@ -336,6 +336,40 @@ SMOKE_ONLY = {"linguexx-test", "linguexx-test-gb4e"}
 #  Documents: the half of the gate that is not a test case
 # ---------------------------------------------------------------------------
 
+def d_rtl_hebrew(pdf: Path):
+    """The manual includes this page cropped to a fixed window; its ink has
+    to stay inside it, or the manual shows the example cut off and nothing
+    else would say so."""
+    manual = (REPO / "linguexx-doc.tex").read_text()
+    m = re.search(r"\\includegraphics\[trim=(\S+) (\S+) (\S+) (\S+),"
+                   r"clip\]\{rtl-hebrew\}", manual)
+    if not m:
+        return [(False, "the manual's \\includegraphics of rtl-hebrew is "
+                        "missing or its trim has changed form")]
+    left, bottom, right, top = (float(v) for v in m.groups())
+    out = subprocess.run(["pdfinfo", str(pdf)], capture_output=True,
+                         text=True).stdout
+    w, h = (float(v) for v in
+            re.search(r"Page size:\s+([\d.]+) x ([\d.]+)", out).groups())
+    words = subprocess.run(["pdftotext", "-bbox", str(pdf), "-"],
+                           capture_output=True, text=True).stdout
+    boxes = [tuple(float(v) for v in b) for b in re.findall(
+        r'xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)"',
+        words)]
+    if not boxes:
+        return [(False, "rtl-hebrew.pdf has no text to check")]
+    x0 = min(b[0] for b in boxes)
+    y0 = min(b[1] for b in boxes)
+    x1 = max(b[2] for b in boxes)
+    y1 = max(b[3] for b in boxes)
+    inside = (x0 >= left and x1 <= w - right and y0 >= top
+              and y1 <= h - bottom)
+    return [(inside, f"the example's text ({x0:.0f},{y0:.0f})-({x1:.0f},"
+                     f"{y1:.0f}) lies inside the manual's crop "
+                     f"({left:.0f},{top:.0f})-({w - right:.0f},"
+                     f"{h - bottom:.0f}); if it grew, widen the trim")]
+
+
 def d_ua_demo(pdf: Path):
     """The PDF/UA gate on the FULL accessible document.
 
@@ -417,13 +451,16 @@ def d_ua_demo(pdf: Path):
 #: the engines that do not converge in two, and an unconverged file fails
 #: veraPDF exactly like a real regression.  See PASSES for the same rule
 #: applied to the cases.
+#: Documents built into the same directory first, because this one
+#: includes their output: the manual shows rtl-hebrew.pdf (section 5.10).
+DOCUMENT_NEEDS = {"manual": ("rtl-hebrew",)}
 DOCUMENTS = {
     "ua-demo": (REPO / "examples" / "ua-demo.tex", "lualatex", 3, d_ua_demo),
     "accessible-demo": (REPO / "examples" / "accessible-demo.tex",
                         "lualatex", 2, None),
     "altg-demo": (REPO / "examples" / "altg-demo.tex", "pdflatex", 2, None),
     "rtl-hebrew": (REPO / "examples" / "rtl-hebrew.tex", "lualatex", 2,
-                   None),
+                   d_rtl_hebrew),
     "manual": (REPO / "linguexx-doc.tex", "lualatex", 3, None),
 }
 
@@ -449,6 +486,13 @@ def run_document(name: str, outdir: Path = None):
         work = outdir
         work.mkdir(parents=True, exist_ok=True)
     try:
+        # A document that includes another's output gets it built first,
+        # in the same directory, so it is never an old copy
+        for dep in DOCUMENT_NEEDS.get(name, ()):
+            bad = [d for ok, d in run_document(dep, outdir=work) if not ok]
+            if bad:
+                return [(False, f"{dep}, which {src.name} includes, does not "
+                                f"build: {bad[0]}")]
         shutil.copy(src, work)
         shutil.copy(STY, work)
         env = dict(os.environ, TMPDIR=str(work))    # see DEFAULT_JOBS

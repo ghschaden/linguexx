@@ -27,8 +27,9 @@ version string.
   needs `\GlossTierLang`: in such an example the object line is read in
   the example's language and the glosses in the document's. Under
   XeLaTeX the Hebrew glosses of an English grid carry their logical text
-  in a tagged PDF. The manual shows a complete document,
-  `examples/rtl-hebrew.tex`.
+  in a tagged PDF. The manual shows a complete document with its output,
+  and both now ship with the package, beside the manual, as
+  `rtl-hebrew.tex` and `rtl-hebrew.pdf`.
 - New: `\Exalph` and `\Exroman` are documented as the place to choose the
   sub-example letters and numerals. By default they follow the language
   (alef, bet under polyglossia's Hebrew); `\let\Exalph\ExLatinAlph`

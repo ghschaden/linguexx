@@ -52,7 +52,11 @@ test:
 # cross-references and the table of contents.  The copy that goes INTO the
 # archive is not this one -- tools/ctan.py rebuilds it in a directory of
 # its own, so that a committed PDF older than the .sty cannot be shipped.
+# examples/rtl-hebrew.pdf first: the manual includes its page (section
+# 5.10), and an old copy would show a document the .sty no longer makes.
 manual:
+	@cd examples && TEXINPUTS=..: lualatex -interaction=nonstopmode -halt-on-error rtl-hebrew.tex >/dev/null
+	@cd examples && TEXINPUTS=..: lualatex -interaction=nonstopmode -halt-on-error rtl-hebrew.tex >/dev/null
 	@lualatex -interaction=nonstopmode -halt-on-error linguexx-doc.tex >/dev/null
 	@lualatex -interaction=nonstopmode -halt-on-error linguexx-doc.tex >/dev/null
 	@lualatex -interaction=nonstopmode -halt-on-error linguexx-doc.tex >/dev/null

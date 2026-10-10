@@ -133,6 +133,11 @@ untracked module makes the hook fail as though a test broke.
   does it, on a build of its own): it is the full accessible document (and covers footnote examples, which the `ua` case deliberately omits — see its header comment).
 - Check with `pdfinfo -struct-text ua-demo.pdf` (or `lxx struct`) whether the
   tagging structure makes sense.
+- The manual includes `examples/rtl-hebrew.pdf` (the right-to-left
+  example, section 5.10), so it is built first by `make manual`, by the
+  gate (`DOCUMENT_NEEDS` in runtests.py) and by `tools/ctan.py`, and both
+  files ship with the package. Its page is shown through a fixed crop;
+  the `rtl-hebrew` document check fails when the example outgrows it.
 - The manual (`linguexx-doc.tex`) builds with **lualatex only** and errors out under pdflatex. It contains the dot-below transliteration examples of its §9.3, which pdflatex gives a broken text layer (`kṛṣṇaḥ` extracts as `kr.s.n.ah.`), so building it with pdflatex made the manual exhibit the defect it documents. Do not add `fontspec`/`\setmainfont` to it: the kernel's own Latin Modern under LuaLaTeX has the small-caps and bold-mono shapes the manual needs, and naming the families explicitly loses them.
 - veraPDF and the structure checks are COMPLEMENTARY, and neither alone is sufficient. An element opened at the wrong moment (marked content straddling its parent) fails veraPDF but passes every structure assertion; an element never closed is spec-valid, so veraPDF passes it while the rest of the document silently becomes its child — that one is caught only by `struct_label_depths`, which asserts that top-level example numbers all sit at one depth.
 - PDF/UA validity needs a THIRD LaTeX pass under pdflatex and xelatex (lualatex converges in two). An unconverged file fails veraPDF exactly like a real regression; see `PASSES` in runtests.py before concluding a tagging change broke something.
