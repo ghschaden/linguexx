@@ -12,11 +12,14 @@
 %%    grid, a short one standing beside its number against the text edge,
 %%    a long one with every line starting at the left margin -- the mirror
 %%    of \GlossRTL.  Its Hebrew glosses read right to left inside their
-%%    columns, each under its own word.  Its translation runs left to right
-%%    and stands against the text edge.  Under XeTeX the short grid stood at
-%%    the far end of its line (a \vtop's own paragraph had closed the
-%%    item's segment, \lx@dir@parend) and the translation's words came out
-%%    reversed (\lx@dir@parbegin from \glt).
+%%    columns, each under its own word.  Its translation is in the
+%%    DOCUMENT's language and direction -- Hebrew, the reader's, as
+%%    \GlossRTL leaves its translation in the document's -- and stands
+%%    against the text edge, reading right to left with no \texthebrew.
+%%    Under XeTeX the short grid stood at the far end of its line (a \vtop's
+%%    own paragraph had closed the item's segment, \lx@dir@parend), and a
+%%    translation set in the example's direction came out in reverse word
+%%    order.
 %%
 %% PLAINREF's right edge is where every example's text starts here.
 \input{_preamble-rtlmain}
@@ -34,7 +37,7 @@
 \begin{english}
 \ex. \gll ENA ENB ENC\\
           הילד אכל את\\
-\glt 'ENTRANS starts here.'
+\glt 'הילדים אכלו.'
 
 \ex. \gll LWA LWB LWC LWD LWE LWF LWG LWH LWI LWJ LWK LWL LWM LWN LWO LWP LWQ LWR\\
           א ב ג ד ה ו ז ח ט י כ ל מ נ ס ע פ צ\\

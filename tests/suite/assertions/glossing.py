@@ -1185,12 +1185,19 @@ def a_rtl_gloss(p: Page):
         ok, got = _hebrew_reads(p, obj.x0, right, obj.y1, obj.y1 + 14, want)
         r.append(check(ok, f"the Hebrew gloss under {obj.text} is {want!r} "
                            f"and reads right to left: {got!r}"))
-    tr = p.line_of(p.find("ENTRANS"))
-    trw = [w for w in tr if w.x1 <= edge + TOL]
-    r.append(check(abs(max(w.x1 for w in trw) - edge) < TOL
-                   and p.find("ENTRANS").x0 == min(w.x0 for w in trw),
-                   f"its translation runs left to right and stands against "
-                   f"the text edge: {[w.text for w in trw]}"))
+    # its translation: the document's language, right to left, at the edge
+    gl_bottom = max(w.y1 for w in p.words if 4 < w.y0 - ea.y0 < 20)
+    tband = [w for w in p.words if 2 < w.y0 - gl_bottom < 16
+             and w.x1 <= edge + TOL]
+    ok, got = _hebrew_reads(p, min((w.x0 for w in tband), default=0), edge,
+                            gl_bottom + 2, gl_bottom + 18, "")
+    words = got.replace("’", "").replace("'", "").replace(".", "")
+    r.append(check(bool(tband) and abs(max(w.x1 for w in tband) - edge)
+                   < TOL and words.strip() == "הילדים אכלו".replace(" ", ""),
+                   f"its translation is in the document's direction: Hebrew "
+                   f"reading right to left, against the text edge: "
+                   f"{got!r} ending at "
+                   f"{max((w.x1 for w in tband), default=0):.2f} vs {edge:.2f}"))
     lw = _wrapped_lines(p, "LW")
     r.append(check(len(lw) >= 2 and all(abs(min(w.x0 for w in ln) - L) < TOL
                                         for ln in lw),

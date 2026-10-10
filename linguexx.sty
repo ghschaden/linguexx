@@ -2299,9 +2299,22 @@
   {
     \bool_if:NT \l__lx_dir_flip_bool
       {
-        \sys_if_engine_luatex:T
+        \sys_if_engine_luatex:TF
           { \tex_textdirection:D = \l__lx_dir_main_int \scan_stop: }
+          { \__lx_dir_set_rtl_flag:n { \l__lx_dir_main_int } }
       }
+  }
+%% XeTeX: bidi's \if@RTL says which direction the text is in, and bidi's
+%% own commands read it -- \texthebrew opens an R segment only where the
+%% flag says the text is left to right.  An own-direction segment sets it
+%% to the example's direction, so a Hebrew translation of an English
+%% example in a Hebrew document is not taken for text already right to
+%% left and set in reverse word order; before each label it is the main
+%% direction again, which \lx@labelside reads.
+\cs_new_protected:Npn \__lx_dir_set_rtl_flag:n #1
+  {
+    \int_compare:nNnTF {#1} = { 1 }
+      { \use:c { @RTLtrue } } { \use:c { @RTLfalse } }
   }
 %% ... and after it: the text in the example's own direction.  This ends
 %% \lx@makeitem and stands in for its \ignorespaces.  The paragraph is
@@ -2343,6 +2356,7 @@
             \bool_gset_true:N \g__lx_dir_open_bool
             \bool_set_false:N \l__lx_dir_inbox_bool
             \int_gset_eq:NN \g__lx_dir_open_int \l__lx_dir_own_int
+            \__lx_dir_set_rtl_flag:n { \l__lx_dir_own_int }
           }
       }
   }
@@ -2448,30 +2462,14 @@
         \bool_gset_false:N \g__lx_dir_open_bool
       }
   }
-%% XeTeX: the translation after \glt is a paragraph of the example with no
-%% label of its own, and is in the example's own direction too -- without
-%% this its English words came out in right-to-left order.  Called from
-%% \glt's own one-shot \everypar, which is where that paragraph starts; a
-%% para/begin hook was tried first and runs too early, before bidi has
-%% opened the paragraph's own segment.  LuaTeX needs nothing: the text
-%% direction an item set persists into the paragraphs after it.
-\cs_new_protected:Npn \lx@dir@parbegin
-  {
-    \bool_lazy_all:nT
-      {
-        { \l__lx_dir_flip_bool }
-        { \sys_if_engine_xetex_p: }
-        { ! \g__lx_dir_open_bool }
-        { ! \legacy_if_p:n { @inlabel } }
-      }
-      {
-        \int_compare:nNnTF { \l__lx_dir_own_int } = { 1 }
-          { \tex_beginR:D } { \tex_beginL:D }
-        \bool_gset_true:N \g__lx_dir_open_bool
-        \int_gset_eq:NN \g__lx_dir_open_int \l__lx_dir_own_int
-        \bool_set_false:N \l__lx_dir_inbox_bool
-      }
-  }
+%% The translation after \glt is in the DOCUMENT's direction, not the
+%% example's: it is the reader's language, as \GlossRTL leaves it where it
+%% is in a left-to-right document, and this is the mirror image of that
+%% (decided 2026-10-10).  \glt puts the main direction back before its
+%% paragraph (\lx@dir@itembefore).  Opening an own-direction segment there
+%% instead, as a first version did, set a Hebrew translation of an English
+%% example in reverse word order under XeTeX, or at the far left of the
+%% page once bidi's flag said left to right.
 \AddToHook { para/end } { \lx@dir@parend }
 \tex_everyvbox:D \exp_after:wN
   { \tex_the:D \tex_everyvbox:D \bool_set_true:N \l__lx_dir_inbox_bool }
@@ -7542,7 +7540,8 @@
   \par\nobreak
   \lx@gl@side@transopen
   \GlossTransStyle
-  \everypar{\everypar{}\lx@glt@langbegin\lx@dir@parbegin}%
+  \lx@dir@itembefore
+  \everypar{\everypar{}\lx@glt@langbegin}%
   \ignorespaces}
 \let\gln\glt % cgloss4e-compat alias
 

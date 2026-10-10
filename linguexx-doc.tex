@@ -1756,8 +1756,9 @@ right, as everything there does; an English example's grid, inside
 \verb|\begin{english}|, runs from the left, and is the mirror image of
 what \cs{GlossRTL} makes of a Hebrew example in an English document: a
 short grid stands beside its number, against the text edge, and a long
-one starts every line at the left margin. The translation follows in the
-example's language. The other way round, a Hebrew example in an English
+one starts every line at the left margin. The translation is in the
+document's language and direction, the reader's, as it is under
+\cs{GlossRTL}. The other way round, a Hebrew example in an English
 document is glossed as \cs{GlossRTL} glosses, without \cs{GlossRTL} being
 written. Nothing needs declaring for either: in such an example a tier
 whose language is not declared with \cs{GlossTierLang} is read as the
@@ -1765,14 +1766,44 @@ example's language on the object line and as the document's on the gloss
 lines --- English glossed in Hebrew, or Hebrew glossed in English --- and
 a declared language still decides.
 
-\begin{code}
-% in a Hebrew document
+A complete document, an English example glossed in Hebrew and a Hebrew
+one glossed in English, for Lua\LaTeX\ or Xe\LaTeX; it is the package's
+\texttt{examples/rtl-hebrew.tex}, shown with the Hebrew as an editor
+with bidirectional support shows it:
+
+% The listing is examples/rtl-hebrew.tex, the Hebrew runs wrapped in
+% |hebcode(...); tests/runtests.py checks that the two stay the same.
+% It may break across pages: kept whole it left half a page empty.
+\begin{rtlcode}[samepage=false]
+\documentclass{article}
+\usepackage{fontspec}
+\setmainfont{FreeSerif.otf}
+\usepackage{polyglossia}
+\setmainlanguage{hebrew}
+\setotherlanguage{english}
+\newfontfamily\hebrewfont{FreeSerif.otf}[Script=Hebrew]
+\usepackage{linguexx}
+\begin{document}
+|hebcode(באנגלית, הפועל העזר נושא את הזמן:)
+
 \begin{english}
-\ex. \gll The boy-s have eat-en\\
-          ...Hebrew glosses...\\
-\glt `The boys have eaten.'
+\ex. \gll The boy-s have eat-en the apple-s\\
+          |hebcode(ה- ילד-רבים עזר אכל-בינוני ה- תפוח-רבים)\\
+\glt |hebcode('הילדים אכלו את התפוחים.')
 \end{english}
-\end{code}
+
+\ex. \gll |hebcode(הילדים אכלו את התפוחים)\\
+          the.boy-PL eat.PST-3PL ACC the.apple-PL\\
+\glt |hebcode('הילדים אכלו את התפוחים.')
+
+|hebcode(כמו ב-)\LLast\ |hebcode(וב-)\Last.
+\end{document}
+\end{rtlcode}
+
+\noindent The first example is numbered at the right margin; its English
+words run from the left, each Hebrew gloss under its word, and its
+translation reads right to left like the rest of the page. The second is
+an ordinary Hebrew example, its grid running from the right.
 
 \subsection{Abbreviations: \cs{exg.}\ and \cs{ag.}}\label{sec:exgabbrev}
 

@@ -21,12 +21,14 @@ version string.
   middle -- and an English example's, in a Hebrew document, from the
   left, as the mirror image of `\GlossRTL`: a short grid beside its
   number, a long one starting every line at the left margin, its
-  translation in its own direction. A Hebrew example in an English
+  translation in the document's language and direction, as `\GlossRTL`
+  leaves a translation in the reader's. A Hebrew example in an English
   document is glossed as `\GlossRTL` glosses, without `\GlossRTL`. No tier
   needs `\GlossTierLang`: in such an example the object line is read in
   the example's language and the glosses in the document's. Under
   XeLaTeX the Hebrew glosses of an English grid carry their logical text
-  in a tagged PDF.
+  in a tagged PDF. The manual shows a complete document,
+  `examples/rtl-hebrew.tex`.
 - New: `\Exalph` and `\Exroman` are documented as the place to choose the
   sub-example letters and numerals. By default they follow the language
   (alef, bet under polyglossia's Hebrew); `\let\Exalph\ExLatinAlph`

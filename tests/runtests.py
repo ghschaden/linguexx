@@ -422,6 +422,8 @@ DOCUMENTS = {
     "accessible-demo": (REPO / "examples" / "accessible-demo.tex",
                         "lualatex", 2, None),
     "altg-demo": (REPO / "examples" / "altg-demo.tex", "pdflatex", 2, None),
+    "rtl-hebrew": (REPO / "examples" / "rtl-hebrew.tex", "lualatex", 2,
+                   None),
     "manual": (REPO / "linguexx-doc.tex", "lualatex", 3, None),
 }
 
@@ -505,6 +507,29 @@ def twin_body(name):
             if not ln.lstrip().startswith("%") and not setup.match(ln)]
 
 
+def manual_listing_problems():
+    """The manual shows examples/rtl-hebrew.tex in full; keep the two equal.
+
+    The listing wraps each Hebrew run in |hebcode(...) so that the manual
+    can set it right to left, so that is undone before comparing.  Without
+    this the listing would be the only code in the manual that nothing
+    compiles."""
+    manual = (REPO / "linguexx-doc.tex").read_text()
+    example = REPO / "examples" / "rtl-hebrew.tex"
+    m = re.search(r"% The listing is examples/rtl-hebrew\.tex.*?"
+                  r"\\begin\{rtlcode\}(?:\[[^]]*\])?\n(.*?)"
+                  r"\\end\{rtlcode\}",
+                  manual, re.S)
+    if not m or not example.is_file():
+        return ["the manual's listing of examples/rtl-hebrew.tex, or the "
+                "file itself, is missing."]
+    shown = re.sub(r"\|hebcode\((.*?)\)", r"\1", m.group(1))
+    if shown.strip() != example.read_text().strip():
+        return ["the manual's listing of examples/rtl-hebrew.tex has "
+                "drifted from the file; keep the two the same."]
+    return []
+
+
 def suite_integrity():
     """Cross-check the case files on disk against ASSERTIONS.
 
@@ -559,6 +584,7 @@ def suite_integrity():
             problems.append(f"KNOWN_XFAIL key {key!r} names no known engine.")
         elif name not in known:
             problems.append(f"KNOWN_XFAIL key {key!r} names no known case.")
+    problems.extend(manual_listing_problems())
     problems.extend(tooling_integrity())
     problems.extend(expect_error_selftest())
     return problems
