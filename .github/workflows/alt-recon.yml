@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     container: texlive/texlive:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install poppler-utils and Python
         run: |
           apt-get update -qq
@@ -20,7 +20,7 @@ jobs:
         run: sh experiments/altmath/run.sh
       - name: Upload artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: alt-recon
           path: |

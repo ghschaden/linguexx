@@ -22,7 +22,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install ruff
         run: pipx install ruff
       - name: ruff check
@@ -35,7 +35,7 @@ jobs:
     # The official TeX Live image ships all three engines and the tagging code.
     container: texlive/texlive:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # qpdf is not decoration: one assertion resolves a named destination to
       # the page it lands on, which is the whole question for a beamer frame
