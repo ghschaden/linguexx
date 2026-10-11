@@ -26,12 +26,10 @@ against the CI's TeX Live instead.
 
 ## How to run it
 
-The reconnaissance is wired as a **manual** CI job so it never runs on ordinary
-pushes:
-
-- GitLab: open the pipeline, find the `alt-recon` job, press play. Read its log
-  and/or download the `recon.pdf` / `recon.log` artifact.
-- GitHub: Actions tab → `alt-recon` → "Run workflow". Same outputs.
+`run.sh` compiles and probes with whichever TeX Live is first in PATH:
+`sh experiments/altmath/run.sh`. It used to be wired as a manual CI job
+(`alt-recon`, on GitHub and GitLab); both jobs were removed in October 2026,
+since the question they answered had been settled since v0.13.
 
 ## What to look for in the output
 
