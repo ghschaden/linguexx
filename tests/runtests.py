@@ -878,6 +878,12 @@ def run_case(name: str, engine: str, verbose: bool):
             return ASSERTIONS[name](page)
         except AssertionError as e:
             return [(False, f"ASSERTION SETUP: {e}")]
+        except Exception as e:
+            # A page laid out so differently that an assertion finds nothing
+            # to measure (max() of an empty line) is a FAILURE of this case,
+            # not of the run: raised, it took every other case down with it
+            # and printed a traceback where the report should be.
+            return [(False, f"ASSERTION CRASHED: {type(e).__name__}: {e}")]
 
 
 def main():

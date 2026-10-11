@@ -2422,12 +2422,16 @@
       }
       { \tex_kern:D \c_zero_dim }
   }
-%% LuaTeX: before a sub-level's group opens (see above).
+%% Before a sub-level's group opens (see above).  XeTeX has no direction
+%% to put back, but it has bidi's flag, which the main item's own-direction
+%% segment left in the example's direction: bidi then opened the sub-list
+%% as a right-to-left one, its margin on the right, and a Hebrew example's
+%% letters in an English document stood a whole level to the left.
 \cs_new_protected:Npn \lx@dir@beforegroup
   {
     \bool_if:NT \l__lx_dir_flip_bool
       {
-        \sys_if_engine_luatex:T
+        \sys_if_engine_luatex:TF
           {
             \mode_if_horizontal:T
               {
@@ -2435,6 +2439,7 @@
                 \tex_textdirection:D = \l__lx_dir_main_int \scan_stop:
               }
           }
+          { \__lx_dir_set_rtl_flag:n { \l__lx_dir_main_int } }
       }
   }
 %% Also from \__lx_gl_rtl_place:, before a grid's box goes into the item's
