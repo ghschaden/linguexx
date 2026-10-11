@@ -680,6 +680,13 @@ def run_suite(engine=None, filt=None, jobs=None, verbose=False):
     r = sh(cmd, cwd=ROOT)
     dt = time.time() - t0
     fails, summary = parse_suite(r.stdout + "\n" + r.stderr)
+    if r.returncode != 0 and not fails:
+        # The suite went red without saying which case: a traceback, a
+        # missing tool.  Nothing to parse is not nothing failed -- read as
+        # green, this wrote a stamp over a crashing suite on 2026-10-10,
+        # and CI was the first to say so.
+        tail = (r.stderr or r.stdout).strip().splitlines()[-1:] or ["(no output)"]
+        fails = {"SUITE CRASHED": {f"exit {r.returncode}: {tail[0]}": ["-"]}}
     return r.returncode, fails, summary, dt, r
 
 
@@ -745,7 +752,7 @@ def confirm_failures(fails):
     """
     confirmed, flaky = {}, {}
     for case, details in fails.items():
-        if case == "SUITE INTEGRITY":
+        if case in ("SUITE INTEGRITY", "SUITE CRASHED"):
             confirmed[case] = details
             continue
         name = case.replace(" [XFAIL]", "")
