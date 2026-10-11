@@ -4,6 +4,14 @@ All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
 ## Unreleased
+- Fixed: a document that loads `babelbidi` (new in TeX Live 2026) together
+  with linguexx did not build under LuaLaTeX ("You can't use `\unless'
+  before `macro'"), whatever its languages. Right-to-left documents are
+  laid out by linguexx with polyglossia only; with babel's right-to-left
+  support (babelbidi included) every example is now set as in a
+  left-to-right document, with a warning that says so. Before, babel
+  under XeLaTeX switched linguexx's mirroring on in a document it was
+  never tested for.
 - Changed: in a document whose main language is written right to left
   (polyglossia, LuaLaTeX or XeLaTeX), every example follows the main
   language's direction: an example inside `\begin{english}` in a Hebrew

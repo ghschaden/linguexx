@@ -155,6 +155,7 @@ ENGINES_FOR = {
     "rtl-main": ("xelatex", "lualatex"),
     "rtl-letters": ("xelatex", "lualatex"),
     "ltr-main": ("xelatex", "lualatex"),
+    "rtl-babel": ("xelatex", "lualatex"),
     "rtl-gloss": ("xelatex", "lualatex"),
     "ltr-gloss": ("xelatex", "lualatex"),
     "rtl-gloss-ua": ("xelatex", "lualatex"),

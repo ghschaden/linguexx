@@ -878,3 +878,48 @@ a gloss are placed by `\__lxp_altg_shape_obj:` and
 `\__lxp_altg_shape_gloss:`, which the single-box fix for `\altn`
 (`\__lxp_unit:n`) deliberately does not touch. (2) is the label commands'
 use of `\alph`/`\roman`; (3) is wherever the list's direction is taken.
+
+---
+
+## Right-to-left documents under babel
+
+*Deferred 2026-10-11, by Gerhard, when babelbidi arrived in TeX Live and a
+document loading it with linguexx did not build under LuaLaTeX.*
+
+**Current behaviour.** linguexx lays out examples by the direction of the
+document's main language only when polyglossia is loaded
+(`\g__lx_dir_avail_bool`, set at `\begin{document}`). Under babel, with
+its bidi support switched on (`\bbl@bidimode` non-zero, which includes
+every babelbidi document), linguexx warns once (`rtl-babel`) and sets every
+example as it would in a left-to-right document: no mirroring, and an
+example in a right-to-left language is laid out however babel's own
+direction handling leaves it. `tests/rtl-babel.tex` checks that such a
+document builds, warns once, and that the English examples around a Hebrew
+one are untouched; it deliberately does not measure the Hebrew one.
+
+Before this, `\if@RTLmain` existing was taken to mean that polyglossia had
+set it. It is not polyglossia's: babelbidi defines it as a macro under
+LuaTeX, which linguexx's `\legacy_if:n` cannot read (a fatal error in any
+babelbidi document), and babel's `bidi=bidi-r` loads the real bidi package
+under XeTeX, which switched the mirroring on in a document it was never
+written or tested for.
+
+**Why it was not settled.** Supporting it is a second implementation, not
+a switch. Under LuaTeX babel handles direction in its own Lua code
+(`bidi=basic`) and does not go through luabidi at all; under XeTeX it uses
+bidi, but with babel's own language switching around it. Each of the
+polyglossia mechanisms in the `\lx@dir@...` block was found by a failure
+that left no error, and the babel side would have to be found the same way,
+on both engines, against a right-to-left test set as large as the
+polyglossia one. Nobody has asked for it yet.
+
+**What would decide it.** A user writing a right-to-left document who
+needs babel rather than polyglossia: a real document, and the reason
+polyglossia does not do it for them.
+
+**If it is changed:** the entry point is the `begindocument` hook that
+sets `\g__lx_dir_avail_bool`, and every `\legacy_if:n { @RTLmain }`
+behind it would have to read babel's direction instead
+(`\bbl@thetextdir`, or a test that also accepts a macro conditional).
+`tests/rtl-babel.tex` then stops being a "leave it alone" case and becomes
+the babel twin of `rtl-main` and `ltr-main`.

@@ -1054,6 +1054,35 @@ def a_rtl_letters(p: Page):
     return r
 
 
+def a_rtl_babel(p: Page):
+    r"""Hebrew under babel: built, said once, the examples left alone.  See
+    the case's header; the Hebrew example's own layout is not asserted."""
+    r = []
+    n = p.log.count("babel's right-to-left support is on")
+    r.append(check(n == 1, f"one warning that right-to-left documents need "
+                           f"polyglossia, got {n}"))
+    r.append(check(any(w.text == "HEMAIN" for w in p.words),
+                   "the Hebrew example is on the page"))
+    mains = [p.find(t) for t in ("ENMAIN", "ENAFTER", "ENOBJ")]
+    lefts = [min(w.x0 for w in p.line_of(t)) for t in mains]
+    r.append(check(max(lefts) - min(lefts) < TOL
+                   and max(t.x0 for t in mains) - min(t.x0 for t in mains)
+                   < TOL,
+                   f"every English example is numbered at the left margin "
+                   f"with its text at one indent: numbers at "
+                   f"{[round(x, 2) for x in lefts]}, text at "
+                   f"{[round(t.x0, 2) for t in mains]}"))
+    a, b = p.find("ENSUBA"), p.find("ENAFTERA")
+    r.append(check(abs(a.x0 - b.x0) < TOL and a.x0 > mains[0].x0,
+                   f"sub-examples before and after the Hebrew one at one "
+                   f"indent: {a.x0:.2f} vs {b.x0:.2f}"))
+    t = p.find("ENTRANS")
+    r.append(check(abs(t.x0 - mains[2].x0) < TOL,
+                   f"the translation starts under the gloss: {t.x0:.2f} vs "
+                   f"{mains[2].x0:.2f}"))
+    return r
+
+
 def a_ltr_main(p: Page):
     r"""A Hebrew example in an English document is laid out as the English
     one is; see the case's header.  Distances from the English reference

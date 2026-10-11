@@ -1,0 +1,53 @@
+%% A right-to-left language under BABEL, not polyglossia: linguexx lays out
+%% right-to-left documents with polyglossia only, and under babel it must
+%% build, say so once, and leave its examples alone.  Two ways in, one per
+%% engine:
+%%  - LuaTeX: babelbidi (TeX Live 2026) emulates bidi's flags on top of
+%%    babel, and defines \if@RTLmain as a MACRO expanding to \ifnum.
+%%    linguexx read it with \legacy_if:n, which puts \unless before it:
+%%    "You can't use \unless before macro", and no document that loaded
+%%    babelbidi built at all, whatever its languages.  babelbidi is not
+%%    loaded here -- this case would then fail on any TeX Live that predates
+%%    it -- but its definition is copied from babelbidi-api.def, which is
+%%    what the failure needs.
+%%  - XeTeX: babel's bidi=bidi-r loads the real bidi package, whose
+%%    \if@RTLmain then switched linguexx's mirroring on in a babel document
+%%    it was never written for.  The \providecommand below does nothing
+%%    there.
+%% What a Hebrew example looks like under babel is undecided (see
+%% doc/DEFERRED-DECISIONS.md), so nothing below measures it; the English
+%% examples around it are measured, and must look as they do anywhere.
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=25mm]{geometry}
+\usepackage{iftex}
+\ifLuaTeX
+  \usepackage[bidi=basic]{babel}
+\else
+  \usepackage[bidi=bidi-r]{babel}
+\fi
+\babelprovide[import,main]{english}
+\babelprovide[import]{hebrew}
+\babelfont{rm}{FreeSerif.otf}
+\makeatletter
+\providecommand{\bbd@main@dir}{0}
+\providecommand{\if@RTLmain}{\ifnum\bbd@main@dir>\z@}
+\makeatother
+\usepackage{linguexx}
+\pagestyle{empty}
+\begin{document}
+\ex. ENMAIN the reference.
+\a. ENSUBA first.
+\b. *ENSUBB second.
+\z.
+
+\begin{otherlanguage}{hebrew}
+\ex. HEMAIN הילד אכל את התפוח.
+\end{otherlanguage}
+
+\ex. ENAFTER after it.
+\a. ENAFTERA first.
+\z.
+
+\exg. ENOBJ the boy ate\\ DEF boy eat.PST\\
+\glt `ENTRANS The boy ate.'
+\end{document}

@@ -2226,7 +2226,14 @@
 %%
 %% The main direction is bidi's and luabidi's \if@RTLmain, which
 %% polyglossia sets for a right-to-left main language.  Without either
-%% package there is nothing to mirror and none of this runs.
+%% package there is nothing to mirror and none of this runs -- and none of
+%% it runs without polyglossia either (\g__lx_dir_avail_bool), because
+%% \if@RTLmain is not only theirs: babelbidi (2026) defines it as a MACRO
+%% under LuaTeX, which \legacy_if:n cannot read ("You can't use \unless
+%% before macro": no babelbidi document built), and babel's own bidi
+%% loads bidi under XeTeX, whose real flag then switched all of this on in
+%% a document none of it was written or tested for.  Right-to-left
+%% documents under babel are undecided, see doc/DEFERRED-DECISIONS.md.
 %%
 %% The two engines need two mechanisms, and each was found the hard way:
 %%  - LuaTeX switches with \linedirection after the label, which it carries
@@ -2245,6 +2252,7 @@
 %%    went inside the segment and a short last line stood at the far end
 %%    of the measure, away from its label.
 \ExplSyntaxOn
+\bool_new:N \g__lx_dir_avail_bool       % polyglossia sets the main direction
 \bool_new:N \l__lx_dir_flip_bool        % this example's list is mirrored
 \int_new:N  \l__lx_dir_own_int          % its own direction: 0 LTR, 1 RTL
 \int_new:N  \l__lx_dir_main_int         % the document's main direction
@@ -2256,6 +2264,26 @@
     \sys_if_engine_luatex:TF
       { \int_use:N \tex_textdirection:D }
       { \legacy_if:nTF { @RTL } { 1 } { 0 } }
+  }
+\msg_new:nnn { linguexx } { rtl-babel }
+  {
+    babel's~right-to-left~support~is~on,~but~linguexx~lays~out~examples~
+    in~a~right-to-left~document~only~with~polyglossia.~Examples~are~set~
+    left~to~right,~as~in~a~left-to-right~document.
+  }
+\AddToHook { begindocument }
+  {
+    \IfPackageLoadedTF { polyglossia }
+      {
+        \cs_if_exist:NT \if@RTLmain
+          { \bool_gset_true:N \g__lx_dir_avail_bool }
+      }
+      {
+        \bool_lazy_and:nnT
+          { \cs_if_exist_p:N \bbl@bidimode }
+          { \int_compare_p:nNn { \bbl@bidimode } > { 0 } }
+          { \msg_warning:nn { linguexx } { rtl-babel } }
+      }
   }
 %% From \lx@mainlist, BEFORE the list's group opens: decide, and set the
 %% main direction at that level.  Not inside the list: LuaTeX wraps an
@@ -2270,7 +2298,7 @@
   {
     \bool_set_false:N \l__lx_dir_flip_bool
     \bool_lazy_and:nnT
-      { \cs_if_exist_p:N \if@RTLmain }
+      { \g__lx_dir_avail_bool }
       { \bool_lazy_or_p:nn { \sys_if_engine_luatex_p: } { \sys_if_engine_xetex_p: } }
       {
         \int_set:Nn \l__lx_dir_own_int { \__lx_dir_current: }
@@ -2379,7 +2407,7 @@
       }
       {
         \bool_lazy_and_p:nn
-          { \cs_if_exist_p:N \if@RTLmain }
+          { \g__lx_dir_avail_bool }
           {
             \bool_lazy_or_p:nn
               { \l__lx_dir_flip_bool } { \legacy_if_p:n { @RTLmain } }
@@ -2414,7 +2442,7 @@
       { \sys_if_engine_xetex_p: }
       {
         \bool_lazy_and_p:nn
-          { \cs_if_exist_p:N \if@RTLmain }
+          { \g__lx_dir_avail_bool }
           {
             \bool_lazy_or_p:nn
               { \l__lx_dir_flip_bool } { \legacy_if_p:n { @RTLmain } }
