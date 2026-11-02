@@ -30,6 +30,7 @@ from suite.assertions.judgments import (  # noqa: F401
     a_phantommarks_tagged,
 )
 from suite.assertions.glossing import (  # noqa: F401
+    a_commongloss_ua,
     a_babel_de,
     a_babel_fr,
     a_babel_fr_order,
@@ -158,6 +159,7 @@ ASSERTIONS = {
     "judgment-align": a_judgment_align,
     "judgments": a_judgments,
     "judgment-gloss": a_judgment_gloss,
+    "commongloss-ua": a_commongloss_ua,
     "exsource": a_exsource,
     "exannot": a_exannot,
     "exannot-ua": a_exannot_ua,

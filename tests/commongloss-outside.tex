@@ -1,0 +1,9 @@
+%% \CommonGloss outside a dot-syntax example: an exe batch is not read
+%% ahead, so its \ex could not have known to read rows.  Must stop.
+\input{_preamble-gb4e}
+\begin{document}
+\begin{exe}
+\ex \gll a b\\ x y\\
+\CommonGloss x y\\
+\end{exe}
+\end{document}

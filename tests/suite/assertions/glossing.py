@@ -13,7 +13,8 @@ from suite.pdf import (
     TOL, Page, bookmark_titles, inflated,
 )
 from suite.structure import (
-    struct_alts, struct_exps, verapdf_report,
+    show_pdf_tags_xml, struct_alts, struct_empty_alts, struct_exps,
+    struct_lbl_depths, verapdf_report,
 )
 
 def a_gloss(p: Page):
@@ -1258,4 +1259,150 @@ def a_ltr_gloss(p: Page):
                                         < TOL for ln in rl),
                    f"a long Hebrew grid: every line ends at the right margin: "
                    f"{[round(max(w.x1 for w in ln), 2) for ln in rl]}"))
+    return r
+
+
+def a_commongloss_ua(p: Page):
+    r"""\CommonGloss: variant rows sharing gloss lines; see the case's header.
+
+    Geometry first (columns, judgments, annotations, phantom and morpheme
+    alignment, the head-less number, the rebinding undone), then the TABLE
+    the tagged PDF must carry -- read with show-pdf-tags, the way a
+    consumer resolves it -- and veraPDF on top."""
+    r = []
+    label = re.compile(r"^(\(\w+\)|[a-f]\.|[ivx]+\.)$")
+
+    def first_x(sentinel):
+        toks = [t for t in p.line_of(p.find(sentinel))
+                if not label.match(t.text)]
+        return min(t.x0 for t in toks)
+
+    # (1) every column one x, across the variant rows and the shared lines
+    cols = {1: ["CA1", "G11", "G21"],
+            2: ["CA2", "CB2", "G12", "G22"],
+            3: ["CA3", "CB3", "CC3", "G13", "G23"],
+            4: ["CA4", "CB4", "CC4", "G14", "G24"],
+            5: ["CB5", "CC5", "G15"],
+            6: ["CA6", "CB6", "CC6"]}
+    for k, words in cols.items():
+        xs = [p.find(w).x0 for w in words]
+        r.append(check(max(xs) - min(xs) < TOL,
+                       f"column {k} starts at one x in every row: "
+                       f"{dict(zip(words, (round(x, 2) for x in xs)))}"))
+    # the "(" of row c's first cell stays with its word, in column 1
+    cc1 = p.find("CC1")
+    r.append(check(cc1.text.startswith("(") and abs(cc1.x0 - p.find("CA1").x0) < TOL,
+                   f"*(: the parenthesis stays in column 1 ({cc1.text!r} at "
+                   f"{cc1.x0:.2f})"))
+    # annotations: one column, right of the table
+    ann = [p.find(w) for w in ("ANNA", "ANNB", "ANNC")]
+    r.append(check(max(a.x0 for a in ann) - min(a.x0 for a in ann) < TOL
+                   and ann[0].x0 > p.find("CA6").x1 + 1.0,
+                   f"the annotations form one column right of the table "
+                   f"({[round(a.x0, 2) for a in ann]}, table ends "
+                   f"{p.find('CA6').x1:.2f})"))
+    # judgments hang at the label exactly as an ordinary sub-example's do,
+    # and the first column starts at the sub-example's text edge
+    for row, ref, what in (("CA1", "RA1", "\\ok"), ("CB2", "RA1", "\\ok on a row "
+                           "that opens with a gap"), ("CC3", "RB1", "*(")):
+        x, xr = first_x(row), first_x(ref)
+        r.append(check(abs(x - xr) < TOL,
+                       f"{what}: the mark sits where an ordinary "
+                       f"sub-example's does ({x:.2f} vs {xr:.2f})"))
+    r.append(check(abs(p.find("CA1").x0 - p.find("RA1").x0) < TOL,
+                   f"column 1 starts at the sub-example text edge "
+                   f"({p.find('CA1').x0:.2f} vs {p.find('RA1').x0:.2f})"))
+    # (3) no head line: the number stands on row a's line
+    toks = [t.text for t in p.line_of(p.find("HLA"))]
+    r.append(check("(3)" in toks,
+                   f"head-less: the number is on row a's line ({toks})"))
+    # (4) phantom: the column's real glyphs start past the widest bracket
+    pha, pgx = p.find("[PHA"), p.find("PGX")
+    shift = pgx.x0 - pha.x0
+    r.append(check(shift > 1.0,
+                   f"phantom: the shared line starts past row a's bracket "
+                   f"(shift {shift:.2f})"))
+    phy, phz, pgy = p.find("PHY"), p.find("[PHZ"), p.find("PGY")
+    r.append(check(abs(phy.x0 - pgy.x0) < TOL
+                   and abs(phz.x0 + shift - phy.x0) < TOL,
+                   f"phantom: a row without the bracket lines up with the "
+                   f"letter after another row's ({phy.x0:.2f}, "
+                   f"{phz.x0:.2f}+{shift:.2f}, {pgy.x0:.2f})"))
+    # (5) morphemes: morpheme 2 starts at one x in every segmented row
+    lera, plz = p.find("-lerA"), p.find("-plZ")
+    r.append(check(abs(lera.x0 - plz.x0) < TOL,
+                   f"morphemes: -lerA and -plZ start at one x "
+                   f"({lera.x0:.2f} vs {plz.x0:.2f})"))
+    r.append(check("morphemes, which do not match" not in p.log,
+                   "morphemes: no mismatch reported for matching rows"))
+    # (6) the rebinding ended with its example: \ag. reads its gloss again
+    una, ung = p.find("UNA"), p.find("UNG")
+    r.append(check(abs(una.x0 - ung.x0) < TOL and ung.y0 > una.y0,
+                   f"after the table \\ag. has its own gloss line again "
+                   f"(UNG at {ung.x0:.2f},{ung.y0:.2f} under UNA at "
+                   f"{una.x0:.2f},{una.y0:.2f})"))
+    refs = [t.text for t in p.line_of(p.find("CGREFS"))]
+    r.append(check("(1b)" in refs,
+                   f"a \\label on a variant row resolves to (1b): {refs}"))
+
+    # the tree: a Table per shared gloss, row headers, languages
+    root = show_pdf_tags_xml(p.path)
+
+    def local(el):
+        return el.tag.rsplit("}", 1)[-1]
+
+    def text(el):
+        return "".join(el.itertext()).strip()
+
+    tables = [el for el in root.iter() if local(el) == "Table"]
+    r.append(check(len(tables) == 4,
+                   f"one Table per shared gloss: {len(tables)} of 4"))
+    if tables:
+        trs = [el for el in tables[0] if local(el) == "TR"]
+        r.append(check(len(trs) == 5,
+                       f"example (1) has five rows: {len(trs)}"))
+        scope = "{http://iso.org/pdf/ssn/Table}Scope"
+        for i, tr in enumerate(trs[:5]):
+            cells = [el for el in tr if local(el) in ("TH", "TD")]
+            head = cells[0] if cells else None
+            got = head is not None and (local(head), head.get(scope),
+                                        text(head))
+            if i < 3:
+                r.append(check(head is not None and local(head) == "TH"
+                               and head.get(scope) == "Row"
+                               and text(head).startswith("abc"[i] + "."),
+                               f"row {i + 1} opens with a row header TH "
+                               f"/Scope /Row reading {'abc'[i]}.: {got}"))
+                langs = {c.get("lang") for c in cells[1:-1]}
+                r.append(check(langs == {"ht"},
+                               f"row {i + 1}: its cells are in the object "
+                               f"language: {langs}"))
+            else:
+                r.append(check(head is not None and local(head) == "TD"
+                               and not text(head),
+                               f"shared line {i - 2} opens with an empty TD, "
+                               f"no header: {got}"))
+                langs = {c.get("lang") for c in cells[1:]}
+                r.append(check(langs == {None},
+                               f"shared line {i - 2}: no object language: "
+                               f"{langs}"))
+        first = [el for el in trs[0] if local(el) == "TD"][:1]
+        r.append(check(bool(first) and text(first[0]) == "CA1",
+                       f"the judgment is in the header, not the first cell: "
+                       f"{first and text(first[0])!r}"))
+    alts = struct_alts(getattr(p, "raw", b""))
+    for phrase, n in (("acceptable", 3), ("obligatory", 1),
+                      ("ungrammatical", 1)):
+        r.append(check(alts.count(phrase) == n,
+                       f"spoken {phrase!r} {n} time(s): {alts.count(phrase)} "
+                       f"({alts})"))
+    verdicts, failures, _ = verapdf_report(p.path)
+    r.append(check(bool(verdicts) and all(ok for _, ok in verdicts),
+                   f"veraPDF: compliant on every profile ({verdicts}; "
+                   f"{failures})"))
+    depths = struct_lbl_depths(p.path)
+    r.append(check(len(depths) == 6 and len({d for _, d in depths}) == 1,
+                   f"every example number at one depth: {depths}"))
+    empty = struct_empty_alts(p.path)
+    r.append(check(not empty, f"no /Alt wraps nothing: {empty}"))
     return r

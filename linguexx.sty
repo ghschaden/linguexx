@@ -1970,7 +1970,12 @@
   \fi
   \lx@inexampletrue
   \lx@letters@on}
-\long\def\lx@run@ex#1{\lx@refcheck@stash{#1}\lx@example@begin\lx@exstart#1\lx@bodyend}
+%% \lx@cg@detect: an example holding a \CommonGloss reads its \ag. ... \fg.
+%% as variant rows (see "Variant rows sharing a gloss"); it has to know
+%% before the first of them runs, and the collected body is the one place
+%% that can tell it.  Undone by \lx@example@cleanup.
+\long\def\lx@run@ex#1{\lx@refcheck@stash{#1}\lx@example@begin\lx@cg@detect{#1}%
+  \lx@exstart#1\lx@bodyend}
 
 % closes the example: all open sublists, the main list, the group.
 % Doubles as the sentinel marking the end of the grabbed body, which is
@@ -2010,6 +2015,7 @@
   }
 \ExplSyntaxOff
 \def\lx@example@cleanup{%
+  \lx@cg@off
   \lx@inexamplefalse
   \lx@inlangscifalse
   \lx@letters@off
@@ -7507,6 +7513,681 @@
 \def\gl{\lx@glossjudge\lx@gl@go}
 \long\def\lx@gl@go#1\endgl{\lx@gloss@multi{#1}}
 \def\endgl{\PackageError{linguexx}{\string\endgl without \string\gl}{}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  Variant rows sharing a gloss: \CommonGloss                          %%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Two or more sub-examples that differ in word order and share one gloss:
+%%
+%%   \ex. Haitian
+%%   \ag. *Bay kiyes li achte liv la {} ?\\
+%%   \bg. {} kiyes li achte liv la bay ?\\
+%%   \CommonGloss give who 3sg buy book det give\\
+%%   \glt `Who did s/he buy the book for?'
+%%
+%% In an example whose body holds a \CommonGloss, \ag. ... \fg. read ONE
+%% line each -- a variant row -- and every \CommonGloss line is a tier set
+%% under all of them; the table is set when the last \CommonGloss is read.
+%% The body of a dot-syntax example is collected whole before anything runs
+%% (\lx@run@ex), which is what lets the example know this from the start:
+%% the rebinding is for that one example and is undone by its cleanup, so a
+%% later \ag. reads its own gloss line again.  Elsewhere -- an exe batch, a
+%% [langsci] \ea -- there is no collected body, and \CommonGloss says so.
+%%
+%% Tagged, it is a TABLE, not a gloss.  An ordinary gloss reads column by
+%% column, each column a Span bundling an object word with its gloss; here
+%% that would read the variants interleaved word by word, which is nothing
+%% anybody said.  So it is set ROW by row -- the columns measured first,
+%% with tagging stopped, then each row emitted whole -- and tagged Table /
+%% TR / TH / TD: a screen reader reads a, b, the shared lines, in order, and
+%% can move down a column to hear which word glosses which.  The row's
+%% letter (and its judgment) is the row-header TH, /Scope /Row; a shared
+%% line has no header and starts with an empty TD, which veraPDF accepts.
+%% Prototyped and checked on all three engines, 2026-11-02, before this was
+%% written.
+%%
+%% Alignment is the gloss engine's own, generalised to several object rows:
+%%  * phantom alignment (\GlossPhantomAlign): in each column every row's
+%%    first real glyph starts at the column start plus the WIDEST leading
+%%    run of \GlossPhantomChars in that column, each row's own marks hanging
+%%    left of it.  With one object row that is exactly what \gll does; with
+%%    several it also lines the variants up with each other.
+%%  * morpheme alignment (\GlossMorphAlign): \__lx_gl_morph_split:NN on
+%%    every cell; the rows that split must agree in count (else that column
+%%    is set by word, with a warning), and morpheme k is as wide as the
+%%    widest morpheme k, the phantom shift counted into the first.
+%% A judgment is read by the example's own scanner (\lx@scanjudgeto) and
+%% hangs at the row's LABEL, against the first column, where an ordinary
+%% sub-example's does -- also when the row's first cell is a gap (decided
+%% 2026-11-02).
+\ExplSyntaxOn
+\msg_new:nnnn { linguexx } { cg-outside }
+  { \iow_char:N \\CommonGloss~belongs~in~a~dot-syntax~example. }
+  {
+    It~goes~in~an~example~written~with~\iow_char:N \\ex.,~after~its~
+    \iow_char:N \\ag.~...~\iow_char:N \\fg.~rows.~In~an~exe~batch~or~
+    a~[langsci]~\iow_char:N \\ea~the~example~is~not~read~ahead,~so~the~
+    rows~could~not~be~told~apart~from~ordinary~glossed~sub-examples.
+  }
+\msg_new:nnnn { linguexx } { cg-norows }
+  { \iow_char:N \\CommonGloss~with~no~\iow_char:N \\ag.~row~before~it. }
+  {
+    The~shared~lines~come~after~the~variant~rows~they~gloss:~
+    \iow_char:N \\ag.~...~\iow_char:N \\\\~\iow_char:N \\bg.~...~
+    \iow_char:N \\\\~\iow_char:N \\CommonGloss~...~\iow_char:N \\\\.
+  }
+\msg_new:nnnn { linguexx } { cg-row-after }
+  { A~variant~row~after~\iow_char:N \\CommonGloss. }
+  {
+    The~rows~come~first~and~the~shared~lines~after~them;~a~row~read~
+    now~would~belong~to~no~table.
+  }
+\msg_new:nnnn { linguexx } { cg-row-count }
+  { Variant~row~#1~has~#2~cells,~the~first~row~has~#3. }
+  {
+    Every~variant~row~needs~the~same~number~of~cells,~or~each~word~after~
+    the~difference~lands~in~the~wrong~column.~Write~\{\}~for~a~gap.
+  }
+\msg_new:nnnn { linguexx } { cg-gloss-count }
+  { Shared~line~#1~has~#2~cells,~the~rows~only~#3. }
+  {
+    A~shared~line~may~be~shorter~than~the~rows~(its~last~cells~are~then~
+    empty)~but~not~longer:~the~extra~words~would~gloss~nothing.
+  }
+\msg_new:nnnn { linguexx } { cg-too-wide }
+  { The~shared-gloss~table~is~#1pt~wide,~the~line~#2pt. }
+  {
+    A~shared~gloss~is~not~wrapped:~a~wrapped~table~would~read~as~pieces~
+    of~each~row~in~turn.~Shorten~it,~or~give~the~variants~glosses~of~
+    their~own.
+  }
+\msg_new:nnn { linguexx } { cg-morph-mismatch }
+  {
+    Shared~gloss,~column~#1:~the~segmented~rows~split~into~#2~morphemes,~
+    which~do~not~match;~the~column~is~aligned~by~word.
+  }
+\quark_new:N \q__lx_cg_stop
+\int_new:N \g__lx_cg_rows_int      % all rows: variants and shared lines
+\int_new:N \g__lx_cg_nvar_int      % variant rows
+\int_new:N \g__lx_cg_ngloss_int    % shared lines
+\int_new:N \g__lx_cg_cells_int     % cells of the first variant row
+\int_new:N \l__lx_cg_ncols_int
+\int_new:N \l__lx_cg_n_int
+\bool_new:N \l__lx_cg_on_bool
+\bool_new:N \l__lx_cg_tag_bool
+\bool_new:N \l__lx_cg_mismatch_bool
+\box_new:N \l__lx_cg_box
+\dim_new:N \l__lx_cg_lm_dim        % the sub-level \leftmargin: label column
+\dim_new:N \l__lx_cg_lw_dim        % the sub-level \labelwidth
+\dim_new:N \l__lx_cg_sep_dim       % \GlossSep at its natural width
+\dim_new:N \l__lx_cg_end_dim       % where the last column ends
+\dim_new:N \l__lx_cg_annot_dim     % where the annotation column starts
+\dim_new:N \l__lx_cg_P_dim
+\dim_new:N \l__lx_cg_shift_dim
+\skip_new:N \l__lx_cg_skip
+\tl_new:N \l__lx_cg_row_tl
+\tl_new:N \l__lx_cg_annot_tl
+\tl_new:N \l__lx_cg_jcmd_tl
+\tl_new:N \l__lx_cg_word_tl
+\tl_new:N \l__lx_cg_prefix_tl
+\tl_new:N \l__lx_cg_rest_tl
+\tl_new:N \l__lx_cg_counts_tl
+\tl_new:N \l__lx_cg_keys_tl
+\tl_new:N \l__lx_cg_lang_tl
+\seq_new:N \l__lx_cg_cells_seq
+%% Every command \DeclareJudgment makes (see \lx@judge@declare), so that a
+%% row opening with one can hand it to the label like a scanned mark.
+\seq_new:N \g__lx_judge_cmds_seq
+\cs_generate_variant:Nn \seq_set_split:Nnn { NnV }
+\cs_generate_variant:Nn \tl_if_head_eq_meaning:nNTF { V }
+\cs_generate_variant:Nn \__lx_gl_peel:nNN { VNN }
+\cs_generate_variant:Nn \tl_gput_right:Nn { ce }
+\cs_generate_variant:Nn \seq_if_in:NnTF { NV }
+\cs_generate_variant:Nn \tl_if_blank:nTF { V }
+\cs_generate_variant:Nn \tl_if_blank_p:n { V }
+
+%% ---- tagging, all of it guarded: nothing happens in an untagged document
+\cs_new_protected:Npn \__lx_cg_sb:n #1
+  { \bool_if:NT \l__lx_cg_tag_bool { \tag_struct_begin:n {#1} } }
+\cs_generate_variant:Nn \__lx_cg_sb:n { e }
+\cs_new_protected:Npn \__lx_cg_se:
+  { \bool_if:NT \l__lx_cg_tag_bool { \tag_struct_end: } }
+\cs_new_protected:Npn \__lx_cg_mb:
+  { \bool_if:NT \l__lx_cg_tag_bool { \tag_mc_begin:n { } } }
+\cs_new_protected:Npn \__lx_cg_me:
+  { \bool_if:NT \l__lx_cg_tag_bool { \tag_mc_end: } }
+\AddToHook { begindocument }
+  {
+    \cs_if_exist:NT \tagpdfsetup
+      { \tagpdfsetup { newattribute = { lxTHrow } { /O /Table /Scope /Row } } }
+  }
+
+%% ---- switching it on and off for one example ----------------------------
+\cs_new_protected:Npn \lx@cg@detect #1
+  { \tl_if_in:nnT {#1} { \CommonGloss } { \__lx_cg_on: } }
+\cs_new_protected:Npn \__lx_cg_on:
+  {
+    \bool_set_true:N \l__lx_cg_on_bool
+    \int_gzero:N \g__lx_cg_rows_int
+    \int_gzero:N \g__lx_cg_nvar_int
+    \int_gzero:N \g__lx_cg_ngloss_int
+    \clist_map_inline:nn { ag , bg , cg , dg , eg , fg }
+      {
+        \cs_if_exist:cT {##1}
+          {
+            \cs_set_eq:cc { __lx_cg_saved_##1: } {##1}
+            \cs_set_protected:cpn {##1} .####1 \\ { \__lx_cg_row:n {####1} }
+          }
+      }
+    \cs_set_protected:Npn \CommonGloss ##1 \\ { \__lx_cg_common:n {##1} }
+  }
+\cs_new_protected:Npn \lx@cg@off
+  {
+    \bool_if:NT \l__lx_cg_on_bool
+      {
+        \clist_map_inline:nn { ag , bg , cg , dg , eg , fg }
+          {
+            \cs_if_exist:cT { __lx_cg_saved_##1: }
+              { \cs_set_eq:cc {##1} { __lx_cg_saved_##1: } }
+          }
+        \cs_set_eq:NN \CommonGloss \__lx_cg_outside:
+        \bool_set_false:N \l__lx_cg_on_bool
+        \int_gzero:N \g__lx_cg_rows_int
+      }
+  }
+\cs_new_protected:Npn \__lx_cg_outside:
+  { \msg_error:nn { linguexx } { cg-outside } }
+\cs_new_eq:NN \CommonGloss \__lx_cg_outside:
+
+%% ---- one row --------------------------------------------------------------
+%% #1 kind (obj|gloss), #2 sub-example number, #3 judgment marks, #4 "*(",
+%% #5 a judgment command, #6 annotation call, #7 language, #8 tier.  The
+%% cells are \l__lx_cg_cells_seq.
+\cs_new_protected:Npn \__lx_cg_add:nnnnnnnn #1#2#3#4#5#6#7#8
+  {
+    \int_gincr:N \g__lx_cg_rows_int
+    %% one by one, not over a comma list: an annotation or a \jdg[...]
+    %% may well have a comma in it
+    \__lx_cg_put:nn { kind } {#1}
+    \__lx_cg_put:nn { num } {#2}
+    \__lx_cg_put:nn { jdg } {#3}
+    \__lx_cg_put:nn { paren } {#4}
+    \__lx_cg_put:nn { jcmd } {#5}
+    \__lx_cg_put:nn { annot } {#6}
+    \__lx_cg_put:nn { lang } {#7}
+    \__lx_cg_put:nn { tier } {#8}
+    \seq_gclear_new:c { g__lx_cg_cells_ \int_use:N \g__lx_cg_rows_int _seq }
+    \seq_gset_eq:cN { g__lx_cg_cells_ \int_use:N \g__lx_cg_rows_int _seq }
+      \l__lx_cg_cells_seq
+  }
+\cs_new_protected:Npn \__lx_cg_put:nn #1#2
+  {
+    \tl_gclear_new:c { g__lx_cg_#1_ \int_use:N \g__lx_cg_rows_int _tl }
+    \tl_gset:cn { g__lx_cg_#1_ \int_use:N \g__lx_cg_rows_int _tl } {#2}
+  }
+\cs_generate_variant:Nn \__lx_cg_add:nnnnnnnn { neeeVVVn , nnnnnnVe }
+
+%% \exannot: everything from it to the end of the row is the annotation
+%% call, lifted before the row is split into cells (its argument is prose
+%% with spaces in it -- see \__lx_gl_annot_lift:N for the same reasoning).
+%% \q_nil keeps a lone brace group from losing its braces, as there.
+\cs_new_protected:Npn \__lx_cg_annot_split:w #1 \exannot #2 \q__lx_cg_stop
+  {
+    \tl_set:Nn \l__lx_cg_row_tl {#1}
+    \tl_set:Nn \l__lx_cg_annot_tl { \exannot #2 }
+    \tl_remove_once:Nn \l__lx_cg_annot_tl { \q_nil }
+  }
+\cs_new_protected:Npn \__lx_cg_row:n #1
+  {
+    \int_compare:nNnF { \g__lx_cg_ngloss_int } = { 0 }
+      { \msg_error:nn { linguexx } { cg-row-after } }
+    %% the first row ends the head line's paragraph, if there is one
+    \int_compare:nNnT { \g__lx_cg_rows_int } = { 0 } { \par }
+    \tl_set:Nn \l__lx_cg_row_tl {#1}
+    \tl_clear:N \l__lx_cg_annot_tl
+    \tl_if_in:NnT \l__lx_cg_row_tl { \exannot }
+      {
+        \exp_after:wN \__lx_cg_annot_split:w \l__lx_cg_row_tl
+          \q_nil \q__lx_cg_stop
+      }
+    %% the row through the example's own judgment scanner: marks, "*(",
+    %% and a \label skipped and kept for replay
+    \tl_put_right:Nn \l__lx_cg_row_tl { \q__lx_cg_stop }
+    \exp_after:wN \__lx_cg_scan: \l__lx_cg_row_tl
+  }
+\cs_new_protected:Npn \__lx_cg_scan:
+  { \lx@scanjudgeto { \__lx_cg_scanned:w } }
+\cs_new_protected:Npn \__lx_cg_scanned:w #1 \q__lx_cg_stop
+  {
+    \tl_set:Nn \l__lx_cg_row_tl {#1}
+    \tl_trim_spaces:N \l__lx_cg_row_tl
+    \seq_set_split:NnV \l__lx_cg_cells_seq { ~ } \l__lx_cg_row_tl
+    \tl_clear:N \l__lx_cg_jcmd_tl
+    \tl_if_empty:NT \l__lx_judge_tl { \__lx_cg_jcmd: }
+    \refstepcounter { SubExNo }
+    \tl_use:N \l__lx_judge_pre_tl
+    \tl_clear:N \l__lx_judge_pre_tl
+    \int_compare:nNnTF { \g__lx_cg_nvar_int } = { 0 }
+      { \int_gset:Nn \g__lx_cg_cells_int { \seq_count:N \l__lx_cg_cells_seq } }
+      {
+        \int_compare:nNnF
+          { \seq_count:N \l__lx_cg_cells_seq } = { \g__lx_cg_cells_int }
+          {
+            \msg_error:nneee { linguexx } { cg-row-count }
+              { (\int_to_alph:n { \c@SubExNo }) }
+              { \seq_count:N \l__lx_cg_cells_seq }
+              { \int_use:N \g__lx_cg_cells_int }
+          }
+      }
+    \int_gincr:N \g__lx_cg_nvar_int
+    \prop_get:NnNF \l_lx_gl_lang_prop { 1 } \l__lx_cg_lang_tl
+      { \tl_clear:N \l__lx_cg_lang_tl }
+    \__lx_cg_add:neeeVVVn { obj }
+      { \int_use:N \c@SubExNo }
+      { \exp_not:V \l__lx_judge_tl }
+      { \bool_if:NT \l__lx_judge_paren_bool { 1 } }
+      \l__lx_cg_jcmd_tl \l__lx_cg_annot_tl
+      \l__lx_cg_lang_tl { 1 }
+  }
+%% A judgment written as a command -- \jdg{..} or one \DeclareJudgment made
+%% -- is not something the scanner takes; it would stay in the first cell,
+%% hung from there and tagged in the object language.  It goes to the label
+%% instead.  A command swallows the space after it, so "\ok kiyes" arrives
+%% as one cell: the command is split off and the rest stays the cell, and
+%% "\ok{}" leaves a gap.
+\cs_new_protected:Npn \__lx_cg_jcmd:
+  {
+    \seq_get_left:NN \l__lx_cg_cells_seq \l__lx_cg_word_tl
+    \tl_if_empty:NF \l__lx_cg_word_tl
+      {
+        \tl_if_head_eq_meaning:VNTF \l__lx_cg_word_tl \jdg
+          { \seq_pop_left:NN \l__lx_cg_cells_seq \l__lx_cg_jcmd_tl }
+          {
+            \tl_set:Ne \l__lx_cg_rest_tl
+              { \exp_not:e { \tl_head:N \l__lx_cg_word_tl } }
+            \seq_if_in:NVT \g__lx_judge_cmds_seq \l__lx_cg_rest_tl
+              {
+                \seq_pop_left:NN \l__lx_cg_cells_seq \l__lx_cg_word_tl
+                \tl_set_eq:NN \l__lx_cg_jcmd_tl \l__lx_cg_rest_tl
+                \tl_set:Ne \l__lx_cg_word_tl
+                  { \exp_not:e { \tl_tail:N \l__lx_cg_word_tl } }
+                \tl_if_single:NT \l__lx_cg_word_tl
+                  {
+                    \tl_set:Ne \l__lx_cg_word_tl
+                      { \exp_not:e { \tl_head:N \l__lx_cg_word_tl } }
+                  }
+                \seq_put_left:NV \l__lx_cg_cells_seq \l__lx_cg_word_tl
+              }
+          }
+      }
+  }
+
+%% ---- the shared lines, any number of them -------------------------------
+\cs_new_protected:Npn \__lx_cg_common:n #1
+  {
+    \int_compare:nNnTF { \g__lx_cg_nvar_int } = { 0 }
+      { \msg_error:nn { linguexx } { cg-norows } }
+      {
+        \int_gincr:N \g__lx_cg_ngloss_int
+        \tl_set:Nn \l__lx_cg_row_tl {#1}
+        \tl_trim_spaces:N \l__lx_cg_row_tl
+        \seq_set_split:NnV \l__lx_cg_cells_seq { ~ } \l__lx_cg_row_tl
+        \int_compare:nNnT
+          { \seq_count:N \l__lx_cg_cells_seq } > { \g__lx_cg_cells_int }
+          {
+            \msg_error:nneee { linguexx } { cg-gloss-count }
+              { \int_use:N \g__lx_cg_ngloss_int }
+              { \seq_count:N \l__lx_cg_cells_seq }
+              { \int_use:N \g__lx_cg_cells_int }
+          }
+        \prop_get:NeNF \l_lx_gl_lang_prop
+          { \int_eval:n { \g__lx_cg_ngloss_int + 1 } } \l__lx_cg_lang_tl
+          { \tl_clear:N \l__lx_cg_lang_tl }
+        \__lx_cg_add:nnnnnnVe { gloss } { } { } { } { } { } \l__lx_cg_lang_tl
+          { \int_eval:n { \g__lx_cg_ngloss_int + 1 } }
+        \peek_meaning_ignore_spaces:NF \CommonGloss { \__lx_cg_emit: }
+      }
+  }
+
+%% ---- the per-column pass: phantom and morpheme alignment -----------------
+%% Every cell gets its rendering in g__lx_cg_r_<row>_<col>_tl.
+\cs_new_protected:Npn \__lx_cg_word:nn #1#2
+  {
+    \int_compare:nNnTF {#2} > { \seq_count:c { g__lx_cg_cells_#1_seq } }
+      { \tl_clear:N \l__lx_cg_word_tl }
+      {
+        \tl_set:Ne \l__lx_cg_word_tl
+          { \seq_item:cn { g__lx_cg_cells_#1_seq } {#2} }
+      }
+  }
+\cs_new_protected:Npn \__lx_cg_font:nn #1#2 % row, material
+  { \lx@glfontuse { \tl_use:c { g__lx_cg_tier_#1_tl } } {#2} }
+\cs_new_protected:Npn \__lx_cg_column:n #1
+  {
+    \dim_zero:N \l__lx_cg_P_dim
+    \int_zero:N \l__lx_cg_n_int
+    \bool_set_false:N \l__lx_cg_mismatch_bool
+    \tl_clear:N \l__lx_cg_counts_tl
+    \int_step_inline:nn { \g__lx_cg_rows_int }
+      {
+        \__lx_cg_word:nn {##1} {#1}
+        \dim_zero_new:c { l__lx_cg_wp_##1_dim }
+        \bool_lazy_and:nnT
+          { \l__lx_gl_phantom_bool } { ! \tl_if_blank_p:V \l__lx_cg_word_tl }
+          {
+            \__lx_gl_peel:VNN \l__lx_cg_word_tl
+              \l__lx_cg_prefix_tl \l__lx_cg_rest_tl
+            \tl_if_empty:NF \l__lx_cg_prefix_tl
+              {
+                \hbox_set:Nn \l__lx_cg_box
+                  { \__lx_cg_font:nV {##1} \l__lx_cg_prefix_tl }
+                \dim_set:cn { l__lx_cg_wp_##1_dim } { \box_wd:N \l__lx_cg_box }
+              }
+          }
+        \dim_set:Nn \l__lx_cg_P_dim
+          { \dim_max:nn { \l__lx_cg_P_dim } { \dim_use:c { l__lx_cg_wp_##1_dim } } }
+        \seq_clear_new:c { l__lx_cg_m_##1_seq }
+        \bool_lazy_and:nnT
+          { \l__lx_gl_morph_bool } { ! \tl_if_blank_p:V \l__lx_cg_word_tl }
+          { \__lx_gl_morph_split:cN { l__lx_cg_m_##1_seq } \l__lx_cg_word_tl }
+        \int_compare:nNnT { \seq_count:c { l__lx_cg_m_##1_seq } } > { 1 }
+          {
+            \tl_put_right:Ne \l__lx_cg_counts_tl
+              {
+                \tl_if_empty:NF \l__lx_cg_counts_tl { ~and~ }
+                \seq_count:c { l__lx_cg_m_##1_seq }
+              }
+            \int_compare:nNnTF { \l__lx_cg_n_int } = { 0 }
+              { \int_set:Nn \l__lx_cg_n_int { \seq_count:c { l__lx_cg_m_##1_seq } } }
+              {
+                \int_compare:nNnF
+                  { \seq_count:c { l__lx_cg_m_##1_seq } } = { \l__lx_cg_n_int }
+                  { \bool_set_true:N \l__lx_cg_mismatch_bool }
+              }
+          }
+      }
+    \bool_if:NT \l__lx_cg_mismatch_bool
+      {
+        \msg_warning:nnee { linguexx } { cg-morph-mismatch } {#1}
+          { \l__lx_cg_counts_tl }
+        \int_zero:N \l__lx_cg_n_int
+      }
+    \int_step_inline:nn { \l__lx_cg_n_int }
+      { \dim_zero_new:c { l__lx_cg_mw_##1_dim } }
+    \int_compare:nNnT { \l__lx_cg_n_int } > { 0 }
+      {
+        \int_step_inline:nn { \g__lx_cg_rows_int }
+          {
+            \int_compare:nNnT
+              { \seq_count:c { l__lx_cg_m_##1_seq } } = { \l__lx_cg_n_int }
+              {
+                \int_step_inline:nn { \l__lx_cg_n_int }
+                  {
+                    \hbox_set:Nn \l__lx_cg_box
+                      {
+                        \__lx_cg_font:ne {##1}
+                          { \seq_item:cn { l__lx_cg_m_##1_seq } {####1} }
+                      }
+                    \dim_set:Nn \l_tmpa_dim { \box_wd:N \l__lx_cg_box }
+                    \int_compare:nNnT {####1} = { 1 }
+                      {
+                        \dim_add:Nn \l_tmpa_dim
+                          { \l__lx_cg_P_dim - \dim_use:c { l__lx_cg_wp_##1_dim } }
+                      }
+                    \dim_set:cn { l__lx_cg_mw_####1_dim }
+                      {
+                        \dim_max:nn
+                          { \dim_use:c { l__lx_cg_mw_####1_dim } } { \l_tmpa_dim }
+                      }
+                  }
+              }
+          }
+      }
+    \int_step_inline:nn { \g__lx_cg_rows_int }
+      {
+        \__lx_cg_word:nn {##1} {#1}
+        \dim_set:Nn \l__lx_cg_shift_dim
+          { \l__lx_cg_P_dim - \dim_use:c { l__lx_cg_wp_##1_dim } }
+        \tl_gclear_new:c { g__lx_cg_r_##1_#1_tl }
+        \tl_if_blank:VF \l__lx_cg_word_tl
+          {
+            \bool_lazy_and:nnTF
+              { \int_compare_p:nNn { \l__lx_cg_n_int } > { 0 } }
+              {
+                \int_compare_p:nNn
+                  { \seq_count:c { l__lx_cg_m_##1_seq } } = { \l__lx_cg_n_int }
+              }
+              {
+                \int_step_inline:nn { \l__lx_cg_n_int }
+                  {
+                    \tl_gput_right:ce { g__lx_cg_r_##1_#1_tl }
+                      {
+                        \exp_not:N \hbox_to_wd:nn
+                          { \dim_use:c { l__lx_cg_mw_####1_dim } }
+                          {
+                            \int_compare:nNnT {####1} = { 1 }
+                              {
+                                \exp_not:N \skip_horizontal:n
+                                  { \dim_use:N \l__lx_cg_shift_dim }
+                              }
+                            \exp_not:N \__lx_cg_font:nn {##1}
+                              { \seq_item:cn { l__lx_cg_m_##1_seq } {####1} }
+                            \exp_not:N \hfil
+                          }
+                      }
+                  }
+              }
+              {
+                \tl_gset:ce { g__lx_cg_r_##1_#1_tl }
+                  {
+                    \exp_not:N \skip_horizontal:n { \dim_use:N \l__lx_cg_shift_dim }
+                    \exp_not:N \__lx_cg_font:nn {##1}
+                      { \exp_not:V \l__lx_cg_word_tl }
+                  }
+              }
+          }
+      }
+  }
+\cs_generate_variant:Nn \__lx_cg_font:nn { nV , ne }
+
+%% ---- setting the table ----------------------------------------------------
+\cs_new_protected:Npn \__lx_cg_measure:nn #1#2 % column, material
+  {
+    \hbox_set:Nn \l__lx_cg_box {#2}
+    \dim_compare:nNnT { \box_wd:N \l__lx_cg_box } > { \dim_use:c { l__lx_cg_w_#1_dim } }
+      { \dim_set:cn { l__lx_cg_w_#1_dim } { \box_wd:N \l__lx_cg_box } }
+  }
+%% What \exannot means inside the table: its content, with its spoken form,
+%% as a plain box -- the column is the table's own, not \exannot's.
+\NewDocumentCommand \lx@cg@annotuse { O{} m }
+  { \lx@annot@resolve:Nnn \lx@annot@content:nn {#1} {#2} }
+\cs_new_protected:Npn \__lx_cg_annot:n #1
+  {
+    \tl_if_empty:cF { g__lx_cg_annot_#1_tl }
+      {
+        \group_begin:
+          \cs_set_eq:NN \exannot \lx@cg@annotuse
+          \tl_use:c { g__lx_cg_annot_#1_tl }
+        \group_end:
+      }
+  }
+%% A cell: TD (or TH), its material in one marked-content sequence.
+\cs_new_protected:Npn \__lx_cg_cell:nnn #1#2#3 % keys, width, material
+  {
+    \__lx_cg_sb:e {#1}
+    \hbox_to_wd:nn {#2}
+      {
+        \tl_if_blank:nF {#3} { \__lx_cg_mb: #3 \__lx_cg_me: }
+        \hfil
+      }
+    \__lx_cg_se:
+  }
+%% The row header: the sub-example's letter in the sub-level's own label
+%% box, and its judgment hung against the end of the label column -- by
+%% \lx@emitjudge, so with the spoken form and the \llap of every other
+%% judgment, at the x an ordinary \bg. puts it.
+\cs_new_protected:Npn \__lx_cg_head:n #1
+  {
+    \__lx_cg_sb:n { tag = TH , attribute = lxTHrow }
+    \hbox_to_wd:nn { \l__lx_cg_lm_dim }
+      {
+        \__lx_cg_mb:
+        \hbox_to_wd:nn { \l__lx_cg_lw_dim }
+          {
+            \group_begin:
+              \int_set:Nn \c@SubExNo { \tl_use:c { g__lx_cg_num_#1_tl } }
+              \lx@sublabel
+            \group_end:
+            \hfil
+          }
+        \hfil
+        \group_begin:
+          \tl_set_eq:Nc \l__lx_judge_tl { g__lx_cg_jdg_#1_tl }
+          \tl_if_empty:cTF { g__lx_cg_paren_#1_tl }
+            { \bool_set_false:N \l__lx_judge_paren_bool }
+            { \bool_set_true:N \l__lx_judge_paren_bool }
+          \tl_clear:N \l__lx_judge_pre_tl
+          \lx@emitjudge
+          \tl_use:c { g__lx_cg_jcmd_#1_tl }
+        \group_end:
+        \__lx_cg_me:
+      }
+    \__lx_cg_se:
+  }
+\cs_new_protected:Npn \__lx_cg_row_out:n #1
+  {
+    \__lx_cg_sb:n { tag = TR }
+    \hbox:n
+      {
+        \str_if_eq:eeTF { \tl_use:c { g__lx_cg_kind_#1_tl } } { obj }
+          { \__lx_cg_head:n {#1} }
+          { \__lx_cg_cell:nnn { tag = TD } { \l__lx_cg_lm_dim } { } }
+        \tl_if_empty:cTF { g__lx_cg_lang_#1_tl }
+          { \tl_clear:N \l__lx_cg_keys_tl }
+          { \tl_set:Ne \l__lx_cg_keys_tl { , lang = \tl_use:c { g__lx_cg_lang_#1_tl } } }
+        \int_step_inline:nn { \l__lx_cg_ncols_int }
+          {
+            \__lx_cg_cell:nnn { tag = TD \l__lx_cg_keys_tl }
+              { \dim_use:c { l__lx_cg_w_##1_dim } }
+              { \tl_use:c { g__lx_cg_r_#1_##1_tl } }
+            \int_compare:nNnT {##1} < { \l__lx_cg_ncols_int }
+              { \skip_horizontal:N \l__lx_cg_sep_dim }
+          }
+        \bool_if:NT \l__lx_cg_annot_bool
+          {
+            \skip_horizontal:n { \l__lx_cg_annot_dim - \l__lx_cg_end_dim }
+            \__lx_cg_cell:nnn { tag = TD } { \l__lx_cg_aw_dim }
+              { \__lx_cg_annot:n {#1} }
+          }
+      }
+    \__lx_cg_se:
+  }
+\bool_new:N \l__lx_cg_annot_bool
+\dim_new:N \l__lx_cg_aw_dim
+\cs_new_protected:Npn \__lx_cg_emit:
+  {
+    \lx@tag@if@active:TF
+      { \bool_set_true:N \l__lx_cg_tag_bool }
+      { \bool_set_false:N \l__lx_cg_tag_bool }
+    \group_begin:
+      \lx@geom@sub
+      \dim_gset:Nn \g_tmpa_dim { \leftmargin }
+      \dim_gset:Nn \g_tmpb_dim { \labelwidth }
+    \group_end:
+    \dim_set_eq:NN \l__lx_cg_lm_dim \g_tmpa_dim
+    \dim_set_eq:NN \l__lx_cg_lw_dim \g_tmpb_dim
+    \skip_set:Nn \l__lx_cg_skip { \GlossSep }
+    %% natural width: a skip register in a dimen expression gives exactly
+    %% that, where its printed value would leave "plus ... minus ..." as text
+    \dim_set:Nn \l__lx_cg_sep_dim { \l__lx_cg_skip }
+    \int_zero:N \l__lx_cg_ncols_int
+    \bool_set_false:N \l__lx_cg_annot_bool
+    \int_step_inline:nn { \g__lx_cg_rows_int }
+      {
+        \int_set:Nn \l__lx_cg_ncols_int
+          {
+            \int_max:nn { \l__lx_cg_ncols_int }
+              { \seq_count:c { g__lx_cg_cells_##1_seq } }
+          }
+        \tl_if_empty:cF { g__lx_cg_annot_##1_tl }
+          { \bool_set_true:N \l__lx_cg_annot_bool }
+      }
+    \int_step_inline:nn { \l__lx_cg_ncols_int }
+      { \dim_zero_new:c { l__lx_cg_w_##1_dim } }
+    \dim_zero:N \l__lx_cg_aw_dim
+    %% measured with tagging stopped: nothing set here reaches the tree
+    \bool_if:NT \l__lx_cg_tag_bool { \tag_stop: }
+    \int_step_inline:nn { \l__lx_cg_ncols_int } { \__lx_cg_column:n {##1} }
+    \int_step_inline:nn { \g__lx_cg_rows_int }
+      {
+        \int_step_inline:nn { \l__lx_cg_ncols_int }
+          { \__lx_cg_measure:nn {####1} { \tl_use:c { g__lx_cg_r_##1_####1_tl } } }
+        \hbox_set:Nn \l__lx_cg_box { \__lx_cg_annot:n {##1} }
+        \dim_set:Nn \l__lx_cg_aw_dim
+          { \dim_max:nn { \l__lx_cg_aw_dim } { \box_wd:N \l__lx_cg_box } }
+      }
+    \bool_if:NT \l__lx_cg_tag_bool { \tag_start: }
+    \dim_set_eq:NN \l__lx_cg_end_dim \l__lx_cg_lm_dim
+    \int_step_inline:nn { \l__lx_cg_ncols_int }
+      { \dim_add:Nn \l__lx_cg_end_dim { \dim_use:c { l__lx_cg_w_##1_dim } } }
+    \dim_add:Nn \l__lx_cg_end_dim
+      { \l__lx_cg_sep_dim * ( \l__lx_cg_ncols_int - 1 ) }
+    %% the annotation column: \ExAnnotColumn, from the text block's edge,
+    %% unless the table reaches it -- then \ExAnnotSep past the table
+    \dim_set:Nn \l__lx_cg_annot_dim
+      {
+        \dim_max:nn
+          { \ExAnnotColumn - \@totalleftmargin }
+          { \l__lx_cg_end_dim + \ExAnnotSep }
+      }
+    \dim_set:Nn \l_tmpa_dim
+      {
+        \bool_if:NTF \l__lx_cg_annot_bool
+          { \l__lx_cg_annot_dim + \l__lx_cg_aw_dim }
+          { \l__lx_cg_end_dim }
+      }
+    \dim_compare:nNnT { \l_tmpa_dim } > { \linewidth }
+      {
+        \msg_error:nnee { linguexx } { cg-too-wide }
+          { \dim_to_decimal_in_unit:nn { \l_tmpa_dim } { 1pt } }
+          { \dim_to_decimal_in_unit:nn { \linewidth } { 1pt } }
+      }
+    \legacy_if:nTF { @inlabel }
+      {
+        %% No head line: the item's number is still waiting for a line to
+        %% stand on, so the table goes on the number's own line, as a \vtop
+        %% -- with paragraph tagging off, or the Table would sit inside a P.
+        \group_begin:
+          \bool_if:NT \l__lx_cg_tag_bool
+            { \tagpdfsetup { para/tagging = false } }
+          \leavevmode
+          \tex_vtop:D
+            {
+              \__lx_cg_sb:n { tag = Table }
+              \int_step_inline:nn { \g__lx_cg_rows_int } { \__lx_cg_row_out:n {##1} }
+              \__lx_cg_se:
+            }
+          \par
+        \group_end:
+      }
+      {
+        \par
+        \__lx_cg_sb:n { tag = Table }
+        \int_step_inline:nn { \g__lx_cg_rows_int }
+          {
+            \tex_moveright:D \@totalleftmargin
+            \hbox:n { \__lx_cg_row_out:n {##1} }
+          }
+        \__lx_cg_se:
+      }
+    %% \g__lx_cg_ngloss_int is NOT reset here but by \__lx_cg_on:, once per
+    %% example: it is what tells a row read after the table that it came too
+    %% late (cg-row-after) instead of starting a table nothing would set.
+    \int_gzero:N \g__lx_cg_rows_int
+    \int_gzero:N \g__lx_cg_nvar_int
+  }
+\ExplSyntaxOff
 %% \glt starts the free translation on a new line, kept on the same page as
 %% the gloss it belongs to (\nobreak).  Structurally it needs nothing extra:
 %% being its own paragraph it already becomes its own P in the tag tree,
@@ -8873,6 +9554,8 @@
       { \exp_args:Nne \lx@judge@setalt {#3} { \l__lx_judge_decl_tl } }
     \exp_args:Nne \DeclareRobustCommand #2
       { \exp_not:N \jdg [ \l__lx_judge_decl_tl ] { \exp_not:n {#3} } }
+    %% for a \CommonGloss row that opens with it (\__lx_cg_jcmd:)
+    \seq_gput_right:Nn \g__lx_judge_cmds_seq {#2}
   }
 \cs_new_protected:Npn \lx@judge@declare@cs #1#2#3
   {

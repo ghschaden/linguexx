@@ -1871,6 +1871,71 @@ the first word of the object line --- \texttt{[} is one of the openers
 and takes a number of its own. \cs{ex.}\ has no object line for a bracket
 to open and follows the \LaTeX\ convention of skipping the space.
 
+\subsection{Variant rows sharing a gloss: \cs{CommonGloss}}\label{sec:commongloss}
+
+Sub-examples that differ only in the order of the same words can share one
+gloss. In an example that contains \cs{CommonGloss}, each of \cs{ag.}\
+through \cs{fg.}\ reads a single line --- a \emph{variant row} --- and each
+\cs{CommonGloss} line is set under all of them, column by column. A row
+with no word in a column has \verb|{}| there:
+
+\begin{code}
+\ex. Haitian
+\ag. \textit{Bay} kiyès li achte liv la {} ? \exannot{P-pattern}\\
+\bg. *{} kiyès li achte liv la \textit{bay} ? \exannot{V-pattern}\\
+\CommonGloss give who \lpzg{3sg} buy book \lpzg{det} give\\
+\glt `Who did s/he buy the book for?'
+\end{code}
+
+\rendered
+\ex. Haitian
+\ag. \textit{Bay} kiyès li achte liv la {} ? \exannot{P-pattern}\\
+\bg. *{} kiyès li achte liv la \textit{bay} ? \exannot{V-pattern}\\
+\CommonGloss give who \lpzg{3sg} buy book \lpzg{det} give\\
+\glt `Who did s/he buy the book for?'
+
+\afterex
+\begin{itemize}
+\item \emph{Rows and lines.} Up to six variant rows, \cs{ag.}\ to
+  \cs{fg.}, each ended by \verb|\\|, then any number of \cs{CommonGloss}
+  lines, then \cs{glt} as usual. The rows must have the same number of
+  cells --- a word, a braced group, or \verb|{}| for a gap --- since a
+  forgotten gap would shift every later word into the wrong column; a
+  shared line may be shorter (its last cells stay empty) but not longer.
+  Both are errors rather than guesses.
+\item \emph{Only here.} \cs{ag.}\ reads one line only in an example that
+  has a \cs{CommonGloss}; in every other example it reads its object and
+  gloss lines as in section~\ref{sec:exgabbrev}. \cs{CommonGloss} needs the
+  dot syntax, whose examples are read ahead: in an \texttt{exe} batch or a
+  \opt{langsci} \cs{ea} it is an error.
+\item \emph{Sub-examples.} The rows are the sub-examples a, b, \dots: a
+  \cs{label} after \cs{bg.}\ refers to (1b), and a judgment that opens a
+  row --- \verb|* ? \# \%|, \cs{jdg}, or a mark made with
+  \cs{DeclareJudgment} --- hangs beside the row's letter exactly as in an
+  ordinary sub-example, also when the row's first cell is a gap.
+\item \emph{Annotations.} An \cs{exannot} at the end of a row goes into a
+  column of its own, at \cs{ExAnnotColumn} (section~\ref{sec:exannot}),
+  or \cs{ExAnnotSep} past the table if the table reaches that far.
+  \cs{ExAnnotFit} does not measure a shared gloss.
+\item \emph{Alignment, fonts, languages.} \cs{GlossPhantomAlign} and
+  \cs{GlossMorphAlign} work as in an ordinary gloss. With several rows,
+  phantom alignment starts the first real letter of every word in a column
+  past the widest run of leading marks in that column, so rows with and
+  without a bracket line up with each other as well as with the gloss.
+  For \cs{GlossTierFont} and \cs{GlossTierLang}, the variant rows are
+  tier~1 and the $n$-th \cs{CommonGloss} line is tier~$n+1$.
+\item \emph{Width.} A shared gloss is not broken across lines; one wider
+  than the line is an error. Split it, or give the variants glosses of
+  their own.
+\end{itemize}
+
+In a tagged PDF a shared gloss is a \emph{table}, not a gloss: each row
+is a table row whose header is its letter and judgment, and each word is a
+cell, gaps included. A screen reader reads the variants and the shared
+lines one after the other, and can move down a column to hear which word
+glosses which --- where an ordinary gloss, read column by column, would
+interleave the variants word by word.
+
 % ===========================================================================
 \section{Cross-references}\label{sec:refs}
 % ===========================================================================
@@ -3803,6 +3868,7 @@ exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package opt
 \textbackslash gll, \textbackslash glll & Two-, three-tier gloss; lines end in \verb|\\|. \\
 \textbackslash gl \dots\ \textbackslash endgl & Gloss with any number of tiers. \\
 \textbackslash glt & Free-translation line. (\cs{gln} is a synonym.) \\
+\textbackslash CommonGloss & A gloss line shared by the variant rows \cs{ag.}\ \dots\ \cs{fg.}\ above it (section~\ref{sec:commongloss}). \\
 \textbackslash GlossTierFont\allowbreak\marg{n}\marg{cmd} & Font command for tier \meta{n}. \\
 \textbackslash GlossTierLang\allowbreak\marg{n}\marg{code} & Language of tier \meta{n} for tagged PDFs (section~\ref{sec:glosslang}). \\
 \textbackslash GlossTransStyle & Declaration applied to the free translation after \cs{glt}; empty by default. \\

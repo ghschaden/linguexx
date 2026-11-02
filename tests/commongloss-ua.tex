@@ -1,0 +1,63 @@
+%% \CommonGloss: variant rows sharing gloss lines, set and tagged as a table.
+%%
+%% (1) three rows and two shared lines, every cell a sentinel so that each
+%%     COLUMN can be checked across the rows: CAk, CBk, CCk are column k of
+%%     rows a, b, c, and G1k, G2k of the shared lines.  Gaps are {}; the
+%%     shared lines are shorter than the rows (allowed).  Row a and b carry a
+%%     declared judgment (\ok, which goes to the label, not into the first
+%%     cell), row c a "*(" (spoken "obligatory").  Each row has an \exannot,
+%%     which must form ONE column right of the table.  Row b has a \label.
+%% (2) ordinary sub-examples with the same judgments: the table's marks and
+%%     first column must sit exactly where these do.
+%% (3) no head line: the number must stand on row a's line.
+%% (4) phantom alignment: row a's bracket is in column 1, row b's in
+%%     column 2, so column 2 has a bracketed and an unbracketed word.
+%% (5) morpheme alignment: one segmented word per row, in different columns.
+%%     The widest stem's tier prints its morphemes back to back (one
+%%     pdftotext token), so column 1 has a third, middle-width tier: -lerA
+%%     and -plZ are both separate tokens and must start at one x.
+%% (6) an ordinary \ag. with its own gloss line AFTER the table: the
+%%     rebinding of \ag. ended with the example that had a \CommonGloss.
+%%
+%% PDF/UA-2 preamble, so veraPDF runs on it; three passes (PASSES).
+\input{_preamble-ua}
+\DeclareJudgment[spoken=acceptable]{\ok}{\textsuperscript{ok}}
+\GlossTierLang{1}{ht}
+
+\ex.\label{cg:wh} CGHEAD Haitian
+\ag. \ok CA1 CA2 CA3 CA4 {} CA6 \exannot{ANNA}\\
+\bg.\label{cg:whb} \ok {} CB2 CB3 CB4 CB5 CB6 \exannot{ANNB}\\
+\cg. *(CC1) {} CC3 CC4 CC5 CC6 \exannot{ANNC}\\
+\CommonGloss G11 G12 G13 G14 G15\\
+\CommonGloss G21 G22 G23 G24\\
+\glt `CGTRANS translation.'
+
+\ex. CGREF ordinary
+\a. \ok RA1 text.
+\b. *RB1 text.
+
+\ex.\label{cg:hl}
+\ag. HLA HLA2\\
+\bg. HLB2 HLB\\
+\CommonGloss HLG HLG2\\
+
+{\GlossPhantomAlign
+\ex. CGPHANTOM
+\ag. [PHA PHY\\
+\bg. {} [PHZ\\
+\CommonGloss PGX PGY\\
+}
+
+{\GlossMorphAlign
+\ex. CGMORPH
+\ag. ev-lerA otA\\
+\bg. otB ev-lerB\\
+\CommonGloss houseX-plX sitX\\
+\CommonGloss hauZ-plZ houseY-plY\\
+}
+
+\ex. \ag. UNA object\\
+UNG gloss\\
+
+CGREFS \ref{cg:whb} and \ref{cg:wh}.
+\end{document}

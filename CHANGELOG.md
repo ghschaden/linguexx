@@ -4,6 +4,13 @@ All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
 ## Unreleased
+- New: `\CommonGloss`, for sub-examples that differ in word order and
+  share one gloss. In an example that contains it, `\ag.` ... `\fg.` read
+  one line each (a variant row, `{}` for a gap), and each `\CommonGloss`
+  line is set under all of them, column by column, with phantom and
+  morpheme alignment, judgments at the row letters, and `\exannot` in a
+  column of its own. In a tagged PDF it is a table, read row by row.
+  Manual section 5.12.
 - Changed: a judgment mark that opens a gloss's object line is a judgment
   however the gloss is written. Before, only `\exg.` and `\ag.` recognized
   it; after `\ex. \gll`, `\a. \gll`, `\glll`, `\gl` or gb4e's `\ex \gll`
