@@ -2514,7 +2514,27 @@
 %% after the judgment, so the mark still hangs from the label edge, and
 %% before \ignorespaces, which must stay last.  It expands to nothing at
 %% all in a document whose anchors hyperref is placing itself.
-\def\lx@makeitem{\lx@dir@itembefore\lx@kernel@item[\lx@itemlabel]\lx@emitjudge
+%%
+%% \@currentlabel is saved round the \item and put back after it.  The
+%% kernel's block code (latex-lab, 2026-10-27) gives the legacy item
+%% instance label-ref=\def\@currentlabel{#1}\def\@currentlabelname{#1},
+%% so \item[<label>] now makes the PRINTED label what a \label after it
+%% refers to.  For an example that is wrong in a way nothing reports: the
+%% counter was stepped just before (\refstepcounter, which set the
+%% reference this package means), and a \label in the item text then
+%% recorded "a\lx@dir@labelsep." -- the letter as printed, with no example
+%% number and a full stop -- so \ref{ex:sub} came out as "a." and a range
+%% read back from it found no number at all.  At top level the printed
+%% "(1)" happened to be what \theExNo prints, which is why only
+%% sub-examples showed it.  tests/refcheck.tex (\refrange{ex:sub}{b}) is
+%% where it surfaced.
+\def\lx@makeitem{\lx@dir@itembefore
+  \let\lx@item@savedlabel\@currentlabel
+  \let\lx@item@savedlabelname\@currentlabelname
+  \lx@kernel@item[\lx@itemlabel]%
+  \let\@currentlabel\lx@item@savedlabel
+  \let\@currentlabelname\lx@item@savedlabelname
+  \lx@emitjudge
   \lx@relref@anchor\lx@refcheck@item\lx@mv@newitem\lx@dir@itemafter}
 %% --- public API (Protocol A: emitting the item) -----------------------
 %% Emit the \item for the label currently in \lx@itemlabel and hang any

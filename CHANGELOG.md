@@ -4,6 +4,11 @@ All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
 ## Unreleased
+- Fixed: with the LaTeX kernel of November 2026 (the `latex-lab` update of
+  2026-10-27), a `\label` inside a sub-example referred to the letter as
+  printed: `\ref` gave "a." instead of "(4a)", and `\refrange` and
+  `\exrefcheck` could not read the number back. The kernel now makes an
+  `\item`'s printed label its reference; linguexx puts its own back.
 - Fixed: a document that loads `babelbidi` (new in TeX Live 2026) together
   with linguexx did not build under LuaLaTeX ("You can't use `\unless'
   before `macro'"), whatever its languages. Right-to-left documents are
