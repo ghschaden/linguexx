@@ -2442,6 +2442,20 @@
           }
       }
   }
+%% Whether a label is set in a direction of its own: bidi support is
+%% there, and the example is mirrored or the whole document right to left.
+%% \lx@dir@label (the box) and \lx@dir@labelsep (XeTeX's kern) ask the
+%% same question, so it is asked in one place.
+\prg_new_conditional:Npnn \__lx_dir_label_own: { p }
+  {
+    \bool_lazy_and:nnTF
+      { \g__lx_dir_avail_bool }
+      {
+        \bool_lazy_or_p:nn
+          { \l__lx_dir_flip_bool } { \legacy_if_p:n { @RTLmain } }
+      }
+      { \prg_return_true: } { \prg_return_false: }
+  }
 %% A label reads in the DOCUMENT's direction (decided 2026-10-10): in a
 %% Hebrew document ".a" as well as ".א", the period between letter and text
 %% as in the mirror image of "a. text", and as bidi itself sets "a." in a
@@ -2459,14 +2473,7 @@
         \bool_lazy_or_p:nn
           { \sys_if_engine_luatex_p: } { \sys_if_engine_xetex_p: }
       }
-      {
-        \bool_lazy_and_p:nn
-          { \g__lx_dir_avail_bool }
-          {
-            \bool_lazy_or_p:nn
-              { \l__lx_dir_flip_bool } { \legacy_if_p:n { @RTLmain } }
-          }
-      }
+      { \__lx_dir_label_own_p: }
       {
         \sys_if_engine_luatex:TF
           {
@@ -2494,14 +2501,7 @@
   {
     \bool_lazy_and:nnT
       { \sys_if_engine_xetex_p: }
-      {
-        \bool_lazy_and_p:nn
-          { \g__lx_dir_avail_bool }
-          {
-            \bool_lazy_or_p:nn
-              { \l__lx_dir_flip_bool } { \legacy_if_p:n { @RTLmain } }
-          }
-      }
+      { \__lx_dir_label_own_p: }
       { \tex_kern:D \c_zero_dim }
   }
 %% Before a sub-level's group opens (see above).  XeTeX has no direction
@@ -3178,17 +3178,33 @@
 %% #1 is the justification token, applied inside the list.
 \def\lx@ea{\lx@ea@do\lx@ea@rag}
 \def\lx@eanorag{\lx@ea@do\relax}
-\def\lx@ea@do#1{%
+\def\lx@ea@do#1{\lx@ea@dispatch{\lx@ea@deeper{#1}}{\lx@ea@top{#1}}}
+
+%% The one dispatch of the whole \ea family (\ea, \eal, \eas): #1 is what
+%% the command does inside an \ea example already open, #2 what it does at
+%% the top level.  Inside an example of the other syntax -- dot or exe --
+%% it is always the same error, which is why it is not a parameter.
+\def\lx@ea@dispatch#1#2{%
   \iflx@inlangsci
-    \def\lx@donext{\lx@ea@deeper{#1}}%
+    \def\lx@donext{#1}%
   \else\iflx@inexample
     \let\lx@donext\lx@ea@mixerr
   \else\iflx@inexe
     \let\lx@donext\lx@ea@mixerr
   \else
-    \def\lx@donext{\lx@ea@top{#1}}%
+    \def\lx@donext{#2}%
   \fi\fi\fi
   \lx@donext}
+
+%% And their one way in at the top level, up to the item, which is the
+%% part that differs.  #1 is the justification token.
+\def\lx@ea@open#1{%
+  \lx@example@begin
+  \lx@inlangscitrue
+  \edef\lx@ea@openline{\the\inputlineno}%
+  \lx@guesslabel
+  \lx@mainlist
+  #1}
 
 %% Top level.  The shape is the exe environment's, minus the batch: guess
 %% the label the item is about to print (under [legacy] the list geometry
@@ -3197,14 +3213,7 @@
 %% list, then let \lx@gbex give the item.  Going through \lx@gbex and not
 %% \lx@mainitem is what makes \ea[*]{...} work: in langsci \ea expands to
 %% "\begin{exe}\ex", so the bracket judgment belongs to the \ex it ends in.
-\def\lx@ea@top#1{%
-  \lx@example@begin
-  \lx@inlangscitrue
-  \edef\lx@ea@openline{\the\inputlineno}%
-  \lx@guesslabel
-  \lx@mainlist
-  #1%
-  \lx@gbex}
+\def\lx@ea@top#1{\lx@ea@open{#1}\lx@gbex}
 
 %% Inside an example: one level down, item and all.  The dispatch is
 %% \lx@subpush's, but the item comes from \lx@gbex rather than from
@@ -3245,30 +3254,12 @@
 %% says so and stops.
 \def\lx@eal{\lx@eal@do\lx@ea@rag}
 \def\lx@ealnorag{\lx@eal@do\relax}
-\def\lx@eal@do#1{%
-  \iflx@inlangsci
-    \let\lx@donext\lx@eal@nesterr
-  \else\iflx@inexample
-    \let\lx@donext\lx@ea@mixerr
-  \else\iflx@inexe
-    \let\lx@donext\lx@ea@mixerr
-  \else
-    \def\lx@donext{\lx@eal@top{#1}}%
-  \fi\fi\fi
-  \lx@donext}
+\def\lx@eal@do#1{\lx@ea@dispatch\lx@eal@nesterr{\lx@eal@top{#1}}}
 %% \lx@item@judged{} and not \lx@mainitem: the head item takes no text, so
 %% there is nothing to scan for a judgment, and \lx@scanjudge would peek at
 %% \lx@subopen@i instead of at the input.  The empty argument sets an empty
 %% mark, which \lx@emitjudge skips.
-\def\lx@eal@top#1{%
-  \lx@example@begin
-  \lx@inlangscitrue
-  \edef\lx@ea@openline{\the\inputlineno}%
-  \lx@guesslabel
-  \lx@mainlist
-  #1%
-  \lx@item@judged{}%
-  \lx@subopen@i}
+\def\lx@eal@top#1{\lx@ea@open{#1}\lx@item@judged{}\lx@subopen@i}
 \def\lx@zl{\lx@z\lx@z}
 
 %% Errors.  Each names the syntax the example is actually in, because that
@@ -3728,26 +3719,8 @@
 %% minipage-footnote numbering recorded in doc/DEFERRED-DECISIONS.md, and
 %% that is the one thing to know about it.
 \def\lx@eas{\lx@eas@do\lx@ea@rag}
-\def\lx@eas@do#1{%
-  \iflx@inlangsci
-    \let\lx@donext\lx@eas@nesterr
-  \else\iflx@inexample
-    \let\lx@donext\lx@ea@mixerr
-  \else\iflx@inexe
-    \let\lx@donext\lx@ea@mixerr
-  \else
-    \def\lx@donext{\lx@eas@top{#1}}%
-  \fi\fi\fi
-  \lx@donext}
-\def\lx@eas@top#1{%
-  \lx@example@begin
-  \lx@inlangscitrue
-  \edef\lx@ea@openline{\the\inputlineno}%
-  \lx@guesslabel
-  \lx@mainlist
-  #1%
-  \lx@item@judged{}%
-  \minipage[t]{\linewidth}}
+\def\lx@eas@do#1{\lx@ea@dispatch\lx@eas@nesterr{\lx@eas@top{#1}}}
+\def\lx@eas@top#1{\lx@ea@open{#1}\lx@item@judged{}\minipage[t]{\linewidth}}
 \def\lx@zs{\endminipage\lx@z}
 \def\lx@eas@nesterr{%
   \PackageError{linguexx}{\string\eas\space inside an example}%
