@@ -1928,6 +1928,22 @@ with no word in a column has \verb|{}| there:
 \item \emph{Width.} A shared gloss is not broken across lines; one wider
   than the line is an error. Split it, or give the variants glosses of
   their own.
+\item \emph{Direction.} In a right-to-left document, and for an example
+  whose language runs against the document's, the table is laid out as an
+  ordinary gloss in the same place (section~\ref{sec:rtl}): the letters,
+  marks and annotation column on the side of the document's direction, the
+  columns in the example's. A Hebrew example in a Hebrew document is the
+  mirror image of the one above; an English one there has its letters on
+  the right and its columns from the left; a Hebrew one in an English
+  document has its letters on the left and its first column on the right.
+  Unlike an ordinary right-to-left gloss, such a table may carry
+  \cs{exannot}: its annotation column belongs to the frame.
+\item \emph{Slides.} In a \pkg{beamer} frame, a \cs{pause} between the
+  rows uncovers them one at a time, as between ordinary sub-examples:
+  row~a comes with the shared lines on the first slide, each further row
+  on the next. A \cs{pause} among the shared lines delays the lines after
+  it. A row not shown yet keeps its space, so nothing moves from slide to
+  slide.
 \end{itemize}
 
 In an \texttt{exe} batch (option \opt{gb4e}) the rows are the items of

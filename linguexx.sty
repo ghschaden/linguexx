@@ -7649,6 +7649,14 @@
 \tl_new:N \l__lx_cg_lang_tl
 \tl_new:N \l__lx_cg_xmark_tl       % an exe row's \ex[mark]
 \seq_new:N \l__lx_cg_cells_seq
+\bool_new:N \l__lx_cg_frame_rtl_bool % the row frame: the document's direction
+\bool_new:N \l__lx_cg_grid_rtl_bool  % the columns: the example's
+\bool_new:N \l__lx_cg_crossed_bool   % ... and the two differ
+\bool_new:N \l__lx_cg_dircells_bool  % cells set with explicit directions
+\bool_new:N \l__lx_cg_rtl_saved_bool
+\bool_new:N \l__lx_cg_overlay_bool   % beamer: the rows come in on later slides
+\int_new:N \l__lx_cg_first_int       % the slide row a is on
+\int_new:N \l__lx_cg_lastobj_int     % the slide the last variant row is on
 %% Every command \DeclareJudgment makes (see \lx@judge@declare), so that a
 %% row opening with one can hand it to the label like a scanned mark.
 \seq_new:N \g__lx_judge_cmds_seq
@@ -7780,6 +7788,7 @@
     \__lx_cg_put:nn { annot } {#6}
     \__lx_cg_put:nn { lang } {#7}
     \__lx_cg_put:nn { tier } {#8}
+    \__lx_cg_put:ne { slide } { \__lx_cg_pauses: }
     \seq_gclear_new:c { g__lx_cg_cells_ \int_use:N \g__lx_cg_rows_int _seq }
     \seq_gset_eq:cN { g__lx_cg_cells_ \int_use:N \g__lx_cg_rows_int _seq }
       \l__lx_cg_cells_seq
@@ -7790,6 +7799,10 @@
     \tl_gset:cn { g__lx_cg_#1_ \int_use:N \g__lx_cg_rows_int _tl } {#2}
   }
 \cs_generate_variant:Nn \__lx_cg_add:nnnnnnnn { neeeVVVn , nnnnnnVe }
+\cs_generate_variant:Nn \__lx_cg_put:nn { ne }
+%% beamer's pause count when a row is read: the slide it was written for.
+\cs_new:Npn \__lx_cg_pauses:
+  { \cs_if_exist:NTF \c@beamerpauses { \int_use:N \c@beamerpauses } { 0 } }
 
 %% \exannot: everything from it to the end of the row is the annotation
 %% call, lifted before the row is split into cells (its argument is prose
@@ -7916,9 +7929,26 @@
           { \tl_clear:N \l__lx_cg_lang_tl }
         \__lx_cg_add:nnnnnnVe { gloss } { } { } { } { } { } \l__lx_cg_lang_tl
           { \int_eval:n { \g__lx_cg_ngloss_int + 1 } }
-        \peek_meaning_ignore_spaces:NF \CommonGloss { \__lx_cg_emit: }
+        \__lx_cg_next:
       }
   }
+%% The table is set after the LAST shared line, so whether another follows
+%% is looked at -- past a beamer \pause, which only moves the slide a row
+%% comes in on (see \__lx_cg_emit:), and which is run on the way.
+\cs_new_protected:Npn \__lx_cg_next:
+  {
+    \peek_meaning_ignore_spaces:NF \CommonGloss
+      {
+        \bool_lazy_and:nnTF
+          { \cs_if_exist_p:N \c@beamerpauses } { \cs_if_exist_p:N \pause }
+          { \peek_meaning_ignore_spaces:NTF \pause { \__lx_cg_pause:N } { \__lx_cg_emit: } }
+          { \__lx_cg_emit: }
+      }
+  }
+\cs_new_protected:Npn \__lx_cg_pause:N #1
+  { \peek_charcode:NTF [ { \__lx_cg_pause:w } { #1 \__lx_cg_next: } }
+\cs_new_protected:Npn \__lx_cg_pause:w [ #1 ]
+  { \pause [ #1 ] \__lx_cg_next: }
 
 %% ---- the per-column pass: phantom and morpheme alignment -----------------
 %% Every cell gets its rendering in g__lx_cg_r_<row>_<col>_tl.
@@ -8088,47 +8118,225 @@
     \__lx_cg_sb:e {#1}
     \hbox_to_wd:nn {#2}
       {
-        \tl_if_blank:nF {#3} { \__lx_cg_mb: #3 \__lx_cg_me: }
-        \hfil
+        \bool_lazy_and:nnTF
+          { \l__lx_cg_frame_rtl_bool } { \sys_if_engine_xetex_p: }
+          {
+            %% reversed whole by the row's R segment: see \__lx_cg_gcell:nnnn
+            \tex_beginL:D \hfil
+            \tl_if_blank:nF {#3} { \__lx_cg_mb: #3 \__lx_cg_me: }
+            \tex_endL:D
+          }
+          {
+            \tl_if_blank:nF {#3} { \__lx_cg_mb: #3 \__lx_cg_me: }
+            \hfil
+          }
       }
     \__lx_cg_se:
+  }
+%% A cell of the grid.  In a grid that runs against its frame -- a Hebrew
+%% example in an English document, an English one in a Hebrew document,
+%% or \GlossRTL -- each cell is a left-to-right piece of its own, with a
+%% right-to-left tier's text right to left inside it, as an ordinary
+%% crossed gloss sets its words (\__lx_gl_rtl_cellbegin:n and the rest),
+%% and against the column's start: its right edge in a right-to-left grid.
+%% XeTeX writes such a word's glyphs in visual order, so its marked
+%% content carries the word as /ActualText (\__lx_gl_rtl_mcbegin:n).
+%% Where the two directions agree, a cell is set as it always was.
+%% XeTeX reverses an R segment's boxes INSIDE as well, marked-content
+%% operators included (finding 4 of experiments/rtl), so under XeTeX this
+%% is also how every cell of a right-to-left FRAME is set: an L segment,
+%% the marked content in it, a right-to-left tier's text in an R segment
+%% inside that.  LuaTeX sets a right-to-left table whose grid agrees with
+%% it from the row's box direction alone, as it sets an ordinary gloss.
+\cs_new_protected:Npn \__lx_cg_gcell:nnnn #1#2#3#4 % keys, width, row, column
+  {
+    \bool_if:NTF \l__lx_cg_dircells_bool
+      {
+        \__lx_cg_sb:e {#1}
+        \sys_if_engine_luatex:TF
+          { \tex_hbox:D dir ~ TLT ~ to ~ #2 }
+          { \hbox_to_wd:nn {#2} }
+          {
+            \__lx_gl_rtl_cellbegin:n { }
+            \bool_if:NT \l__lx_cg_grid_rtl_bool { \hfil }
+            \tl_if_blank:eF { \tl_use:c { g__lx_cg_r_#3_#4_tl } }
+              {
+                \bool_if:NT \l__lx_cg_tag_bool { \__lx_cg_dmcbegin:nn {#3} {#4} }
+                \__lx_cg_textbegin:n {#3}
+                \tl_use:c { g__lx_cg_r_#3_#4_tl }
+                \__lx_cg_textend:n {#3}
+                \__lx_cg_me:
+              }
+            \bool_if:NF \l__lx_cg_grid_rtl_bool { \hfil }
+            \__lx_gl_rtl_cellend:
+          }
+        \__lx_cg_se:
+      }
+      { \__lx_cg_cell:nnn {#1} {#2} { \tl_use:c { g__lx_cg_r_#3_#4_tl } } }
+  }
+\cs_generate_variant:Nn \tl_if_blank:nF { e }
+%% A row's tier is right to left as an ordinary gloss's is
+%% (\__lx_gl_tier_if_rtl:n), and in a right-to-left document whose example
+%% is not crossed, as the text around it is.
+\prg_new_protected_conditional:Npnn \__lx_cg_tier_if_rtl:n #1 { TF }
+  {
+    \bool_lazy_and:nnTF
+      { \l__lx_cg_frame_rtl_bool }
+      {
+        \bool_lazy_and_p:nn
+          { ! \l__lx_dir_flip_bool }
+          { ! \prop_if_in_p:Nn \l_lx_gl_lang_prop {#1} }
+      }
+      { \prg_return_true: }
+      { \__lx_gl_tier_if_rtl:nTF {#1} { \prg_return_true: } { \prg_return_false: } }
+  }
+\cs_generate_variant:Nn \__lx_cg_tier_if_rtl:nTF { v }
+\cs_new_protected:Npn \__lx_cg_textbegin:n #1
+  {
+    \__lx_cg_tier_if_rtl:vTF { g__lx_cg_tier_#1_tl }
+      {
+        \sys_if_engine_xetex:TF
+          { \tex_beginR:D }
+          { \sys_if_engine_luatex:T { \tex_textdir:D TRT ~ } }
+      }
+      { }
+  }
+\cs_new_protected:Npn \__lx_cg_textend:n #1
+  {
+    \sys_if_engine_xetex:T
+      { \__lx_cg_tier_if_rtl:vTF { g__lx_cg_tier_#1_tl } { \tex_endR:D } { } }
+  }
+\cs_new_protected:Npn \__lx_cg_dmcbegin:nn #1#2
+  {
+    \sys_if_engine_xetex:TF
+      {
+        \__lx_cg_tier_if_rtl:vTF { g__lx_cg_tier_#1_tl }
+          {
+            \__lx_cg_word:nn {#1} {#2}
+            \exp_args:Ne \tag_mc_begin:n
+              { actualtext = { \text_purify:V \l__lx_cg_word_tl } }
+          }
+          { \tag_mc_begin:n { } }
+      }
+      { \tag_mc_begin:n { } }
+  }
+%% The row's frame: letter, grid, annotation, in the document's direction;
+%% the grid inside it in the example's, when that is the other one.
+\cs_new_protected:Npn \__lx_cg_rowbox:n #1
+  {
+    \bool_if:NTF \l__lx_cg_frame_rtl_bool
+      {
+        \sys_if_engine_luatex:TF
+          { \tex_hbox:D dir ~ TRT {#1} }
+          { \hbox:n { \tex_beginR:D #1 \tex_endR:D } }
+      }
+      {
+        \bool_lazy_and:nnTF
+          { \l__lx_cg_crossed_bool } { \sys_if_engine_luatex_p: }
+          { \tex_hbox:D dir ~ TLT {#1} }
+          { \hbox:n {#1} }
+      }
+  }
+\cs_new_protected:Npn \__lx_cg_gridbox:n #1
+  {
+    \bool_if:NTF \l__lx_cg_crossed_bool
+      {
+        \sys_if_engine_luatex:TF
+          {
+            \bool_if:NTF \l__lx_cg_grid_rtl_bool
+              { \tex_hbox:D dir ~ TRT {#1} }
+              { \tex_hbox:D dir ~ TLT {#1} }
+          }
+          {
+            \bool_if:NTF \l__lx_cg_grid_rtl_bool
+              { \hbox:n { \tex_beginR:D #1 \tex_endR:D } }
+              { \hbox:n { \tex_beginL:D #1 \tex_endL:D } }
+          }
+      }
+      {#1}
   }
 %% The row header: the sub-example's letter in the sub-level's own label
 %% box, and its judgment hung against the end of the label column -- by
 %% \lx@emitjudge, so with the spoken form and the \llap of every other
 %% judgment, at the x an ordinary \bg. puts it.
+%%
+%% In a right-to-left frame the header is the mirror image: letter at the
+%% outer edge, the mark hung inward from the grid's side.  LuaTeX has that
+%% from the row's box direction.  XeTeX does not, and cannot be given it
+%% with an R segment: the row's segment reverses the header box whole,
+%% and one inside it would reverse the mark's own marked content (the
+%% judgment closes the header's sequence and opens a Span of its own)
+%% into a nest veraPDF rejects.  So the marked content is an L segment;
+%% the letter is set in an R segment of its own, which holds no marked
+%% content, as wide as the header; and the mark, back at the header's
+%% inner edge, hangs \JdgSep into it -- \llap made to hang rightwards for
+%% it, the mirror of where it hangs in a left-to-right row.  Letter first,
+%% then mark, in the content as in the tree.
+\cs_new_protected:Npn \__lx_cg_label:n #1
+  {
+    \hbox_to_wd:nn { \l__lx_cg_lw_dim }
+      {
+        \group_begin:
+          \int_set:Nn \c@SubExNo { \tl_use:c { g__lx_cg_num_#1_tl } }
+          \lx@sublabel
+        \group_end:
+        \hfil
+      }
+  }
+\cs_new_protected:Npn \__lx_cg_judge:n #1
+  {
+    \group_begin:
+      \tl_set_eq:Nc \l__lx_judge_tl { g__lx_cg_jdg_#1_tl }
+      \tl_if_empty:cTF { g__lx_cg_paren_#1_tl }
+        { \bool_set_false:N \l__lx_judge_paren_bool }
+        { \bool_set_true:N \l__lx_judge_paren_bool }
+      \tl_clear:N \l__lx_judge_pre_tl
+      \lx@emitjudge
+      \tl_use:c { g__lx_cg_jcmd_#1_tl }
+    \group_end:
+  }
 \cs_new_protected:Npn \__lx_cg_head:n #1
   {
     \__lx_cg_sb:n { tag = TH , attribute = lxTHrow }
     \hbox_to_wd:nn { \l__lx_cg_lm_dim }
       {
-        \__lx_cg_mb:
-        \hbox_to_wd:nn { \l__lx_cg_lw_dim }
+        \bool_lazy_and:nnTF
+          { \l__lx_cg_frame_rtl_bool } { \sys_if_engine_xetex_p: }
           {
+            \tex_beginL:D
+            \__lx_cg_mb:
+            \hbox_to_wd:nn { \l__lx_cg_lm_dim }
+              {
+                \__lx_dir_set_rtl_flag:n { 1 }
+                \tex_beginR:D \__lx_cg_label:n {#1} \hfil \tex_endR:D
+              }
+            \tex_kern:D - \l__lx_cg_lm_dim
             \group_begin:
-              \int_set:Nn \c@SubExNo { \tl_use:c { g__lx_cg_num_#1_tl } }
-              \lx@sublabel
+              \cs_set:Npn \llap ##1
+                {
+                  \hbox_to_wd:nn { \c_zero_dim }
+                    { \skip_horizontal:n { \JdgSep } ##1 \skip_horizontal:n { - \JdgSep } \hss }
+                }
+              \__lx_cg_judge:n {#1}
             \group_end:
             \hfil
+            \__lx_cg_me:
+            \tex_endL:D
           }
-        \hfil
-        \group_begin:
-          \tl_set_eq:Nc \l__lx_judge_tl { g__lx_cg_jdg_#1_tl }
-          \tl_if_empty:cTF { g__lx_cg_paren_#1_tl }
-            { \bool_set_false:N \l__lx_judge_paren_bool }
-            { \bool_set_true:N \l__lx_judge_paren_bool }
-          \tl_clear:N \l__lx_judge_pre_tl
-          \lx@emitjudge
-          \tl_use:c { g__lx_cg_jcmd_#1_tl }
-        \group_end:
-        \__lx_cg_me:
+          {
+            \__lx_cg_mb:
+            \__lx_cg_label:n {#1}
+            \hfil
+            \__lx_cg_judge:n {#1}
+            \__lx_cg_me:
+          }
       }
     \__lx_cg_se:
   }
 \cs_new_protected:Npn \__lx_cg_row_out:n #1
   {
     \__lx_cg_sb:n { tag = TR }
-    \hbox:n
+    \__lx_cg_rowbox:n
       {
         \str_if_eq:eeTF { \tl_use:c { g__lx_cg_kind_#1_tl } } { obj }
           { \__lx_cg_head:n {#1} }
@@ -8136,13 +8344,15 @@
         \tl_if_empty:cTF { g__lx_cg_lang_#1_tl }
           { \tl_clear:N \l__lx_cg_keys_tl }
           { \tl_set:Ne \l__lx_cg_keys_tl { , lang = \tl_use:c { g__lx_cg_lang_#1_tl } } }
-        \int_step_inline:nn { \l__lx_cg_ncols_int }
+        \__lx_cg_gridbox:n
           {
-            \__lx_cg_cell:nnn { tag = TD \l__lx_cg_keys_tl }
-              { \dim_use:c { l__lx_cg_w_##1_dim } }
-              { \tl_use:c { g__lx_cg_r_#1_##1_tl } }
-            \int_compare:nNnT {##1} < { \l__lx_cg_ncols_int }
-              { \skip_horizontal:N \l__lx_cg_sep_dim }
+            \int_step_inline:nn { \l__lx_cg_ncols_int }
+              {
+                \__lx_cg_gcell:nnnn { tag = TD \l__lx_cg_keys_tl }
+                  { \dim_use:c { l__lx_cg_w_##1_dim } } {#1} {##1}
+                \int_compare:nNnT {##1} < { \l__lx_cg_ncols_int }
+                  { \skip_horizontal:N \l__lx_cg_sep_dim }
+              }
           }
         \bool_if:NT \l__lx_cg_annot_bool
           {
@@ -8153,6 +8363,136 @@
       }
     \__lx_cg_se:
   }
+%% ---- direction --------------------------------------------------------------
+%% The table is laid out as an ordinary gloss in the same place would be:
+%% the frame -- letter, grid, annotation column -- in the direction of the
+%% document's main language, the columns in the example's (decided for
+%% ordinary glosses 2026-10-10, see \__lx_gl_dir_begin:).  So in a Hebrew
+%% document both run right to left; an English example there has its
+%% letters on the right and its columns from the left; a Hebrew example in
+%% an English document, or a \GlossRTL one, the reverse.  Before, the table
+%% asked nothing: under XeTeX every table was left to right, and under
+%% LuaTeX the columns took the frame's direction, so the crossed cases came
+%% out with their columns reversed.  A grid that runs against its frame
+%% also gets \__lx_gl_morph_split:NN's right-to-left morphemes.
+\cs_new_protected:Npn \__lx_cg_dir_decide:
+  {
+    \bool_set_false:N \l__lx_cg_frame_rtl_bool
+    \bool_set_eq:NN \l__lx_cg_grid_rtl_bool \l__lx_gl_rtl_bool
+    \sys_if_engine_pdftex:F
+      {
+        \bool_lazy_and:nnT
+          { \g__lx_dir_avail_bool } { \legacy_if_p:n { @RTLmain } }
+          { \bool_set_true:N \l__lx_cg_frame_rtl_bool }
+        \bool_if:NTF \l__lx_dir_flip_bool
+          {
+            \int_compare:nNnTF { \l__lx_dir_own_int } = { 1 }
+              { \bool_set_true:N \l__lx_cg_grid_rtl_bool }
+              { \bool_set_false:N \l__lx_cg_grid_rtl_bool }
+          }
+          {
+            \bool_if:NT \l__lx_cg_frame_rtl_bool
+              { \bool_set_true:N \l__lx_cg_grid_rtl_bool }
+          }
+      }
+    \bool_set_false:N \l__lx_cg_crossed_bool
+    \bool_if:NTF \l__lx_cg_frame_rtl_bool
+      { \bool_if:NF \l__lx_cg_grid_rtl_bool { \bool_set_true:N \l__lx_cg_crossed_bool } }
+      { \bool_if:NT \l__lx_cg_grid_rtl_bool { \bool_set_true:N \l__lx_cg_crossed_bool } }
+    \bool_lazy_or:nnT { \l__lx_cg_frame_rtl_bool } { \l__lx_cg_grid_rtl_bool }
+      { \__lx_rtl_xetex_on: }
+    \bool_set_eq:NN \l__lx_cg_dircells_bool \l__lx_cg_crossed_bool
+    \bool_lazy_and:nnT { \l__lx_cg_frame_rtl_bool } { \sys_if_engine_xetex_p: }
+      { \bool_set_true:N \l__lx_cg_dircells_bool }
+    \bool_set_eq:NN \l__lx_cg_rtl_saved_bool \l__lx_gl_rtl_bool
+    \bool_lazy_and:nnTF { \l__lx_cg_crossed_bool } { \l__lx_cg_grid_rtl_bool }
+      { \bool_set_true:N \l__lx_gl_rtl_bool }
+      { \bool_set_false:N \l__lx_gl_rtl_bool }
+  }
+%% Where a row starts.  XeTeX has no direction for the vertical list, so a
+%% right-to-left row is put against the right edge of the item's text
+%% block, \@totalleftmargin + \linewidth: under bidi a right-to-left list
+%% indents from the right, and its margins are in those two registers, so
+%% "\hsize minus the left margin" put the rows 35pt too far right, against
+%% the page edge.  LuaTeX places a right-to-left box from the right itself.
+\cs_new:Npn \__lx_cg_indent:
+  {
+    \bool_lazy_and:nnTF { \l__lx_cg_frame_rtl_bool } { \sys_if_engine_xetex_p: }
+      { \dim_eval:n { \@totalleftmargin + \linewidth - \box_wd:N \l__lx_cg_box } }
+      { \@totalleftmargin }
+  }
+%% How far a row's start is from the edge it starts at -- what the
+%% annotation column (\ExAnnotColumn, from that edge) is measured past.
+\cs_new:Npn \__lx_cg_margin:
+  {
+    \bool_lazy_and:nnTF { \l__lx_cg_frame_rtl_bool } { \sys_if_engine_xetex_p: }
+      { \dim_eval:n { \hsize - \@totalleftmargin - \linewidth } }
+      { \@totalleftmargin }
+  }
+%% ---- beamer overlays ----------------------------------------------------------
+%% A \pause between the rows works as it does between ordinary glossed
+%% sub-examples: row a comes on its slide, row b on the next, and so on.
+%% The rows are only collected while the \pause runs, so each records the
+%% slide it was written for (\__lx_cg_pauses:) and is set inside \uncover
+%% for it.  The shared lines come with row a -- a gloss is shown with the
+%% first variant it glosses -- and only a \pause written among the shared
+%% lines themselves delays them: a shared line comes in as many slides
+%% after row a as it was written after the last row.  Being \uncover, a
+%% row not shown yet keeps its place, and the columns, measured over every
+%% row, stand still from slide to slide.  The frame goes on from the last
+%% \pause, as it would have anyway: \glt after the rows is on the last
+%% row's slide.  Nothing of this runs without a \pause in the table.
+\cs_new_protected:Npn \__lx_cg_overlay_decide:
+  {
+    \bool_set_false:N \l__lx_cg_overlay_bool
+    \cs_if_exist:NT \c@beamerpauses
+      {
+        \int_set:Nn \l__lx_cg_first_int { \tl_use:c { g__lx_cg_slide_1_tl } }
+        \int_set:Nn \l__lx_cg_lastobj_int
+          { \tl_use:c { g__lx_cg_slide_ \int_use:N \g__lx_cg_nvar_int _tl } }
+        \int_compare:nNnF { \c@beamerpauses } = { \l__lx_cg_first_int }
+          { \bool_set_true:N \l__lx_cg_overlay_bool }
+      }
+  }
+\cs_new_protected:Npn \__lx_cg_overlay_begin:
+  {
+    \bool_if:NT \l__lx_cg_overlay_bool
+      { \use:e { \exp_not:N \onslide < \int_use:N \l__lx_cg_first_int - > } \scan_stop: }
+  }
+\cs_new_protected:Npn \__lx_cg_overlay_end:
+  {
+    \bool_if:NT \l__lx_cg_overlay_bool
+      { \use:e { \exp_not:N \onslide < \int_use:N \c@beamerpauses - > } \scan_stop: }
+  }
+%% Inside a box: in the \vtop of a table with no head line, \uncover's
+%% covering specials would otherwise be the \vtop's first item, which
+%% takes its baseline from its first BOX -- the number then stood 7.6pt
+%% above row a, on every slide.
+\cs_new_protected:Npn \__lx_cg_reveal:nn #1#2
+  {
+    \bool_if:NTF \l__lx_cg_overlay_bool
+      { \hbox:n { \__lx_cg_uncover:nn {#1} {#2} } }
+      {#2}
+  }
+\cs_new_protected:Npn \__lx_cg_uncover:nn #1#2
+  {
+    \use:e
+      {
+        \exp_not:N \uncover <
+          \str_if_eq:eeTF { \tl_use:c { g__lx_cg_kind_#1_tl } } { obj }
+            { \tl_use:c { g__lx_cg_slide_#1_tl } }
+            {
+              \int_eval:n
+                {
+                  \l__lx_cg_first_int
+                  + \tl_use:c { g__lx_cg_slide_#1_tl }
+                  - \l__lx_cg_lastobj_int
+                }
+            }
+        - >
+      }
+      {#2}
+  }
 \bool_new:N \l__lx_cg_annot_bool
 \dim_new:N \l__lx_cg_aw_dim
 \cs_new_protected:Npn \__lx_cg_emit:
@@ -8160,6 +8500,8 @@
     \lx@tag@if@active:TF
       { \bool_set_true:N \l__lx_cg_tag_bool }
       { \bool_set_false:N \l__lx_cg_tag_bool }
+    \__lx_cg_dir_decide:
+    \__lx_cg_overlay_decide:
     \group_begin:
       \lx@geom@sub
       \dim_gset:Nn \g_tmpa_dim { \leftmargin }
@@ -8208,7 +8550,7 @@
     \dim_set:Nn \l__lx_cg_annot_dim
       {
         \dim_max:nn
-          { \ExAnnotColumn - \@totalleftmargin }
+          { \ExAnnotColumn - \__lx_cg_margin: }
           { \l__lx_cg_end_dim + \ExAnnotSep }
       }
     \dim_set:Nn \l_tmpa_dim
@@ -8231,11 +8573,13 @@
         \group_begin:
           \bool_if:NT \l__lx_cg_tag_bool
             { \tagpdfsetup { para/tagging = false } }
+          \__lx_cg_overlay_begin:
           \leavevmode
           \tex_vtop:D
             {
               \__lx_cg_sb:n { tag = Table }
-              \int_step_inline:nn { \g__lx_cg_rows_int } { \__lx_cg_row_out:n {##1} }
+              \int_step_inline:nn { \g__lx_cg_rows_int }
+                { \__lx_cg_reveal:nn {##1} { \__lx_cg_row_out:n {##1} } }
               \__lx_cg_se:
             }
           \par
@@ -8243,14 +8587,18 @@
       }
       {
         \par
+        \__lx_cg_overlay_begin:
         \__lx_cg_sb:n { tag = Table }
         \int_step_inline:nn { \g__lx_cg_rows_int }
           {
-            \tex_moveright:D \@totalleftmargin
-            \hbox:n { \__lx_cg_row_out:n {##1} }
+            \hbox_set:Nn \l__lx_cg_box
+              { \__lx_cg_reveal:nn {##1} { \__lx_cg_row_out:n {##1} } }
+            \tex_moveright:D \__lx_cg_indent: \box_use_drop:N \l__lx_cg_box
           }
         \__lx_cg_se:
       }
+    \__lx_cg_overlay_end:
+    \bool_set_eq:NN \l__lx_gl_rtl_bool \l__lx_cg_rtl_saved_bool
     %% \g__lx_cg_ngloss_int is NOT reset here but by \__lx_cg_on:, once per
     %% example: it is what tells a row read after the table that it came too
     %% late (cg-row-after) instead of starting a table nothing would set.

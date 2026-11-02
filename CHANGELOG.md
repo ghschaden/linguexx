@@ -12,7 +12,12 @@ version string.
   column of its own. In a tagged PDF it is a table, read row by row.
   In an `exe` batch the rows are the `\ex ... \\` items of
   `\begin{xlist}[CommonGloss]`, with `\ex[*]` for a judgment; the table
-  is the same. Manual section 5.12.
+  is the same. In a right-to-left document, or for an example whose
+  language runs against the document's, the table is laid out as an
+  ordinary gloss there: letters, marks and annotation column in the
+  document's direction, columns in the example's. In a beamer frame a
+  `\pause` between the rows uncovers them one slide at a time, row a with
+  the shared lines first. Manual section 5.12.
 - Changed: a judgment mark that opens a gloss's object line is a judgment
   however the gloss is written. Before, only `\exg.` and `\ag.` recognized
   it; after `\ex. \gll`, `\a. \gll`, `\glll`, `\gl` or gb4e's `\ex \gll`

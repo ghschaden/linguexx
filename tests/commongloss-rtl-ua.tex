@@ -1,0 +1,27 @@
+%% \CommonGloss tagged in a right-to-left document (see commongloss-rtl for
+%% the geometry): a Hebrew table and an English one, each a Table whose
+%% rows read in logical order -- letter, then the first word -- whatever
+%% the engine did to the line.
+%%
+%% XeTeX reverses an R segment's boxes inside too, marked-content operators
+%% included, so the table's own R segments (the row's, the header's) must
+%% hold no marked content of their own; the first attempt nested the
+%% judgment's Span inside the row header's TH and veraPDF rejected 13
+%% content items.  The Hebrew example has no head line: a tagged head line
+%% in a right-to-left example fails veraPDF under XeLaTeX with or without
+%% a table, which is not this case's to test.
+%%
+%% PDF/UA-2, so veraPDF runs on it; three passes (PASSES).
+\input{_preamble-rtlmain-ua}
+\ex.
+\ag. א ב ג \exannot{ANN}\\
+\bg. *ד {} ו\\
+\CommonGloss RG1 RG2 RG3\\
+
+\begin{english}
+\ex. CEHEAD
+\ag. EA1 EA2 EA3\\
+\bg. *EA2 {} EA3\\
+\CommonGloss א ב ג\\
+\end{english}
+\end{document}

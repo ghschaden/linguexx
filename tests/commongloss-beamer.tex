@@ -1,0 +1,73 @@
+%% \CommonGloss with \pause in a beamer deck (see exannot-beamer.tex on why
+%% beamer is a case of its own).  A \pause between the rows works as it
+%% does between ordinary glossed sub-examples: row a with the shared lines
+%% on the first slide, each further row on the next.  The rows are only
+%% collected while the \pause runs and the table is set after the last
+%% shared line, so before, everything after the first \pause -- row a
+%% included -- arrived on the last slide at once.
+%%
+%% P1  rows a | b | c, one \pause each, an annotation, a \label on row b
+%%     and \glt after the table: the translation comes with row c, as text
+%%     after an ordinary c. would.
+%% P2  a \pause between two shared lines delays only the second.
+%% P3  the exe form, after a \pause earlier in the frame: the example's
+%%     first slide is the frame's second.
+%% P4  no head line: the number on row a's line on every slide (the
+%%     \uncover around a row in the \vtop first took the baseline off it).
+%% P5  P1 without the \pauses: P1's last slide must be it, word for word.
+%%     It has a \label on row b too: under beamer a row's \label moves the
+%%     table down 2.7pt (with or without \pause, and before this case), so
+%%     without one the two frames would differ by that and not by \pause.
+%%
+%% Every word of a table stands at one place on every slide it is on:
+%% a row not shown yet keeps its space (\uncover), and the columns are
+%% measured over all rows.
+\input{_preamble-beamer-gb4e}
+\begin{document}
+\begin{frame}{P1}
+\ex. PHEAD
+\ag. PA1 PA2 PA3 \exannot{PANN}\\
+\pause
+\bg.\label{p:b} *PB2 {} PB3\\
+\pause
+\cg. PC3 PC2 PC1\\
+\CommonGloss PG1 PG2 PG3\\
+\glt `PTRANS'
+\end{frame}
+\begin{frame}{P2}
+\ex. QHEAD
+\ag. QA1 QA2\\
+\bg. QB2 QB1\\
+\CommonGloss QG1 QG2\\
+\pause
+\CommonGloss QH1 QH2\\
+\end{frame}
+\begin{frame}{P3}
+SBEFORE
+\pause
+\begin{exe}
+\ex SHEAD
+\begin{xlist}[CommonGloss]
+\ex SA1 SA2\\
+\pause
+\ex[*] SB2 SB1\\
+\CommonGloss SG1 SG2\\
+\end{xlist}
+\end{exe}
+\end{frame}
+\begin{frame}{P4}
+\ex.
+\ag. TA1 TA2\\
+\pause
+\bg. TB2 TB1\\
+\CommonGloss TG1 TG2\\
+\end{frame}
+\begin{frame}{P5}
+\ex. PHEAD
+\ag. PA1 PA2 PA3 \exannot{PANN}\\
+\bg.\label{p:b5} *PB2 {} PB3\\
+\cg. PC3 PC2 PC1\\
+\CommonGloss PG1 PG2 PG3\\
+\glt `PTRANS'
+\end{frame}
+\end{document}

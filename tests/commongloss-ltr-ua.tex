@@ -1,0 +1,33 @@
+%% \CommonGloss for a Hebrew example in an English document: the frame left
+%% to right as every example's here, the columns right to left, as an
+%% ordinary gloss of such an example has them (\GlossRTL's layout, without
+%% \GlossRTL).  Before, the table asked for no direction and set the
+%% columns left to right on both engines.
+%%
+%% (1) an English table, the reference; (2) the same table for a Hebrew
+%%     example, with the same gloss words: its columns must run from the
+%%     right (lg1 rightmost) and fill the same span (2)'s grid does, its mark
+%%     hang at the letter where (1)'s does (provisional for a right-to-left
+%%     grid, doc/DEFERRED-DECISIONS.md), and its annotation stand in (1)'s
+%%     column, which an ordinary right-to-left gloss refuses (rtl-annot)
+%%     and a table can give, its column being part of its frame.
+%% No head line on (2): under LuaLaTeX polyglossia reverses Latin text in a
+%% hebrew environment, and under XeLaTeX a tagged head line in a
+%% right-to-left example fails veraPDF with or without linguexx's table.
+%%
+%% PDF/UA-2, so veraPDF runs on it: under XeTeX every cell is an L segment
+%% holding its marked content, or the R segment of the grid reverses the
+%% BDC/EMC pairs with the text.  Three passes (PASSES).
+\input{_preamble-ua-polyglossia}
+\ex. CLREF
+\ag. LA1 LA2 LA3 \exannot{ANN}\\
+\bg. *LA2 {} LA3\\
+\CommonGloss lg1 lg2 lg3\\
+
+\begin{hebrew}
+\ex.
+\ag. א ב ג \exannot{ANN}\\
+\bg. *ד {} ו\\
+\CommonGloss lg1 lg2 lg3\\
+\end{hebrew}
+\end{document}

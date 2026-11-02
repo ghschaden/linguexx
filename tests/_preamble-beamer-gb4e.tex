@@ -1,0 +1,12 @@
+%% _preamble-beamer with the exe front end ([lazy,gb4e]), for a deck that
+%% sets an exe batch -- \begin{xlist}[CommonGloss] needs it.  Otherwise the
+%% same: no theme, no navigation symbols.
+\documentclass{beamer}
+\usetheme{default}
+\setbeamertemplate{navigation symbols}{}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\fi
+\usepackage[lazy,gb4e]{linguexx}

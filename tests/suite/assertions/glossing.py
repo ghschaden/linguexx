@@ -10,7 +10,7 @@ import re
 from suite.check import check, warning_body
 from suite.geometry import brace_bulge
 from suite.pdf import (
-    TOL, Page, bookmark_titles, inflated,
+    TOL, Page, bookmark_titles, inflated, slides,
 )
 from suite.structure import (
     show_pdf_tags_xml, struct_alts, struct_empty_alts, struct_exps,
@@ -1475,4 +1475,225 @@ def a_commongloss_ua(p: Page):
                    f"every example number at one depth: {depths}"))
     empty = struct_empty_alts(p.path)
     r.append(check(not empty, f"no /Alt wraps nothing: {empty}"))
+    return r
+
+
+# ---- \CommonGloss and direction, \CommonGloss and \pause -------------------
+
+def _right_of(p: Page, word):
+    """The words on `word`'s line that start at or after its right edge."""
+    return [w for w in p.line_of(word) if w is not word and w.x0 >= word.x1 - TOL]
+
+
+def _by_y(p: Page, text):
+    """Every word reading exactly `text`, top to bottom."""
+    return sorted((w for w in p.words if w.text == text), key=lambda w: w.y0)
+
+
+def a_commongloss_rtl(p: Page):
+    r"""\CommonGloss in a right-to-left document; see the case's header.
+    Every position is read off an ordinary gloss in the same file."""
+    r = []
+    # (1)/(2): a Hebrew table on the columns of the ordinary gloss
+    for g in ("RG1", "RG2", "RG3"):
+        ws = _by_y(p, g)
+        r.append(check(len(ws) == 3 and max(w.x0 for w in ws)
+                       - min(w.x0 for w in ws) < TOL,
+                       f"{g}: the table's column is the ordinary gloss's "
+                       f"({[round(w.x0, 2) for w in ws]})"))
+    g1, g2, g3 = (_by_y(p, g)[0] for g in ("RG1", "RG2", "RG3"))
+    r.append(check(g1.x0 > g2.x0 > g3.x0,
+                   f"the columns run from the right: RG1 {g1.x0:.2f}, "
+                   f"RG2 {g2.x0:.2f}, RG3 {g3.x0:.2f}"))
+    stars = _by_y(p, "*")
+    r.append(check(len(stars) == 4 and max(s.x0 for s in stars)
+                   - min(s.x0 for s in stars) < TOL,
+                   f"every mark hangs from the letters' column, where an "
+                   f"ordinary sub-example's does -- the English table's too, "
+                   f"its frame being the document's "
+                   f"({[round(s.x0, 2) for s in stars]})"))
+    anns = _by_y(p, "ANN")
+    r.append(check(len(anns) == 3 and max(a.x0 for a in anns)
+                   - min(a.x0 for a in anns) < TOL,
+                   f"every annotation in one mirrored column "
+                   f"({[round(a.x0, 2) for a in anns]})"))
+    r.append(check(bool(anns) and anns[0].x1 < g3.x0,
+                   f"... on the left, past the grid ({anns[0].x1:.2f} < "
+                   f"{g3.x0:.2f})" if anns else "no annotation found"))
+    # (3)/(4): an English table, columns from the left, letters on the right
+    ea1, ea2, ea3 = (_by_y(p, w) for w in ("EA1", "EA2", "EA3"))
+    r.append(check(len(ea1) == 2 and len(ea2) == 3 and len(ea3) == 3,
+                   f"the English words are all found: {ea1}, {ea2}, {ea3}"))
+    if len(ea1) == 2 and len(ea2) == 3 and len(ea3) == 3:
+        t1, t2, t3 = ea1[0], ea2[0], ea3[0]
+        r.append(check(t1.x0 < t2.x0 < t3.x0,
+                       f"its columns run left to right: EA1 {t1.x0:.2f}, "
+                       f"EA2 {t2.x0:.2f}, EA3 {t3.x0:.2f}"))
+        for name, t, ref in (("EA1", t1, ea1[1]), ("EA2", t2, ea2[2]),
+                             ("EA3", t3, ea3[2])):
+            r.append(check(abs(t.x0 - ref.x0) < TOL,
+                           f"{name} stands where the ordinary gloss puts it "
+                           f"({t.x0:.2f} vs {ref.x0:.2f})"))
+        lab, labref = _right_of(p, t3), _right_of(p, ea3[2])
+        r.append(check(bool(lab) and bool(labref)
+                       and abs(max(w.x1 for w in lab)
+                               - max(w.x1 for w in labref)) < TOL,
+                       f"its letter is on the right, where the ordinary "
+                       f"gloss's is ({lab} vs {labref})"))
+        eg = _by_y(p, "eg1")
+        r.append(check(len(eg) == 2 and abs(eg[0].x0 - t1.x0) < TOL,
+                       f"its gloss starts under its first word "
+                       f"({eg and eg[0].x0} vs {t1.x0:.2f})"))
+    # (5): no head line, the number on row a's line
+    toks = [w.text for w in p.line_of(p.find("NHA"))]
+    r.append(check("(5)" in toks or "5" in toks,
+                   f"head-less: the number is on row a's line ({toks})"))
+    n1, n2, n3 = (p.find(g) for g in ("NG1", "NG2", "NG3"))
+    r.append(check(n1.x0 > n2.x0 > n3.x0,
+                   f"head-less: its columns run from the right too "
+                   f"({n1.x0:.2f}, {n2.x0:.2f}, {n3.x0:.2f})"))
+    return r
+
+
+def _cg_tables(path):
+    """Each Table of the tag tree as its rows, each row as (tag, text)."""
+    root = show_pdf_tags_xml(path)
+
+    def local(el):
+        return el.tag.rsplit("}", 1)[-1]
+
+    return [[[(local(c), "".join(c.itertext()).strip()) for c in tr
+              if local(c) in ("TH", "TD")]
+             for tr in t if local(tr) == "TR"]
+            for t in root.iter() if local(t) == "Table"]
+
+
+def _cg_tree_checks(p: Page, expect):
+    """The tables' trees read in logical order: `expect` is, per table, its
+    first row's first cell and its shared line's first cell."""
+    r = []
+    tables = _cg_tables(p.path)
+    r.append(check(len(tables) == len(expect),
+                   f"one Table per shared gloss: {len(tables)} of {len(expect)}"))
+    for i, (tbl, (first, shared)) in enumerate(zip(tables, expect)):
+        rows = [row for row in tbl if row]
+        ok = (len(rows) == 3 and rows[0][0][0] == "TH"
+              and rows[0][1] == ("TD", first)
+              and rows[2][0] == ("TD", "") and rows[2][1] == ("TD", shared))
+        r.append(check(ok, f"table {i + 1} reads row a from its letter and "
+                           f"then its FIRST word {first!r}, the shared line "
+                           f"from {shared!r}: {rows}"))
+        r.append(check(len(rows) > 1 and "*" in rows[1][0][1]
+                       and rows[1][0][0] == "TH",
+                       f"table {i + 1}: row b's judgment is in its header: "
+                       f"{rows[1][0] if len(rows) > 1 else None}"))
+    alts = struct_alts(getattr(p, "raw", b""))
+    r.append(check(alts.count("ungrammatical") == len(expect),
+                   f"each mark spoken: {alts}"))
+    r.append(verapdf_compliant(p.path))
+    depths = struct_lbl_depths(p.path)
+    r.append(check(bool(depths) and len({d for _, d in depths}) == 1,
+                   f"every example number found at one depth: {depths}"))
+    empty = struct_empty_alts(p.path)
+    r.append(check(not empty, f"no /Alt wraps nothing: {empty}"))
+    return r
+
+
+def a_commongloss_rtl_ua(p: Page):
+    r"""\CommonGloss tagged in a right-to-left document; see the header."""
+    return _cg_tree_checks(p, [("א", "RG1"), ("EA1", "א")])
+
+
+def a_commongloss_ltr_ua(p: Page):
+    r"""A Hebrew example's \CommonGloss in an English document: columns
+    from the right, in the frame of the English one above it."""
+    r = []
+    lg = {g: _by_y(p, g) for g in ("lg1", "lg2", "lg3")}
+    r.append(check(all(len(v) == 2 for v in lg.values()),
+                   f"both tables' glosses found: {lg}"))
+    if all(len(v) == 2 for v in lg.values()):
+        en = [lg[g][0] for g in ("lg1", "lg2", "lg3")]
+        he = [lg[g][1] for g in ("lg1", "lg2", "lg3")]
+        r.append(check(en[0].x0 < en[1].x0 < en[2].x0,
+                       f"the reference runs left to right "
+                       f"({[round(w.x0, 2) for w in en]})"))
+        r.append(check(he[0].x0 > he[1].x0 > he[2].x0,
+                       f"the Hebrew example's columns run from the right "
+                       f"({[round(w.x0, 2) for w in he]})"))
+        r.append(check(abs(min(w.x0 for w in he) - en[0].x0) < TOL,
+                       f"... in a grid that starts where the reference's "
+                       f"does, beside its letter "
+                       f"({min(w.x0 for w in he):.2f} vs {en[0].x0:.2f})"))
+    stars, anns = _by_y(p, "*"), _by_y(p, "ANN")
+    r.append(check(len(stars) == 2 and abs(stars[0].x0 - stars[1].x0) < TOL,
+                   f"its mark hangs at the letter, where the reference's "
+                   f"does ({stars})"))
+    r.append(check(len(anns) == 2 and abs(anns[0].x0 - anns[1].x0) < TOL,
+                   f"its annotation is in the reference's column ({anns})"))
+    r += _cg_tree_checks(p, [("LA1", "lg1"), ("א", "lg1")])
+    return r
+
+
+def a_commongloss_beamer(p: Page):
+    r"""\CommonGloss with \pause; see the case's header."""
+    r = []
+    pages = slides(p.path)
+    r.append(check(len(pages) == 11,
+                   f"P1 3 slides, P2 2, P3 3, P4 2, P5 1: {len(pages)}"))
+    if len(pages) != 11:
+        return r
+
+    def on(i):
+        return {w.text for w in pages[i]}
+
+    def has(i, *ws):
+        return all(w in on(i) for w in ws)
+
+    def lacks(i, *ws):
+        return not any(w in on(i) for w in ws)
+
+    # P1: a | b | c, the shared line from the first slide
+    r.append(check(has(0, "PA1", "PG1", "PANN") and lacks(0, "PB3", "PC1"),
+                   f"P1 slide 1: row a and the shared line only: {sorted(on(0))}"))
+    r.append(check(has(1, "PA1", "PB3", "PG1") and lacks(1, "PC1", "‘PTRANS’"),
+                   f"P1 slide 2: row b added: {sorted(on(1))}"))
+    r.append(check(has(2, "PA1", "PB3", "PC1", "PG1")
+                   and any("PTRANS" in w for w in on(2)),
+                   f"P1 slide 3: row c and the translation: {sorted(on(2))}"))
+    # P2: a \pause among the shared lines delays only what follows it
+    r.append(check(has(3, "QA1", "QB1", "QG1") and lacks(3, "QH1"),
+                   f"P2 slide 1: rows and first shared line: {sorted(on(3))}"))
+    r.append(check(has(4, "QH1"), f"P2 slide 2: second shared line: {sorted(on(4))}"))
+    # P3: the exe form, after an earlier \pause
+    r.append(check(has(5, "SBEFORE") and lacks(5, "SA1", "SG1"),
+                   f"P3 slide 1: only what precedes the \\pause: {sorted(on(5))}"))
+    r.append(check(has(6, "SA1", "SG1") and lacks(6, "SB1"),
+                   f"P3 slide 2: row a and its gloss: {sorted(on(6))}"))
+    r.append(check(has(7, "SB1"), f"P3 slide 3: row b: {sorted(on(7))}"))
+    # P4: no head line -- the number on row a's line on both slides
+    for i in (8, 9):
+        ta = [w for w in pages[i] if w.text == "TA1"]
+        num = [w for w in pages[i] if w.text in ("(4)", "4")]
+        r.append(check(bool(ta) and bool(num) and abs(ta[0].y0 - num[0].y0) < TOL,
+                       f"P4 slide {i - 7}: the number on row a's line "
+                       f"({num}, {ta})"))
+    # every word of a table at one place on every slide it is on
+    for frame in ((0, 1, 2), (3, 4), (5, 6, 7), (8, 9)):
+        seen, moved = {}, []
+        for i in frame:
+            for w in pages[i]:
+                if w.text in seen and (abs(seen[w.text][0] - w.x0) > TOL
+                                       or abs(seen[w.text][1] - w.y0) > TOL):
+                    moved.append((w.text, seen[w.text], (w.x0, w.y0)))
+                seen.setdefault(w.text, (w.x0, w.y0))
+        r.append(check(not moved, f"frame of slides {frame}: nothing moves "
+                                  f"from slide to slide: {moved}"))
+    # P1's last slide is P5, the same frame without \pause, word for word
+    def body(i):
+        return sorted((w.text, round(w.x0, 1), round(w.y0, 1))
+                      for w in pages[i] if w.text not in ("P1", "P5", "(1)",
+                                                          "(5)", "1", "5"))
+    r.append(check(body(2) == body(10),
+                   f"P1's last slide is the frame without \\pause: "
+                   f"{set(body(2)) ^ set(body(10))}"))
     return r

@@ -114,6 +114,25 @@ def parse_pdf(pdf: Path) -> Page:
     return page
 
 
+def slides(pdf: Path) -> list:
+    """The words of each page, in page order: a beamer slide is a page, and
+    what an overlay does is which slide a word is on, which parse_pdf's one
+    list of words cannot say."""
+    out = subprocess.run(
+        ["pdftotext", "-bbox", str(pdf), "-"],
+        capture_output=True, text=True, check=True,
+    ).stdout
+    pages = []
+    for block in re.split(r"<page ", out)[1:]:
+        pages.append([
+            Word(txt, float(x0), float(y0), float(x1), float(y1))
+            for x0, y0, x1, y1, txt in re.findall(
+                r'<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" '
+                r'yMax="([\d.]+)">(.*?)</word>', block)
+        ])
+    return pages
+
+
 def inflated(raw: bytes) -> bytes:
     """The PDF's bytes with every Flate stream inflated and appended.
 

@@ -1,0 +1,59 @@
+%% \CommonGloss in a right-to-left document: the table is laid out as an
+%% ordinary gloss in the same place is -- its frame (letter, grid,
+%% annotation column) in the document's direction, its columns in the
+%% example's.  Each table is measured against ordinary glossed sub-examples
+%% with the same words, set in the same file, so nothing here hard-codes a
+%% length.
+%%
+%% The defect this was written for: the table asked for no direction at
+%% all.  Under XeLaTeX every table was set left to right at the LEFT
+%% margin, letters on the wrong side and the annotation under the head
+%% line; under LuaLaTeX a Hebrew table came out right by accident (the row
+%% box took the paragraph's direction) and an English one in this Hebrew
+%% document had its columns reversed, EA3 EA2 EA1.
+%%
+%% (1) a Hebrew table, judgment, gap, annotation; (2) the same rows as
+%%     ordinary glossed sub-examples: the table's gloss words, mark and
+%%     annotation must stand where (2)'s do.
+%% (3) an English table in \begin{english}: letters on the right, columns
+%%     from the left; (4) the same row a as an ordinary gloss -- its columns
+%%     are the table's, since row b's words and the glosses are no wider.
+%%     The annotation and mark of (3) are in the frame, so at (1)'s x.
+%% (5) no head line: the number stands on row a's line.
+%%
+%% Latin sentinels throughout where a position is read: pdftotext reports
+%% Hebrew in visual order under XeTeX.  The ordinary English gloss (4) has
+%% no annotation on purpose -- in a crossed ordinary gloss it follows the
+%% grid, which the table, whose annotation column is part of its frame,
+%% does not (see the comment above \__lx_cg_dir_decide:).
+\input{_preamble-rtlmain}
+\begin{document}
+\ex. CRHEAD
+\ag. א ב ג \exannot{ANN}\\
+\bg. *ד {} ו\\
+\CommonGloss RG1 RG2 RG3\\
+
+\ex. CRREF
+\ag. א ב ג \exannot{ANN}\\
+RG1 RG2 RG3\\
+\bg. *ד ה ו\\
+RG1 RG2 RG3\\
+
+\begin{english}
+\ex. CEHEAD
+\ag. EA1 EA2 EA3 \exannot{ANN}\\
+\bg. *EA2 {} EA3\\
+\CommonGloss eg1 eg2 eg3\\
+\end{english}
+
+\begin{english}
+\ex. CEREF
+\ag. EA1 EA2 EA3\\
+eg1 eg2 eg3\\
+\end{english}
+
+\ex.
+\ag. NHA ב ג\\
+\bg. *ד {} ו\\
+\CommonGloss NG1 NG2 NG3\\
+\end{document}

@@ -30,7 +30,11 @@ from suite.assertions.judgments import (  # noqa: F401
     a_phantommarks_tagged,
 )
 from suite.assertions.glossing import (  # noqa: F401
+    a_commongloss_beamer,
     a_commongloss_exe_ua,
+    a_commongloss_ltr_ua,
+    a_commongloss_rtl,
+    a_commongloss_rtl_ua,
     a_commongloss_ua,
     a_babel_de,
     a_babel_fr,
@@ -162,6 +166,10 @@ ASSERTIONS = {
     "judgment-gloss": a_judgment_gloss,
     "commongloss-ua": a_commongloss_ua,
     "commongloss-exe-ua": a_commongloss_exe_ua,
+    "commongloss-rtl": a_commongloss_rtl,
+    "commongloss-rtl-ua": a_commongloss_rtl_ua,
+    "commongloss-ltr-ua": a_commongloss_ltr_ua,
+    "commongloss-beamer": a_commongloss_beamer,
     "exsource": a_exsource,
     "exannot": a_exannot,
     "exannot-ua": a_exannot_ua,
