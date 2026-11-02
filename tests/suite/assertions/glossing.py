@@ -14,7 +14,7 @@ from suite.pdf import (
 )
 from suite.structure import (
     show_pdf_tags_xml, struct_alts, struct_empty_alts, struct_exps,
-    struct_lbl_depths, verapdf_report,
+    struct_lbl_depths, verapdf_compliant,
 )
 
 def a_gloss(p: Page):
@@ -667,10 +667,7 @@ def a_morphalign_ua(p: Page):
     leaves no structure behind (veraPDF passes that either way, so the
     counts are the guard)."""
     r = []
-    verdicts, failures, _ = verapdf_report(p.path)
-    r.append(check(bool(verdicts) and all(ok for _, ok in verdicts),
-                   f"veraPDF: compliant on every profile ({verdicts}; "
-                   f"{failures})"))
+    r.append(verapdf_compliant(p.path))
     exps = struct_exps(inflated(p.raw))
     want = ["plural", "locative", "present"]
     r.append(check(exps == want + want,
@@ -756,10 +753,7 @@ def a_morphalign_mix_ua(p: Page):
     side grid, the annotated grid and the wrapped grid leaves no structure
     behind (see the case's header)."""
     r = []
-    verdicts, failures, _ = verapdf_report(p.path)
-    r.append(check(bool(verdicts) and all(ok for _, ok in verdicts),
-                   f"veraPDF: compliant on every profile ({verdicts}; "
-                   f"{failures})"))
+    r.append(verapdf_compliant(p.path))
     exps = struct_exps(inflated(p.raw))
     want = ["plural", "locative", "present"]
     r.append(check(exps == want * 3,
@@ -1332,10 +1326,7 @@ def a_commongloss_exe_ua(p: Page):
         r.append(check(alts.count(phrase) == n,
                        f"spoken {phrase!r} {n} time(s): {alts.count(phrase)} "
                        f"({alts})"))
-    verdicts, failures, _ = verapdf_report(p.path)
-    r.append(check(bool(verdicts) and all(ok for _, ok in verdicts),
-                   f"veraPDF: compliant on every profile ({verdicts}; "
-                   f"{failures})"))
+    r.append(verapdf_compliant(p.path))
     depths = struct_lbl_depths(p.path)
     r.append(check(len(depths) == 7 and len({d for _, d in depths}) == 1,
                    f"every example number at one depth: {depths}"))
@@ -1478,10 +1469,7 @@ def a_commongloss_ua(p: Page):
         r.append(check(alts.count(phrase) == n,
                        f"spoken {phrase!r} {n} time(s): {alts.count(phrase)} "
                        f"({alts})"))
-    verdicts, failures, _ = verapdf_report(p.path)
-    r.append(check(bool(verdicts) and all(ok for _, ok in verdicts),
-                   f"veraPDF: compliant on every profile ({verdicts}; "
-                   f"{failures})"))
+    r.append(verapdf_compliant(p.path))
     depths = struct_lbl_depths(p.path)
     r.append(check(len(depths) == 6 and len({d for _, d in depths}) == 1,
                    f"every example number at one depth: {depths}"))

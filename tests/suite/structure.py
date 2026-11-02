@@ -11,6 +11,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from suite.check import check
 from suite.pdf import inflated
 
 def _qdf(pdf: Path):
@@ -120,6 +121,23 @@ def verapdf_report(pdf: Path):
         if item not in failures:
             failures.append(item)
     return verdicts, failures, raw
+
+
+def verapdf_compliant(pdf: Path):
+    """One (ok, description): veraPDF finds `pdf` compliant on every profile.
+
+    The single-assertion form, for a case that only needs the verdict.  An
+    empty report is a broken install, not a bad PDF, and is reported as one
+    with veraPDF's own output (see verapdf_report).
+    """
+    verdicts, failures, raw = verapdf_report(pdf)
+    if not verdicts:
+        return (False, f"veraPDF produced no verdict -- it is on PATH but "
+                       f"could not report (broken install? missing JRE?). "
+                       f"Its output was: {raw[:400]!r}")
+    return check(all(ok for _, ok in verdicts),
+                 f"veraPDF: compliant on every profile ({verdicts}; "
+                 f"{failures})")
 
 
 def verapdf_log_records(raw: str):

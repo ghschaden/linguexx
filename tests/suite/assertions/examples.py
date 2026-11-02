@@ -13,7 +13,7 @@ from suite.check import check, warning_body
 from suite.pdf import (
     TOL, Page, example_targets,
 )
-from suite.structure import verapdf_report
+from suite.structure import verapdf_compliant
 
 def a_numbering(p: Page):
     got = p.labels()
@@ -261,10 +261,7 @@ def a_verb_dot_ua(p: Page):
     either, which is their packages' business, not this one's.
     """
     r = []
-    verdicts, failures, _ = verapdf_report(p.path)
-    r.append(check(bool(verdicts) and all(ok for _, ok in verdicts),
-                   f"veraPDF: compliant on every profile ({verdicts}; "
-                   f"{failures[:3]})"))
+    r.append(verapdf_compliant(p.path))
     out = subprocess.run(["pdfinfo", "-struct-text", str(p.path)],
                          capture_output=True, text=True,
                          errors="replace").stdout.replace(" ", "")

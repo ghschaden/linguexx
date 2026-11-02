@@ -11,7 +11,7 @@ from suite.check import check, warning_body
 from suite.pdf import (
     Page, dest_page, example_targets, link_targets,
 )
-from suite.structure import struct_lbl_depths, verapdf_report
+from suite.structure import struct_lbl_depths, verapdf_compliant
 
 def relref_record(name):
     """The .aux line a relative-reference anchor is recorded with: the
@@ -750,10 +750,7 @@ def a_refcheck(p: Page):
          "a relative reference after the reset is positional and finds the "
          "second (1), not the first"),
     ])
-    verdicts, failures, _ = verapdf_report(p.path)
-    r.append(check(bool(verdicts) and all(ok for _, ok in verdicts),
-                   f"veraPDF: compliant on every profile ({verdicts}; "
-                   f"{failures})"))
+    r.append(verapdf_compliant(p.path))
     # struct_lbl_depths and not struct_label_depths: the references here
     # are "(1)" in running text too, and only the labels are siblings
     depths = struct_lbl_depths(p.path)

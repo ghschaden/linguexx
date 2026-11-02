@@ -21,7 +21,7 @@ from suite.structure import (
     struct_alts, struct_elems,
     struct_empty_alts, struct_exps, struct_label_depths,
     struct_langs, verapdf_log_records,
-    verapdf_report,
+    verapdf_compliant, verapdf_report,
 )
 
 def a_exannot(p: Page):
@@ -1073,10 +1073,7 @@ def a_tierlang_ua(p: Page):
     the document's language by inheritance.  The counts say how far each
     clearing reached -- see the case's header for the table."""
     r = []
-    verdicts, failures, _ = verapdf_report(p.path)
-    r.append(check(bool(verdicts) and all(ok for _, ok in verdicts),
-                   f"veraPDF: compliant on every profile ({verdicts}; "
-                   f"{failures})"))
+    r.append(verapdf_compliant(p.path))
     langs = struct_langs(inflated(p.raw))
     blank = [lang for lang in langs if not lang.strip()]
     r.append(check(not blank,
@@ -1097,10 +1094,7 @@ def a_gltlang_items_ua(p: Page):
     translations, four fr Spans, and no item built inside another (which is
     spec-valid enough to need the depth check, and LI-LI-1 to veraPDF)."""
     r = []
-    verdicts, failures, _ = verapdf_report(p.path)
-    r.append(check(bool(verdicts) and all(ok for _, ok in verdicts),
-                   f"veraPDF: compliant on every profile ({verdicts}; "
-                   f"{failures})"))
+    r.append(verapdf_compliant(p.path))
     langs = struct_langs(inflated(p.raw))
     r.append(check(langs.count("fr") == 4,
                    f"each of the four translations has its own fr Span, "
@@ -1117,10 +1111,7 @@ def a_gltlang_default_ua(p: Page):
     gloss's last tier when that tier declares one, and none otherwise.  The
     case's header has the table the counts come from."""
     r = []
-    verdicts, failures, _ = verapdf_report(p.path)
-    r.append(check(bool(verdicts) and all(ok for _, ok in verdicts),
-                   f"veraPDF: compliant on every profile ({verdicts}; "
-                   f"{failures})"))
+    r.append(verapdf_compliant(p.path))
     langs = struct_langs(inflated(p.raw))
     for lang, n, why in [
         ("de", 8, "the object tier only: no translation borrows tier 1's "
@@ -1151,10 +1142,7 @@ def _tag_texts(pdf):
 def a_rtl_ua(p: Page):
     r"""\GlossRTL and \glscript under PDF/UA-2; see the case's header."""
     r = []
-    verdicts, failures, _ = verapdf_report(p.path)
-    r.append(check(bool(verdicts) and all(ok for _, ok in verdicts),
-                   f"veraPDF: compliant on every profile ({verdicts}; "
-                   f"{failures})"))
+    r.append(verapdf_compliant(p.path))
     heb = [t.strip() for t in _tag_texts(p.path)
            if re.search("[\u0590-\u05ff]", t)]
     want = ["הילד אכל את התפוח", "הילד", "אכל", "את", "התפוח"]
@@ -1184,10 +1172,7 @@ def a_rtl_gloss_ua(p: Page):
     # The tree's reading order is asserted on both, and under XeLaTeX it is
     # the half that matters.
     if not p.log.lstrip().startswith("This is XeTeX"):
-        verdicts, failures, _ = verapdf_report(p.path)
-        r.append(check(bool(verdicts) and all(ok for _, ok in verdicts),
-                       f"veraPDF: compliant on every profile ({verdicts}; "
-                       f"{failures})"))
+        r.append(verapdf_compliant(p.path))
     texts = [t.strip() for t in _tag_texts(p.path)]
     for want in ("הילד", "אכל", "את"):
         r.append(check(want in texts,
