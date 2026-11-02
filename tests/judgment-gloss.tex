@@ -1,0 +1,59 @@
+%% A leading judgment mark in a GLOSS, by every way of writing one.
+%%
+%% A * at the start of a linguistic example is a judgment, whatever command
+%% introduced the example (decided 2026-11-02).  Only \exg. and \ag. used to
+%% scan for it; \ex. \gll, \a. \gll, \glll, \gl ... \endgl and gb4e's
+%% \ex \gll set the star as part of the first word -- the gloss under the
+%% star, and under phantom alignment (on here, where it showed most) padded
+%% past it as if it were a bracket -- and never tagged it, so a screen
+%% reader did not say "ungrammatical".
+%%
+%% Every judged example has an unjudged twin at the same level with the
+%% same first column ("Wort" over "word"), so the judged one's second
+%% object word must start where the twin's does (the mark displaces
+%% nothing), its gloss must start where the twin's gloss does (the mark is
+%% not padded into the gloss), and its object line must start LEFT of that
+%% (the mark hangs).  HEAD puts the gloss after a head line, where a mark
+%% emitted before the grid would have been stranded on a line of its own.
+%%
+%% "*(" is the obligatoriness notation: still a judgment -- the star hangs
+%% and the parenthesis stays with its word -- but spoken "obligatory".
+%%
+%% Tagged preamble, so the /Alt strings are in the PDF and uncompressed.
+\input{_preamble-tagged}
+\GlossPhantomAlign
+
+\ex. \gll Wort SPLAIN hier.\\
+word GPLAIN here\\
+
+\ex. \gll *Wort SGLL hier.\\
+word GGLL here\\
+
+\ex. \glll *Wort SGLLL hier.\\
+Wort MGLLL hier.\\
+word GGLLL here\\
+
+\ex. \gl *Wort SGL hier.\\
+word GGL here\endgl
+
+\begin{exe}
+\ex \gll *Wort SEXE hier.\\
+word GEXE here\\
+\end{exe}
+
+\ex. Kopf\\ \gll *Wort SHEAD hier.\\
+word GHEAD here\\
+
+\exg. *Wort SEXG hier.\\
+word GEXG here\\
+
+\ex. \gll *(Wort) SOBL hier.\\
+word GOBL here\\
+
+\ex. Kopf
+\a. \gll *Wort SSUB hier.\\
+word GSUB here\\
+\b. \gll Wort SPSUB hier.\\
+word GPSUB here\\
+
+\end{document}

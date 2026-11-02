@@ -1025,6 +1025,8 @@
 \tl_new:N \l__lx_judge_tl
 \tl_new:N \l__lx_judge_cont_tl
 \tl_new:N \l__lx_judge_pre_tl
+\bool_new:N \l__lx_judge_paren_bool
+\tl_const:Nn \c__lx_judge_star_tl {*}
 
 % scan judgments, then execute #1 (the collected marks are in
 % \lx@judgeprint; \lx@emitjudge hangs them via \jdg if nonempty, and
@@ -1034,6 +1036,7 @@
     \tl_clear:N \l__lx_judge_tl
     \tl_clear:N \l__lx_judge_pre_tl
     \tl_set:Nn \l__lx_judge_cont_tl {#1}
+    \bool_set_false:N \l__lx_judge_paren_bool
     \__lx_judge_loop:
   }
 \cs_new_protected:Npn \lx@scanjudge
@@ -1043,16 +1046,49 @@
     \peek_remove_spaces:n
       {
         \peek_charcode_remove:NTF *
-          { \tl_put_right:Nn \l__lx_judge_tl {*} \__lx_judge_loop: }
+          {
+            \tl_put_right:Nn \l__lx_judge_tl {*}
+            %% "*(" with nothing between: the obligatoriness notation,
+            %% *(Er) kommt.  Still a judgment -- the star hangs like any
+            %% other and the parenthesis stays with its word -- but it is
+            %% SPOKEN as one (the "*(" entry of \g_lx_judge_alt_prop,
+            %% "obligatory"), since "ungrammatical" says the opposite of
+            %% what the notation means.  Peeked, not removed, and without
+            %% skipping spaces: "* (Er)" is a star and a parenthesis.  The
+            %% loop call goes INSIDE both branches: a peek looks at the
+            %% token after its own arguments, and with the call after them
+            %% that token was \__lx_judge_loop: itself, never the "(".
+            \peek_charcode:NTF (
+              {
+                \bool_set_true:N \l__lx_judge_paren_bool
+                \__lx_judge_loop:
+              }
+              {
+                \bool_set_false:N \l__lx_judge_paren_bool
+                \__lx_judge_loop:
+              }
+          }
           {
         \peek_charcode_remove:NTF ?
-          { \tl_put_right:Nn \l__lx_judge_tl {?} \__lx_judge_loop: }
+          {
+            \tl_put_right:Nn \l__lx_judge_tl {?}
+            \bool_set_false:N \l__lx_judge_paren_bool
+            \__lx_judge_loop:
+          }
           {
         \peek_meaning_remove:NTF \#
-          { \tl_put_right:Nn \l__lx_judge_tl {\#} \__lx_judge_loop: }
+          {
+            \tl_put_right:Nn \l__lx_judge_tl {\#}
+            \bool_set_false:N \l__lx_judge_paren_bool
+            \__lx_judge_loop:
+          }
           {
         \peek_meaning_remove:NTF \%
-          { \tl_put_right:Nn \l__lx_judge_tl {\%} \__lx_judge_loop: }
+          {
+            \tl_put_right:Nn \l__lx_judge_tl {\%}
+            \bool_set_false:N \l__lx_judge_paren_bool
+            \__lx_judge_loop:
+          }
           {
         \peek_meaning:NTF \label
           { \__lx_judge_skip:N }
@@ -1121,6 +1157,9 @@
 %% extended with \DeclareJudgment[spoken=...] or \SetJudgmentSpoken.
 \prop_new:N \g_lx_judge_alt_prop
 \prop_gput:Nnn \g_lx_judge_alt_prop {*}   {ungrammatical}
+%% Not a mark of its own: the key the scanner looks up for a lone star
+%% written against an opening parenthesis (see \__lx_judge_loop:).
+\prop_gput:Nnn \g_lx_judge_alt_prop {*(}  {obligatory}
 \prop_gput:Nnn \g_lx_judge_alt_prop {?}   {questionable}
 \prop_gput:Nnn \g_lx_judge_alt_prop {??}  {highly~questionable}
 \prop_gput:Nnn \g_lx_judge_alt_prop {?*}  {extremely~degraded}
@@ -1190,7 +1229,16 @@
     \tl_if_empty:NF \l__lx_judge_tl
       {
         \tl_set:Ne \l__lx_judge_alt_tl
-          { \prop_item:Ne \g_lx_judge_alt_prop { \tl_to_str:N \l__lx_judge_tl } }
+          {
+            \prop_item:Ne \g_lx_judge_alt_prop
+              {
+                \tl_to_str:N \l__lx_judge_tl
+                \bool_lazy_and:nnT
+                  { \l__lx_judge_paren_bool }
+                  { \tl_if_eq_p:NN \l__lx_judge_tl \c__lx_judge_star_tl }
+                  { ( }
+              }
+          }
         \exp_args:NV \lx@hangjudge \l__lx_judge_alt_tl { \lx@judgeprint }
       }
     \tl_if_empty:NF \l__lx_judge_pre_tl
@@ -7419,24 +7467,45 @@
 %% applied inside the gloss's own group, so whatever it selects covers
 %% every tier and nothing outside.
 \let\lx@glossfont\@empty
-\long\def\gll#1\\#2\\{\lx@gloss@multi{#1\\#2}}
-\long\def\glll#1\\#2\\#3\\{\lx@gloss@multi{#1\\#2\\#3}}
+%% Every gloss command scans its object line for a judgment first, exactly
+%% as \exg. does (\lx@glosshead), and hangs what it finds: a leading * is a
+%% judgment in a linguistic example however the example was written
+%% (decided 2026-11-02).  Before, only \exg. and \ag. ... \fg. scanned, so
+%% "\ex. \gll *Das ..." -- or \a. \gll, \glll, \gl, or gb4e's \ex \gll --
+%% set the star as part of the first word: the gloss under the star, and
+%% under [phantomalign] padded past it as if it were a bracket; and no
+%% /Alt, so a screen reader never said "ungrammatical".  On the \exg. path
+%% the scan runs twice, which is harmless: \lx@scanjudgeto clears what it
+%% collects, so the second finds nothing and emits nothing.  The grid opens
+%% no paragraph of its own (see \__lx_gl_grid_body:), so the mark hangs
+%% from the grid's own line, after a head line too.
+\def\lx@glossjudge#1{\lx@scanjudgeto{\lx@emitjudge#1}}
+\def\gll{\lx@glossjudge\lx@gll@go}
+\long\def\lx@gll@go#1\\#2\\{\lx@gloss@multi{#1\\#2}}
+\def\glll{\lx@glossjudge\lx@glll@go}
+\long\def\lx@glll@go#1\\#2\\#3\\{\lx@gloss@multi{#1\\#2\\#3}}
 %% langsci-gb4e carries \gllll ... \gllllllll, four to eight tiers.  The
 %% engine already takes any number (\gl ... \endgl is exactly that), so
 %% these are wrappers and nothing else -- and they are wrapped in the
 %% option rather than defined always, because a name this package does not
 %% otherwise promise is not something to start providing by default.
 \iflx@langsci
-  \long\def\gllll#1\\#2\\#3\\#4\\{\lx@gloss@multi{#1\\#2\\#3\\#4}}
-  \long\def\glllll#1\\#2\\#3\\#4\\#5\\{\lx@gloss@multi{#1\\#2\\#3\\#4\\#5}}
-  \long\def\gllllll#1\\#2\\#3\\#4\\#5\\#6\\%
+  \def\gllll{\lx@glossjudge\lx@gllll@go}
+  \long\def\lx@gllll@go#1\\#2\\#3\\#4\\{\lx@gloss@multi{#1\\#2\\#3\\#4}}
+  \def\glllll{\lx@glossjudge\lx@glllll@go}
+  \long\def\lx@glllll@go#1\\#2\\#3\\#4\\#5\\{\lx@gloss@multi{#1\\#2\\#3\\#4\\#5}}
+  \def\gllllll{\lx@glossjudge\lx@gllllll@go}
+  \long\def\lx@gllllll@go#1\\#2\\#3\\#4\\#5\\#6\\%
     {\lx@gloss@multi{#1\\#2\\#3\\#4\\#5\\#6}}
-  \long\def\glllllll#1\\#2\\#3\\#4\\#5\\#6\\#7\\%
+  \def\glllllll{\lx@glossjudge\lx@glllllll@go}
+  \long\def\lx@glllllll@go#1\\#2\\#3\\#4\\#5\\#6\\#7\\%
     {\lx@gloss@multi{#1\\#2\\#3\\#4\\#5\\#6\\#7}}
-  \long\def\gllllllll#1\\#2\\#3\\#4\\#5\\#6\\#7\\#8\\%
+  \def\gllllllll{\lx@glossjudge\lx@gllllllll@go}
+  \long\def\lx@gllllllll@go#1\\#2\\#3\\#4\\#5\\#6\\#7\\#8\\%
     {\lx@gloss@multi{#1\\#2\\#3\\#4\\#5\\#6\\#7\\#8}}
 \fi
-\long\def\gl#1\endgl{\lx@gloss@multi{#1}}
+\def\gl{\lx@glossjudge\lx@gl@go}
+\long\def\lx@gl@go#1\endgl{\lx@gloss@multi{#1}}
 \def\endgl{\PackageError{linguexx}{\string\endgl without \string\gl}{}}
 %% \glt starts the free translation on a new line, kept on the same page as
 %% the gloss it belongs to (\nobreak).  Structurally it needs nothing extra:

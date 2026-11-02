@@ -4,6 +4,16 @@ All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
 ## Unreleased
+- Changed: a judgment mark that opens a gloss's object line is a judgment
+  however the gloss is written. Before, only `\exg.` and `\ag.` recognized
+  it; after `\ex. \gll`, `\a. \gll`, `\glll`, `\gl` or gb4e's `\ex \gll`
+  the star was part of the first word, the gloss sat under it (or, with
+  `phantomalign`, was pushed past it as if it were a bracket), and a screen
+  reader was not told "ungrammatical". It now hangs in the margin as in
+  plain text, which moves the first column of such glosses.
+- New: `*(`, a star against an opening parenthesis (the notation for an
+  obligatory element), is still a judgment but is spoken "obligatory"
+  rather than "ungrammatical". `\SetJudgmentSpoken{*(}{...}` changes it.
 - Fixed: with the LaTeX kernel of November 2026 (the `latex-lab` update of
   2026-10-27), a `\label` inside a sub-example referred to the letter as
   printed: `\ref` gave "a." instead of "(4a)", and `\refrange` and

@@ -22,6 +22,7 @@ from suite.assertions.examples import (  # noqa: F401
 )
 from suite.assertions.judgments import (  # noqa: F401
     a_judgment_align,
+    a_judgment_gloss,
     a_judgments,
     a_parens_glossing_align,
     a_phantomalign,
@@ -156,6 +157,7 @@ ASSERTIONS = {
     "numbering": a_numbering,
     "judgment-align": a_judgment_align,
     "judgments": a_judgments,
+    "judgment-gloss": a_judgment_gloss,
     "exsource": a_exsource,
     "exannot": a_exannot,
     "exannot-ua": a_exannot_ua,

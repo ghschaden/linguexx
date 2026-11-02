@@ -143,6 +143,53 @@ def a_judgments(p: Page):
     return r
 
 
+def a_judgment_gloss(p: Page):
+    r"""A leading judgment in a gloss, by every way of writing one; see the
+    case's header.  Each judged gloss is measured against an unjudged twin
+    at its own level with the same first column."""
+    r = []
+    label = re.compile(r"^(\(\w+\)|[a-f]\.|[ivx]+\.)$")
+
+    def origin(sentinel):
+        toks = [t for t in p.line_of(p.find(sentinel))
+                if not label.match(t.text) and t.text != "Kopf"]
+        return min(t.x0 for t in toks)
+
+    cases = [("GLL", "PLAIN", "\\ex. \\gll"), ("GLLL", "PLAIN", "\\glll"),
+             ("GL", "PLAIN", "\\gl ... \\endgl"),
+             ("EXE", "PLAIN", "gb4e \\ex \\gll"),
+             ("HEAD", "PLAIN", "\\gll after a head line"),
+             ("EXG", "PLAIN", "\\exg."), ("SUB", "PSUB", "\\a. \\gll")]
+    for case, twin, where in cases:
+        s, st = p.find("S" + case), p.find("S" + twin)
+        r.append(check(abs(s.x0 - st.x0) < TOL,
+                       f"{where}: the judgment displaces no object word "
+                       f"({s.x0:.2f} vs {st.x0:.2f})"))
+        g, gt = origin("G" + case), origin("G" + twin)
+        r.append(check(abs(g - gt) < TOL,
+                       f"{where}: the gloss starts where an unjudged one "
+                       f"does, not padded past the mark ({g:.2f} vs {gt:.2f})"))
+        o = origin("S" + case)
+        r.append(check(o < gt - 0.5,
+                       f"{where}: the mark hangs left of the text "
+                       f"({o:.2f} vs {gt:.2f})"))
+    # "*(": the star hangs, the parenthesis stays with its word
+    o, gt = origin("SOBL"), origin("GPLAIN")
+    r.append(check(o < gt - 0.5,
+                   f"*(: the star hangs left of the text ({o:.2f} vs {gt:.2f})"))
+    line = "".join(t.text for t in p.line_of(p.find("SOBL")))
+    r.append(check("(Wort)" in line,
+                   f"*(: the parenthesis stays with its word ({line!r})"))
+    alts = struct_alts(getattr(p, "raw", b""))
+    n_ungr = alts.count("ungrammatical")
+    r.append(check(n_ungr == len(cases),
+                   f"every judged gloss is spoken \"ungrammatical\": "
+                   f"{n_ungr} of {len(cases)} (alts {alts})"))
+    r.append(check(alts.count("obligatory") == 1,
+                   f"\"*(\" is spoken \"obligatory\" (alts {alts})"))
+    return r
+
+
 def a_phantomalign(p: Page):
     """Phantom bracket alignment (opt-in).  A gloss word under a bracketed
     object word is padded so its first real glyph sits under the object
@@ -166,15 +213,25 @@ def a_phantomalign(p: Page):
                    f"ON: gloss is shifted right past the bracket "
                    f"(shift {shift1:.2f}pt)"))
 
-    # (2) ON, three leading marks "*([": right edges still coincide, and the
-    # shift is strictly larger than the single-bracket shift.
-    o2, g2 = obj("*([Ddd"), p.find("Ddd")
+    # (2) ON, "*([": the star opens the object line, so it is a JUDGMENT --
+    # split off and hung left of the text -- and only "([" is padding.  The
+    # text starts where (1)'s does, the gloss stem still ends under the
+    # object stem, and two marks shift more than one bracket.
+    o2, g2 = obj("([Ddd"), p.find("Ddd")
+    star = [w for w in p.line_of(o2) if w.text == "*"]
+    r.append(check(len(star) == 1 and star[0].x1 < o1.x0,
+                   f"ON: a leading * is a judgment, hung left of the text "
+                   f"(star {[(w.x0, w.x1) for w in star]}, text at "
+                   f"{o1.x0:.2f})"))
+    r.append(check(abs(o2.x0 - o1.x0) < TOL,
+                   f"ON: the hung judgment takes no space; the text starts "
+                   f"where (1)'s does ({o2.x0:.2f} vs {o1.x0:.2f})"))
     r.append(check(abs(g2.x1 - o2.x1) < TOL,
-                   f"ON: gloss aligns under stem past 3 marks "
-                   f"(right edges {g2.x1:.2f} vs {o2.x1:.2f})"))
+                   f"ON: gloss aligns under stem past the marks after the "
+                   f"judgment (right edges {g2.x1:.2f} vs {o2.x1:.2f})"))
     shift2 = g2.x0 - o2.x0
     r.append(check(shift2 > shift1 + 1.0,
-                   f"ON: three marks shift more than one bracket "
+                   f"ON: two marks shift more than one bracket "
                    f"({shift2:.2f} vs {shift1:.2f})"))
 
     # (3) ON, \footnotesize gloss tier: the shift equals the full-size
@@ -248,7 +305,7 @@ def a_phantomalign(p: Page):
     # (9) clamp: the gloss carries more mark than the object, so the exact
     # pad is negative and would push ink left out of the column.  Zero
     # instead -- the gloss keeps the column origin.
-    o9, g9 = p.find("?Ttt"), p.find("*([ttt")
+    o9, g9 = p.find("(Ttt"), p.find("*([ttt")
     r.append(check(abs(g9.x0 - o9.x0) < TOL,
                    f"pad clamped at zero: gloss keeps the column origin "
                    f"({g9.x0:.2f} vs {o9.x0:.2f})"))

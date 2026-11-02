@@ -912,6 +912,17 @@ The mark must come first in the item, \emph{before the example text}. A
 \cs{label} or a \cs{sublabel} may precede it: they make no ink, so the mark
 is still the first thing on the line and is still hung in the margin.
 
+In a glossed example the mark opens the object line, and it is recognized
+there however the gloss is written: \cs{exg.} and \cs{ag.}, but equally
+\cs{gll}, \cs{glll} and \cs{gl} after \cs{ex.}, \cs{a.}, a head line, or
+\pkg{gb4e}'s \cs{ex}. It hangs exactly as it does in plain text, and the
+gloss below starts under the first word, not under the mark.
+
+A star written directly against an opening parenthesis, \verb|*(Er) kommt|,
+is the notation for an obligatory element. The star is still a judgment and
+hangs like any other, and the parenthesis stays with its word; only its
+spoken form differs (section~\ref{sec:jdgspoken}).
+
 \begin{code}
 \ex. \label{ex:invasione}*?La sola invasione romana della Tracia
 \end{code}
@@ -1333,7 +1344,10 @@ tier is set at a different size (a \cs{footnotesize} gloss still lines up
 under the full-size bracket). It ships no ink and no marked content, so
 tagging is unaffected. Any number of leading marks are skipped together; the
 marks that count are, by default, the judgment marks \verb|* ? \# \%| and the
-openers \texttt{(\,[\,<}. Change the set with
+openers \texttt{(\,[\,<}. A judgment mark that opens the example's object
+line is not among them: it is a judgment, and hangs in the margin
+(section~\ref{sec:judgments}); the marks counted here are those on a word
+further in. Change the set with
 \cs{GlossPhantomChars}\marg{marks}, e.g.\ \cs{GlossPhantomChars}\texttt{\{[(\}}
 to react to square and round brackets only.
 
@@ -3092,6 +3106,7 @@ its meaning instead. The built-in marks have the following defaults:
 mark & spoken as \\
 \midrule
 \texttt{*}  & ungrammatical \\
+\texttt{*(} & obligatory \\
 \texttt{?}  & questionable \\
 \texttt{??} & highly questionable \\
 \texttt{?*} & extremely degraded \\
@@ -3101,7 +3116,13 @@ mark & spoken as \\
 \end{tabular}
 \end{center}
 
-\noindent This affects only the tagged PDF's accessibility layer; the
+\noindent \texttt{*(} is not a mark of its own: it is the spoken form of a
+lone star written against an opening parenthesis, as in \verb|*(Er) kommt|,
+where the parenthesis marks an element as obligatory and ``ungrammatical''
+would say the opposite. \cs{SetJudgmentSpoken}\verb|{*(}{...}| changes it
+like any other.
+
+This affects only the tagged PDF's accessibility layer; the
 printed output is unchanged, and nothing happens on an engine or in a
 document without active tagging. To set the spoken form of a mark, give
 \cs{DeclareJudgment} its optional \texttt{spoken} key --- which both names

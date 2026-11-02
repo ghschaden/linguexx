@@ -17,10 +17,13 @@
      Aaa bbb \\
 \glt `ON: single bracket.'
 
-% (2) alignment ON, multiple leading marks "*([" before stem "Ddd".
+% (2) alignment ON, a judgment AND two leading marks before stem "Ddd".
+% The star opens the object line, so it is a judgment (decided 2026-11-02):
+% it hangs left of the text and is not padding.  The "([" after it still
+% is, so the gloss stem is pushed past two marks -- more than one bracket.
 \ex. \gll *([Ddd EEE \\
      Ddd eee \\
-\glt `ON: three leading marks.'
+\glt `ON: a hung judgment, then two leading marks.'
 
 % (3) alignment ON, gloss tier in \footnotesize: the shift must be the same
 % full-size bracket width as in (1) (phantom is set in the object font).
@@ -87,12 +90,15 @@
 \glt `ON: same mark, smaller tier, pad is the difference.'
 }
 
-% (9) the clamp.  The gloss carries MORE mark than the object ("?" against
+% (9) the clamp.  The gloss carries MORE mark than the object ("(" against
 % "*(["), so aligning the real glyphs would need a negative pad, pulling the
 % gloss's marks out of the column box and into the gap belonging to the
 % column before it.  It is clamped at zero instead: the gloss stays at the
 % column origin with its marks sticking out to the left of the object's.
-\ex. \gll ?Ttt UUU \\
+% The object's mark is an opener, not the "?" it once was: a "?" opening
+% the object line is a judgment (decided 2026-11-02) and hangs, which
+% would leave the object no mark to compare against.
+\ex. \gll (Ttt UUU \\
      *([ttt uuu \\
 \glt `ON: pad clamped at zero, gloss keeps the column origin.'
 
