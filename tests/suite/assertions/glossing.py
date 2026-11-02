@@ -1262,6 +1262,88 @@ def a_ltr_gloss(p: Page):
     return r
 
 
+def a_commongloss_exe_ua(p: Page):
+    r"""\begin{xlist}[CommonGloss] against the dot syntax; see the case.
+
+    Page 1 is the dot form, page 2 the exe form of the same examples.  The
+    exe form is held to the dot form's layout and tree, which
+    a_commongloss_ua pins in detail, rather than to a second copy of those
+    assertions."""
+    r = []
+    # every word at the same place on both pages: pdftotext merges the
+    # pages, so each (text, x, y) must occur an even number of times
+    ordinary = {round(w.y0, 1) for name in ("XORDA", "XORDB", "XORDHEAD")
+                for w in [p.find(name)]}
+    skip = re.compile(r"^(\(\d+[a-z]?\)\.?|FORM(DOT|EXE)|(DOT|EXE)REFS)$")
+    seen = {}
+    for w in p.words:
+        if skip.match(w.text) or round(w.y0, 1) in ordinary:
+            continue
+        key = (w.text, round(w.x0, 1), round(w.y0, 1))
+        seen[key] = seen.get(key, 0) + 1
+    odd = sorted(k for k, n in seen.items() if n % 2)
+    r.append(check(len(seen) > 40 and not odd,
+                   f"the exe form sets every word where the dot form does "
+                   f"({len(seen)} placed words; unpaired: {odd[:8]})"))
+    # (2) the head-less number on row a's line, on page 2 too
+    nums = [t.text for w in p.find_all("HLA2")[1:2] for t in p.line_of(w)]
+    r.append(check("(5)" in nums,
+                   f"head-less exe form: (5) is on row a's line ({nums})"))
+    # (4) the ordinary xlist after it is lettered and laid out as ever
+    # (the letters and text where the dot form's ordinary sub-examples
+    # put theirs: "ev" is row a's first cell in (3), at the sub-level text
+    # edge, and its "a." the letter)
+    xa, xb = p.find("XORDA"), p.find("XORDB")
+    la = p.left_of(xa)
+    ev = p.find_all("ev")[0]
+    lev = [t for t in p.left_of(ev) if t.text == "a."]
+    r.append(check([t.text for t in la] == ["a."] and bool(lev)
+                   and abs(la[0].x0 - lev[0].x0) < TOL
+                   and xb.y0 > xa.y0,
+                   f"an ordinary xlist after the table: lettered a. at the "
+                   f"sub-level ({[(t.text, round(t.x0, 2)) for t in la]}, "
+                   f"table's a. at {lev and round(lev[0].x0, 2)})"))
+    refs = [t.text.rstrip(".") for t in p.line_of(p.find("EXEREFS"))]
+    r.append(check("(4b)" in refs,
+                   f"a \\label on an exe row resolves to (4b): {refs}"))
+
+    # the tree: the halves' Tables identical in everything but their ids
+    root = show_pdf_tags_xml(p.path)
+
+    def local(el):
+        return el.tag.rsplit("}", 1)[-1]
+
+    def sig(el):
+        attrs = tuple(sorted((k.rsplit("}", 1)[-1], v)
+                             for k, v in el.attrib.items() if k != "id"))
+        return (local(el), attrs, " ".join((el.text or "").split()),
+                tuple(sig(c) for c in el))
+
+    tables = [el for el in root.iter() if local(el) == "Table"]
+    r.append(check(len(tables) == 6,
+                   f"one Table per shared gloss, both forms: {len(tables)} of 6"))
+    for i in range(min(3, len(tables) // 2)):
+        r.append(check(sig(tables[i]) == sig(tables[i + 3]),
+                       f"Table {i + 1}: the exe form's tree is the dot "
+                       f"form's (tags, scope, language, text, spoken forms)"))
+    alts = struct_alts(getattr(p, "raw", b""))
+    for phrase, n in (("acceptable", 2), ("obligatory", 2),
+                      ("questionable", 2)):
+        r.append(check(alts.count(phrase) == n,
+                       f"spoken {phrase!r} {n} time(s): {alts.count(phrase)} "
+                       f"({alts})"))
+    verdicts, failures, _ = verapdf_report(p.path)
+    r.append(check(bool(verdicts) and all(ok for _, ok in verdicts),
+                   f"veraPDF: compliant on every profile ({verdicts}; "
+                   f"{failures})"))
+    depths = struct_lbl_depths(p.path)
+    r.append(check(len(depths) == 7 and len({d for _, d in depths}) == 1,
+                   f"every example number at one depth: {depths}"))
+    empty = struct_empty_alts(p.path)
+    r.append(check(not empty, f"no /Alt wraps nothing: {empty}"))
+    return r
+
+
 def a_commongloss_ua(p: Page):
     r"""\CommonGloss: variant rows sharing gloss lines; see the case's header.
 

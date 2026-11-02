@@ -1905,9 +1905,10 @@ with no word in a column has \verb|{}| there:
   Both are errors rather than guesses.
 \item \emph{Only here.} \cs{ag.}\ reads one line only in an example that
   has a \cs{CommonGloss}; in every other example it reads its object and
-  gloss lines as in section~\ref{sec:exgabbrev}. \cs{CommonGloss} needs the
-  dot syntax, whose examples are read ahead: in an \texttt{exe} batch or a
-  \opt{langsci} \cs{ea} it is an error.
+  gloss lines as in section~\ref{sec:exgabbrev}. A dot-syntax example is
+  read ahead, which is how it knows; an \texttt{exe} batch is not, and
+  announces the table instead (below). In a \opt{langsci} \cs{ea} a
+  shared gloss is an error.
 \item \emph{Sub-examples.} The rows are the sub-examples a, b, \dots: a
   \cs{label} after \cs{bg.}\ refers to (1b), and a judgment that opens a
   row --- \verb|* ? \# \%|, \cs{jdg}, or a mark made with
@@ -1928,6 +1929,31 @@ with no word in a column has \verb|{}| there:
   than the line is an error. Split it, or give the variants glosses of
   their own.
 \end{itemize}
+
+In an \texttt{exe} batch (option \opt{gb4e}) the rows are the items of
+an \texttt{xlist} that says so with the option \texttt{[CommonGloss]}:
+each \cs{ex}\ (or \cs{item}) reads one row up to its \verb|\\|, and
+\cs{ex}\oarg{judgment} gives the row a judgment the \pkg{gb4e} way. The
+table is set exactly as the dot syntax sets it, and an example with no head
+line puts its number on row~a's line:
+
+\begin{code}
+\begin{exe}
+\ex Haitian
+\begin{xlist}[CommonGloss]
+\ex \textit{Bay} kiyès li achte liv la {} ? \exannot{P-pattern}\\
+\ex[*] {} kiyès li achte liv la \textit{bay} ? \exannot{V-pattern}\\
+\CommonGloss give who \lpzg{3sg} buy book \lpzg{det} give\\
+\glt `Who did s/he buy the book for?'
+\end{xlist}
+\end{exe}
+\end{code}
+
+\noindent The list must be the example's own sub-level, not one inside
+another \texttt{xlist}, and must end with at least one \cs{CommonGloss}
+line; its rows are not set without one. As with any \cs{ex}\oarg{\dots},
+a row whose first cell starts with~\verb|[| is written \verb|\ex[] [...|.
+An \texttt{xlist} without the option is unchanged.
 
 In a tagged PDF a shared gloss is a \emph{table}, not a gloss: each row
 is a table row whose header is its letter and judgment, and each word is a
@@ -3868,7 +3894,7 @@ exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package opt
 \textbackslash gll, \textbackslash glll & Two-, three-tier gloss; lines end in \verb|\\|. \\
 \textbackslash gl \dots\ \textbackslash endgl & Gloss with any number of tiers. \\
 \textbackslash glt & Free-translation line. (\cs{gln} is a synonym.) \\
-\textbackslash CommonGloss & A gloss line shared by the variant rows \cs{ag.}\ \dots\ \cs{fg.}\ above it (section~\ref{sec:commongloss}). \\
+\textbackslash CommonGloss & A gloss line shared by the variant rows \cs{ag.}\ \dots\ \cs{fg.}\ above it, or by the rows of an \texttt{xlist}\texttt{[CommonGloss]} in an \texttt{exe} batch (section~\ref{sec:commongloss}). \\
 \textbackslash GlossTierFont\allowbreak\marg{n}\marg{cmd} & Font command for tier \meta{n}. \\
 \textbackslash GlossTierLang\allowbreak\marg{n}\marg{code} & Language of tier \meta{n} for tagged PDFs (section~\ref{sec:glosslang}). \\
 \textbackslash GlossTransStyle & Declaration applied to the free translation after \cs{glt}; empty by default. \\

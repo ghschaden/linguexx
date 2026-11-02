@@ -1,0 +1,88 @@
+%% \CommonGloss in an exe batch: \begin{xlist}[CommonGloss].
+%%
+%% Every example is set twice, the dot syntax on page 1 and the exe form on
+%% page 2, with the same words, so the exe form is checked against the one
+%% commongloss-ua already pins rather than by restating its 39 assertions:
+%% every word must stand at the same place on both pages, and the two
+%% halves' Tables must carry the same tree -- tags, scope, language, text,
+%% spoken judgments.  Only the example numbers differ (one counter runs
+%% through both pages) and the FORMDOT/FORMEXE line that names the page.
+%%
+%% (1) three rows, two shared lines, an annotation, gaps; row a a declared
+%%     judgment (\ok), row b a scanned "*(" with a \label, row c a "?" --
+%%     scanned on page 1, gb4e's explicit \ex[?] on page 2 -- and a phantom
+%%     bracket in column 3 (\GlossPhantomAlign is on for the document).
+%% (2) no head line: the number on row a's line; on page 2 the rows are
+%%     written with \item.
+%% (3) morpheme alignment (\GlossMorphAlign, on for the document).
+%% (4) page 2 only: an ordinary xlist after the table, in the same batch --
+%%     the rebinding of \ex and the letters ended with the CommonGloss list.
+%%
+%% PDF/UA-2 preamble, so veraPDF runs on it; three passes (PASSES).
+\input{_preamble-ua}
+\DeclareJudgment[spoken=acceptable]{\ok}{\textsuperscript{ok}}
+\GlossTierLang{1}{ht}
+\GlossPhantomAlign
+\GlossMorphAlign
+
+\noindent FORMDOT
+
+\ex. CGHEAD Haitian
+\ag. \ok CA1 CA2 CA3 CA4 {} \exannot{ANNA}\\
+\bg.\label{cgx:db} *(CB1) {} CB3 CB4 CB5\\
+\cg. ?CC1 CC2 [CC3 {} CC5\\
+\CommonGloss G11 G12 G13 G14\\
+\CommonGloss G21 G22\\
+\glt `CGTRANS translation.'
+
+\ex.
+\ag. HLA HLA2\\
+\bg. HLB2 HLB\\
+\CommonGloss HLG HLG2\\
+
+\ex. CGMORPH
+\ag. ev-lerA otA\\
+\bg. otB ev-lerB\\
+\CommonGloss houseX-plX sitX\\
+\CommonGloss hauZ-plZ houseY-plY\\
+
+\noindent DOTREFS \ref{cgx:db}.
+\newpage
+
+\noindent FORMEXE
+
+\begin{exe}
+\ex CGHEAD Haitian
+\begin{xlist}[CommonGloss]
+\ex \ok CA1 CA2 CA3 CA4 {} \exannot{ANNA}\\
+\ex\label{cgx:xb} *(CB1) {} CB3 CB4 CB5\\
+\ex[?] CC1 CC2 [CC3 {} CC5\\
+\CommonGloss G11 G12 G13 G14\\
+\CommonGloss G21 G22\\
+\glt `CGTRANS translation.'
+\end{xlist}
+
+\ex
+\begin{xlist}[CommonGloss]
+\item HLA HLA2\\
+\item HLB2 HLB\\
+\CommonGloss HLG HLG2\\
+\end{xlist}
+
+\ex CGMORPH
+\begin{xlist}[CommonGloss]
+\ex ev-lerA otA\\
+\ex otB ev-lerB\\
+\CommonGloss houseX-plX sitX\\
+\CommonGloss hauZ-plZ houseY-plY\\
+\end{xlist}
+
+\ex XORDHEAD
+\begin{xlist}
+\ex XORDA ordinary
+\ex XORDB ordinary
+\end{xlist}
+\end{exe}
+
+\noindent EXEREFS \ref{cgx:xb}.
+\end{document}

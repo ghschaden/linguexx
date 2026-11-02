@@ -1,0 +1,15 @@
+%% \begin{xlist}[CommonGloss] inside another xlist: its rows would be a
+%% second sub-level, with roman numerals the table does not set.  Must stop.
+\input{_preamble-gb4e}
+\begin{document}
+\begin{exe}
+\ex Head
+\begin{xlist}
+\ex Sub
+\begin{xlist}[CommonGloss]
+\ex a b\\
+\CommonGloss x y\\
+\end{xlist}
+\end{xlist}
+\end{exe}
+\end{document}

@@ -171,7 +171,7 @@ TWINS = {
 DEFAULT_PASSES = 2
 PASSES = {"ua": 3, "verb-dot-ua": 3, "frontend": 3, "langsci-ua": 3, "exannot-ua": 3,
           "morphalign-ua": 3, "morphalign-mix-ua": 3, "tierlang-ua": 3, "gltlang-items-ua": 3,
-          "gltlang-default-ua": 3, "commongloss-ua": 3,
+          "gltlang-default-ua": 3, "commongloss-ua": 3, "commongloss-exe-ua": 3,
           "rtl-ua": 3, "rtl-ua-polyglossia": 3, "rtl-gloss-ua": 3,
           # \exrefcheck in the body: run 1 writes the flag, run 2 records
           # from the first example, run 3 is the converged report (UA)
@@ -192,12 +192,15 @@ EXPECT_ERROR = {
     # glossing nothing, a row dropped, an overfull table, or \ag. lines read
     # as ordinary glossed sub-examples outside the one syntax that reads
     # ahead.
-    "commongloss-outside": "belongs in a dot-syntax example",
-    "commongloss-norows": "with no \\ag. row before it",
+    "commongloss-outside": "belongs in a dot-syntax example or in",
+    "commongloss-norows": "with no variant row before it",
     "commongloss-rowafter": "A variant row after \\CommonGloss",
     "commongloss-rowcount": "has 2 cells, the first row has 3",
     "commongloss-glosscount": "has 3 cells, the rows only 2",
     "commongloss-wide": "The shared-gloss table is",
+    "commongloss-xlistwhere": "must be the sub-level of",
+    "commongloss-xlistnogloss": "[CommonGloss] with no",
+    "commongloss-langsci": "must be the sub-level of",
     # pdfTeX cannot set right-to-left text, and linguexx says so rather
     # than set it left to right without a word.
     "rtl-pdflatex": "needs LuaLaTeX or XeLaTeX",

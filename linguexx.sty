@@ -3017,6 +3017,12 @@
 \cs_new_eq:NN \lx_subenv_begin: \lx@subenv@begin
 \ExplSyntaxOff
 
+%% Declared OUTSIDE \iflx@gbfour although only xlist uses it: an \if that
+%% does not exist yet is not counted while a false branch is skipped, so
+%% its \else and \fi in xlist's end code would close \iflx@gbfour early
+%% in every document without [gb4e].
+\newif\iflx@cgxlist
+
 %% exe is a BATCH: each \ex inside it is a new top-level example;
 %% xlist embeds a sub-level (letters, then romans), with \ex as the
 %% item command (plain \item works too).  Judgments are given
@@ -3049,11 +3055,16 @@
   % already undone its depth advance by the time we get here.
   {\lx@glt@langend \lx@closesubs \lx@closelist}
 
-\NewDocumentEnvironment{xlist}{}
+%% [CommonGloss]: the items are variant rows under shared gloss lines, set
+%% as one table (\lx@cg@xbegin, in "Variant rows sharing a gloss").  Any
+%% other optional argument is handed back to the input as it was before
+%% xlist took one -- gb4e's own [widest label] is not given a meaning here
+%% in passing.
+\NewDocumentEnvironment{xlist}{o}
   {\lx@nomix@dot{\string\begin{xlist}}%
-   \lx@subenv@begin
-   \lx@inexetrue}
-  {\lx@glt@langend \lx@closelist}
+   \IfValueTF{#1}{\lx@cg@xlistopt{#1}}{\lx@subenv@begin\lx@inexetrue}}
+  {\lx@glt@langend
+   \iflx@cgxlist\lx@cg@xend\else\lx@closelist\fi}
 \fi % iflx@gbfour
 
 %% The printed sub-level labels, and the /ListNumbering class that has to
@@ -7532,8 +7543,10 @@
 %% The body of a dot-syntax example is collected whole before anything runs
 %% (\lx@run@ex), which is what lets the example know this from the start:
 %% the rebinding is for that one example and is undone by its cleanup, so a
-%% later \ag. reads its own gloss line again.  Elsewhere -- an exe batch, a
-%% [langsci] \ea -- there is no collected body, and \CommonGloss says so.
+%% later \ag. reads its own gloss line again.  An exe batch has no collected
+%% body; there the author announces the table instead, with
+%% \begin{xlist}[CommonGloss], whose \ex ... \\ items are the rows (see
+%% \lx@cg@xbegin).  A [langsci] \ea has neither, and \CommonGloss says so.
 %%
 %% Tagged, it is a TABLE, not a gloss.  An ordinary gloss reads column by
 %% column, each column a Span bundling an object word with its gloss; here
@@ -7563,19 +7576,45 @@
 %% 2026-11-02).
 \ExplSyntaxOn
 \msg_new:nnnn { linguexx } { cg-outside }
-  { \iow_char:N \\CommonGloss~belongs~in~a~dot-syntax~example. }
   {
-    It~goes~in~an~example~written~with~\iow_char:N \\ex.,~after~its~
-    \iow_char:N \\ag.~...~\iow_char:N \\fg.~rows.~In~an~exe~batch~or~
-    a~[langsci]~\iow_char:N \\ea~the~example~is~not~read~ahead,~so~the~
-    rows~could~not~be~told~apart~from~ordinary~glossed~sub-examples.
+    \iow_char:N \\CommonGloss~belongs~in~a~dot-syntax~example~or~in~
+    \iow_char:N \\begin\{xlist\}[CommonGloss].
+  }
+  {
+    In~an~example~written~with~\iow_char:N \\ex.~it~follows~the~
+    \iow_char:N \\ag.~...~\iow_char:N \\fg.~rows;~in~an~exe~batch~the~
+    rows~go~in~\iow_char:N \\begin\{xlist\}[CommonGloss]~...~
+    \iow_char:N \\end\{xlist\},~one~\iow_char:N \\ex~...~
+    \iow_char:N \\\\~each.~An~ordinary~xlist~is~not~read~ahead,~so~its~
+    items~could~not~be~told~apart~from~ordinary~glossed~sub-examples.~
+    A~[langsci]~\iow_char:N \\ea~has~no~shared~gloss.
+  }
+\msg_new:nnnn { linguexx } { cg-xlist-where }
+  {
+    \iow_char:N \\begin\{xlist\}[CommonGloss]~must~be~the~sub-level~of~
+    an~exe~example.
+  }
+  {
+    The~table's~rows~are~lettered~sub-examples~of~one~numbered~example,~
+    so~it~goes~directly~inside~an~\iow_char:N \\ex~of~an~exe~batch,~not~
+    inside~another~xlist~and~not~under~[langsci].~It~is~set~as~an~
+    ordinary~xlist~instead.
+  }
+\msg_new:nnnn { linguexx } { cg-xlist-nogloss }
+  { \iow_char:N \\begin\{xlist\}[CommonGloss]~with~no~\iow_char:N \\CommonGloss~line. }
+  {
+    Its~rows~are~set~only~as~a~table~under~their~shared~gloss,~so~without~
+    one~nothing~of~them~would~be~printed.~Add~\iow_char:N \\CommonGloss~
+    ...~\iow_char:N \\\\~after~the~rows,~or~drop~[CommonGloss].
   }
 \msg_new:nnnn { linguexx } { cg-norows }
-  { \iow_char:N \\CommonGloss~with~no~\iow_char:N \\ag.~row~before~it. }
+  { \iow_char:N \\CommonGloss~with~no~variant~row~before~it. }
   {
     The~shared~lines~come~after~the~variant~rows~they~gloss:~
     \iow_char:N \\ag.~...~\iow_char:N \\\\~\iow_char:N \\bg.~...~
-    \iow_char:N \\\\~\iow_char:N \\CommonGloss~...~\iow_char:N \\\\.
+    \iow_char:N \\\\~\iow_char:N \\CommonGloss~...~\iow_char:N \\\\,~or~
+    in~an~exe~batch~\iow_char:N \\ex~...~\iow_char:N \\\\~for~each~row~
+    of~\iow_char:N \\begin\{xlist\}[CommonGloss].
   }
 \msg_new:nnnn { linguexx } { cg-row-after }
   { A~variant~row~after~\iow_char:N \\CommonGloss. }
@@ -7635,6 +7674,7 @@
 \tl_new:N \l__lx_cg_counts_tl
 \tl_new:N \l__lx_cg_keys_tl
 \tl_new:N \l__lx_cg_lang_tl
+\tl_new:N \l__lx_cg_xmark_tl       % an exe row's \ex[mark]
 \seq_new:N \l__lx_cg_cells_seq
 %% Every command \DeclareJudgment makes (see \lx@judge@declare), so that a
 %% row opening with one can hand it to the label like a scanned mark.
@@ -7700,6 +7740,56 @@
   { \msg_error:nn { linguexx } { cg-outside } }
 \cs_new_eq:NN \CommonGloss \__lx_cg_outside:
 
+%% ---- the exe form: \begin{xlist}[CommonGloss] -----------------------------
+%% An exe item is set as it is read, so nothing can look ahead for a
+%% \CommonGloss; the option says it at the start instead, and from there
+%% the rows are what they are in the dot syntax: each \ex (or \item) reads
+%% ONE row, up to its \\, and \ex[mark] gives the row gb4e's explicit
+%% judgment.  No sub-list is opened -- the table takes its place, at the
+%% example's own level, exactly where the dot syntax puts it -- and the
+%% rebinding of \ex is local to the environment.  Only directly inside an
+%% exe item: deeper, the rows would need roman letters the table does not
+%% set; under [langsci] it is not wanted (decided 2026-11-02).  Either way
+%% the list is set as an ordinary xlist after the error, and its
+%% \CommonGloss line then says it does not belong there.
+\cs_new_protected:Npn \lx@cg@xlistopt #1
+  {
+    \str_if_eq:nnTF {#1} { CommonGloss }
+      { \lx@inexetrue \lx@cg@xbegin }
+      { \lx@subenv@begin \lx@inexetrue [#1] }
+  }
+\cs_new_protected:Npn \lx@cg@xbegin
+  {
+    \bool_lazy_or:nnTF
+      { \int_compare_p:nNn { \lx@subdepth } > { 0 } }
+      { \legacy_if_p:n { lx@langsci } }
+      {
+        \msg_error:nn { linguexx } { cg-xlist-where }
+        \lx@subenv@begin
+      }
+      {
+        \legacy_if_set_true:n { lx@cgxlist }
+        %% the letters start at a, as an opened sub-list's would
+        \setcounter { SubExNo } { 0 }
+        \__lx_cg_on:
+        \cs_set_protected:Npn \ex
+          { \peek_charcode_ignore_spaces:NTF [ \__lx_cg_xopt:w \__lx_cg_xrow:w }
+        \cs_set_eq:NN \item \__lx_cg_xrow:w
+      }
+  }
+\cs_new_protected:Npn \__lx_cg_xrow:w #1 \\
+  { \tl_clear:N \l__lx_cg_xmark_tl \__lx_cg_row:n {#1} }
+\cs_new_protected:Npn \__lx_cg_xopt:w [ #1 ] #2 \\
+  { \tl_set:Nn \l__lx_cg_xmark_tl {#1} \__lx_cg_row:n {#2} }
+%% the end: rows read and never set mean no \CommonGloss followed them
+\cs_new_protected:Npn \lx@cg@xend
+  {
+    \int_compare:nNnF { \g__lx_cg_nvar_int } = { 0 }
+      { \msg_error:nn { linguexx } { cg-xlist-nogloss } }
+    \int_gzero:N \g__lx_cg_nvar_int
+    \lx@cg@off
+  }
+
 %% ---- one row --------------------------------------------------------------
 %% #1 kind (obj|gloss), #2 sub-example number, #3 judgment marks, #4 "*(",
 %% #5 a judgment command, #6 annotation call, #7 language, #8 tier.  The
@@ -7760,6 +7850,13 @@
   { \lx@scanjudgeto { \__lx_cg_scanned:w } }
 \cs_new_protected:Npn \__lx_cg_scanned:w #1 \q__lx_cg_stop
   {
+    %% gb4e's \ex[mark]: the mark given, as \ex[mark]{...} gives it
+    \tl_if_empty:NF \l__lx_cg_xmark_tl
+      {
+        \tl_set_eq:NN \l__lx_judge_tl \l__lx_cg_xmark_tl
+        \bool_set_false:N \l__lx_judge_paren_bool
+        \tl_clear:N \l__lx_cg_xmark_tl
+      }
     \tl_set:Nn \l__lx_cg_row_tl {#1}
     \tl_trim_spaces:N \l__lx_cg_row_tl
     \seq_set_split:NnV \l__lx_cg_cells_seq { ~ } \l__lx_cg_row_tl

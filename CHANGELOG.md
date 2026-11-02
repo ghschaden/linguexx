@@ -10,7 +10,9 @@ version string.
   line is set under all of them, column by column, with phantom and
   morpheme alignment, judgments at the row letters, and `\exannot` in a
   column of its own. In a tagged PDF it is a table, read row by row.
-  Manual section 5.12.
+  In an `exe` batch the rows are the `\ex ... \\` items of
+  `\begin{xlist}[CommonGloss]`, with `\ex[*]` for a judgment; the table
+  is the same. Manual section 5.12.
 - Changed: a judgment mark that opens a gloss's object line is a judgment
   however the gloss is written. Before, only `\exg.` and `\ag.` recognized
   it; after `\ex. \gll`, `\a. \gll`, `\glll`, `\gl` or gb4e's `\ex \gll`
