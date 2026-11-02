@@ -329,7 +329,7 @@ from suite.pdf import (  # noqa: E402
 from suite.structure import (  # noqa: E402
     struct_empty_alts, struct_has_formula,
     struct_lbl_depths,
-    verapdf_log_records, verapdf_report,
+    verapdf_gate,
 )
 # Nothing in this file calls it, and it is still part of the contract:
 # .claude/tools/lxx loads runtests.py BY PATH and reads struct_ol_classes
@@ -402,29 +402,7 @@ def d_ua_demo(pdf: Path):
     element never closed -- that stays spec-valid and quietly adopts the
     rest of the document (struct_lbl_depths).
     """
-    if not shutil.which("verapdf"):
-        return [(False, "verapdf is not on PATH: the PDF/UA gate for the "
-                        "accessible demo cannot run (it is the only "
-                        "authoritative oracle for PDF/UA)")]
-    verdicts, failures, raw = verapdf_report(pdf)
-    if not verdicts:
-        return [(False, f"veraPDF produced no verdict -- it is on PATH but "
-                        f"could not report (broken install? missing JRE?). "
-                        f"Its output was: {raw[:400]!r}")]
-    r = [check(len(verdicts) >= 3,
-               f"veraPDF reported on all its profiles (got {verdicts})")]
-    failed = [name for name, ok in verdicts if not ok]
-    r.append(check(not failed,
-                   f"veraPDF: compliant on every profile; failed {failed} "
-                   f"with {failures}"
-                   if failed else
-                   "veraPDF: compliant on every profile"))
-    logged = verapdf_log_records(raw)
-    r.append(check(not logged,
-                   f"veraPDF parsed the file without complaint; it logged "
-                   f"{len(logged)} record(s): {logged[:3]}"
-                   if logged else
-                   "veraPDF parsed the file without complaint"))
+    r = verapdf_gate(pdf, "the accessible demo")
     depths = struct_lbl_depths(pdf)
     levels = {d for _, d in depths}
     r.append(check(len(depths) >= 8 and len(levels) == 1,

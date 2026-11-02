@@ -61,6 +61,15 @@ class Page:
         pat = re.compile(r"^\((\d+|[ivxlc]+|x)\)$")
         return [w.text for w in self.words if pat.match(w.text)]
 
+    def margin_labels(self, pattern=r"\(\d+\)"):
+        """The words matching `pattern` that sit at the leftmost x of all
+        of them, in reading order: the example numbers, without the same
+        "(1)" quoted in running text, which a pattern alone cannot exclude.
+        """
+        found = [w for w in self.words if re.fullmatch(pattern, w.text)]
+        margin = min(w.x0 for w in found)
+        return [w.text for w in found if abs(w.x0 - margin) < TOL]
+
     def line_of(self, word):
         """All words on the same rendered line as `word`, left to right.
 

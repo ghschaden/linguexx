@@ -6,7 +6,6 @@ built with check(), which is the whole protocol.
 """
 
 import re
-import shutil
 import subprocess
 
 from suite.check import check, warning_body
@@ -20,8 +19,7 @@ from suite.pdf import (
 from suite.structure import (
     struct_alts, struct_elems,
     struct_empty_alts, struct_exps, struct_label_depths,
-    struct_langs, verapdf_log_records,
-    verapdf_compliant, verapdf_report,
+    struct_langs, verapdf_compliant, verapdf_gate,
 )
 
 def a_exannot(p: Page):
@@ -453,32 +451,7 @@ def a_ua(p: Page):
     So the run is read twice, once for the verdict and once for anything
     veraPDF said while parsing; see verapdf_log_records.
     """
-    r = []
-    if not shutil.which("verapdf"):
-        return [(False, "verapdf is not on PATH: the PDF/UA gate cannot run "
-                        "(install veraPDF; it is the only authoritative "
-                        "oracle for PDF/UA)")]
-    verdicts, failures, raw = verapdf_report(p.path)
-    if not verdicts:
-        # veraPDF ran but said nothing: a broken install, not a bad PDF.  Say
-        # so, with its output, rather than reporting an empty verdict list.
-        return [(False, f"veraPDF produced no verdict -- it is on PATH but "
-                        f"could not report (broken install? missing JRE?). "
-                        f"Its output was: {raw[:400]!r}")]
-    r.append(check(len(verdicts) >= 3,
-                   f"veraPDF reported on all its profiles (got {verdicts})"))
-    failed = [name for name, ok in verdicts if not ok]
-    r.append(check(not failed,
-                   f"veraPDF: compliant on every profile; failed {failed} "
-                   f"with {failures}"
-                   if failed else
-                   "veraPDF: compliant on every profile"))
-    logged = verapdf_log_records(raw)
-    r.append(check(not logged,
-                   f"veraPDF parsed the file without complaint; it logged "
-                   f"{len(logged)} record(s): {logged[:3]}"
-                   if logged else
-                   "veraPDF parsed the file without complaint"))
+    r = verapdf_gate(p.path, "the accessible build")
     # veraPDF cannot see this one: an /Alt that is present and well-formed
     # satisfies every profile however little it wraps, because /K is
     # optional in ISO 32000-1 (Table 323).  Asked here as well as in
@@ -695,9 +668,7 @@ def a_frontend(p: Page):
     """
     r = []
     # --- numbering: one counter across both shapes ----------------------
-    labw = [w for w in p.words if re.fullmatch(r"\(\w+\)", w.text)]
-    margin = min(w.x0 for w in labw)
-    got = [w.text for w in labw if abs(w.x0 - margin) < TOL]
+    got = p.margin_labels(r"\(\w+\)")
     r.append(check(
         got == ["(1)", "(2)", "(3)", "(4)", "(fex)",
                 "(5)", "(6)", "(7)", "(8)", "(9)"],
@@ -778,35 +749,10 @@ def a_frontend(p: Page):
     # The structure checks above and veraPDF are complementary: an element
     # opened at the wrong moment passes every check in this function and
     # fails veraPDF, and an element never closed does the reverse.
-    if not shutil.which("verapdf"):
-        r.append((False, "verapdf is not on PATH: the PDF/UA gate for the "
-                         "front-end API cannot run"))
-    else:
-        verdicts, failures, raw = verapdf_report(p.path)
-        if not verdicts:
-            r.append((False, f"veraPDF produced no verdict (broken install?); "
-                             f"its output was {raw[:300]!r}"))
-        else:
-            failed = [name for name, ok in verdicts if not ok]
-            r.append(check(not failed,
-                           f"veraPDF: a front-end built on the public API "
-                           f"produces valid PDF/UA; failed {failed} with "
-                           f"{failures}" if failed else
-                           "veraPDF: a front-end built on the public API "
-                           "produces valid PDF/UA"))
-            # ...and it must not have COMPLAINED either (see
-            # verapdf_log_records for why the verdict is not sufficient).
-            # It matters twice over here: the API hands the Span helpers
-            # out for front-ends to use, so their misuse has to be caught
-            # by something.
-            logged = verapdf_log_records(raw)
-            r.append(check(not logged,
-                           f"veraPDF parsed the front-end's output without "
-                           f"complaint; it logged {len(logged)} record(s): "
-                           f"{logged[:3]}"
-                           if logged else
-                           "veraPDF parsed the front-end's output without "
-                           "complaint"))
+    # The gate reads veraPDF's log as well as its verdict, and that matters
+    # twice over here: the API hands the Span helpers out for front-ends to
+    # use, so their misuse has to be caught by something.
+    r.extend(verapdf_gate(p.path, "the front-end API"))
     # Every top-level number must sit at ONE depth: an element the API let a
     # front-end leave open would reparent the rest of the document and show
     # up here as a drop, while remaining spec-valid (see struct_label_depths).

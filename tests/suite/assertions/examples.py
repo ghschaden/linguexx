@@ -115,6 +115,31 @@ def a_termination(p: Page):
     return r
 
 
+def _advance_probe(p: Page):
+    """Widths of the verbatim probe: six i's and six W's set by \\verb
+    (equal in a fixed-advance font), then the same two in the body font
+    (the control, which differs by ~50pt)."""
+    def width(tok):
+        w = p.find(tok)
+        return w.x1 - w.x0
+    return (width("MONOiiiiii"), width("MONOWWWWWW"),
+            width("ROMNiiiiii"), width("ROMNWWWWWW"))
+
+
+def _set_intact(p: Page, rows):
+    """For each (sentinel, payload, where): the payload is set once,
+    character for character, on its sentinel's line and right of it."""
+    r = []
+    for sent, payload, where in rows:
+        s = p.find(sent)
+        line = p.line_of(s)
+        v = [w for w in line if w.text == payload]
+        r.append(check(len(v) == 1 and v[0].x0 > s.x1,
+                       f"{where}: {payload!r} is set intact after {sent} "
+                       f"(line reads {[w.text for w in line]})"))
+    return r
+
+
 def a_verb(p: Page):
     r"""\verb in an example body, in the environment syntax.
 
@@ -161,12 +186,7 @@ def a_verb(p: Page):
     # font makes six i's exactly as wide as six W's.  The \textrm pair is the
     # control -- in the body font the same two strings differ by ~50pt, so
     # the probe is measuring something.
-    def width(tok):
-        w = p.find(tok)
-        return w.x1 - w.x0
-
-    mi, mw = width("MONOiiiiii"), width("MONOWWWWWW")
-    ri, rw = width("ROMNiiiiii"), width("ROMNWWWWWW")
+    mi, mw, ri, rw = _advance_probe(p)
     r.append(check(abs(mi - mw) < TOL,
                    f"\\verb sets its text in a fixed-advance font "
                    f"(iiiiii {mi:.2f}pt vs WWWWWW {mw:.2f}pt)"))
@@ -196,13 +216,7 @@ def a_verb_dot(p: Page):
     # Character for character, ON the line of its own example and right of
     # its sentinel: text that reached the page from anywhere else, or read
     # with the wrong catcodes, does neither.
-    for sent, payload, where in rows:
-        s = p.find(sent)
-        line = p.line_of(s)
-        v = [w for w in line if w.text == payload]
-        r.append(check(len(v) == 1 and v[0].x0 > s.x1,
-                       f"{where}: {payload!r} is set intact after {sent} "
-                       f"(line reads {[w.text for w in line]})"))
+    r.extend(_set_intact(p, rows))
     # \scantokens reads its text as a line, and a line ends in a space
     # unless \endlinechar says otherwise: the gap after a verbatim run is
     # the gap before it, not one and a half of them.
@@ -231,12 +245,7 @@ def a_verb_dot(p: Page):
                        f"({o and round(o.x0, 2)} vs {g and round(g.x0, 2)})"))
     # Set by \verb itself, so in its font: six i's as wide as six W's, which
     # the body font -- the \textrm control -- is nowhere near.
-    def width(tok):
-        w = p.find(tok)
-        return w.x1 - w.x0
-
-    mi, mw = width("MONOiiiiii"), width("MONOWWWWWW")
-    ri, rw = width("ROMNiiiiii"), width("ROMNWWWWWW")
+    mi, mw, ri, rw = _advance_probe(p)
     r.append(check(abs(mi - mw) < TOL and rw - ri > 20.0,
                    f"\\verb's text is in a fixed-advance font (iiiiii "
                    f"{mi:.2f}pt vs WWWWWW {mw:.2f}pt; control {ri:.2f} vs "
@@ -291,13 +300,7 @@ def a_verb_langsci(p: Page):
     rows = [("LSVERB", "ls_%$#{}", "\\ea at the top level"),
             ("LSSUB", "ls␣sub", "\\verb* in a nested \\ea"),
             ("LSSUBTWO", "ls_two", "\\ex after a nested \\ea")]
-    for sent, payload, where in rows:
-        s = p.find(sent)
-        line = p.line_of(s)
-        v = [w for w in line if w.text == payload]
-        r.append(check(len(v) == 1 and v[0].x0 > s.x1,
-                       f"{where}: {payload!r} is set intact after {sent} "
-                       f"(line reads {[w.text for w in line]})"))
+    r.extend(_set_intact(p, rows))
     r.append(check(p.find("LSSUB").x0 > p.find("LSHOST").x0 + 2,
                    "the nested \\ea is a sub-example, indented a level"))
     r.append(check(p.labels() == ["(1)", "(2)"]

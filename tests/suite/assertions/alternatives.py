@@ -18,15 +18,25 @@ from suite.structure import (
     struct_alt_kids, struct_alts, struct_empty_alts, struct_exps,
 )
 
+def cy(w):
+    """A word box's vertical centre."""
+    return (w.y0 + w.y1) / 2
+
+
+def stems(p, tok, n):
+    """The n words `tok` on the page, top to bottom; raises unless n."""
+    ws = sorted(p.find_all(tok), key=cy)
+    if len(ws) != n:
+        raise AssertionError(f"expected {tok} {n} times, got {len(ws)}: {ws}")
+    return ws
+
+
 def a_altg(p: Page):
     """\altg: two calls (object line, gloss line) assembling one paradigm,
     centred on the object/gloss midline."""
     r = []
     rows = [p.find(t) for t in ("ROWAA", "ROWBB", "ROWCC", "ROWDD")]
     gls = [p.find(t) for t in ("glaa", "glbb", "glcc", "gldd")]
-
-    def cy(w):
-        return (w.y0 + w.y1) / 2
 
     # the two columns of the block each share an x origin, gloss right of object
     xs = [w.x0 for w in rows]
@@ -74,9 +84,6 @@ def a_altn(p: Page):
     r"""\altn: a braced stack in running text, its three column alignments,
     and -- the part no coordinate proves -- which way the braces curl."""
     r = []
-
-    def cy(w):
-        return (w.y0 + w.y1) / 2
 
     rows = {k: [p.find(f"{k}TOPPPP"), p.find(f"{k}M"), p.find(f"{k}BOTTOMMM")]
             for k in ("C", "L", "R")}
@@ -181,15 +188,6 @@ def a_altn_phantomalign(p: Page):
     """
     r = []
 
-    def cy(w):
-        return (w.y0 + w.y1) / 2
-
-    def stems(tok, n):
-        ws = sorted(p.find_all(tok), key=cy)
-        if len(ws) != n:
-            raise AssertionError(f"expected {tok} {n} times, got {len(ws)}: {ws}")
-        return ws
-
     def aligned(ws, tok):
         """The stems line up -- measured on the RIGHT edge, deliberately.
 
@@ -244,7 +242,7 @@ def a_altn_phantomalign(p: Page):
         return out
 
     # the probe: one marked alternative, one bare, same stem
-    probe = stems("PSTEM", 2)
+    probe = stems(p, "PSTEM", 2)
     r.append(aligned(probe, "PSTEM"))
     r += hangs(probe[1], probe[0], "PSTEM")
     # A hung mark takes exactly the room a typed one takes.  The gutter adds
@@ -263,7 +261,7 @@ def a_altn_phantomalign(p: Page):
 
     # two marks of different widths: the gutter takes the widest, so the
     # stems still line up and the wider mark reaches further left
-    wide = stems("WSTEM", 3)
+    wide = stems(p, "WSTEM", 3)
     r.append(aligned(wide, "WSTEM"))
     r += hangs(wide[0], wide[2], "*WSTEM")
     r += hangs(wide[1], wide[2], "??WSTEM")
@@ -274,8 +272,8 @@ def a_altn_phantomalign(p: Page):
     # no mark anywhere: the split layout must not engage.  Compared against
     # the same stack with alignment off, so a stray gutter shows up as a
     # difference between the two rather than as an absolute coordinate.
-    plain = stems("NSTEM", 2)
-    off = stems("OSTEM", 2)
+    plain = stems(p, "NSTEM", 2)
+    off = stems(p, "OSTEM", 2)
     r.append(aligned(plain, "NSTEM"))
     on_gap = plain[0].x0 - p.find("PLAINL").x1
     off_gap = off[0].x0 - p.find("OFFL").x1
@@ -365,15 +363,6 @@ def a_altg_phantomalign(p: Page):
     """
     r = []
 
-    def cy(w):
-        return (w.y0 + w.y1) / 2
-
-    def stems(tok, n):
-        ws = sorted(p.find_all(tok), key=cy)
-        if len(ws) != n:
-            raise AssertionError(f"expected {tok} {n} times, got {len(ws)}: {ws}")
-        return ws
-
     def lined_up(ws, tok, edge="x1"):
         vals = [getattr(w, edge) for w in ws]
         spread = max(vals) - min(vals)
@@ -385,7 +374,7 @@ def a_altg_phantomalign(p: Page):
     # see \__lxp_alt_setstack:), so pdftotext reports "*OSTEM" as one word
     # and the mark is measured rather than located: same right edge as the
     # unmarked rows, left edge further out by the mark it carries.
-    obj = stems("OSTEM", 3)
+    obj = stems(p, "OSTEM", 3)
     r.append(lined_up(obj, "OSTEM"))
     marked = [w for w in obj if w.text.startswith("*")]
     r.append(check(len(marked) == 1 and marked[0].text == "*OSTEM",
@@ -396,11 +385,11 @@ def a_altg_phantomalign(p: Page):
                        f"the object mark hangs outside the column "
                        f"({plain.x0 - marked[0].x0:.2f}pt)"))
     # ... and the gloss column follows it rather than parting company
-    r.append(lined_up(stems("OGLOSS", 3), "OGLOSS", "x0"))
+    r.append(lined_up(stems(p, "OGLOSS", 3), "OGLOSS", "x0"))
 
     # --- gloss tier marked: the mark stays INSIDE the alternative, so the
     # marked row is the one row whose glyphs do not line up with the others
-    ggl = stems("GGLOSS", 3)
+    ggl = stems(p, "GGLOSS", 3)
     marked = [w for w in ggl if w.text.startswith("*")]
     r.append(check(len(marked) == 1 and marked[0].text == "*GGLOSS",
                    f"a gloss mark is not hung, it stays in its word; "
@@ -412,12 +401,12 @@ def a_altg_phantomalign(p: Page):
                        f"the marked gloss is wider by its mark "
                        f"({marked[0].x1:.2f} vs {plain[0].x1:.2f})"))
     # the object tier of that same paradigm is untouched by the gloss mark
-    r.append(lined_up(stems("GSTEM", 3), "GSTEM"))
+    r.append(lined_up(stems(p, "GSTEM", 3), "GSTEM"))
 
     # --- no mark on either tier: nothing moves.  Measured against the same
     # paradigm with alignment off, so a stray gutter shows up as a
     # difference between the two rather than as an absolute coordinate.
-    non, foff = stems("NSTEM", 2), stems("FSTEM", 2)
+    non, foff = stems(p, "NSTEM", 2), stems(p, "FSTEM", 2)
     r.append(lined_up(non, "NSTEM"))
     on_gap = non[0].x0 - p.find("NDET").x1
     off_gap = foff[0].x0 - p.find("FDET").x1
@@ -426,7 +415,7 @@ def a_altg_phantomalign(p: Page):
                    f"({on_gap:.2f}pt on, {off_gap:.2f}pt off)"))
 
     # --- a solo \altg is an object stack too
-    solo = stems("SSTEM", 2)
+    solo = stems(p, "SSTEM", 2)
     r.append(lined_up(solo, "SSTEM"))
     smarked = [w for w in solo if w.text.startswith("*")]
     r.append(check(len(smarked) == 1,

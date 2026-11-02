@@ -140,6 +140,43 @@ def verapdf_compliant(pdf: Path):
                  f"{failures})")
 
 
+def verapdf_gate(pdf: Path, what: str = "this document"):
+    """The full PDF/UA gate on `pdf`, as a list of (ok, description).
+
+    Three assertions on one veraPDF run: it reported on all its profiles,
+    none of them failed, and it LOGGED nothing while parsing -- some
+    malformed nesting is only logged, and a run that logs it still reports
+    compliant (see verapdf_log_records).  veraPDF missing from PATH, or
+    present but unable to report, is one failed assertion that says which.
+    `what` names the document in those two messages.
+    """
+    if not shutil.which("verapdf"):
+        return [(False, f"verapdf is not on PATH: the PDF/UA gate for {what} "
+                        f"cannot run (install veraPDF; it is the only "
+                        f"authoritative oracle for PDF/UA)")]
+    verdicts, failures, raw = verapdf_report(pdf)
+    if not verdicts:
+        return [(False, f"veraPDF produced no verdict on {what} -- it is on "
+                        f"PATH but could not report (broken install? missing "
+                        f"JRE?).  Its output was: {raw[:400]!r}")]
+    failed = [name for name, ok in verdicts if not ok]
+    logged = verapdf_log_records(raw)
+    return [
+        check(len(verdicts) >= 3,
+              f"veraPDF reported on all its profiles (got {verdicts})"),
+        check(not failed,
+              f"veraPDF: compliant on every profile; failed {failed} "
+              f"with {failures}"
+              if failed else
+              "veraPDF: compliant on every profile"),
+        check(not logged,
+              f"veraPDF parsed the file without complaint; it logged "
+              f"{len(logged)} record(s): {logged[:3]}"
+              if logged else
+              "veraPDF parsed the file without complaint"),
+    ]
+
+
 def verapdf_log_records(raw: str):
     """Everything veraPDF LOGGED during one run, as opposed to reported.
 

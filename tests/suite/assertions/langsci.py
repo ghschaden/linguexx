@@ -6,7 +6,6 @@ built with check(), which is the whole protocol.
 """
 
 import re
-import shutil
 
 from suite.check import check
 from suite.pdf import (
@@ -15,17 +14,14 @@ from suite.pdf import (
 )
 from suite.structure import (
     struct_has_formula, struct_label_depths,
-    struct_ol_classes, verapdf_log_records,
-    verapdf_report,
+    struct_ol_classes, verapdf_gate,
 )
 
 def a_gbfour(p: Page):
     r = []
     # example labels sit at the left margin; the "(1)" inside the Refs
     # line is running text and must be filtered by position
-    labw = [w for w in p.words if re.fullmatch(r"\(\d+\)", w.text)]
-    margin = min(w.x0 for w in labw)
-    got = [w.text for w in labw if abs(w.x0 - margin) < TOL]
+    got = p.margin_labels()
     r.append(check(got == ["(1)", "(2)", "(3)", "(4)", "(5)", "(6)", "(7)"],
                    f"exe batch numbers each \\ex; dot syntax continues; got {got}"))
     letters = [w.text for w in p.words if w.text in ("a.", "b.", "c.", "d.", "i.")]
@@ -80,9 +76,7 @@ def a_langsci(p: Page):
     against its own sibling.
     """
     r = []
-    labw = [w for w in p.words if re.fullmatch(r"\(\d+\)", w.text)]
-    margin = min(w.x0 for w in labw)
-    got = [w.text for w in labw if abs(w.x0 - margin) < TOL]
+    got = p.margin_labels()
     r.append(check(got == ["(1)", "(2)", "(3)", "(4)", "(5)", "(6)", "(7)"],
                    f"one counter across every shape the front-end has; "
                    f"got {got}"))
@@ -191,9 +185,7 @@ def a_langsci_mixed(p: Page):
     refusing to compile at all.
     """
     r = []
-    labw = [w for w in p.words if re.fullmatch(r"\(\d+\)", w.text)]
-    margin = min(w.x0 for w in labw)
-    got = [w.text for w in labw if abs(w.x0 - margin) < TOL]
+    got = p.margin_labels()
     r.append(check(got == ["(1)", "(2)", "(3)", "(4)", "(5)"],
                    f"one counter runs through the dot syntax, the front-end "
                    f"and an exe batch; got {got}"))
@@ -385,9 +377,7 @@ def a_langsci_refs(p: Page):
     # Read off the LABEL COLUMN, not off the page: the parenthesised
     # references in the prose match the same pattern, and it is the label
     # that a change to \theExNo would silently strip.
-    numbered = [w for w in p.words if re.fullmatch(r"\((\d+|i+)\)", w.text)]
-    margin = min(w.x0 for w in numbered)
-    labels = [w.text for w in numbered if abs(w.x0 - margin) < TOL]
+    labels = p.margin_labels(r"\((\d+|i+)\)")
     r.append(check(labels == ["(1)", "(2)", "(3)", "(4)", "(i)"],
                    f"the example numbers are still parenthesised; got "
                    f"{labels}"))
@@ -615,28 +605,7 @@ def a_langsci_ua(p: Page):
     spec-valid, so veraPDF passes it while the rest of the document becomes
     its child.  That one is caught only by the depths.
     """
-    r = []
-    if not shutil.which("verapdf"):
-        r.append((False, "verapdf is not on PATH: the PDF/UA gate for the "
-                         "langsci front-end cannot run"))
-    else:
-        verdicts, failures, raw = verapdf_report(p.path)
-        if not verdicts:
-            r.append((False, f"veraPDF produced no verdict (broken install?); "
-                             f"its output was {raw[:300]!r}"))
-        else:
-            failed = [name for name, ok in verdicts if not ok]
-            r.append(check(not failed,
-                           f"veraPDF: the \\ea front-end produces valid "
-                           f"PDF/UA; failed {failed} with {failures}"
-                           if failed else
-                           "veraPDF: the \\ea front-end produces valid PDF/UA"))
-            logged = verapdf_log_records(raw)
-            r.append(check(not logged,
-                           f"veraPDF parsed it without complaint; it logged "
-                           f"{len(logged)} record(s): {logged[:3]}"
-                           if logged else
-                           "veraPDF parsed it without complaint"))
+    r = verapdf_gate(p.path, "the langsci front-end")
     depths = struct_label_depths(p.path)
     levels = {d for _, d in depths}
     r.append(check(len(depths) >= 5 and len(levels) == 1,
@@ -784,9 +753,7 @@ def a_legacy_gb4e(p: Page):
                    "two marks overlap the letter: label and marks merged"))
 
     # --- numbering and cross-referencing across the batch
-    labw = [w for w in p.words if re.fullmatch(r"\(\d+\)", w.text)]
-    margin = min(w.x0 for w in labw)
-    got = [w.text for w in labw if abs(w.x0 - margin) < TOL]
+    got = p.margin_labels()
     r.append(check(got == ["(1)", "(2)", "(3)", "(4)"],
                    f"the exe batch numbers each \\ex, xlist items excluded; "
                    f"got {got}"))

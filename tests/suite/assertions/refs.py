@@ -13,6 +13,14 @@ from suite.pdf import (
 )
 from suite.structure import struct_lbl_depths, verapdf_compliant
 
+def aux_anchor(aux: str, label: str):
+    """The hyperref anchor the .aux records for `label`, or None."""
+    m = re.search(r"\\newlabel\{" + re.escape(label)
+                  + r"\}\{.*?\}\{[^{}]*\}\{[^{}]*\}\{([^{}]*)\}",
+                  aux, re.S)
+    return m.group(1) if m else None
+
+
 def relref_record(name):
     """The .aux line a relative-reference anchor is recorded with: the
     number the example printed, as a key, and the anchor it got.  The
@@ -477,13 +485,7 @@ def a_hypanchors(p: Page):
     aux = getattr(p, "aux", "")
     txt = " ".join(w.text for w in p.words)
 
-    def anchor(label):
-        m = re.search(r"\\newlabel\{" + re.escape(label)
-                      + r"\}\{.*?\}\{[^{}]*\}\{[^{}]*\}\{([^{}]*)\}",
-                      aux, re.S)
-        return m.group(1) if m else None
-
-    got = {k: anchor(k) for k in
+    got = {k: aux_anchor(aux, k) for k in
            ("h:mainsub", "h:fnsub", "h:mainrom", "h:fnrom")}
     r.append(check(all(got.values()),
                    f"every \\label recorded an anchor in the .aux (got {got})"))
@@ -620,12 +622,6 @@ def a_customlabel_refs(p: Page):
     aux = getattr(p, "aux", "")
     txt = " ".join(w.text for w in p.words)
 
-    def anchor(label):
-        m = re.search(r"\\newlabel\{" + re.escape(label)
-                      + r"\}\{.*?\}\{[^{}]*\}\{[^{}]*\}\{([^{}]*)\}",
-                      aux, re.S)
-        return m.group(1) if m else None
-
     # the reference text: the custom label, brackets off, with the letter
     for sent, want in (("CLREFFIVE", "(5a)"), ("CLREFSIXA", "(6a)"),
                        ("CLREFSIXB", "(6b)"), ("CLREFA", "(Aa)"),
@@ -636,7 +632,7 @@ def a_customlabel_refs(p: Page):
     r.append(check("(0a)" not in txt,
                    "no reference is built from a counter the custom label "
                    "never stepped"))
-    got = {k: anchor(k) for k in ("cl:fivea", "cl:sixa", "cl:sixb", "cl:aa",
+    got = {k: aux_anchor(aux, k) for k in ("cl:fivea", "cl:sixa", "cl:sixb", "cl:aa",
                                   "cl:numa")}
     r.append(check(all(got.values()),
                    f"every \\label recorded an anchor (got {got})"))
@@ -662,7 +658,7 @@ def a_customlabel_refs(p: Page):
                    "a custom label with a fragile command in it is set, "
                    "with or without the example brackets, when nothing "
                    "labels it"))
-    own = [anchor("cl:seven"), anchor("cl:bee")]
+    own = [aux_anchor(aux, "cl:seven"), aux_anchor(aux, "cl:bee")]
     r.append(check(all(own) and len(set(own + custom)) == len(own + custom)
                    and all(a.startswith("lxCustomSerial.lxcex.") for a in own),
                    f"each has a destination of its own on the custom series "
