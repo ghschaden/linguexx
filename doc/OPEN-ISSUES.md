@@ -55,16 +55,3 @@ How it got there: L segments alone (the first attempt) passed veraPDF
 with an unbalanced stream, because the kernel's closing EMC still came out
 first. The suite's balance check (`marked_content_balance`) exists
 because of that.
-
-## XeLaTeX, tagged: `\GlossRTL` in a Hebrew document reads an undeclared tier reversed
-
-*Found 2026-11-03, while testing the gloss fix.*
-
-In `\GlossRTL`'s cells, a tier that declares no language is taken as left
-to right (`\__lx_gl_tier_if_rtl:n`), in a Hebrew document too. Under
-XeLaTeX its Hebrew words then get no `/ActualText` and read in visual
-order in the tree ("ץע" for "עץ"). The page is right. With
-`\GlossTierLang{1}{he}` they read right, and `rtl-gloss-xetex-ua` declares
-it. Taking an undeclared tier as right to left wherever the document is
-would also change LuaLaTeX's cells, so it was not done in passing. Repro:
-`\GlossRTL\exg. עץ גדול\\ A B\\` in `_preamble-rtlmain-ua`, under xelatex.

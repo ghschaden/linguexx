@@ -15,6 +15,11 @@
 %% hebrew environment, and under XeLaTeX a tagged head line in a
 %% right-to-left example fails veraPDF with or without linguexx's table.
 %%
+%% (3) a table under \GlossRTL whose tiers declare no language: such a
+%%     tier is left to right, and under XeLaTeX its Hebrew words read
+%%     "ץע" for "עץ" until a right-to-left word carried /ActualText
+%%     whatever its tier.
+%%
 %% PDF/UA-2, so veraPDF runs on it: under XeTeX every cell is an L segment
 %% holding its marked content, or the R segment of the grid reverses the
 %% BDC/EMC pairs with the text.  Three passes (PASSES).
@@ -30,4 +35,12 @@
 \bg. *ד {} ו\\
 \CommonGloss lg1 lg2 lg3\\
 \end{hebrew}
+
+\begingroup
+\GlossRTL
+\ex.
+\ag. \texthebrew{עץ} \texthebrew{גדול}\\
+\bg. *\texthebrew{גדול} \texthebrew{עץ}\\
+\CommonGloss RTREE RBIG\\
+\endgroup
 \end{document}

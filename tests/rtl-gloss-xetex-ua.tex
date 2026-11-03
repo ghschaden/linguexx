@@ -10,9 +10,10 @@
 %% with no linguexx loaded (doc/OPEN-ISSUES.md), and so would a head line
 %% or a \glt here.  (4) is \GlossRTL's boxed grid: the item's paragraph
 %% around the box is in the R segment all the same, and with a judgment
-%% mark it failed veraPDF before.  Its tier declares Hebrew: in \GlossRTL's
-%% cells an undeclared tier is taken as left to right, in a Hebrew document
-%% too, and its words then read reversed (doc/OPEN-ISSUES.md).
+%% mark it failed veraPDF before.  Its tiers declare no language: in
+%% \GlossRTL's cells an undeclared tier is left to right, in a Hebrew
+%% document too, and under XeLaTeX its words read "ץע" for "עץ" until a
+%% right-to-left WORD carried /ActualText whatever its tier.
 \input{_preamble-rtlmain-ua}
 \ex. \gll הילד אכל את\\
           XGA XGB XGC\\
@@ -25,7 +26,7 @@
 \z.
 
 \begingroup
-\GlossRTL\GlossTierLang{1}{he}
+\GlossRTL
 \exg. *עץ גדול\\
       XGTREE XGBIG\\
 \endgroup

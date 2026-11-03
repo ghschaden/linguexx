@@ -7459,24 +7459,49 @@
   { \sys_if_engine_xetex:T { \__lx_gl_tier_if_rtl:nT {#1} { \tex_endR:D } } }
 %% XeTeX writes a right-to-left word's glyphs in visual order, so the word
 %% carries its logical text.  Purified: what is spoken is the text, not the
-%% font commands around it.
+%% font commands around it.  A right-to-left word, not only a word of a
+%% right-to-left tier: a tier that declares no language is left to right
+%% in \GlossRTL (\__lx_gl_tier_if_rtl:n), and its Hebrew words read "ץע"
+%% for "עץ" -- the page right, since XeTeX shapes one word as a unit.
+%% Asking the word fixes what is read and leaves alone how the cell is
+%% set; which direction such a tier has is not decided by it.
+\sys_if_engine_xetex:T
+  {
+    \regex_const:Nn \c__lx_rtl_char_regex
+      {
+        [ \x{0590}-\x{08FF} \x{FB1D}-\x{FDFF} \x{FE70}-\x{FEFF}
+          \x{10800}-\x{10FFF} \x{1E800}-\x{1EFFF} ]
+      }
+  }
+\prg_new_protected_conditional:Npnn \__lx_tl_if_rtl_text:N #1 { TF }
+  {
+    \exp_args:NNe \regex_match:NnTF \c__lx_rtl_char_regex
+      { \text_purify:V #1 }
+      { \prg_return_true: } { \prg_return_false: }
+  }
 \cs_new_protected:Npn \__lx_gl_rtl_mcbegin:n #1
   {
     \sys_if_engine_xetex:TF
       {
+        \__lx_gl_word_get:Ncn \l__lx_gl_rtl_word_tl
+          { l__lx_gl_tier_ #1 _seq } { \l__lx_gl_col_int }
         \__lx_gl_tier_if_rtl:nTF {#1}
+          { \__lx_gl_rtl_mc_actual: }
           {
-            \__lx_gl_word_get:Ncn \l__lx_gl_rtl_word_tl
-              { l__lx_gl_tier_ #1 _seq } { \l__lx_gl_col_int }
-            \exp_args:Ne \tag_mc_begin:n
-              {
-                tag = Span ,
-                actualtext = { \text_purify:V \l__lx_gl_rtl_word_tl }
-              }
+            \__lx_tl_if_rtl_text:NTF \l__lx_gl_rtl_word_tl
+              { \__lx_gl_rtl_mc_actual: }
+              { \tag_mc_begin:n { tag = Span } }
           }
-          { \tag_mc_begin:n { tag = Span } }
       }
       { \tag_mc_begin:n { tag = Span } }
+  }
+\cs_new_protected:Npn \__lx_gl_rtl_mc_actual:
+  {
+    \exp_args:Ne \tag_mc_begin:n
+      {
+        tag = Span ,
+        actualtext = { \text_purify:V \l__lx_gl_rtl_word_tl }
+      }
   }
 %% The paragraph of the grid.  LuaTeX has it from the box already; XeTeX
 %% needs the whole line in one R segment, and the line set from the right:
@@ -8409,17 +8434,25 @@
     \sys_if_engine_xetex:T
       { \__lx_cg_tier_if_rtl:vTF { g__lx_cg_tier_#1_tl } { \tex_endR:D } { } }
   }
+%% A word of an undeclared tier gets its text too when it is right to left
+%% (\__lx_gl_rtl_mcbegin:n).
+\cs_new_protected:Npn \__lx_cg_mc_actual:
+  {
+    \exp_args:Ne \tag_mc_begin:n
+      { actualtext = { \text_purify:V \l__lx_cg_word_tl } }
+  }
 \cs_new_protected:Npn \__lx_cg_dmcbegin:nn #1#2
   {
     \sys_if_engine_xetex:TF
       {
+        \__lx_cg_word:nn {#1} {#2}
         \__lx_cg_tier_if_rtl:vTF { g__lx_cg_tier_#1_tl }
+          { \__lx_cg_mc_actual: }
           {
-            \__lx_cg_word:nn {#1} {#2}
-            \exp_args:Ne \tag_mc_begin:n
-              { actualtext = { \text_purify:V \l__lx_cg_word_tl } }
+            \__lx_tl_if_rtl_text:NTF \l__lx_cg_word_tl
+              { \__lx_cg_mc_actual: }
+              { \tag_mc_begin:n { } }
           }
-          { \tag_mc_begin:n { } }
       }
       { \tag_mc_begin:n { } }
   }

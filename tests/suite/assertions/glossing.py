@@ -1625,12 +1625,15 @@ def a_commongloss_ltr_ua(p: Page):
                        f"does, beside its letter "
                        f"({min(w.x0 for w in he):.2f} vs {en[0].x0:.2f})"))
     stars, anns = _by_y(p, "*"), _by_y(p, "ANN")
-    r.append(check(len(stars) == 2 and abs(stars[0].x0 - stars[1].x0) < TOL,
+    r.append(check(len(stars) == 3
+                   and all(abs(s.x0 - stars[0].x0) < TOL for s in stars),
                    f"its mark hangs at the letter, where the reference's "
-                   f"does ({stars})"))
+                   f"does, (3)'s too ({stars})"))
     r.append(check(len(anns) == 2 and abs(anns[0].x0 - anns[1].x0) < TOL,
                    f"its annotation is in the reference's column ({anns})"))
-    r += _cg_tree_checks(p, [("LA1", "lg1"), ("א", "lg1")])
+    # (3): undeclared tiers under \GlossRTL -- its first word as typed,
+    # "עץ", where XeLaTeX read "ץע" before.
+    r += _cg_tree_checks(p, [("LA1", "lg1"), ("א", "lg1"), ("עץ", "RTREE")])
     return r
 
 
