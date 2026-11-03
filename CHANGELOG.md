@@ -4,6 +4,68 @@ All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
 ## Unreleased
+Fixes first, then changes to what existing documents print, then new
+features; everything about right-to-left text is together at the end.
+
+- Fixed: with the LaTeX kernel of November 2026 (the `latex-lab` update of
+  2026-10-27), a `\label` inside a sub-example referred to the letter as
+  printed: `\ref` gave "a." instead of "(4a)", and `\refrange` and
+  `\exrefcheck` could not read the number back. The kernel now makes an
+  `\item`'s printed label its reference; linguexx puts its own back.
+- Fixed: a document that loads `babelbidi` (new in TeX Live 2026) together
+  with linguexx did not build under LuaLaTeX ("You can't use `\unless'
+  before `macro'"), whatever its languages. Right-to-left documents are
+  laid out by linguexx with polyglossia only. With babel's right-to-left
+  support on (babelbidi included), linguexx's own mirroring is now off and
+  it warns once that it is; before, babel under XeLaTeX switched it on in a
+  document it was never tested for. In a document whose main language is
+  left to right, the examples are set as in any left-to-right document.
+  A document whose MAIN language is right to left should use polyglossia:
+  under babel its examples are not usable yet (LuaLaTeX reverses a gloss
+  line letter by letter, XeLaTeX a translation word by word).
+- Fixed: under LuaLaTeX with polyglossia's French, a judgment mark
+  containing `?` -- `?`, `??`, `?*`, also through `\jdg` -- was printed on
+  top of the first word of its example instead of hanging to its left.
+  polyglossia spaces `? ! : ;` from a LuaTeX callback that runs after the
+  mark's box is built; the mark is now exempt from that spacing, as it is
+  under babel and under XeLaTeX. Text that the author writes, `?` included,
+  is spaced exactly as before.
+- Fixed: under `\GlossTransLang`, a translated sub-example, or a translated
+  `\ex` in an `exe` list, left its translation's language open into the
+  next item. That item was built inside it, every later example number sat
+  one level deeper in the structure tree than it should, and the PDF failed
+  PDF/UA (an `LI` inside an `LI`). The translation's language now ends
+  with its item.
+- Fixed: `\GlossTierLang{2}{}` wrote an empty `/Lang ()` on every word of
+  tier 2, which is not a language tag and fails PDF/UA (veraPDF 8.4.4-2).
+  An empty code now clears the tier's declaration, as `\GlossTransLang{}`
+  always has: the tier is read in the document's language, and inside an
+  example the clearing lasts for that example only.
+- Fixed: under `[phantomalign]`, a gloss word whose own leading marks are
+  the START of the object word's run -- `(` under `(⌜` (a Quine corner
+  declared with `\GlossPhantomChars`), or `(` under `([` -- was padded in
+  front of its whole word, so its `(` sat under the corner or bracket
+  rather than under the object's `(`. The pad now goes behind the gloss's
+  own marks in that case, with the same total width, so the parentheses
+  are flush and the stems still aligned; under `\GlossMorphAlign` too.
+  Where the gloss's marks end the object's run, or match none of it,
+  nothing changes.
+- Changed: a judgment mark that opens a gloss's object line is a judgment
+  however the gloss is written. Before, only `\exg.` and `\ag.` recognized
+  it; after `\ex. \gll`, `\a. \gll`, `\glll`, `\gl` or gb4e's `\ex \gll`
+  the star was part of the first word, the gloss sat under it (or, with
+  `phantomalign`, was pushed past it as if it were a bracket), and a screen
+  reader was not told "ungrammatical". It now hangs in the margin as in
+  plain text, which moves the first column of such glosses.
+- Changed: a translation without `\GlossTransLang` of its own now takes the
+  language of the gloss's last tier, when that tier has one declared --
+  translations are almost always in the language of the glosses, so
+  `\GlossTierLang{2}{en}` covers both. Only the last tier: a translation
+  never borrows the object line's language, and when the last tier
+  declares nothing it is read in the document's language, as before.
+  `\GlossTransLang` still wins, and `\GlossTransLang{}` lets translations
+  follow the glosses again. Documents that declare no tier language beyond
+  the object line are unchanged.
 - New: `\CommonGloss`, for sub-examples that differ in word order and
   share one gloss. In an example that contains it, `\ag.` ... `\fg.` read
   one line each (a variant row, `{}` for a gap), and each `\CommonGloss`
@@ -15,73 +77,21 @@ version string.
   is the same. In a right-to-left document, or for an example whose
   language runs against the document's, the table is laid out as an
   ordinary gloss there: letters, marks and annotation column in the
-  document's direction, columns in the example's. In a beamer frame a
+  document's direction, columns in the example's. Provisional, and
+  recorded in `doc/DEFERRED-DECISIONS.md`: where the annotation goes in
+  an example that runs against the document. In a beamer frame a
   `\pause` between the rows uncovers them one slide at a time, row a with
   the shared lines first. Manual section 5.12.
-- Changed: a judgment mark that opens a gloss's object line is a judgment
-  however the gloss is written. Before, only `\exg.` and `\ag.` recognized
-  it; after `\ex. \gll`, `\a. \gll`, `\glll`, `\gl` or gb4e's `\ex \gll`
-  the star was part of the first word, the gloss sat under it (or, with
-  `phantomalign`, was pushed past it as if it were a bracket), and a screen
-  reader was not told "ungrammatical". It now hangs in the margin as in
-  plain text, which moves the first column of such glosses.
-- New: `*(`, a star against an opening parenthesis (the notation for an
-  obligatory element), is still a judgment but is spoken "obligatory"
-  rather than "ungrammatical". `\SetJudgmentSpoken{*(}{...}` changes it.
-- Fixed: with the LaTeX kernel of November 2026 (the `latex-lab` update of
-  2026-10-27), a `\label` inside a sub-example referred to the letter as
-  printed: `\ref` gave "a." instead of "(4a)", and `\refrange` and
-  `\exrefcheck` could not read the number back. The kernel now makes an
-  `\item`'s printed label its reference; linguexx puts its own back.
-- Fixed: a document that loads `babelbidi` (new in TeX Live 2026) together
-  with linguexx did not build under LuaLaTeX ("You can't use `\unless'
-  before `macro'"), whatever its languages. Right-to-left documents are
-  laid out by linguexx with polyglossia only; with babel's right-to-left
-  support (babelbidi included) every example is now set as in a
-  left-to-right document, with a warning that says so. Before, babel
-  under XeLaTeX switched linguexx's mirroring on in a document it was
-  never tested for.
-- Changed: in a document whose main language is written right to left
-  (polyglossia, LuaLaTeX or XeLaTeX), every example follows the main
-  language's direction: an example inside `\begin{english}` in a Hebrew
-  document is numbered at the right margin with its letters and marks on
-  the right, and only its words run left to right; a Hebrew example in an
-  English document is laid out like the English ones. Before, such an
-  example was numbered on its own language's side, so one document
-  numbered on both. A label reads in the document's direction too: ".a"
-  in a Hebrew document, where XeLaTeX used to print "a." and LuaLaTeX
-  ".a" for the Latin letters of a Hebrew example. Documents with one
-  direction throughout are unchanged.
-- Fixed and new: glosses in a right-to-left document. A gloss runs in its
-  example's direction: a Hebrew example's grid from the right -- under
-  XeLaTeX it used to stand at the left of the page with its number in the
-  middle -- and an English example's, in a Hebrew document, from the
-  left, as the mirror image of `\GlossRTL`: a short grid beside its
-  number, a long one starting every line at the left margin, its
-  translation in the document's language and direction, as `\GlossRTL`
-  leaves a translation in the reader's. A Hebrew example in an English
-  document is glossed as `\GlossRTL` glosses, without `\GlossRTL`. No tier
-  needs `\GlossTierLang`: in such an example the object line is read in
-  the example's language and the glosses in the document's. Under
-  XeLaTeX the Hebrew glosses of an English grid carry their logical text
-  in a tagged PDF. The manual shows a complete document with its output,
-  and both now ship with the package, beside the manual, as
-  `rtl-hebrew.tex` and `rtl-hebrew.pdf`.
-- New: `\Exalph` and `\Exroman` are documented as the place to choose the
-  sub-example letters and numerals. By default they follow the language
-  (alef, bet under polyglossia's Hebrew); `\let\Exalph\ExLatinAlph`
-  gives a, b in any language, in labels and references.
-- Fixed: in a right-to-left document under XeLaTeX (Hebrew, Arabic, ...
-  as polyglossia's main language, which loads bidi), example numbers and
-  sub-example letters stood against their text instead of against the
-  margin -- up to 14pt in -- while the text and the judgment marks were in
-  the right place. They are now where LuaLaTeX puts them, the mirror image
-  of a left-to-right list.
-- Fixed: in a right-to-left paragraph, the braces of `\altn` and of an
-  `\altg` outside a gloss faced the alternatives instead of facing away
-  from them ("}...{"), under both engines. Left-to-right documents are
-  unchanged. Glosses in a right-to-left document are a separate, open
-  question; see `doc/DEFERRED-DECISIONS.md`.
+- New: morpheme alignment in glosses. Under `\GlossMorphAlign` each
+  morpheme of a column starts at the same point in every segmented tier,
+  hyphens included: `ev-ler-de` over `house-PL-LOC` puts `-ler` over
+  `-PL`. No new markup -- words split at `-` and `=`, braces keep a unit
+  whole (`{in-law}-mother`), and a citation form `-t` or an en dash is not
+  split. A tier that does not split is set whole; segmented tiers that
+  disagree on the count are set by word for that column, with a warning
+  naming it. Off by default and group-scoped; `\GlossMorphAlignOff` turns it
+  off. Works with `[phantomalign]`; a column holding `\altg` or a movement
+  arrow stays aligned by word. Changes nothing in the structure tree.
 - New: `\exrefcheck` lists, at the end of the run, every relative
   reference (`\Next`, `\Last`, `\NNext`, `\LLast`, `\TextNext` and their
   `\p...` twins) and both ends of every `\refrange`, `\prefrange` and
@@ -97,66 +107,79 @@ version string.
   has, and a page is the slide the example or reference is SEEN on: after
   `\pause` that is the next one, not the slide it was first set on while
   covered. Overlay specifications (`\only<2->`) are not quoted.
-- Fixed: under LuaLaTeX with polyglossia's French, a judgment mark
-  containing `?` -- `?`, `??`, `?*`, also through `\jdg` -- was printed on
-  top of the first word of its example instead of hanging to its left.
-  polyglossia spaces `? ! : ;` from a LuaTeX callback that runs after the
-  mark's box is built; the mark is now exempt from that spacing, as it is
-  under babel and under XeLaTeX. Text that the author writes, `?` included,
-  is spaced exactly as before.
-- Fixed: under `[phantomalign]`, a gloss word whose own leading marks are
-  the START of the object word's run -- `(` under `(⌜` (a Quine corner
-  declared with `\GlossPhantomChars`), or `(` under `([` -- was padded in
-  front of its whole word, so its `(` sat under the corner or bracket
-  rather than under the object's `(`. The pad now goes behind the gloss's
-  own marks in that case, with the same total width, so the parentheses
-  are flush and the stems still aligned; under `\GlossMorphAlign` too.
-  Where the gloss's marks end the object's run, or match none of it,
-  nothing changes.
-- New: right-to-left glosses, under LuaLaTeX (recommended) or XeLaTeX.
-  `\GlossRTL` sets a gloss as a right-to-left grid: the first word in the
-  rightmost column, wrapping from the right, a short grid beside its
-  number; `\GlossRTLOff` turns it off. Which tiers are right-to-left
-  script is read off `\GlossTierLang` (`he`, `ar`, `fa`, `ur`, `yi`, ...;
-  a script subtag decides, so `he-Latn` stays left to right).
-  `\glscript{lang}{text}` sets the native script as one unaligned line
-  above an ordinary gloss of a transliteration. Under tagging the tree
-  stays in reading order, each tier in its language; under XeLaTeX each
-  right-to-left word carries `/ActualText`, since XeTeX writes it in
+- New: `*(`, a star against an opening parenthesis (the notation for an
+  obligatory element), is still a judgment but is spoken "obligatory"
+  rather than "ungrammatical". `\SetJudgmentSpoken{*(}{...}` changes it.
+
+Right-to-left text, under LuaLaTeX (recommended) or XeLaTeX:
+
+- Changed: in a document whose main language is written right to left
+  (polyglossia, LuaLaTeX or XeLaTeX), every example follows the main
+  language's direction: an example inside `\begin{english}` in a Hebrew
+  document is numbered at the right margin with its letters and marks on
+  the right, and only its words run left to right; a Hebrew example in an English document is laid out like the
+  English ones. Before, such an example was numbered on its own language's
+  side, so one document numbered on both. A label reads in the document's
+  direction too: ".a" in a Hebrew document, where XeLaTeX used to print
+  "a." and LuaLaTeX ".a" for the Latin letters of a Hebrew example.
+  Documents with one direction throughout are unchanged.
+- Fixed: in a right-to-left document under XeLaTeX (Hebrew, Arabic, ...
+  as polyglossia's main language, which loads bidi), example numbers and
+  sub-example letters stood against their text instead of against the
+  margin -- up to 14pt in -- while the text and the judgment marks were in
+  the right place. They are now where LuaLaTeX puts them, the mirror image
+  of a left-to-right list.
+- Fixed: in a right-to-left paragraph, the braces of `\altn` and of an
+  `\altg` outside a gloss faced the alternatives instead of facing away
+  from them ("}...{"), under both engines. Left-to-right documents are
+  unchanged.
+- New: right-to-left glosses. `\GlossRTL` sets a gloss as a right-to-left
+  grid: the first word in the rightmost column, wrapping from the right, a
+  short grid beside its number; `\GlossRTLOff` turns it off. Which tiers
+  are right-to-left script is read off `\GlossTierLang` (`he`, `ar`, `fa`,
+  `ur`, `yi`, ...; a script subtag decides, so `he-Latn` stays left to
+  right). `\glscript{lang}{text}` sets the native script as one unaligned
+  line above an ordinary gloss of a transliteration. Under tagging the
+  tree stays in reading order, each tier in its language; under XeLaTeX
+  each right-to-left word carries `/ActualText`, since XeTeX writes it in
   visual order. pdfLaTeX gets an error. Provisional, and recorded in
-  `doc/DEFERRED-DECISIONS.md`: judgment marks hang on the left, and under
+  `doc/DEFERRED-DECISIONS.md`: judgment marks hang on the left; under
   `\GlossMorphAlign` morphemes are set against the end of their boxes,
-  with the hyphen closing the morpheme before it.
-- Changed: a translation without `\GlossTransLang` of its own now takes the
-  language of the gloss's last tier, when that tier has one declared --
-  translations are almost always in the language of the glosses, so
-  `\GlossTierLang{2}{en}` covers both. Only the last tier: a translation
-  never borrows the object line's language, and when the last tier
-  declares nothing it is read in the document's language, as before.
-  `\GlossTransLang` still wins, and `\GlossTransLang{}` lets translations
-  follow the glosses again. Documents that declare no tier language beyond
-  the object line are unchanged.
-- New: morpheme alignment in glosses. Under `\GlossMorphAlign` each
-  morpheme of a column starts at the same point in every segmented tier,
-  hyphens included: `ev-ler-de` over `house-PL-LOC` puts `-ler` over
-  `-PL`. No new markup -- words split at `-` and `=`, braces keep a unit
-  whole (`{in-law}-mother`), and a citation form `-t` or an en dash is not
-  split. A tier that does not split is set whole; segmented tiers that
-  disagree on the count are set by word for that column, with a warning
-  naming it. Off by default and group-scoped; `\GlossMorphAlignOff` turns it
-  off. Works with `[phantomalign]`; a column holding `\altg` or a movement
-  arrow stays aligned by word. Changes nothing in the structure tree.
-- Fixed: under `\GlossTransLang`, a translated sub-example, or a translated
-  `\ex` in an `exe` list, left its translation's language open into the
-  next item. That item was built inside it, every later example number sat
-  one level deeper in the structure tree than it should, and the PDF failed
-  PDF/UA (an `LI` inside an `LI`). The translation's language now ends
-  with its item.
-- Fixed: `\GlossTierLang{2}{}` wrote an empty `/Lang ()` on every word of
-  tier 2, which is not a language tag and fails PDF/UA (veraPDF 8.4.4-2).
-  An empty code now clears the tier's declaration, as `\GlossTransLang{}`
-  always has: the tier is read in the document's language, and inside an
-  example the clearing lasts for that example only.
+  with the hyphen closing the morpheme before it; and `\exannot` in a
+  right-to-left grid is an error.
+- Fixed and new: glosses in a right-to-left document. A gloss runs in its
+  example's direction: a Hebrew example's grid from the right -- under
+  XeLaTeX it used to stand at the left of the page with its number in the
+  middle -- and an English example's, in a Hebrew document, from the
+  left, as the mirror image of `\GlossRTL`: a short grid beside its
+  number, a long one starting every line at the left margin, its
+  translation in the document's language and direction, as `\GlossRTL`
+  leaves a translation in the reader's. A Hebrew example in an English
+  document is glossed as `\GlossRTL` glosses, without `\GlossRTL`. No tier
+  needs `\GlossTierLang`: in such an example the object line is read in
+  the example's language and the glosses in the document's. Under
+  XeLaTeX the Hebrew glosses of an English grid carry their logical text
+  in a tagged PDF. The manual shows a complete document with its output,
+  and both now ship with the package, beside the manual, as
+  `rtl-hebrew.tex` and `rtl-hebrew.pdf`.
+- Fixed: in a tagged right-to-left document a screen reader got some
+  labels and words in visual order though the page was right. Under
+  LuaLaTeX an English example's number read ")2(" -- polyglossia mirrors
+  the parentheses in the font, the text layer included -- and under
+  XeLaTeX a Hebrew sub-label read ".א" and a Hebrew word in a gloss tier
+  that declares no language read backwards. Each is now read as typed.
+- Fixed: under XeLaTeX, a gloss in a right-to-left paragraph (a Hebrew
+  document, or `\begin{hebrew}`) failed PDF/UA: bidi reverses the tagging
+  markers together with the glyphs, and the words were left untagged.
+  Glosses and `\CommonGloss` tables now pass on both engines. The rest of
+  a right-to-left paragraph under XeLaTeX -- a head line, a Hebrew
+  translation, the document's own text -- still fails, with or without
+  linguexx, and the manual (section 9.5) says to use LuaLaTeX for a tagged
+  document with right-to-left text.
+- New: `\Exalph` and `\Exroman` are documented as the place to choose the
+  sub-example letters and numerals. By default they follow the language
+  (alef, bet under polyglossia's Hebrew); `\let\Exalph\ExLatinAlph`
+  gives a, b in any language, in labels and references.
 
 ## 1.4
 - New: movement arrows. `\mvto{a}{What} did John buy \mvfrom{a}{\_\_}?`
