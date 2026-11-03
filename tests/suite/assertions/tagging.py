@@ -1148,3 +1148,43 @@ def a_rtl_gloss_ua(p: Page):
                        f"the Hebrew gloss {want!r} reads in logical order in "
                        f"the tree: {[t for t in texts if t and t[0] > 'z']}"))
     return r
+
+
+def _hebrew_texts(pdf):
+    """The tree's marked content that is Hebrew, stripped, in tree order --
+    the words, not the sub-labels ("א.": under XeLaTeX ".א", a defect of its
+    own, doc/OPEN-ISSUES.md)."""
+    return [t.strip() for t in _tag_texts(pdf)
+            if re.search("[\u0590-\u05ff]", t) and "." not in t]
+
+
+def a_rtl_gloss_xetex_ua(p: Page):
+    r"""Ordinary glosses in a Hebrew document, veraPDF on both engines;
+    see the case's header."""
+    r = [verapdf_compliant(p.path)]
+    heb = _hebrew_texts(p.path)
+    want = ["הילד", "אכל", "את", "ספר", "טוב",
+            "א", "ב", "ג", "ד", "ה", "ו", "עץ", "גדול"]
+    r.append(check(heb == want,
+                   f"every Hebrew word is in the tree, whole, in logical "
+                   f"order and reading order: {heb}"))
+    # The marks as a screen reader meets them: a Span with the spoken /Alt,
+    # which must wrap the mark.  Before, under XeLaTeX, each was empty and
+    # the mark beside it untagged.
+    orphans = struct_empty_alts(p.path)
+    r.append(check(not orphans,
+                   f"every judgment mark's /Alt wraps the mark; these wrap "
+                   f"nothing: {orphans}"))
+    return r
+
+
+def a_rtl_gloss_hebenv_ua(p: Page):
+    r"""A Hebrew gloss in \begin{hebrew} in an English document, veraPDF
+    on both engines; see the case's header."""
+    r = [verapdf_compliant(p.path)]
+    heb = _hebrew_texts(p.path)
+    r.append(check(heb == ["א", "ב", "ג", "ד", "ה", "ו"],
+                   f"every Hebrew word is in the tree, in logical order: "
+                   f"{heb}"))
+    return r
+

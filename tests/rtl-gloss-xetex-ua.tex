@@ -1,0 +1,32 @@
+%% Ordinary glosses in a right-to-left document under PDF/UA-2, validated
+%% by veraPDF under XeLaTeX as well as LuaLaTeX.  Under XeLaTeX a gloss's
+%% paragraph is set with the kernel's paragraph tagging off and each of
+%% its words, and its judgment mark, in an L segment of its own
+%% (\__lx_gl_paraoff_begin:, \l__lx_gl_rframe_bool): bidi's R segment
+%% reverses marked-content operators with the glyphs, and before, every
+%% word's Span came out empty with its text untagged (8.2.2-1), or, with
+%% the L segments alone, the kernel's closing EMC came out first.
+%% Glosses ONLY: a plain right-to-left paragraph still fails under XeLaTeX
+%% with no linguexx loaded (doc/OPEN-ISSUES.md), and so would a head line
+%% or a \glt here.  (4) is \GlossRTL's boxed grid: the item's paragraph
+%% around the box is in the R segment all the same, and with a judgment
+%% mark it failed veraPDF before.  Its tier declares Hebrew: in \GlossRTL's
+%% cells an undeclared tier is taken as left to right, in a Hebrew document
+%% too, and its words then read reversed (doc/OPEN-ISSUES.md).
+\input{_preamble-rtlmain-ua}
+\ex. \gll הילד אכל את\\
+          XGA XGB XGC\\
+
+\exg. *ספר טוב\\
+      XGBOOK XGGOOD\\
+
+\ex. \ag. *א ב ג\\ XGA1 XGA2 XGA3\\
+\bg. ?*ד ה ו\\ XGB1 XGB2 XGB3\\
+\z.
+
+\begingroup
+\GlossRTL\GlossTierLang{1}{he}
+\exg. *עץ גדול\\
+      XGTREE XGBIG\\
+\endgroup
+\end{document}

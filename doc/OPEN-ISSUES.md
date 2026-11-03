@@ -6,15 +6,14 @@ and how to reproduce it. These are BUGS. Undecided behaviour belongs in
 
 ## XeLaTeX, tagged: right-to-left paragraphs fail veraPDF (upstream, not linguexx)
 
-*Found 2026-11-03. Traced to upstream the same day.*
+*Found 2026-11-03. Traced to upstream the same day. linguexx's own part
+(ordinary glosses) fixed on 2026-11-03, see below.*
 
 Under XeLaTeX with `\DocumentMetadata{... ua-2 ...}`, a right-to-left
 paragraph fails 8.2.2-1 ("content that is not considered real shall be an
-artifact"). Two entries were filed here: `\ex. HEAD` in a Hebrew document
-or in `\begin{hebrew}` (1 item), and an ordinary gloss in a Hebrew
-document (14 items). Both are this one problem. linguexx is not needed to
-show it. A bare document fails with one Hebrew word, on the release kernel
-and on `xelatex-dev` (LaTeX 2027-07-01 pre-release, 2026-11-02):
+artifact"). linguexx is not needed to show it. A bare document fails with
+one Hebrew word, on the release kernel and on `xelatex-dev` (LaTeX
+2027-07-01 pre-release, 2026-11-02):
 
     \DocumentMetadata{lang=he,pdfversion=2.0,pdfstandard=ua-2,tagging=on}
     \documentclass{article}
@@ -31,39 +30,54 @@ and on `xelatex-dev` (LaTeX 2027-07-01 pre-release, 2026-11-02):
 
 In the content stream, the paragraph's marked content comes out empty
 (`/text-block <</MCID 1>> BDC EMC`) and the glyphs follow it, untagged.
-XeTeX reverses the boxes of an R segment from the inside, marked-content
-operators included (finding 4 of `experiments/rtl`), and polyglossia sets
-Hebrew paragraphs through `bidi`. Plain paragraphs, `itemize` and
-`enumerate` all fail the same way. LuaLaTeX passes.
+XeTeX reverses an R segment's boxes from the inside, marked-content
+operators included, and polyglossia sets Hebrew paragraphs through `bidi`.
+Plain paragraphs, `itemize` and `enumerate` all fail the same way.
+LuaLaTeX passes.
 
-linguexx cannot repair the kernel's paragraph tagging from inside the
-package. The ordinary gloss is partly linguexx's, though. In
-`\ex. \ag. א ב ג\\ RG1 RG2 RG3\\`, every cell's own `/Span` comes out empty
-as well, next to the kernel's `text-block`, and its text is untagged. That
-is the package's marked content hit by the same reversal, and it is what
-`\CommonGloss` avoids by setting each cell's marked content inside an L
-segment.
+So in a linguexx document under XeLaTeX, a head line (`\ex. HEAD`), a
+`\glt` translation and any plain text of a Hebrew example still fail, as
+any Hebrew paragraph does. Next step: report it to the LaTeX tagging
+project (latex3/tagging-project) with the document above. Not done yet:
+it waits for a go-ahead.
 
-Porting that wrapping is NOT enough. It was tried on 2026-11-03 and is
-kept on the local branch `wip/rtl-gloss-xetex-tagging`. Each word and
-each column (with the paragraph marked content it suspends and resumes)
-was set as an L segment, and so was the judgment mark in a gloss. veraPDF
-then PASSES `\exg.` and `\ag./\bg.` in a Hebrew document, but the
-content stream is not balanced: the kernel closes the paragraph's marked
-content at `\par`, inside bidi's R segment, so that EMC comes out first and
-the last BDC is never closed. veraPDF does not catch it (poppler's
-`pdfinfo -struct-text` reports "Mismatched EMC"). The plain mark in a plain
-paragraph made it worse, so the branch limits that part to glosses.
+**Fixed in linguexx: ordinary glosses.** A gloss's paragraph is now set
+with the kernel's paragraph tagging off (`\__lx_gl_paraoff_begin:`), so no
+kernel marked content is left in bidi's R segment. Each word and the
+judgment mark are L segments of their own (`\l__lx_gl_rframe_bool`), so
+the reversal only reorders whole units. The column is deliberately NOT an
+L segment: the R segment's mirroring of the column box is what sets a word
+flush right in its column. Pages are identical to before in every
+right-to-left case. `rtl-gloss-xetex-ua` (Hebrew document) and
+`rtl-gloss-hebenv-ua` (`\begin{hebrew}`) pass veraPDF under XeLaTeX.
 
-What would work is what `\CommonGloss` does: paragraph tagging off for
-the grid (`para/tagging = false`, as `\__lx_gl_rtl_boxsetup:` does) and the
-grid set in a frame of its own. For the ordinary gloss that is a change
-of layout path under XeTeX in right-to-left documents. It needs its own
-decision and a nominal check of the untagged pages.
+How it got there: L segments alone (the first attempt) passed veraPDF
+with an unbalanced stream, because the kernel's closing EMC still came out
+first. The suite's balance check (`marked_content_balance`) exists
+because of that.
 
-The suite has no check that BDC/EMC balance in a content stream. veraPDF
-and the structure checks both missed this. `\CommonGloss` gets its own marked content right
-(`\__lx_cg_gcell:nnnn`, `\__lx_cg_head:n`), and its right-to-left UA cases
-pass only because they keep paragraph text out of Hebrew examples. Next
-step: report it to the LaTeX tagging project (latex3/tagging-project)
-with the document above. Not done yet: it waits for a go-ahead.
+## XeLaTeX, tagged: a Hebrew sub-label reads ".א" in the tree
+
+*Found 2026-11-03, while testing the gloss fix. Present on main before it.*
+
+In a Hebrew example under XeLaTeX, the sub-label "א." reads ".א" in the
+structure tree (show-pdf-tags), and so to a screen reader. LuaLaTeX gives
+"א.". It is probably the same reversal: the label is set in an R segment
+(`\lx@dir@label`), and `\lx@dir@labelsep`'s kernel makes letter and period
+two nodes, which XeTeX writes in visual order. Repro: `\ex. \a. א \z.` in
+`_preamble-rtlmain-ua`, under xelatex; `rtl-gloss-xetex-ua` shows it too.
+The page is right. A `/ActualText` on the label, as LuaLaTeX now gets for
+mirrored brackets (`\__lx_dir_label_text:`), is the likely fix.
+
+## XeLaTeX, tagged: `\GlossRTL` in a Hebrew document reads an undeclared tier reversed
+
+*Found 2026-11-03, while testing the gloss fix.*
+
+In `\GlossRTL`'s cells, a tier that declares no language is taken as left
+to right (`\__lx_gl_tier_if_rtl:n`), in a Hebrew document too. Under
+XeLaTeX its Hebrew words then get no `/ActualText` and read in visual
+order in the tree ("ץע" for "עץ"). The page is right. With
+`\GlossTierLang{1}{he}` they read right, and `rtl-gloss-xetex-ua` declares
+it. Taking an undeclared tier as right to left wherever the document is
+would also change LuaLaTeX's cells, so it was not done in passing. Repro:
+`\GlossRTL\exg. עץ גדול\\ A B\\` in `_preamble-rtlmain-ua`, under xelatex.

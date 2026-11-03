@@ -1,0 +1,15 @@
+%% rtl-gloss-xetex-ua's other context: a Hebrew gloss in \begin{hebrew}
+%% inside an English document, where bidi's \if@RTL is set by the
+%% environment rather than by the main language.  Same mechanism, same
+%% check: veraPDF on both engines.
+\input{_preamble-ua-polyglossia}
+English text before.
+
+\begin{hebrew}
+\ex. \ag. *א ב ג\\ HGA1 HGA2 HGA3\\
+\bg. ד ה ו\\ HGB1 HGB2 HGB3\\
+\z.
+\end{hebrew}
+
+English text after.
+\end{document}

@@ -922,7 +922,7 @@
 %% \cs_if_exist:N on \tag_if_active:T -- a conditional VARIANT rather than
 %% the base name, which happens to work but tests the wrong thing.
 \ExplSyntaxOn
-\prg_new_conditional:Npnn \lx@tag@if@active: { TF , T , F }
+\prg_new_conditional:Npnn \lx@tag@if@active: { p , TF , T , F }
   {
     \bool_lazy_all:nTF
       {
@@ -1203,6 +1203,21 @@
           }
       }
   }
+%% Under XeTeX in a right-to-left paragraph the \llap's box is reversed
+%% inside by the paragraph's R segment, marked-content operators included
+%% (see \l__lx_gl_rframe_bool): the mark's /Span came out empty and the
+%% mark untagged.  Its tagged part is an L segment of its own there; the
+%% \hss and \JdgSep around it keep the reversed order that hangs the mark
+%% on the right side, so the page does not change.
+%% Only for a gloss's mark (\l__lx_judge_rgloss_bool, set by
+%% \lx@emitglossjudge): the gloss's paragraph has no kernel marked content
+%% (\__lx_gl_paraoff_begin:), or the grid is set in a box of its own
+%% (\GlossRTL's path, a crossed example).  In a paragraph WITH it -- a
+%% plain right-to-left one -- the kernel's marked content is
+%% reversed along with the text (upstream, doc/OPEN-ISSUES.md), and the
+%% mark's suspend and resume balanced only BECAUSE they were reversed with
+%% it: kept in order, they left an EMC with no BDC, and the tree read wrong
+%% for the rest of the page.
 \cs_new_protected:Npn \lx@hangjudge #1#2
   {
     \leavevmode
@@ -1211,9 +1226,84 @@
         \__lx_judge_no_punct:
         \tl_if_blank:nTF {#1}
           { #2 }
-          { \lx@tag@span:nn { tag = Span , alt = {#1} } {#2} }
+          {
+            \__lx_judge_ltr:n
+              { \lx@tag@span:nn { tag = Span , alt = {#1} } {#2} }
+          }
         \hskip \JdgSep
       }
+  }
+\bool_new:N \l__lx_judge_rgloss_bool
+\cs_new_protected:Npn \lx@emitglossjudge
+  {
+    \__lx_gl_paraoff_begin:
+    \bool_lazy_all:nTF
+      {
+        { \sys_if_engine_xetex_p: }
+        { \lx@tag@if@active_p: }
+        { \cs_if_exist_p:N \if@RTL }
+        { \legacy_if_p:n { @RTL } }
+      }
+      { \bool_set_true:N \l__lx_judge_rgloss_bool }
+      { \bool_set_false:N \l__lx_judge_rgloss_bool }
+    \lx@emitjudge
+    \bool_set_false:N \l__lx_judge_rgloss_bool
+  }
+%% Under XeTeX, in a right-to-left paragraph, a gloss's paragraph is set
+%% with the kernel's paragraph tagging OFF.  The kernel closes a
+%% paragraph's marked content at \par, inside bidi's R segment, and XeTeX
+%% reverses that EMC with the glyphs: it came out FIRST, and the last
+%% sequence was never closed (doc/OPEN-ISSUES.md).  With no paragraph
+%% marked content there is nothing of the kernel's left in the segment,
+%% and every sequence of linguexx's in it is an L segment of its own (the
+%% mark, \__lx_judge_ltr:n; each word, \l__lx_gl_rframe_bool), so the
+%% reversal reorders whole units only.  \CommonGloss sets its table the
+%% same way.
+%% A \GlossRTL grid too: it is set in a box of its own, but the item's
+%% paragraph around the box is still in the R segment, and so was the
+%% kernel's marked content in it.  Not in a crossed example (an English
+%% one in a Hebrew document, \l__lx_dir_flip_bool): its list is set in the
+%% document's direction, so its paragraph is not in an R segment.
+%% Switched here, before the judgment mark, because a mark starts the
+%% paragraph (\lx@hangjudge's \leavevmode); put back after the grid, in
+%% \__lx_gl_dir_end:, with a \par of its own.  Only where it was on: an
+%% author may have it off, and tagpdf has no public way to ask, so its
+%% switch is read where it exists.
+\bool_new:N \l__lx_gl_paraoff_bool
+\cs_new_protected:Npn \__lx_gl_paraoff_begin:
+  {
+    \bool_set_false:N \l__lx_gl_paraoff_bool
+    \bool_lazy_all:nT
+      {
+        { \sys_if_engine_xetex_p: }
+        { \lx@tag@if@active_p: }
+        { \bool_if_exist_p:N \l__tag_para_bool }
+        { \cs_if_exist_p:N \if@RTL }
+        { \legacy_if_p:n { @RTL } }
+        { ! \l__lx_dir_flip_bool }
+      }
+      {
+        \bool_if:NT \l__tag_para_bool
+          {
+            \tagpdfsetup { para/tagging = false }
+            \bool_set_true:N \l__lx_gl_paraoff_bool
+          }
+      }
+  }
+\cs_new_protected:Npn \__lx_gl_paraoff_end:
+  {
+    \bool_if:NT \l__lx_gl_paraoff_bool
+      {
+        \par
+        \tagpdfsetup { para/tagging = true }
+        \bool_set_false:N \l__lx_gl_paraoff_bool
+      }
+  }
+\cs_new_protected:Npn \__lx_judge_ltr:n #1
+  {
+    \bool_if:NTF \l__lx_judge_rgloss_bool
+      { \tex_beginL:D #1 \tex_endL:D }
+      { #1 }
   }
 %% Hang the mark, then put back whatever the scan skipped to reach it
 %% (\label, \sublabel -- see \__lx_judge_skip:N).  This order is the
@@ -2877,7 +2967,7 @@
 %% \ex. \gll resp. \a. \gll etc., with judgment detection re-run in
 %% front of the gloss so that "\exg. *Das ist ..." hangs the star left
 %% of the first column:
-\def\lx@glosshead{\lx@scanjudgeto{\lx@emitjudge\gll}}
+\def\lx@glosshead{\lx@scanjudgeto{\lx@emitglossjudge\gll}}
 %% \exg.[label] takes the custom label \ex.[label] takes -- and it has to
 %% be spelt out, because the plain expansion cannot deliver it: \exg. puts
 %% \lx@glosshead in front of the body, so the "[" that \lx@exstart peeks
@@ -5963,6 +6053,13 @@
 
 %% The column Span takes the OUTER half of the idiom only: its content is
 %% the tier words, and each of those opens marked content of its own.
+%% Under XeTeX in a right-to-left paragraph (\l__lx_gl_rframe_bool) the
+%% column is NOT an L segment, though its words are: the paragraph's R
+%% segment mirrors the column's box, and that is what sets a word flush
+%% right in its column, where a right-to-left reader starts.  An L segment
+%% here put them flush left.  Nor does it need one: the paragraph's own
+%% marked content, which the column suspends and resumes, is not there
+%% (\__lx_gl_paraoff_begin:), so the suspend and resume emit nothing.
 \cs_new_protected:Npn \lx@gl@colbegin
   { \lx@tag@if@active:T { \lx@tag@span@open:n { tag = Span } } }
 \cs_new_protected:Npn \lx@gl@colend
@@ -6959,11 +7056,24 @@
 %% on here would have turned every later gloss in the document.
 \bool_new:N \l__lx_gl_ltrbox_bool
 \bool_new:N \l__lx_gl_rtl_saved_bool
+%% Under XeTeX, a gloss that is not crossed but stands in a right-to-left
+%% paragraph (bidi's \if@RTL: a Hebrew document, or \begin{hebrew}) is
+%% set by the paragraph's R segment, and XeTeX reverses an R segment's
+%% boxes INSIDE, marked-content operators included: every word's /Span
+%% came out empty, its text after it
+%% untagged, and veraPDF failed the document (8.2.2-1).  Its words take the
+%% layers of a crossed grid's then (\__lx_gl_if_dircells:), the marked
+%% content in an L segment, as \CommonGloss does in a right-to-left frame
+%% (\l__lx_cg_dircells_bool), and a tier that declares no language is
+%% right to left inside it, as the paragraph around it is
+%% (\__lx_gl_tier_if_rtl:n).
+\bool_new:N \l__lx_gl_rframe_bool
 \cs_new_protected:Npn \__lx_gl_dir_begin:
   {
     \bool_set_eq:NN \l__lx_gl_rtl_saved_bool \l__lx_gl_rtl_bool
     \bool_set_false:N \l__lx_gl_ltrbox_bool
-    \bool_if:NT \l__lx_dir_flip_bool
+    \bool_set_false:N \l__lx_gl_rframe_bool
+    \bool_if:NTF \l__lx_dir_flip_bool
       {
         \int_compare:nNnTF { \l__lx_dir_own_int } = { 1 }
           { \__lx_rtl_xetex_on: \bool_set_true:N \l__lx_gl_rtl_bool }
@@ -6972,11 +7082,23 @@
             \bool_set_true:N \l__lx_gl_ltrbox_bool
           }
       }
+      {
+        \bool_lazy_all:nT
+          {
+            { \sys_if_engine_xetex_p: }
+            { ! \l__lx_gl_rtl_bool }
+            { \cs_if_exist_p:N \if@RTL }
+            { \legacy_if_p:n { @RTL } }
+          }
+          { \bool_set_true:N \l__lx_gl_rframe_bool }
+      }
   }
 \cs_new_protected:Npn \__lx_gl_dir_end:
   {
+    \__lx_gl_paraoff_end:
     \bool_set_eq:NN \l__lx_gl_rtl_bool \l__lx_gl_rtl_saved_bool
     \bool_set_false:N \l__lx_gl_ltrbox_bool
+    \bool_set_false:N \l__lx_gl_rframe_bool
   }
 %% Ragged on the side the lines END on.  \raggedright everywhere, except
 %% under XeTeX in a right-to-left paragraph (bidi's \if@RTL): there TeX--XeT
@@ -7248,14 +7370,20 @@
                   { \l__lx_dir_own_int } { \l__lx_dir_main_int } } = { 1 }
               { \prg_return_true: } { \prg_return_false: }
           }
-          { \prg_return_false: }
+          {
+            \bool_if:NTF \l__lx_gl_rframe_bool
+              { \prg_return_true: } { \prg_return_false: }
+          }
       }
   }
 %% The layers of a cell (below) are needed in either kind of crossed grid:
-%% \GlossRTL's, and the left-to-right one in a right-to-left document.
+%% \GlossRTL's, and the left-to-right one in a right-to-left document; and
+%% under XeTeX in a right-to-left paragraph (\l__lx_gl_rframe_bool).
 \prg_new_conditional:Npnn \__lx_gl_if_dircells: { T , TF }
   {
-    \bool_lazy_or:nnTF { \l__lx_gl_rtl_bool } { \l__lx_gl_ltrbox_bool }
+    \bool_lazy_or:nnTF
+      { \l__lx_gl_rtl_bool }
+      { \bool_lazy_or_p:nn { \l__lx_gl_ltrbox_bool } { \l__lx_gl_rframe_bool } }
       { \prg_return_true: } { \prg_return_false: }
   }
 %% TeX--XeT has to be on when the page is SHIPPED, which is where XeTeX
@@ -7502,7 +7630,7 @@
 %% collects, so the second finds nothing and emits nothing.  The grid opens
 %% no paragraph of its own (see \__lx_gl_grid_body:), so the mark hangs
 %% from the grid's own line, after a head line too.
-\def\lx@glossjudge#1{\lx@scanjudgeto{\lx@emitjudge#1}}
+\def\lx@glossjudge#1{\lx@scanjudgeto{\lx@emitglossjudge#1}}
 \def\gll{\lx@glossjudge\lx@gll@go}
 \long\def\lx@gll@go#1\\#2\\{\lx@gloss@multi{#1\\#2}}
 \def\glll{\lx@glossjudge\lx@glll@go}
