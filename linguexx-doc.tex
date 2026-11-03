@@ -1836,6 +1836,12 @@ an ordinary Hebrew example, its grid running from the right. The file and
 its output come with this manual, as \texttt{rtl-hebrew.tex} and
 \texttt{rtl-hebrew.pdf}.
 
+\paragraph{Tagged documents.} For a tagged document with right-to-left
+text, Lua\LaTeX\ is more than a preference. Under Xe\LaTeX, every
+paragraph written right to left fails PDF/UA-2, with or without
+\pkg{linguexx}; a gloss passes, but a head line or a translation in
+Hebrew does not (section~\ref{sec:tagginglimits}).
+
 \subsection{Abbreviations: \cs{exg.}\ and \cs{ag.}}\label{sec:exgabbrev}
 
 \cs{exg.}\ abbreviates \cs{ex.}\ \cs{gll}, and \cs{ag.}\ through
@@ -3185,7 +3191,9 @@ glyphs.
 
 A document built with the accessibility preamble above
 validates as PDF/UA-2: veraPDF reports it conformant, with every rule and
-check passing and no exceptions. Conformance is a document-level property,
+check passing and no exceptions. Under Xe\LaTeX\ that holds only for a
+document without right-to-left text (section~\ref{sec:tagginglimits}).
+Conformance is a document-level property,
 not only a matter of the examples --- it also needs a document title and a
 few other pieces of metadata --- so the package ships a short checklist
 (\texttt{PDFUA-CHECKLIST}) giving the preamble that supplies them. What a
@@ -3481,6 +3489,25 @@ The second is more coherent inside one document, and gives up that
 portability. This manual does not answer the question, and the package does
 not answer it by default; \texttt{doc/DEFERRED-DECISIONS.md} records what
 would settle it.
+
+\paragraph{Right-to-left text under Xe\LaTeX.} A tagged document
+compiled with Xe\LaTeX\ fails PDF/UA-2 wherever a paragraph is written
+right to left: veraPDF finds text that is neither tagged nor marked as an
+artifact (rule 8.2.2-1). The cause is outside this package. A document
+with one Hebrew word and no \pkg{linguexx} fails in the same way, because
+Xe\TeX\ reverses a right-to-left stretch of a line together with the
+tagging markers inside it, so that the markers end up empty and the text
+after them untagged. Lua\LaTeX\ is not affected.
+
+\pkg{linguexx} keeps its own markers out of the reversal, so its
+interlinear glosses and \cs{CommonGloss} tables pass under both engines,
+and their words and labels read in logical order. The parts of an example
+that are ordinary text do not: a right-to-left head line, a free
+translation in Hebrew or Arabic, a sub-example without a gloss. These fail
+as any such paragraph does, and so does the document's own right-to-left
+text. For a tagged document that contains right-to-left text, use
+Lua\LaTeX. The printed page is correct under both engines, and an
+untagged document is unaffected.
 
 \paragraph{The kernel's tagging is still provisional.} These features sit on
 the \LaTeX\ Project's tagging code at \texttt{phase-III}, whose interfaces
