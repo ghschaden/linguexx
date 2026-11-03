@@ -57,15 +57,6 @@ rather than a missing `Lbl`, so check that first. The test helpers would
 then be what needs changing, not the package. Repro: `\ex. HONE הילד`, then
 `\begin{english}\ex. ETWO\end{english}` in `_preamble-rtlmain-ua`.
 
-## `lxx words` stops after a few pages
-
-*Found 2026-11-03.*
-
-On the 11-page `commongloss-beamer` deck, `.claude/tools/lxx words` reported
-words only for pages 1-5 (one word on page 5). `pdftotext -bbox` on the same
-file has them all. `lxx words` reimplements `parse_pdf` on purpose (see
-`CLAUDE.md`), so its page splitting is the suspect.
-
 ## To confirm: two `\CommonGloss` choices made in passing
 
 *2026-11-03, with the right-to-left fix. Not bugs, but chosen without being

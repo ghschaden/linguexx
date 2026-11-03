@@ -416,12 +416,19 @@ def cmd_words(a):
     npages = max((w[0] for w in ws), default=0)
     print(f"# {a.pdf}: {len(ws)} words on {npages} page(s)"
           + (f", {len([h for h in hits if h])} shown" if hits != ws else ""))
-    for w in hits[:a.limit if a.limit else None]:
+    shown = hits[:a.limit if a.limit else None]
+    for w in shown:
         if w is None:
             print("  --")
             continue
         p, t, x0, y0, x1, y1 = w
         print(f"  p{p} x=[{x0:7.2f},{x1:7.2f}] y=[{y0:7.2f},{y1:7.2f}]  {t}")
+    # The cap used to cut silently, and 60 words on a beamer deck end a few
+    # slides in -- which read as "lxx words stops after page 5".
+    rest = [w for w in hits[len(shown):] if w]
+    if rest:
+        print(f"  ... {len(rest)} more word(s), through p{rest[-1][0]};"
+              " -n 0 for all, or narrow with -p/-g")
     return 0
 
 
