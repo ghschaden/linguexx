@@ -3,7 +3,7 @@
 All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
-## Unreleased
+## 1.5
 Fixes first, then changes to what existing documents print, then new
 features; everything about right-to-left text is together at the end.
 
