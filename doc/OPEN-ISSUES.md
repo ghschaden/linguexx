@@ -42,8 +42,27 @@ package. The ordinary gloss is partly linguexx's, though. In
 as well, next to the kernel's `text-block`, and its text is untagged. That
 is the package's marked content hit by the same reversal, and it is what
 `\CommonGloss` avoids by setting each cell's marked content inside an L
-segment. Doing the same for the ordinary gloss is a linguexx fix. It
-would leave the document failing only where the kernel fails. `\CommonGloss` gets its own marked content right
+segment.
+
+Porting that wrapping is NOT enough. It was tried on 2026-11-03 and is
+kept on the local branch `wip/rtl-gloss-xetex-tagging`. Each word and
+each column (with the paragraph marked content it suspends and resumes)
+was set as an L segment, and so was the judgment mark in a gloss. veraPDF
+then PASSES `\exg.` and `\ag./\bg.` in a Hebrew document, but the
+content stream is not balanced: the kernel closes the paragraph's marked
+content at `\par`, inside bidi's R segment, so that EMC comes out first and
+the last BDC is never closed. veraPDF does not catch it (poppler's
+`pdfinfo -struct-text` reports "Mismatched EMC"). The plain mark in a plain
+paragraph made it worse, so the branch limits that part to glosses.
+
+What would work is what `\CommonGloss` does: paragraph tagging off for
+the grid (`para/tagging = false`, as `\__lx_gl_rtl_boxsetup:` does) and the
+grid set in a frame of its own. For the ordinary gloss that is a change
+of layout path under XeTeX in right-to-left documents. It needs its own
+decision and a nominal check of the untagged pages.
+
+The suite has no check that BDC/EMC balance in a content stream. veraPDF
+and the structure checks both missed this. `\CommonGloss` gets its own marked content right
 (`\__lx_cg_gcell:nnnn`, `\__lx_cg_head:n`), and its right-to-left UA cases
 pass only because they keep paragraph text out of Hebrew examples. Next
 step: report it to the LaTeX tagging project (latex3/tagging-project)
