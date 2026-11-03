@@ -15,9 +15,11 @@
 %% P4  no head line: the number on row a's line on every slide (the
 %%     \uncover around a row in the \vtop first took the baseline off it).
 %% P5  P1 without the \pauses: P1's last slide must be it, word for word.
-%%     It has a \label on row b too: under beamer a row's \label moves the
-%%     table down 2.7pt (with or without \pause, and before this case), so
-%%     without one the two frames would differ by that and not by \pause.
+%%     It has a \label on row b too, as P1 has.
+%% P6  P5 without the \label: P5 word for word.  Under beamer a \label in
+%%     vertical mode sets a zero-height \vbox for its hypertarget after
+%%     \nointerlineskip, which forgot the head line's depth, so a row's
+%%     label moved the whole table down by it (2.7pt).
 %%
 %% Every word of a table stands at one place on every slide it is on:
 %% a row not shown yet keeps its space (\uncover), and the columns are
@@ -66,6 +68,14 @@ SBEFORE
 \ex. PHEAD
 \ag. PA1 PA2 PA3 \exannot{PANN}\\
 \bg.\label{p:b5} *PB2 {} PB3\\
+\cg. PC3 PC2 PC1\\
+\CommonGloss PG1 PG2 PG3\\
+\glt `PTRANS'
+\end{frame}
+\begin{frame}{P6}
+\ex. PHEAD
+\ag. PA1 PA2 PA3 \exannot{PANN}\\
+\bg. *PB2 {} PB3\\
 \cg. PC3 PC2 PC1\\
 \CommonGloss PG1 PG2 PG3\\
 \glt `PTRANS'

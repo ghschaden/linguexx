@@ -7834,6 +7834,7 @@
   }
 \cs_new_protected:Npn \__lx_cg_scan:
   { \lx@scanjudgeto { \__lx_cg_scanned:w } }
+\dim_new:N \l__lx_cg_prevdepth_dim
 \cs_new_protected:Npn \__lx_cg_scanned:w #1 \q__lx_cg_stop
   {
     %% gb4e's \ex[mark]: the mark given, as \ex[mark]{...} gives it
@@ -7849,7 +7850,16 @@
     \tl_clear:N \l__lx_cg_jcmd_tl
     \tl_if_empty:NT \l__lx_judge_tl { \__lx_cg_jcmd: }
     \refstepcounter { SubExNo }
-    \tl_use:N \l__lx_judge_pre_tl
+    %% replayed in vertical mode, while the rows are read: beamer's \label
+    %% then sets its hypertarget as \nointerlineskip\vbox to0pt{...}, which
+    %% forgets the depth of the line before and moved the table down by it
+    \mode_if_vertical:TF
+      {
+        \dim_set:Nn \l__lx_cg_prevdepth_dim { \tex_prevdepth:D }
+        \tl_use:N \l__lx_judge_pre_tl
+        \tex_prevdepth:D = \l__lx_cg_prevdepth_dim
+      }
+      { \tl_use:N \l__lx_judge_pre_tl }
     \tl_clear:N \l__lx_judge_pre_tl
     \int_compare:nNnTF { \g__lx_cg_nvar_int } = { 0 }
       { \int_gset:Nn \g__lx_cg_cells_int { \seq_count:N \l__lx_cg_cells_seq } }

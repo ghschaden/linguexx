@@ -1638,9 +1638,9 @@ def a_commongloss_beamer(p: Page):
     r"""\CommonGloss with \pause; see the case's header."""
     r = []
     pages = slides(p.path)
-    r.append(check(len(pages) == 11,
-                   f"P1 3 slides, P2 2, P3 3, P4 2, P5 1: {len(pages)}"))
-    if len(pages) != 11:
+    r.append(check(len(pages) == 12,
+                   f"P1 3 slides, P2 2, P3 3, P4 2, P5 1, P6 1: {len(pages)}"))
+    if len(pages) != 12:
         return r
 
     def on(i):
@@ -1691,9 +1691,14 @@ def a_commongloss_beamer(p: Page):
     # P1's last slide is P5, the same frame without \pause, word for word
     def body(i):
         return sorted((w.text, round(w.x0, 1), round(w.y0, 1))
-                      for w in pages[i] if w.text not in ("P1", "P5", "(1)",
-                                                          "(5)", "1", "5"))
+                      for w in pages[i] if w.text not in ("P1", "P5", "P6",
+                                                          "(1)", "(5)", "(6)",
+                                                          "1", "5", "6"))
     r.append(check(body(2) == body(10),
                    f"P1's last slide is the frame without \\pause: "
                    f"{set(body(2)) ^ set(body(10))}"))
+    # P6 is P5 without the row's \label: a label moves nothing
+    r.append(check(body(10) == body(11),
+                   f"a row's \\label moves nothing under beamer: "
+                   f"{set(body(10)) ^ set(body(11))}"))
     return r

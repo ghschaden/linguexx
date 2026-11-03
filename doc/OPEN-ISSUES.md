@@ -4,23 +4,6 @@ Defects found and confirmed, but not fixed yet. Each says how it was seen
 and how to reproduce it. These are BUGS. Undecided behaviour belongs in
 `DEFERRED-DECISIONS.md` instead. Remove an entry in the commit that fixes it.
 
-## A `\label` on a `\CommonGloss` row moves the table down under beamer
-
-*Found 2026-11-03, while testing `\pause` in `\CommonGloss`.*
-
-In a beamer frame, `\bg.\label{x} ...` inside a `\CommonGloss` example puts
-2.7pt more space between the head line and row a (16.27pt instead of
-13.55pt). This happens with and without `\pause`, and with the package
-before the `\pause` work. An article does not show it.
-
-Likely cause: the row's `\label` is replayed (`\l__lx_judge_pre_tl` in
-`\__lx_cg_scanned:w`) while the rows are being read, in vertical mode, and
-beamer's `\label` leaves something in the vertical list there.
-
-Repro: two frames, the same table with and without `\label` on row b;
-compare row a's y. `tests/commongloss-beamer.tex` works around it by giving
-both of its compared frames a label (see its header).
-
 ## XeLaTeX, tagged: a head line in a right-to-left example fails veraPDF
 
 *Found 2026-11-03.*
