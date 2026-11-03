@@ -4,6 +4,67 @@ Defects found and confirmed, but not fixed yet. Each says how it was seen
 and how to reproduce it. These are BUGS. Undecided behaviour belongs in
 `DEFERRED-DECISIONS.md` instead. Remove an entry in the commit that fixes it.
 
+## babel, right-to-left main language: the "left to right" fallback mangles text
+
+*Found 2026-11-03, while sizing babel support. Not fixed: recorded only.*
+
+Right-to-left layout under babel is undecided (DEFERRED-DECISIONS, "Right-
+to-left documents under babel"), and what linguexx promises meanwhile is
+the `rtl-babel` warning: "Examples are set left to right, as in a
+left-to-right document." With a right-to-left MAIN language that is not
+what happens. babel mirrors the lists itself, so examples are numbered at
+the right, and linguexx's own boxes are then reordered by babel's bidi
+code. The English example inside `otherlanguage` is fine; the rest is
+broken. Seen with babelbidi 0.4.1 (2026/10/26) and babel 26.15 (2026/10/29),
+TeX Live 2026; the document builds without an error on both engines and
+gives the one warning.
+
+    \documentclass[11pt]{article}
+    \usepackage[a4paper,margin=25mm]{geometry}
+    \usepackage[english,hebrew]{babelbidi}
+    \babelfont{rm}{FreeSerif.otf}
+    \usepackage{linguexx}
+    \pagestyle{empty}
+    \begin{document}
+    \ex. הילד אכל את התפוח.
+    \a. הילד אכל.
+    \b. *אכל הילד.
+    \z.
+
+    \begin{otherlanguage}{english}
+    \ex. The boy ate the apple.
+    \a. first.
+    \b. *second.
+    \z.
+    \end{otherlanguage}
+
+    \exg. הילד אכל\\ DEF.boy eat.PST\\
+    \glt `The boy ate.'
+    \end{document}
+
+- **LuaLaTeX** (`bidi=basic`): the gloss line is reversed letter by
+  letter -- `DEF.boy eat.PST` prints as `TSP.tae yob.FED` -- and the
+  translation's quotes and full stop are mirrored (`'.The boy ate'`). The
+  example number sits against the text instead of at its usual distance,
+  and the judgment mark runs into the label (`*.b`).
+- **XeLaTeX** (`bidi=bidi-r`): the translation's words come out in
+  reverse order (`ate.' boy 'The`), and the sub-example labels read `a.`
+  rather than `.a`. The gloss line itself is readable.
+
+Not covered by any case: `tests/rtl-babel.tex` has English as its main
+language and on purpose measures nothing in its Hebrew example. It also
+copies babelbidi's `\if@RTLmain` rather than loading the package. The
+CHANGELOG's Unreleased entry ("with babel's right-to-left support
+(babelbidi included) every example is now set as in a left-to-right
+document") claims the same thing the warning does, and is wrong in the
+same case.
+
+Fixing this does not mean settling the deferred decision. The smallest fix
+keeps the decision open: either the warning says that a right-to-left
+main language needs polyglossia, or linguexx protects its gloss and
+translation boxes from babel's reordering. Then add a Hebrew-main babelbidi
+case that measures the result, and correct the changelog wording.
+
 ## XeLaTeX, tagged: right-to-left paragraphs fail veraPDF (upstream, not linguexx)
 
 *Found 2026-11-03. Traced to upstream the same day. linguexx's own part
