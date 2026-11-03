@@ -2573,7 +2573,13 @@
           }
           {
             \legacy_if:nTF { @RTLmain }
-              { \hbox:n { \tex_beginR:D #1 \tex_endR:D } }
+              {
+                \hbox:n
+                  {
+                    \__lx_dir_label_span:n
+                      { \tex_beginR:D #1 \tex_endR:D }
+                  }
+              }
               { \hbox:n { \tex_beginL:D #1 \tex_endL:D } }
           }
       }
@@ -2611,6 +2617,32 @@
               { tag = Lbl , actualtext = { \text_purify:n { \lx@itemlabel } } }
           }
       }
+  }
+%% XeTeX writes a right-to-left label's nodes in visual order, so a
+%% Hebrew sub-label "א." read ".א" in the tree.  The label goes into a
+%% Span carrying it as typed, NESTED in the kernel's marked content: ending
+%% and reopening that, as under LuaTeX, left an empty one behind, since
+%% XeTeX writes BDC and EMC whether or not anything comes between.  The
+%% Span's operators are outside the R segment, which reverses everything
+%% inside it, marked-content operators included (doc/OPEN-ISSUES.md).
+%% \pdf_bdc_shipout:ee writes the dictionary inline, where \pdf_bdc:nn
+%% under xdvipdfmx makes it a /Properties resource, which show-pdf-tags
+%% does not resolve; it expands its arguments only at shipout, by when
+%% the string is out of scope -- hence the \exp_args.
+\str_new:N \l__lx_dir_label_str
+\cs_new_protected:Npn \__lx_dir_label_span:n #1
+  {
+    \bool_lazy_and:nnTF
+      { \lx@tag@if@active_p: } { \tag_mc_if_in_p: }
+      {
+        \exp_args:NNe \str_set_convert:Nnnn \l__lx_dir_label_str
+          { \text_purify:n { \lx@itemlabel } } { default } { utf16/hex }
+        \exp_args:Nne \pdf_bdc_shipout:ee { Span }
+          { /ActualText ~ < \l__lx_dir_label_str > }
+        #1
+        \pdf_emc:
+      }
+      {#1}
   }
 %% XeTeX sets a run of letters as ONE word node, and reversing a segment
 %% reverses nodes, not what is inside them: "a." stayed "a." in a

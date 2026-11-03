@@ -56,19 +56,6 @@ with an unbalanced stream, because the kernel's closing EMC still came out
 first. The suite's balance check (`marked_content_balance`) exists
 because of that.
 
-## XeLaTeX, tagged: a Hebrew sub-label reads ".א" in the tree
-
-*Found 2026-11-03, while testing the gloss fix. Present on main before it.*
-
-In a Hebrew example under XeLaTeX, the sub-label "א." reads ".א" in the
-structure tree (show-pdf-tags), and so to a screen reader. LuaLaTeX gives
-"א.". It is probably the same reversal: the label is set in an R segment
-(`\lx@dir@label`), and `\lx@dir@labelsep`'s kernel makes letter and period
-two nodes, which XeTeX writes in visual order. Repro: `\ex. \a. א \z.` in
-`_preamble-rtlmain-ua`, under xelatex; `rtl-gloss-xetex-ua` shows it too.
-The page is right. A `/ActualText` on the label, as LuaLaTeX now gets for
-mirrored brackets (`\__lx_dir_label_text:`), is the likely fix.
-
 ## XeLaTeX, tagged: `\GlossRTL` in a Hebrew document reads an undeclared tier reversed
 
 *Found 2026-11-03, while testing the gloss fix.*

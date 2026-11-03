@@ -1152,8 +1152,8 @@ def a_rtl_gloss_ua(p: Page):
 
 def _hebrew_texts(pdf):
     """The tree's marked content that is Hebrew, stripped, in tree order --
-    the words, not the sub-labels ("א.": under XeLaTeX ".א", a defect of its
-    own, doc/OPEN-ISSUES.md)."""
+    the words, not the sub-labels ("א."), which a_rtl_gloss_xetex_ua
+    asserts on separately."""
     return [t.strip() for t in _tag_texts(pdf)
             if re.search("[\u0590-\u05ff]", t) and "." not in t]
 
@@ -1168,6 +1168,13 @@ def a_rtl_gloss_xetex_ua(p: Page):
     r.append(check(heb == want,
                    f"every Hebrew word is in the tree, whole, in logical "
                    f"order and reading order: {heb}"))
+    # The labels as typed.  XeTeX writes a right-to-left label's nodes in
+    # visual order, so the sub-labels read ".א" until they carried
+    # /ActualText; the page was right all along.
+    lbls = _lbl_texts(p.path)
+    r.append(check(lbls == ["(1)", "(2)", "(3)", "א.", "ב.", "(4)"],
+                   f"every label reads as typed, letter before period: "
+                   f"{lbls}"))
     # The marks as a screen reader meets them: a Span with the spoken /Alt,
     # which must wrap the mark.  Before, under XeLaTeX, each was empty and
     # the mark beside it untagged.
