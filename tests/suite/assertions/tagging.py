@@ -1085,6 +1085,22 @@ def _tag_texts(pdf):
     return re.findall(r"Marked content on page \d+: (.*)", out.stdout)
 
 
+def _lbl_texts(pdf):
+    """The text of every Lbl, in tree order, as show-pdf-tags resolves it --
+    /ActualText included, which pdfinfo (and so struct_lbl_depths) ignores."""
+    out = subprocess.run(["show-pdf-tags", str(pdf)], capture_output=True,
+                         text=True, errors="replace").stdout.splitlines()
+    found = []
+    for i, ln in enumerate(out):
+        if "/ Lbl (" in ln:
+            for nxt in out[i + 1:i + 3]:
+                m = re.search(r"Marked content on page \d+: (.*)", nxt)
+                if m:
+                    found.append(m.group(1).strip())
+                    break
+    return found
+
+
 def a_rtl_ua(p: Page):
     r"""\GlossRTL and \glscript under PDF/UA-2; see the case's header."""
     r = []
@@ -1120,6 +1136,13 @@ def a_rtl_gloss_ua(p: Page):
     if not p.log.lstrip().startswith("This is XeTeX"):
         r.append(verapdf_compliant(p.path))
     texts = [t.strip() for t in _tag_texts(p.path)]
+    # The English example's number is set right to left in a Latin font,
+    # whose mirrored parentheses map to their own shapes: ")2(" to a screen
+    # reader under LuaLaTeX, until the label carried /ActualText
+    nums = [t for t in _lbl_texts(p.path) if re.search(r"\d", t)]
+    r.append(check(nums == ["(1)", "(2)", "(3)"],
+                   f"every example number reads as typed, the English "
+                   f"one's included: {nums}"))
     for want in ("הילד", "אכל", "את"):
         r.append(check(want in texts,
                        f"the Hebrew gloss {want!r} reads in logical order in "

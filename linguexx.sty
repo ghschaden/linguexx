@@ -2478,7 +2478,7 @@
         \sys_if_engine_luatex:TF
           {
             \legacy_if:nTF { @RTLmain }
-              { \tex_hbox:D dir ~ TRT {#1} }
+              { \tex_hbox:D dir ~ TRT { \__lx_dir_label_text: #1 } }
               { \tex_hbox:D dir ~ TLT {#1} }
           }
           {
@@ -2488,6 +2488,39 @@
           }
       }
       {#1}
+  }
+%% Right to left, polyglossia's unibidi-lua mirrors ( ) [ ] in a font in
+%% luaotfload's node mode -- the Latin ones -- by REPLACING the glyph's
+%% character with its mirror (mirror_char, setchar), so the PDF's text
+%% layer gets the mirror too: the label of an English example in a Hebrew
+%% document read ")2(" to a screen reader, though "(2)" on the page.  It
+%% happens without linguexx.  In harf mode it leaves mirroring to
+%% luaotfload, which keeps the text, so a Hebrew example's number read
+%% right all along.  The label's marked content -- the
+%% kernel's, belonging to its Lbl -- is reopened with the label as typed
+%% for /ActualText: the tree keeps its shape, the page its ink.
+%% The text is \lx@itemlabel's, which \lx@makeitem hands to \item: the
+%% argument here is the kernel's block code by then, its label in a
+%% variable of its own.
+%% The number's brackets come as \protect\theExLBr (\theExNo), and
+%% \text_purify:n drops a \protect'ed command: "(2)" was purified to "2".
+%% Their purify equivalents are what they print, read when the label is,
+%% so a \renewcommand\ExLBr{[} holds there too.
+\text_declare_purify_equivalent:Nn \theExLBr { \ifparens \else \ExLBr \fi }
+\text_declare_purify_equivalent:Nn \theExRBr { \ifparens \else \ExRBr \fi }
+\text_declare_purify_equivalent:Nn \theFnExLBr { \ifparens \else \FnExLBr \fi }
+\text_declare_purify_equivalent:Nn \theFnExRBr { \ifparens \else \FnExRBr \fi }
+\cs_new_protected:Npn \__lx_dir_label_text:
+  {
+    \lx@tag@if@active:T
+      {
+        \tag_mc_if_in:T
+          {
+            \tag_mc_end:
+            \exp_args:Ne \tag_mc_begin:n
+              { tag = Lbl , actualtext = { \text_purify:n { \lx@itemlabel } } }
+          }
+      }
   }
 %% XeTeX sets a run of letters as ONE word node, and reversing a segment
 %% reverses nodes, not what is inside them: "a." stayed "a." in a
