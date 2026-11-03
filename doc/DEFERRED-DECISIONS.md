@@ -811,6 +811,52 @@ the grid's box (`\__lx_gl_rtl_place:`). The morpheme behaviour is pinned by
 `tests/rtl-morph.tex`, which would change with it; `tests/rtl.tex` pins the
 mark on the left.
 
+**Not covered by this entry: `\CommonGloss` tables.** *DECIDED, 2026-11-03,
+by Gerhard.* A table's judgment mark stays at its row letter in every
+direction (the table rule of 2026-11-02), and whatever is decided here for
+ordinary right-to-left glosses does not carry over to tables. In a table
+the mark belongs to the row, not to a word. `\__lx_cg_judge:n` sets it,
+and `tests/commongloss-rtl.tex` pins it.
+
+---
+
+## Where `\exannot` goes in an example that runs against the document
+
+*Raised 2026-11-03 while fixing `\CommonGloss` for right-to-left text, and
+deferred by Gerhard the same day: one feature, three behaviours, to be
+decided once for tables and ordinary glosses together.*
+
+**Current behaviour.** These are all cases where the example's direction
+differs from the document's, or where the grid is right to left:
+
+1. A `\CommonGloss` table whose example runs against the document sets
+   its annotation in the frame's annotation column, mirrored with the
+   document. In an English table in a Hebrew document, it goes where a
+   Hebrew example's annotation goes (`tests/commongloss-rtl.tex`,
+   `commongloss-ltr-ua`, `commongloss-rtl-ua`).
+2. An ordinary crossed left-to-right gloss (an English gloss in a Hebrew
+   document) sets its annotation right after its grid.
+3. An ordinary right-to-left gloss (`\GlossRTL`, or a Hebrew example in an
+   English document) refuses `\exannot` with the error `rtl-annot`
+   (`tests/rtl-annot.tex`).
+
+**Why this is not settled.** Whether the annotation belongs to the
+document's frame, as the example number does, or to the example's own
+text is the question behind all three cases. Answering it for one
+construct in passing would be picking the semantics by accident. Case 1
+was chosen without being asked, while getting tables right to left at
+all, and it is the only one of the three that follows the frame.
+
+**What would decide it.** Examples with annotations in mixed-direction
+publications, or a house style. Failing that, a side-by-side look at the
+three cases, then one rule applied to tables and ordinary glosses.
+
+**If it is changed:** the table's placement is in `\__lx_cg_dir_decide:`
+and the annotation cell of the `\CommonGloss` row. The ordinary gloss's
+are `\__lx_gl_rtl_place:` and the `rtl-annot` error, which a decision for
+right-to-left annotations would replace. The cases named above pin the
+current behaviour, and each would change with it.
+
 ## Examples in a right-to-left document
 
 *DECIDED, 2026-10-10, by Gerhard, all three points below, and implemented

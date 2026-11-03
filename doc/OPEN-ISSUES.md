@@ -67,18 +67,3 @@ and the structure checks both missed this. `\CommonGloss` gets its own marked co
 pass only because they keep paragraph text out of Hebrew examples. Next
 step: report it to the LaTeX tagging project (latex3/tagging-project)
 with the document above. Not done yet: it waits for a go-ahead.
-
-## To confirm: two `\CommonGloss` choices made in passing
-
-*2026-11-03, with the right-to-left fix. Not bugs, but chosen without being
-asked; confirm, or move to `DEFERRED-DECISIONS.md`.*
-
-- The annotation of a table whose example runs against the document is
-  set in the frame's mirrored annotation column. In an English table in a
-  Hebrew document, it goes where a Hebrew example's annotation goes. An
-  ordinary crossed gloss sets it right after its grid instead, and a
-  right-to-left ordinary gloss refuses `\exannot` altogether (`rtl-annot`),
-  where a table carries it.
-- A table's judgment mark stays at the row letter in every direction
-  (the `\CommonGloss` rule of 2026-11-02). For ordinary right-to-left glosses
-  the mark's side is still provisional in `DEFERRED-DECISIONS.md`.
