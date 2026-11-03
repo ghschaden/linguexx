@@ -68,16 +68,39 @@ pass only because they keep paragraph text out of Hebrew examples. Next
 step: report it to the LaTeX tagging project (latex3/tagging-project)
 with the document above. Not done yet: it waits for a go-ahead.
 
-## LuaLaTeX, tagged: an English example's number in a Hebrew document
+## LuaLaTeX, tagged: an English example's number reads ")2(" in a Hebrew document
 
-*Found 2026-11-03.*
+*Found 2026-11-03. Diagnosed the same day.*
 
-`struct_lbl_depths` does not find the number of an example in
-`\begin{english}` in a Hebrew document under LuaLaTeX. It does find it
-under XeLaTeX. The cause may be the number's text in the tree (mirrored?)
-rather than a missing `Lbl`, so check that first. The test helpers would
-then be what needs changing, not the package. Repro: `\ex. HONE הילד`, then
-`\begin{english}\ex. ETWO\end{english}` in `_preamble-rtlmain-ua`.
+In a Hebrew document, the number of an example in `\begin{english}` is
+set right to left (`\lx@dir@listbegin`: at the level outside the list) in
+the English font. On the page it is right: "(2)", on the right. In the
+text layer, and so for a screen reader, it is ")2(". A Hebrew example's
+number reads "(1)". `struct_lbl_depths` was right not to find "(2)":
+there is no such string in the tree.
+
+Cause, shown without linguexx: a Latin font set right to left mirrors the
+parentheses' GLYPHS, but its ToUnicode map names each glyph by its own
+shape. The font with `Script=Hebrew` maps the mirrored glyph back to the
+character typed. In `_preamble-rtlmain-ua` without linguexx,
+`\begin{english}\hbox{\textdir TRT (3)}\end{english}` extracts as
+") 3 (" (lualatex, TL 2026). Both labels' content streams draw the same
+glyph ids in the same order. Only the fonts, and so the maps, differ.
+
+Possible fixes, not yet decided:
+- `/ActualText` with the logical number on the label's marked content
+  under LuaTeX. Nothing changes on the page, but the `itemlabel` marked
+  content is the kernel's, and a Span of linguexx's own under `Lbl` changes
+  the tree that `struct_lbl_depths` reads.
+- Set the number itself left to right (`\textdir TLT` around the label
+  text). Same ink for "(2)", but not for a sub-label like "a.", whose
+  period moves sides. So it would cover the main number only.
+- Report it to luaotfload / fontspec as a ToUnicode defect for mirrored
+  glyphs.
+
+Repro: `\ex. HONE הילד`, then `\begin{english}\ex. ETWO\end{english}` in
+`_preamble-rtlmain-ua`, under lualatex; `pdfinfo -struct-text` shows the
+Lbl text.
 
 ## To confirm: two `\CommonGloss` choices made in passing
 
