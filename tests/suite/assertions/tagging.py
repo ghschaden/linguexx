@@ -1140,7 +1140,7 @@ def a_rtl_gloss_ua(p: Page):
     # whose mirrored parentheses map to their own shapes: ")2(" to a screen
     # reader under LuaLaTeX, until the label carried /ActualText
     nums = [t for t in _lbl_texts(p.path) if re.search(r"\d", t)]
-    r.append(check(nums == ["(1)", "(2)", "(3)"],
+    r.append(check(nums == ["(1)", "(2)", "(3)", "(4)"],
                    f"every example number reads as typed, the English "
                    f"one's included: {nums}"))
     for want in ("הילד", "אכל", "את"):

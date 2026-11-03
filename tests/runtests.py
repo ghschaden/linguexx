@@ -331,6 +331,7 @@ from suite.pdf import (  # noqa: E402
     parse_pdf,
 )
 from suite.structure import (  # noqa: E402
+    marked_content_balance,
     struct_empty_alts, struct_has_formula,
     struct_lbl_depths,
     verapdf_gate,
@@ -426,6 +427,13 @@ def d_ua_demo(pdf: Path):
     r.append(check(not orphans,
                    f"every /Alt in the tree wraps content; these wrap "
                    f"nothing: {orphans}"))
+    # The fifth: marked content that balances, which every case build is
+    # checked for too (run_case).  Here because this is the document with
+    # the footnote examples.
+    unbalanced = marked_content_balance(pdf)
+    r.append(check(not unbalanced,
+                   f"marked content balances in every content stream: "
+                   f"{unbalanced}"))
     return r
 
 
@@ -872,7 +880,17 @@ def run_case(name: str, engine: str, verbose: bool):
         # that cannot name the engine can only shrug at the difference.
         page.engine = engine
         try:
-            return ASSERTIONS[name](page)
+            results = ASSERTIONS[name](page)
+            # The one check every build gets, whatever its case asserts:
+            # marked content that does not balance is a defect in any PDF,
+            # and nothing else in the suite sees it -- veraPDF passed such
+            # a stream on every profile (see marked_content_balance).
+            # Cheap (one qpdf), and vacuous for an untagged build.
+            unbalanced = marked_content_balance(pdf)
+            results.append(check(not unbalanced,
+                                 f"marked content balances in every content "
+                                 f"stream: {unbalanced}"))
+            return results
         except AssertionError as e:
             return [(False, f"ASSERTION SETUP: {e}")]
         except Exception as e:

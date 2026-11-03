@@ -8,6 +8,12 @@
 %% carry their logical text (\__lx_gl_if_dircells:, the cell layers of
 %% \GlossRTL used in the left-to-right box too); without it a screen reader
 %% is handed "דליה" for "הילד", and nothing on the page shows it.
+%% Last, an ordinary Hebrew gloss with a judgment, in the Hebrew document.
+%% Under XeLaTeX its marked content sits in the paragraph's R segment,
+%% which reverses the operators with the glyphs: they must still balance
+%% (the check every build gets, run_case).  An attempt to give its words
+%% L segments of their own left one EMC with no sequence open and the
+%% last sequence never closed, and veraPDF passed it.
 \input{_preamble-rtlmain-ua}
 \ex. PLAINREF הילד.
 \a. SUBONE אכל.
@@ -23,4 +29,7 @@
           הילד אכל את\\
 \glt 'הילדים אכלו.'
 \end{english}
+
+\ex. \gll *הילד אכל\\
+          RGBOY RGATE\\
 \end{document}

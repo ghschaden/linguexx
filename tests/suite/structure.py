@@ -407,6 +407,65 @@ def struct_empty_alts(pdf: Path):
     return empty
 
 
+_MC_TOKEN = re.compile(rb"/[^\s/<>\[\]()]+|\((?:\\.|[^\\)])*\)|<<.*?>>"
+                       rb"|<[0-9A-Fa-f\s]*>|\[|\]|[^\s/<>\[\]()]+", re.S)
+
+
+def marked_content_balance(pdf: Path):
+    r"""Where a content stream's marked content does not balance.
+
+    Every BDC or BMC must be closed by an EMC in the same content (a
+    page's /Contents, its array concatenated, or one Form XObject), and no
+    EMC may close what was never opened.  Neither veraPDF nor the tree
+    readers check it: on 2026-11-03 a stream that opened one sequence too
+    many and closed one too early passed veraPDF on every profile, and
+    only poppler grumbled ("Mismatched EMC operator"), on stderr, where
+    nothing reads it.  XeTeX's TeX--XeT reverses marked-content operators
+    with the glyphs of a right-to-left segment, so this is the cheap
+    oracle for any change near bidi.
+
+    Returns ["page N: ...", ...]; empty when everything balances.  Strings
+    are skipped by the tokenizer, so a glyph run that spells EMC is not an
+    operator.
+    """
+    text = _qdf(pdf)
+    objs = {m.group(1): m.group(2) for m in re.finditer(
+        r"(?ms)^(\d+) 0 obj\n(.*?)^endobj", text)}
+
+    def stream(num):
+        body = objs.get(num, "")
+        m = re.search(r"(?s)stream\r?\n(.*?)\r?\nendstream", body)
+        return m.group(1) if m else ""
+
+    contents, page = [], 0
+    for num, body in objs.items():
+        head = body.split("stream", 1)[0]
+        if re.search(r"/Type\s*/Page\b", head):
+            page += 1
+            m = re.search(r"/Contents\s*(\[[^\]]*\]|\d+ 0 R)", head)
+            refs = re.findall(r"(\d+) 0 R", m.group(1)) if m else []
+            contents.append((f"page {page}",
+                             "\n".join(stream(r) for r in refs)))
+        elif re.search(r"/Subtype\s*/Form\b", head):
+            contents.append((f"form object {num}", stream(num)))
+    problems = []
+    for where, data in contents:
+        depth, stray = 0, 0
+        for tok in _MC_TOKEN.findall(data.encode("latin-1")):
+            if tok in (b"BDC", b"BMC"):
+                depth += 1
+            elif tok == b"EMC":
+                if depth == 0:
+                    stray += 1
+                else:
+                    depth -= 1
+        if stray:
+            problems.append(f"{where}: {stray} EMC with no sequence open")
+        if depth:
+            problems.append(f"{where}: {depth} sequence(s) never closed")
+    return problems
+
+
 def painted_marked_content(raw: bytes):
     r"""The tag of the innermost marked-content sequence around every
     path-painting operator on the page (None where there is none).
