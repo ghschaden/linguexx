@@ -2089,6 +2089,17 @@ anchor and \pkg{hyperref} keeps only the first. A \cs{ref} to the second has
 always led to the first for the same reason; what the links promise is that
 they add no second wrong jump to a document that has that one.
 
+This is the common case in \pkg{beamer} presentations that reset the counter
+at the start of each frame (or section) so examples number from~1 again. When
+such a document uses relative references, the warning names every instance of
+each repeated number and no links are created for any of them --- including
+for the \texttt{p}-prefixed commands (\cs{pNext}, \cs{pLast}, etc.), which
+print the number without parentheses but are still hyperlinks where the plain
+commands are. The number reaches the page as it always has, but it is not
+clickable. To restore linking in a presentation that needs the counter reset,
+use \cs{label} with \cs{ref} for cross-frame references: a label names one
+example and survives the reset.
+
 Which examples exist is read from the \texttt{.aux}, so the links
 are a run behind: a document whose examples have just moved is asked to
 rerun rather than told that its references dangle. The optional part is
