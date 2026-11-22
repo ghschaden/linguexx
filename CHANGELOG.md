@@ -14,6 +14,20 @@ version string.
   the chapter prefix of `\counterwithin`. A format of any other shape is
   left as the document wrote it, and under `[langsci]` or `\ExBareRefs`
   nothing changes.
+- Fixed: `\a.` after a `\z.` in the same example, as linguex allows (a
+  dialogue: the question as one sub-list, then the answers as another),
+  stopped with "`\a.` with no example to attach it to", and the answers'
+  `\label`s recorded nothing. A `\z.` that closes the letters, followed by
+  `\a.` in the same paragraph, now closes only the letters, and the new
+  list belongs to the same example, lettered from a. Without a following
+  `\a.`, `\z.` still ends the example.
+- Changed: `\a.`--`\f.` take a custom label, as in linguex: `\a.[A:]`
+  prints "A:" in place of the letter and steps none. `\ref` to a `\label`
+  on such an item prints the example's number and links to the example.
+  The bracket has to be written against the command; `\a. [DP ...]`, with
+  a space, is text as before. A document that wrote a bracket directly
+  after `\a.`--`\f.` and meant it as text now gets a label instead: put a
+  space between them. `\ag.`--`\fg.` take no label.
 
 ## 1.5
 Fixes first, then changes to what existing documents print, then new

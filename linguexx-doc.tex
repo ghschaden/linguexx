@@ -422,7 +422,9 @@ Ordinary text again.
 
 \afterex
 The first \cs{z.}\ leaves the roman level, so \cs{b.}\ yields item~c; the
-second leaves the example. Text on the same line as an example-ending \cs{z.}\
+second leaves the example --- unless an \cs{a.}\ follows it in the same
+paragraph, which opens a new list of letters in the same example
+(section~\ref{sec:customlabels} has one). Text on the same line as an example-ending \cs{z.}\
 --- like ``Ordinary text again''\ above --- is a \emph{continuation}: it is
 set flush left under the example, without a paragraph indent. To start a
 genuinely new paragraph instead, indented as the class prescribes, leave a
@@ -470,12 +472,33 @@ is referred to as it stands: ``A''. Each such example has a link target
 of its own, and \cs{cref} lists them without ever joining them into a
 range, since the labels need not follow one another.
 
-A custom label belongs to a whole example, and to nothing smaller:
-\cs{ex.}\ and \cs{exg.}\ take one, the sub-example commands
-\cs{a.}--\cs{f.}\ and \cs{ag.}--\cs{fg.}\ do not. A bracket after one of
-those is ordinary text, and the letter or roman numeral remains the
-label --- which is what a sub-level is for: its items are identified by
-their place in it.
+A sub-example item takes one as well, as in \pkg{linguex}: \cs{a.}--\cs{f.}\
+followed directly by \oarg{label} print the label in place of the letter
+and step no letter, so the next plain item carries on where the letters
+were. Its typical use is a dialogue, whose speakers label the turns. A
+\cs{z.}\ that closes the letters, followed in the same paragraph by
+another \cs{a.}, then opens a second list in the same example, lettered
+from~a again:
+
+\begin{code}
+\ex. \a.[A:] How long does it take by taxi?
+\z.
+\a. B: One minute.
+\b. B: You don't need a taxi.
+\end{code}
+
+\rendered
+\ex. \a.[A:] How long does it take by taxi?
+\z.
+\a. B: One minute.
+\b. B: You don't need a taxi.
+
+\afterex
+\noindent A \cs{label} on such an item refers to the example it stands in:
+\cs{ref} prints the example's number, ``(1)'', and leads to the example.
+As with \cs{exg.}, the bracket has to be written against the command:
+after a space, \verb|\a. [DP the dog] barked| is an item whose text opens
+with a bracket. The glossed \cs{ag.}--\cs{fg.}\ take no label.
 
 \subsection{An environment interface}\label{sec:envs}
 
@@ -3940,8 +3963,9 @@ readable in \cs{l\_lx\_mode\_tl}.
 \textbackslash ex. & Start a numbered example; a blank line ends it.
   \cs{ex.}\oarg{label} uses a custom label without advancing the counter. \\
 \textbackslash a. & Open a level of sub-examples (letters, then roman). \\
-\textbackslash b. -- \textbackslash f. & Next item at the level currently open. \\
-\textbackslash z. & Leave one level; from the letter level or an example without sub-examples, end it. \\
+\textbackslash b. -- \textbackslash f. & Next item at the level currently open.
+  \cs{a.}--\cs{f.}\oarg{label}, written against the command, set a label in place of the letter. \\
+\textbackslash z. & Leave one level; from the letter level or an example without sub-examples, end it --- unless an \cs{a.}\ follows in the same paragraph. \\
 exe, xlist & \pkg{gb4e}-compatible batch and sub-level environments (package option \opt{gb4e}); items via \cs{ex}, \cs{ex}\oarg{judgment}\marg{text}, or plain \cs{item}. \\
 \textbackslash exg. & \cs{ex.}\ followed by \cs{gll}.
   \cs{exg.}\oarg{label} takes a custom label too, written against the

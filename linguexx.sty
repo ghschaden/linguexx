@@ -2227,7 +2227,7 @@
     \stepcounter{lxFnExSerial}%
     \refstepcounter{FnExNo}\def\lx@itemlabel{\lx@labelFnExNo}%
   \fi
-  \lx@relref@record\lx@refcheck@main}
+  \lx@relref@record\lx@refcheck@main\lx@ex@keepref}
 %% A custom-labelled example steps no NUMBER (that is the point of a custom
 %% label) but it does step its own anchor serial, so that its sub-examples
 %% get anchors of their own (lxcex.<n>.a ...), and it gives its
@@ -2337,7 +2337,7 @@
   \lx@refbase@custom{#1}%
   \lx@custom@reftext{#1}%
   \stepcounter{lxCustomSerial}%
-  \refstepcounter{lxCustomSerial}}
+  \refstepcounter{lxCustomSerial}\lx@ex@keepref}
 \def\lx@exstart@normal{\lx@main@core\lx@mainlist\lx@scanjudge}
 \def\lx@mainitem{\lx@main@core\lx@scanjudge}
 %% --- public API (Protocol A: top-level items) -------------------------
@@ -2824,12 +2824,32 @@
 %%    globally, being no accent at all (in the kernel it is only meaningful
 %%    inside tabbing) and not one of hyperref's PU bookmark accents.
 %%    Holding \b/\c/\d globally is what clobbered them document-wide.
-\def\lx@dot@a.{\lx@nomix@dot{\string\a.}\lx@subpush}
-\def\lx@dot@b.{\lx@nomix@dot{\string\b.}\lx@subnext}
-\def\lx@dot@c.{\lx@nomix@dot{\string\c.}\lx@subnext}
-\def\lx@dot@d.{\lx@nomix@dot{\string\d.}\lx@subnext}
-\def\lx@dot@e.{\lx@nomix@dot{\string\e.}\lx@subnext}
-\def\lx@dot@f.{\lx@nomix@dot{\string\f.}\lx@subnext}
+\def\lx@dot@a.{\lx@nomix@dot{\string\a.}\lx@sublabel@peek\lx@subpush}
+\def\lx@dot@b.{\lx@nomix@dot{\string\b.}\lx@sublabel@peek\lx@subnext}
+\def\lx@dot@c.{\lx@nomix@dot{\string\c.}\lx@sublabel@peek\lx@subnext}
+\def\lx@dot@d.{\lx@nomix@dot{\string\d.}\lx@sublabel@peek\lx@subnext}
+\def\lx@dot@e.{\lx@nomix@dot{\string\e.}\lx@sublabel@peek\lx@subnext}
+\def\lx@dot@f.{\lx@nomix@dot{\string\f.}\lx@sublabel@peek\lx@subnext}
+%% \a.[A:] ... \f.[B:]: a sub-example item with a label of its own, as
+%% linguex has it -- a dialogue's speakers, typically.  The label is printed
+%% in place of the letter and steps none, so the next plain \b. carries on
+%% from where the letters were.  GLUED, like \exg.[...] and for the same
+%% reason: linguex reads it with a peek that does not skip spaces, and
+%% "\a. [DP the dog] barked" is an item whose text opens with a bracket.
+%% The peek only stores the label (\lx@sub@pending, global, because the
+%% level's \begingroup comes after it) and hands on to the push or the next
+%% item; \lx@sub@step takes it there and clears it, so no other front-end
+%% can ever see a stale one.
+\def\lx@sublabel@peek#1{\def\lx@sublabel@then{#1}%
+  \futurelet\lx@peeked\lx@sublabel@check}
+\def\lx@sublabel@check{%
+  \ifx\lx@peeked\lx@bracketchar
+    \expandafter\lx@sublabel@grab
+  \else
+    \expandafter\lx@sublabel@then
+  \fi}
+\def\lx@sublabel@grab[#1]{\gdef\lx@sub@pending{#1}\lx@sublabel@then}
+\global\let\lx@sub@pending\relax
 %% \@ifnextchar skips spaces before peeking, so "\c c" (the inputenc
 %% expansion of "ç") and "\c{c}" both reach \lx@kernel@c with their argument
 %% intact, while "\c." and even "\c ." reach \lx@dot@c.
@@ -3015,12 +3035,35 @@
 % rest is blank -- i.e. \z. is followed by one or more empty lines --
 % nothing is reinjected, and the next source paragraph is an ordinary,
 % class-indented paragraph.
+%%
+%% Except when that rest opens sub-examples again.  In linguex \z. closes
+%% the sub-list only and the example lasts to the end of its paragraph, so
+%% a dialogue writes the question as one sub-list, \z., then the answers as
+%% a new one lettered from a -- and here the second \a. found the example
+%% gone and stopped with "\a. with no example to attach it to", its items
+%% loose and their \labels empty.  So when the letter level is the one
+%% being closed and the rest holds an \a. (or \ag.) of its own, at brace
+%% depth 0 like \z. itself, only that level is popped and the example goes
+%% on: the rest is set inside it, and \lx@bodyend ends it as usual.
+%% Without one, the example still ends at \z. and the rest is the
+%% flush-left continuation this package documents.
 \ExplSyntaxOn
 \cs_new_protected:Npn \lx@zexit #1 \lx@bodyend
   {
-    \lx@bodyend
-    \tl_if_blank:nF {#1} { \noindent \ignorespaces #1 \par }
+    \bool_set_false:N \l__lx_zreopen_bool
+    \int_compare:nNnT { \lx@subdepth } = { 1 }
+      {
+        \tl_if_in:nnT {#1} { \a. } { \bool_set_true:N \l__lx_zreopen_bool }
+        \tl_if_in:nnT {#1} { \ag. } { \bool_set_true:N \l__lx_zreopen_bool }
+      }
+    \bool_if:NTF \l__lx_zreopen_bool
+      { \lx@zpop@one #1 \lx@bodyend }
+      {
+        \lx@bodyend
+        \tl_if_blank:nF {#1} { \noindent \ignorespaces #1 \par }
+      }
   }
+\bool_new:N \l__lx_zreopen_bool
 \ExplSyntaxOff
 \def\lx@zpop@err{%
   \PackageError{linguexx}{\string\z. outside an example}%
@@ -3132,7 +3175,8 @@
 \def\lx@subpush@outside@err{%
   \PackageError{linguexx}{\string\a. with no example to attach it to}%
     {A sub-example has to sit inside an example: open one with
-     \string\ex.\space (or \string\begin{exe}) first.\MessageBreak
+     \string\ex.\space (or \string\begin{exe}) first. An example ends at
+     the first blank line after it.\MessageBreak
      Left to stand, \string\a.\space here would open a list that nothing
      closes, and you would be told about it as "\string\begin{list} ended
      by \string\end{document}" instead.}}
@@ -3278,13 +3322,35 @@
 \def\lx@subsub@olclass{lxOLroman}
 \def\lx@subitem@core{%
   \lx@endprevpar
-  \refstepcounter{SubExNo}%
-  \def\lx@itemlabel{\lx@sublabel}}
+  \lx@sub@step{SubExNo}{\lx@sublabel}}
 \def\lx@subitem{\lx@subitem@core\lx@scanjudge}
 \def\lx@subsubitem@core{%
   \lx@endprevpar
-  \refstepcounter{SubSubExNo}%
-  \def\lx@itemlabel{\lx@subsublabel}}
+  \lx@sub@step{SubSubExNo}{\lx@subsublabel}}
+%% A custom-labelled sub-item (\a.[A:], see \lx@sublabel@peek) steps no
+%% counter and refers as the EXAMPLE it is in: \ref to a \label on it
+%% prints the example's number, "(1)", and leads to the example.  That is
+%% what linguex prints for the first such item -- by accident there, since
+%% it just leaves the last reference standing, which after a lettered item
+%% is that item's "(1-a)"; here it is the example's on every item, wherever
+%% it stands (decided 2026-11-22).  The example's reference is the one
+%% \lx@ex@keepref took when its number was set.
+\def\lx@sub@step#1#2{%
+  \ifx\lx@sub@pending\relax
+    \refstepcounter{#1}\def\lx@itemlabel{#2}%
+  \else
+    \let\lx@itemlabel\lx@sub@pending
+    \global\let\lx@sub@pending\relax
+    \let\@currentlabel\lx@ex@currentlabel
+    \let\@currentcounter\lx@ex@currentcounter
+    \ifdefined\lx@ex@currentHref\let\@currentHref\lx@ex@currentHref\fi
+  \fi}
+\def\lx@ex@keepref{%
+  \let\lx@ex@currentlabel\@currentlabel
+  \let\lx@ex@currentcounter\@currentcounter
+  \ifdefined\@currentHref\let\lx@ex@currentHref\@currentHref\fi}
+\def\lx@ex@currentlabel{}
+\def\lx@ex@currentcounter{}
 \def\lx@subsubitem{\lx@subsubitem@core\lx@scanjudge}
 
 % close all sublists still open at the end of the example body;

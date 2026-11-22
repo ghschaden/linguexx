@@ -733,6 +733,85 @@ def a_counterwithout_langsci(p: Page):
 
 
 
+def a_sublabel_dialogue(p: Page):
+    r"""linguex's dialogue example: \a.[A:] and \a. after \z.
+
+    The custom label stands in the letter column and steps no letter; a
+    \z. followed by \a. in the same paragraph closes the letters only, and
+    the new list belongs to the same example, lettered from a.  \ref to a
+    custom-labelled item prints the example's number and its anchor is
+    the example's.  A spaced bracket stays text, and a \z. with no \a.
+    after it still ends the example."""
+    r = []
+    txt = " ".join(w.text for w in p.words)
+    aux = getattr(p, "aux", "")
+
+    def label(sent):
+        return _label_of(p, sent)
+
+    def left(sent, k=2):
+        w = p.find(sent)
+        ws = [o for o in p.line_of(w) if o.x1 <= w.x0]
+        return [o.text for o in ws[-k:]]
+
+    # the dialogue: (1) A: question / a. / b. -- all in one letter column
+    r.append(check(left("SDQUESTION") == ["(1)", "A:"],
+                   f"the question is item A: of example (1); got "
+                   f"{left('SDQUESTION')}"))
+    for sent, want in (("SDONE", "a."), ("SDTWO", "b.")):
+        r.append(check(label(sent) == want,
+                       f"after \\z., \\a. reopens the letters: {sent} is "
+                       f"{want}; got {label(sent)!r}"))
+    col = {s: [o for o in p.line_of(p.find(s)) if o.x1 <= p.find(s).x0][-1].x0
+           for s in ("SDQUESTION", "SDONE", "SDTWO")}
+    r.append(check(max(col.values()) - min(col.values()) < 0.5,
+                   f"A:, a. and b. share one label column (x0 {col})"))
+    r.append(check(abs(p.find("SDQUESTION").x0 - p.find("SDONE").x0) < 0.5,
+                   "the answers' text aligns with the question's"))
+    r.append(check("SDREFS (1b) (1a) (1) (1a) (1b) (1) SDEND" in txt,
+                   f"references: \\Last and \\ref to the reopened list, and "
+                   f"the custom item as its example; got "
+                   f"{txt[txt.find('SDREFS'):][:48]!r}"))
+    a_p, a_pa = aux_anchor(aux, "sd:p"), aux_anchor(aux, "sd:pa")
+    r.append(check(a_p is not None and a_pa == a_p,
+                   f"the custom item's anchor is its example's "
+                   f"(sd:pa {a_pa!r}, sd:p {a_p!r})"))
+    r.append(check(aux_anchor(aux, "sd:p1") not in (None, a_p),
+                   "the reopened list's items have anchors of their own"))
+
+    # a custom item in mid-list steps no letter
+    for sent, want in (("SDMIDA", "a."), ("SDMIDX", "X:"), ("SDMIDB", "b."),
+                       ("SDSPACED", "c.")):
+        r.append(check(label(sent) in (want, "[DP") and
+                       (want in [o.text for o in p.line_of(p.find(sent))]),
+                       f"{sent} is item {want}; line reads "
+                       f"{[o.text for o in p.line_of(p.find(sent))]}"))
+    r.append(check(left("SDSPACED") == ["c.", "[DP"],
+                   f"\\d. [DP ...: a spaced bracket is the item's text; got "
+                   f"{left('SDSPACED')}"))
+    r.append(check("SDREFX (2) SDEND" in txt,
+                   f"\\ref to a custom item in mid-list is the example's; "
+                   f"got {txt[txt.find('SDREFX'):][:16]!r}"))
+    # \z. with no \a. after it: the example ends, the rest flush left
+    two = [w for w in p.words if w.text == "(2)"][0]
+    r.append(check(abs(p.find("SDTAIL").x0 - two.x0) < 0.5
+                   and p.find("SDTAIL").y0 > p.find("SDSPACED").y1,
+                   "a \\z. with no \\a. after it still ends the example: "
+                   "the rest is a flush-left continuation"))
+    # under a custom-labelled example
+    r.append(check(left("SDCUSTQ") == ["(7)", "Q:"]
+                   and label("SDCUSTA") == "a.",
+                   f"\\ex.[(7)] \\a.[Q:] ... \\z. \\a.: got "
+                   f"{left('SDCUSTQ')} / {label('SDCUSTA')!r}"))
+    r.append(check("SDREFQ (7) SDEND" in txt,
+                   f"and its custom item refers as (7); got "
+                   f"{txt[txt.find('SDREFQ'):][:16]!r}"))
+    r.append(check("[A:]" not in txt and "[X:]" not in txt,
+                   "no custom label is printed as text"))
+    return r
+
+
+
 def refcheck_report(log):
     """The \\exrefcheck listing from a .log: (command, rest, page) per
     entry, `page` being the page the reference itself is on.

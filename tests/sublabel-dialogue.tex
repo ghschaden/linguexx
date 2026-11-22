@@ -1,0 +1,39 @@
+%% linguex's dialogue example: a custom label on a sub-example item
+%% (\a.[A:]), and \a. after \z. in the same example.  Both stopped a
+%% document ported from linguex until 2026-11-22: the bracket was printed
+%% as text after an ordinary "a.", and the second \a. found the example
+%% already ended by \z. ("\a. with no example to attach it to"), so the
+%% answers lost their list and their \labels recorded nothing.
+%%
+%% What linguex prints, and this must too: the custom label in the letter
+%% column, stepping no letter; after \z., a new list in the SAME example,
+%% lettered from a again.  \ref to the custom-labelled item prints the
+%% example's number, on whichever item it stands (linguex leaves the last
+%% reference standing, which after a lettered item is that item's: decided
+%% 2026-11-22 to be the example's), and leads to the example.
+%%
+%% And what must not change: "\d. [DP" -- a bracket a space separates is
+%% the item's text, as for \exg., and as linguex's space-respecting peek
+%% has it; a \z. with no \a. after it still ends the example, the rest of
+%% the line set flush left; a custom-labelled EXAMPLE's items refer as it.
+\input{_preamble}
+\usepackage{hyperref}
+\begin{document}
+SDBEFORE text before.
+
+\ex. \label{sd:p}\a.[A:] \label{sd:pa}SDQUESTION How long by taxi?
+\z.
+\a. \label{sd:p1}SDONE B: One minute.
+\b. \label{sd:p2}SDTWO B: Two minutes' walk.
+
+SDREFS \Last[b] \Last[a] \ref{sd:p} \ref{sd:p1} \ref{sd:p2} \ref{sd:pa} SDEND
+
+\ex. \a. SDMIDA one \b.[X:] \label{sd:x}SDMIDX custom \c. SDMIDB three
+\d. [DP SDSPACED the dog] barked. \z. SDTAIL on the same line.
+
+SDREFX \ref{sd:x} SDEND
+
+\ex.[(7)] \a.[Q:] \label{sd:q}SDCUSTQ question \z. \a. SDCUSTA answer
+
+SDREFQ \ref{sd:q} SDEND
+\end{document}
