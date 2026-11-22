@@ -63,11 +63,97 @@ def sources():
             + sorted(TESTS.glob("*.tex")))
 
 
+#: What the suite RAN ON, beside what it ran.  A green run is a statement
+#: about a toolchain as much as about the sources: a kernel update is what
+#: broke \label inside sub-examples in 1.5, and on a machine whose PATH found
+#: a second, older TeX Live first, fifteen cases were red while the stamp
+#: -- hashing the sources alone -- went on saying "suite green".  So the
+#: verdict hash covers the tools too, and changing them makes a green stale
+#: exactly as editing a case does.
+#:
+#: Cheap on purpose: source_hash() runs on every hooked tool call and every
+#: refresh of the status bar.  So no `--version` (veraPDF's is a JVM start),
+#: only paths and file stats -- where each tool resolves to, and for TeX the
+#: three formats and TEXMFDIST's ls-R.  tlmgr and the distribution packages
+#: both rewrite ls-R on every update, and a kernel update rebuilds the
+#: formats, so a package update moves the hash even when no binary changed.
+#: The three directories come from the kpsewhich beside the lualatex that
+#: PATH finds, and are cached (TOOLCACHE) by where that lualatex resolves
+#: to: kpsewhich costs ~90 ms, which every hooked call would pay, and the
+#: directories do not move when the tree is updated -- the files in them
+#: do, and those are stat'ed fresh every time.
+#:
+#: It is the toolchain the CALLER's PATH finds.  The hooks see the session's
+#: environment: a suite run with a PATH exported for that one command is a
+#: green for that toolchain, and the hooks rightly call it stale for theirs.
+TOOLS = ENGINES + ["show-pdf-tags", "verapdf"]
+TOOLCACHE = STATE / "toolchain-dirs.json"
+FORMATS = {"pdflatex": ("pdftex", "pdflatex.fmt"),
+           "xelatex": ("xetex", "xelatex.fmt"),
+           "lualatex": ("luahbtex", "lualatex.fmt")}
+
+
+def _stat(p: Path):
+    try:
+        st = p.stat()
+    except OSError:
+        return "<missing>"
+    return f"{p} {st.st_size} {st.st_mtime_ns}"
+
+
+def texmf_dirs(lua):
+    """(TEXMFDIST, TEXMFSYSVAR, TEXMFVAR) for the TeX that `lua` belongs to."""
+    import json
+    key = str(Path(lua).resolve()) if lua else ""
+    try:
+        cache = json.loads(TOOLCACHE.read_text())
+        if cache.get("lualatex") == key:
+            return tuple(cache["dirs"])
+    except (OSError, ValueError, KeyError):
+        pass
+    kpse = Path(lua).parent / "kpsewhich" if lua else None
+    if kpse is None or not kpse.exists():
+        kpse = Path(shutil.which("kpsewhich") or "kpsewhich")
+    try:
+        r = subprocess.run([str(kpse), "-expand-var",
+                            "$TEXMFDIST|$TEXMFSYSVAR|$TEXMFVAR"],
+                           capture_output=True, text=True, timeout=10)
+        dirs = (r.stdout.strip().split("|") + ["", "", ""])[:3]
+    except (OSError, subprocess.SubprocessError):
+        return ("", "", "")             # not cached: try again next time
+    if r.returncode == 0 and dirs[0]:
+        try:
+            STATE.mkdir(parents=True, exist_ok=True)
+            TOOLCACHE.write_text(json.dumps({"lualatex": key, "dirs": dirs}))
+        except OSError:
+            pass
+    return tuple(dirs)
+
+
+def toolchain():
+    """{name: "<path> <size> <mtime>"} for the tools and the TeX tree."""
+    out = {}
+    for t in TOOLS:
+        w = shutil.which(t)
+        out[t] = _stat(Path(w).resolve()) if w else "<missing>"
+    dist, sysvar, var = texmf_dirs(shutil.which("lualatex"))
+    out["TEXMFDIST"] = _stat(Path(dist) / "ls-R") if dist else "<missing>"
+    for eng, (prog, fmt) in FORMATS.items():
+        # a user-built format (fmtutil-user) wins over the system one, as
+        # it does for the engine
+        cands = [Path(v) / "web2c" / prog / fmt for v in (var, sysvar) if v]
+        hit = next((c for c in cands if c.exists()), None)
+        out[f"{eng}.fmt"] = _stat(hit) if hit else "<missing>"
+    return out
+
+
 def source_hash():
     h = hashlib.sha256()
     for p in sources():
         h.update(str(p.relative_to(ROOT)).encode())
         h.update(p.read_bytes() if p.exists() else b"<missing>")
+    for k, v in sorted(toolchain().items()):
+        h.update(f"tool:{k}={v}".encode())
     return h.hexdigest()[:16]
 
 
@@ -799,7 +885,8 @@ def write_stamp(extra):
     import json
     head = sh(["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"]).stdout.strip()
     data = {"hash": source_hash(), "when": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "git": head, **extra, "files": file_hashes()}
+            "git": head, **extra, "files": file_hashes(),
+            "toolchain": toolchain()}
     STATE.mkdir(parents=True, exist_ok=True)
     STAMP.write_text(json.dumps(data, indent=1))
     return data
@@ -886,19 +973,38 @@ def cmd_doc(a):
     return 0 if good else 1
 
 
+def stale_what(st):
+    """What moved since stamp `st`: (changed sources, changed tools), named
+    for a reader, or None for a stamp too old to say (no per-file record).
+    A stamp from before the toolchain was recorded gives its tools as
+    ["not recorded"]."""
+    old = st.get("files")
+    if old is None:
+        return None
+    cur = file_hashes()
+    moved = sorted(k for k in old.keys() | cur.keys()
+                   if old.get(k) != cur.get(k))
+    files = [Path(k).name + ("" if k in cur else " (gone)")
+             + ("" if k in old else " (new)") for k in moved]
+    oldtc, curtc = st.get("toolchain"), toolchain()
+    if oldtc is None:
+        tools = ["not recorded"]
+    else:
+        tools = sorted(k for k in oldtc.keys() | curtc.keys()
+                       if oldtc.get(k) != curtc.get(k))
+    return files, tools
+
+
 def stamp_brief(st, now):
     """One line for a status bar: green, or stale and what changed."""
     when = st.get("when", "?")[5:16]           # "10-06 13:15"
     if st.get("hash") == now:
         return f"suite green ({st.get('scope', '?')}, {when})"
-    old = st.get("files")
-    if old is None:
+    what = stale_what(st)
+    if what is None:
         return f"suite STALE since {when} (rerun lxx test)"
-    cur = file_hashes()
-    moved = sorted(k for k in old.keys() | cur.keys()
-                   if old.get(k) != cur.get(k))
-    names = [Path(k).name + ("" if k in cur else " (gone)")
-             + ("" if k in old else " (new)") for k in moved]
+    files, tools = what
+    names = files + ([f"toolchain: {', '.join(tools)}"] if tools else [])
     shown = ", ".join(names[:3]) + (f" +{len(names) - 3}" if len(names) > 3
                                     else "")
     return f"suite STALE: {shown}"
@@ -917,7 +1023,13 @@ def cmd_stamp(a):
         print(stamp_brief(st, now))
         return 0 if fresh else 1
     st.pop("files", None)
+    tc = st.pop("toolchain", None)
     print(json.dumps(st, indent=1))
+    if not fresh and tc is not None:
+        cur = toolchain()
+        for k in sorted(tc.keys() | cur.keys()):
+            if tc.get(k) != cur.get(k):
+                print(f"toolchain {k}: was {tc.get(k)}\n{'':>{11 + len(k)}}now {cur.get(k)}")
     print(f"sources now {now}: {'MATCHES the stamp' if fresh else 'CHANGED since it'}")
     return 0 if fresh else 1
 

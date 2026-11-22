@@ -28,6 +28,16 @@ The tree tested is the INDEX, exported to a temporary directory, not the
 working tree: a test written but not staged does not count, because it is
 not in the commit.
 
+The cases the commit adds or changes are tried FIRST, on their own: a fix
+staged with its test is confirmed by that test in seconds, where the whole
+suite with HEAD's .sty took minutes only to name the same case.  Only when
+none of them confirms the change -- the commit touches no case, or its
+cases cannot tell the two .sty files apart -- does the whole suite run, as
+before.  The verdict is the same either way: some case must fail with
+HEAD's .sty and pass with the staged one.  Only the order of looking
+changed, so the faster path cannot accept a commit the full run would
+refuse.
+
 Limits, stated rather than hidden:
 - Per commit, not per hunk.  A commit carrying a tested and an untested
   change passes on the first; keep one change per commit.
@@ -100,6 +110,38 @@ def run_suite(tree, *args):
     return r.returncode, failed, r.stdout + r.stderr
 
 
+def touched_cases():
+    """The suite cases this commit adds or modifies: staged tests/*.tex,
+    the shared preambles (_*.tex) aside, by case name."""
+    out = git("diff", "--cached", "--name-only", "--diff-filter=AM", "HEAD",
+              "--", "tests/*.tex").stdout.split("\n")
+    return sorted({Path(p).stem for p in out
+                   if p.strip() and "/" not in p[len("tests/"):]
+                   and not Path(p).name.startswith("_")})
+
+
+def confirm(tree, failed, old_sty, new_sty):
+    """The first of `failed` that fails alone with the old .sty and passes
+    with the new one, or None; and what each one tried showed."""
+    tried = []
+    for key in failed[:MAX_CONFIRM]:
+        engine, _, case = key.partition("/")
+        one = ("-k", case, "-e", engine, "-j", "1")
+        (tree / STY).write_bytes(old_sty)
+        _, f_old, _ = run_suite(tree, *one)
+        if key not in f_old:
+            tried.append(f"{key}: passed when re-run alone with HEAD's "
+                         f"{STY} (flaky?)")
+            continue
+        (tree / STY).write_bytes(new_sty)
+        rc_new, f_new, _ = run_suite(tree, *one)
+        if key in f_new or rc_new not in (0, 1):
+            tried.append(f"{key}: fails with the staged {STY} too")
+            continue
+        return key, tried
+    return None, tried
+
+
 def refuse(msg_path, why, changed):
     say("\nrevert check: REFUSED.\n")
     say(why)
@@ -144,6 +186,27 @@ def main():
                                  capture_output=True, check=True).stdout
         (tree / STY).write_bytes(old_sty)
 
+        tried = []
+        own = touched_cases()
+        if own:
+            say(f"revert check: trying the commit's own case(s) first: "
+                f"{', '.join(own)}")
+            failed = []
+            for case in own:
+                (tree / STY).write_bytes(old_sty)
+                _, f, _ = run_suite(tree, "-k", case)
+                # -k matches by substring: keep this case's own failures
+                failed += [k for k in f if k.partition("/")[2] == case]
+            key, tried = confirm(tree, failed, old_sty, new_sty)
+            if key:
+                say(f"revert check: ok -- {key} fails with HEAD's {STY} and "
+                    f"passes with the staged one (found among the commit's "
+                    f"own cases; the rest of the suite was not needed).")
+                return 0
+            say("revert check: none of them confirms the change; running "
+                "the whole suite ...")
+            (tree / STY).write_bytes(old_sty)
+
         rc, failed, out = run_suite(tree)
         if rc == 0:
             return refuse(msg_path,
@@ -156,21 +219,9 @@ def main():
                           f"The suite with HEAD's {STY} ended without a "
                           f"verdict (exit {rc}):\n{tail}", changed)
 
-        tried = []
-        for key in failed[:MAX_CONFIRM]:
-            engine, _, case = key.partition("/")
-            one = ("-k", case, "-e", engine, "-j", "1")
-            (tree / STY).write_bytes(old_sty)
-            _, f_old, _ = run_suite(tree, *one)
-            if key not in f_old:
-                tried.append(f"{key}: passed when re-run alone with HEAD's "
-                             f"{STY} (flaky?)")
-                continue
-            (tree / STY).write_bytes(new_sty)
-            rc_new, f_new, _ = run_suite(tree, *one)
-            if key in f_new or rc_new not in (0, 1):
-                tried.append(f"{key}: fails with the staged {STY} too")
-                continue
+        key, more = confirm(tree, failed, old_sty, new_sty)
+        tried += more
+        if key:
             say(f"revert check: ok -- {key} fails with HEAD's {STY} and "
                 f"passes with the staged one ({len(failed)} failing "
                 f"case(s) in all).")

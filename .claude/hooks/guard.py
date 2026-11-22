@@ -115,8 +115,24 @@ def unverified():
     except Exception:
         return True, "the green-run stamp is unreadable"
     if st.get("hash") != m.source_hash():
-        return True, ("linguexx.sty or a test case has changed since the "
-                      f"last green run ({st.get('when', '?')})")
+        # Name what moved: the hash covers the toolchain too, and "a test
+        # case has changed" said of a tlmgr update sends the reader looking
+        # for an edit that does not exist.
+        when = st.get("when", "?")
+        what = m.stale_what(st)
+        if what is None:
+            return True, ("linguexx.sty or a test case has changed since the "
+                          f"last green run ({when})")
+        files, tools = what
+        parts = []
+        if files:
+            parts.append("the sources changed (" + ", ".join(files[:3])
+                         + (f" +{len(files) - 3}" if len(files) > 3 else "")
+                         + ")")
+        if tools:
+            parts.append("the toolchain changed (" + ", ".join(tools) + ")")
+        return True, ((" and ".join(parts) or "the tree changed")
+                      + f" since the last green run ({when})")
     return False, ""
 
 

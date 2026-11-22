@@ -93,7 +93,15 @@ untracked module makes the hook fail as though a test broke.
   hashes `linguexx.sty`, `tests/runtests.py`, `tests/suite/*.py`,
   `tests/suite/assertions/*.py` and the
   cases (`SOURCES`/`sources()` in `lxx`); a new suite module that is not in
-  that glob is a stale green nobody sees.
+  that glob is a stale green nobody sees. It hashes the TOOLCHAIN too
+  (`toolchain()` in `lxx`): where the engines, `show-pdf-tags` and veraPDF
+  resolve to, the three formats and TEXMFDIST's `ls-R`, by path and file
+  stat. A `tlmgr` update, or a PATH that finds another TeX Live, makes a
+  green stale exactly as an edit does, and `lxx stamp` names the tool that
+  moved. It is the toolchain the CALLER's PATH finds, so a suite run under a
+  PATH exported for that one command is green for that PATH only: the hooks
+  see the session's. (A second, older TeX Live first in PATH once kept
+  fifteen cases red under a stamp that said green.)
 - Two more guards in the same hook hold rules that were only memories: a
   change to the version number (`\ProvidesPackage`'s `v. N`, a numbered
   `CHANGELOG.md` heading, the manual's `\date{Version ...}`) and the release
@@ -124,9 +132,12 @@ untracked module makes the hook fail as though a test broke.
   one the suite can see: the `commit-msg` hook (`make hooks`,
   `tools/revert_check.py`) runs the suite with HEAD's `.sty` put back and
   refuses the commit if it stays green. Stage the test WITH the fix. A
-  change no test can see says so in the message, `Untested: <why>`. The
-  check costs a suite run and more, so give such a `git commit` a timeout
-  of several minutes. It exists because `cbbffeb` shipped in 1.3.1 untested.
+  change no test can see says so in the message, `Untested: <why>`. It tries
+  the cases the commit adds or changes first, and a fix staged with its
+  test is through in seconds; only when none of them confirms the change
+  does the whole suite run, so give a `git commit` that touches no case, or
+  whose case cannot tell the two `.sty` files apart, a timeout of several
+  minutes. It exists because `cbbffeb` shipped in 1.3.1 untested.
 - Run `python3 tests/runtests.py` (all 3 engines) before delivering
   (`lxx test`, or `lxx verify` for this whole list at once). It now runs `verapdf` itself, on the `ua` case, so PDF/UA compliance is checked on every run and veraPDF is a hard requirement of the suite.
 - Still run `verapdf` on examples/ua-demo.pdf before delivering (`lxx verify`
