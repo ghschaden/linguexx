@@ -3,6 +3,18 @@
 All notable changes to `linguexx`. Versions refer to the `\ProvidesPackage`
 version string.
 
+## Unreleased
+- Fixed: `\counterwithout{ExNo}{chapter}`, which a document ported from
+  linguex writes to number its examples through the book, stripped the
+  parentheses from the example numbers and from `\ref` ("1" instead of
+  "(1)", next to sub-example references that kept "(2a)"). The same with
+  `\counterwithin` ("1.1") and with the footnote counter `FnExNo`. The
+  unstarred commands also redefine the counter's format; linguexx now puts
+  its brackets back around that format at `\begin{document}`, and keeps
+  the chapter prefix of `\counterwithin`. A format of any other shape is
+  left as the document wrote it, and under `[langsci]` or `\ExBareRefs`
+  nothing changes.
+
 ## 1.5
 Fixes first, then changes to what existing documents print, then new
 features; everything about right-to-left text is together at the end.

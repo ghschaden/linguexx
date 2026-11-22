@@ -447,7 +447,9 @@
 %% \cref that follows it, change.  \lx@labelExNo is the seam for the main
 %% label: it is the printed number, parenthesised in both flavours, and it
 %% is \theExNo in only one of them.
+\newif\iflx@refs@paren
 \def\lx@refs@paren{%
+  \lx@refs@parentrue
   \renewcommand{\theExNo}{\protect\theExLBr\arabic{ExNo}\protect\theExRBr}%
   \renewcommand{\theFnExNo}{\protect\theFnExLBr\roman{FnExNo}\protect\theFnExRBr}%
   \renewcommand{\theSubExNo}{%
@@ -468,6 +470,7 @@
   \def\lx@labelCustom##1{\if@noftnote\protect\theExLBr##1\protect\theExRBr
     \else\protect\theFnExLBr##1\protect\theFnExRBr\fi}}
 \def\lx@refs@bare{%
+  \lx@refs@parenfalse
   \renewcommand{\theExNo}{\arabic{ExNo}}%
   \renewcommand{\theFnExNo}{\roman{FnExNo}}%
   \renewcommand{\theSubExNo}{%
@@ -493,6 +496,41 @@
 \newcommand\ExParenRefs{\lx@refs@paren}
 \newcommand\ExBareRefs{\lx@refs@bare}
 \iflx@langsci \lx@refs@bare \else \lx@refs@paren \fi
+%% \counterwithin and \counterwithout, UNSTARRED, also redefine the
+%% counter's format: \theExNo becomes \arabic{ExNo}, or
+%% \thechapter.\arabic{ExNo}.  In the parenthesised flavour that throws
+%% the brackets away, and a document ported from linguex writes exactly
+%% \counterwithout{ExNo}{chapter} to number through the book: its examples
+%% printed "1" and \ref "1", next to sub-examples' "(2a)".  So at the start
+%% of the document a format of the shape those two commands leave --
+%% <fmt>{ExNo}, optionally after \the<counter>. -- gets the flavour's
+%% brackets put back around it, prefix and all.  Only that shape: a
+%% format redefined to anything else is the document's choice and is kept.
+%% The same shape written by hand cannot be told from the kernel's (a
+%% \renewcommand without arguments is no more \long than the kernel's
+%% \xdef), and gets the brackets too -- bare numbers are \ExBareRefs,
+%% which this leaves alone, as it does the bare flavour.  A
+%% \counterwithout issued after \begin{document} is not seen.
+\ExplSyntaxOn
+\cs_generate_variant:Nn \regex_match:nnT { ne }
+\cs_new_protected:Npn \__lxp_refs_rebracket:NNNn #1#2#3#4
+  {
+    \regex_match:neT
+      { \A (?: \c{the[A-Za-z@]+} \. )? \c{[A-Za-z@]+} \cB\{ #4 \cE\} \Z }
+      { \exp_not:o {#1} }
+      {
+        \tl_put_left:Nn #1 { \protect #2 }
+        \tl_put_right:Nn #1 { \protect #3 }
+      }
+  }
+\AtBeginDocument
+  {
+    \iflx@refs@paren
+      \__lxp_refs_rebracket:NNNn \theExNo \theExLBr \theExRBr { ExNo }
+      \__lxp_refs_rebracket:NNNn \theFnExNo \theFnExLBr \theFnExRBr { FnExNo }
+    \fi
+  }
+\ExplSyntaxOff
 
 % hyperref anchor names (avoid the \protect-laden \the... expansions).
 %

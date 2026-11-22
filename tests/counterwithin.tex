@@ -1,0 +1,35 @@
+%% \counterwithin{ExNo}{chapter}, unstarred, after loading the package.
+%%
+%% It redefines \theExNo as \thechapter.\arabic{ExNo} and, like the
+%% unstarred \counterwithout (tests/counterwithout.tex), took the
+%% parentheses with it: examples printed "1.1" and \ref to them "1.1".
+%% The chapter prefix is what the document asked for and is kept; only the
+%% brackets are put back around it.
+%%
+%% A redefinition of another shape is the document's and is kept:
+%% \theFnExNo is set here to a bracketed roman numeral of its own, and the
+%% footnote example prints it as written, without a second pair around it.
+\documentclass[11pt]{report}
+\usepackage[a4paper,margin=25mm]{geometry}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else
+  \usepackage{fontspec}
+\fi
+\usepackage{linguexx}
+\counterwithin{ExNo}{chapter}
+\renewcommand\theFnExNo{[\roman{FnExNo}]}
+\pagestyle{empty}
+\begin{document}
+\chapter{One}
+\ex. \label{cn:a} CNA an example.
+
+\chapter{Two}
+\ex. \label{cn:b} CNB the first of chapter two.
+
+CNHOST a host.\footnote{CNFN \ex. \label{cn:fn} CNFNEX in a footnote.}
+
+CNREFA \ref{cn:a} CNREFB \ref{cn:b} CNREFFN \ref{cn:fn} CNEND
+\end{document}

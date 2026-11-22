@@ -1,0 +1,45 @@
+%% \counterwithout{ExNo}{chapter} after loading the package: what a
+%% document ported from linguex writes to number its examples through the
+%% book rather than by chapter.
+%%
+%% The parentheses live in the counter format (\theExNo is
+%% \theExLBr\arabic{ExNo}\theExRBr), and the UNSTARRED \counterwithout
+%% also redefines \theExNo, as \arabic{ExNo}.  Until 2026-11-22 that
+%% silently stripped them: the examples printed "1", "2" and \ref to them
+%% a bare "1", while sub-examples (\theSubExNo, untouched) kept "(2a)", so
+%% one paragraph mixed both.  The footnote series is the same mechanism
+%% under another counter (\theFnExNo), and is undone by the same line.
+%%
+%% Report class: the counter has to have a chapter to be counted without.
+\documentclass[11pt]{report}
+\usepackage[a4paper,margin=25mm]{geometry}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else
+  \usepackage{fontspec}
+\fi
+\usepackage{linguexx}
+\counterwithout{ExNo}{chapter}
+\counterwithout{FnExNo}{chapter}
+\pagestyle{empty}
+\begin{document}
+\chapter{One}
+\ex. \label{cw:a} CWA an example.
+
+\ex. \label{cw:b} CWB another.
+\a. \label{cw:b1} CWBA first.
+\b. CWBB second.
+\z.
+
+CWHOST a host.\footnote{CWFN \ex. \label{cw:fn} CWFNEX in a footnote.}
+
+CWREFA \ref{cw:a} CWREFB \ref{cw:b} CWREFBA \ref{cw:b1} CWLAST \Last[a]
+CWREFFN \ref{cw:fn} CWEND
+
+\chapter{Two}
+\ex. \label{cw:c} CWC numbered on through the chapter.
+
+CWREFC \ref{cw:c} CWEND
+\end{document}

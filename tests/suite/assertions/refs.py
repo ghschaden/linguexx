@@ -671,6 +671,68 @@ def a_customlabel_refs(p: Page):
 
 
 
+def _counter_text(p: Page, pairs, n=12):
+    """One check per (needle, wanted) pair: `wanted` is in the page text."""
+    txt = " ".join(w.text for w in p.words)
+    return [check(want in txt,
+                  f"{want!r} on the page; got "
+                  f"{txt[txt.find(needle):][:len(needle) + n]!r}")
+            for needle, want in pairs]
+
+
+def _label_of(p: Page, sentinel):
+    """The word set just left of `sentinel` on its rendered line: the
+    example's number, wherever reading order puts it (a footnote
+    example's comes out after the body text)."""
+    w = p.find(sentinel)
+    left = [o for o in p.line_of(w) if o.x1 <= w.x0]
+    return left[-1].text if left else None
+
+
+def a_counterwithout(p: Page):
+    r"""\counterwithout{ExNo}{chapter} (and FnExNo), unstarred, after the
+    package: the format it leaves, \arabic{ExNo}, used to strip the
+    parenthesised flavour's brackets from the example numbers and from
+    \ref, beside sub-examples that kept theirs.  The brackets are back in
+    both, the sub-example references are as they were, and the counter
+    really is no longer reset by the chapter (the third example is (3))."""
+    return _counter_text(p, (
+        ("CWA", "(1) CWA"), ("CWB", "(2) CWB"),
+        ("CWREFA", "CWREFA (1) CWREFB (2) CWREFBA (2a) CWLAST (2a)"),
+        ("CWREFFN", "CWREFFN (1) CWEND"),
+        ("CWC", "(3) CWC"), ("CWREFC", "CWREFC (3) CWEND"))) + [
+        check(_label_of(p, "CWFNEX") == "(1)",
+              f"the footnote example is numbered (1); got "
+              f"{_label_of(p, 'CWFNEX')!r}")]
+
+
+def a_counterwithin(p: Page):
+    r"""\counterwithin{ExNo}{chapter}, unstarred: the chapter prefix it
+    asks for is kept, and the brackets it took away are put back around
+    it.  A format the document wrote itself, of another shape, is left as
+    written -- no second pair of brackets around \theFnExNo."""
+    r = _counter_text(p, (
+        ("CNA", "(1.1) CNA"), ("CNB", "(2.1) CNB"),
+        ("CNREFA", "CNREFA (1.1) CNREFB (2.1) CNREFFN [i] CNEND")))
+    r.append(check(_label_of(p, "CNFNEX") == "[i]",
+                   f"the footnote example is numbered [i], as written; got "
+                   f"{_label_of(p, 'CNFNEX')!r}"))
+    txt = " ".join(w.text for w in p.words)
+    r.append(check("([i])" not in txt,
+                   "the document's own footnote format gets no brackets "
+                   "added"))
+    return r
+
+
+def a_counterwithout_langsci(p: Page):
+    r"""\counterwithout under [langsci]: the bare format it leaves is that
+    flavour's own, so \ref stays bare and the label keeps its brackets --
+    the repair for the parenthesised flavour must not reach this one."""
+    return _counter_text(p, (("CLA", "(1) CLA"),
+                             ("CLREFA", "CLREFA 1 CLEND")))
+
+
+
 def refcheck_report(log):
     """The \\exrefcheck listing from a .log: (command, rest, page) per
     entry, `page` being the page the reference itself is on.

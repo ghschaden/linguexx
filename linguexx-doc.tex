@@ -862,6 +862,14 @@ other convention in one line:
 document; each takes effect from the point it stands at, and the example
 labels are unaffected by both.
 
+A document that numbers its examples through the book, or within chapters,
+may write \cs{counterwithout}\marg{ExNo}\marg{chapter} or
+\cs{counterwithin}\marg{ExNo}\marg{chapter} in the preamble, as it would
+with \pkg{linguex}. Unstarred, those commands also redefine the number's
+format; linguexx puts the parentheses back around it at
+\verb|\begin{document}|, so the examples and \cs{ref} still print ``(1)'',
+or ``(1.1)'' within chapters.
+
 \subsection{Examples in footnotes}
 
 Inside a footnote, examples are numbered independently, in roman numerals,

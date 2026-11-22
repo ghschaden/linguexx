@@ -1,0 +1,26 @@
+%% \counterwithout{ExNo}{chapter} under [langsci], whose flavour keeps the
+%% counter bare and puts the brackets in the list label: there the
+%% \arabic{ExNo} that \counterwithout leaves IS the flavour's own format,
+%% so nothing is put back -- \ref stays "1", the example prints "(1)".
+%% The counterpart of tests/counterwithout.tex, which must not leak into
+%% this flavour.
+\documentclass[11pt]{report}
+\usepackage[a4paper,margin=25mm]{geometry}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else
+  \usepackage{fontspec}
+\fi
+\usepackage[lazy,langsci]{linguexx}
+\counterwithout{ExNo}{chapter}
+\pagestyle{empty}
+\begin{document}
+\chapter{One}
+\begin{exe}
+\ex\label{cl:a} CLA an example.
+\end{exe}
+
+CLREFA \ref{cl:a} CLEND
+\end{document}
