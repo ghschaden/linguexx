@@ -1778,9 +1778,13 @@ examples are the mirror image of what they are in a left-to-right
 document: the number stands against the right margin, the text the same
 distance in from it, a sub-example's letter at the text's edge, and a
 judgment mark to the right of what it judges. Braces open on the right.
-This needs \pkg{polyglossia}: with \pkg{babel}'s right-to-left support
-(\pkg{babelbidi} included), \pkg{linguexx} sets every example as in a
-left-to-right document and says so in a warning.
+This needs \pkg{polyglossia}. With \pkg{babel}'s right-to-left support
+(\pkg{babelbidi} included) and a left-to-right main language,
+\pkg{linguexx} sets every example as in a left-to-right document and says
+so in a warning. With a right-to-left main language under \pkg{babel} the
+examples are not usable yet: \pkg{babel} reorders the text inside
+\pkg{linguexx}'s boxes, gloss lines and translations included, and a
+warning says to load \pkg{polyglossia} instead.
 
 Examples follow the direction of the document's main language, whatever
 the language of the example. An example inside

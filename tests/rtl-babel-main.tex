@@ -1,0 +1,35 @@
+%% A right-to-left MAIN language under babel: what linguexx says.
+%%
+%% With English main (tests/rtl-babel.tex) linguexx warns that examples
+%% are set as in a left-to-right document, and they are.  With Hebrew main
+%% that sentence was false: babel mirrors the lists itself and reorders the
+%% text inside linguexx's boxes -- under LuaTeX a gloss line came out
+%% reversed letter by letter, under XeTeX a translation word by word --
+%% and the document still got the warning promising left-to-right
+%% examples.  Found 2026-11-03; still so with babelbidi 1.2.0 (2026/11/17).
+%%
+%% Layout under babel is undecided (doc/DEFERRED-DECISIONS.md, "Right-to-
+%% left documents under babel"), so nothing here measures the examples.
+%% What is asserted is the message: this document gets the one that says
+%% its examples are not usable and names polyglossia, once, and not the
+%% left-to-right one.  Plain babel rather than babelbidi, as in rtl-babel,
+%% so that the case builds on a TeX Live from before babelbidi.
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=25mm]{geometry}
+\usepackage{iftex}
+\ifLuaTeX
+  \usepackage[bidi=basic]{babel}
+\else
+  \usepackage[bidi=bidi-r]{babel}
+\fi
+\babelprovide[import,main]{hebrew}
+\babelprovide[import]{english}
+\babelfont{rm}{FreeSerif.otf}
+\usepackage{linguexx}
+\pagestyle{empty}
+\begin{document}
+\ex. HEMAIN הילד אכל את התפוח.
+
+\exg. הילד אכל\\ DEF.boy eat.PST\\
+\glt `HETRANS The boy ate.'
+\end{document}

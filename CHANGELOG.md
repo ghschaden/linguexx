@@ -28,6 +28,14 @@ version string.
   a space, is text as before. A document that wrote a bracket directly
   after `\a.`--`\f.` and meant it as text now gets a label instead: put a
   space between them. `\ag.`--`\fg.` take no label.
+- Fixed: a document whose main language is right to left under babel
+  (babelbidi included) was told that its examples were set left to right,
+  as in a left-to-right document. They are not: babel reorders the text
+  inside linguexx's boxes, so gloss lines and translations come out
+  reversed. Such a document now gets a warning that says so and names
+  polyglossia, which right-to-left documents need. The examples
+  themselves are unchanged; a document with a left-to-right main language
+  keeps the warning it had, which is true there.
 
 ## 1.5
 Fixes first, then changes to what existing documents print, then new

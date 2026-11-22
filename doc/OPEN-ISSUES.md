@@ -4,9 +4,13 @@ Defects found and confirmed, but not fixed yet. Each says how it was seen
 and how to reproduce it. These are BUGS. Undecided behaviour belongs in
 `DEFERRED-DECISIONS.md` instead. Remove an entry in the commit that fixes it.
 
-## babel, right-to-left main language: the "left to right" fallback mangles text
+## babel, right-to-left main language: the examples come out garbled
 
-*Found 2026-11-03, while sizing babel support. Not fixed: recorded only.*
+*Found 2026-11-03, while sizing babel support. Still so with babelbidi
+1.2.0 (2026/11/17). The false warning was corrected on 2026-11-22
+(`rtl-babel-main`, tested by `tests/rtl-babel-main.tex`); the layout
+itself is not fixed, and waits on the deferred decision "Right-to-left
+documents under babel", which now records what an attempt found.*
 
 Right-to-left layout under babel is undecided (DEFERRED-DECISIONS, "Right-
 to-left documents under babel"), and what linguexx promises meanwhile is
@@ -51,19 +55,9 @@ gives the one warning.
   reverse order (`ate.' boy 'The`), and the sub-example labels read `a.`
   rather than `.a`. The gloss line itself is readable.
 
-Not covered by any case: `tests/rtl-babel.tex` has English as its main
-language and on purpose measures nothing in its Hebrew example. It also
-copies babelbidi's `\if@RTLmain` rather than loading the package. The
-CHANGELOG's Unreleased entry ("with babel's right-to-left support
-(babelbidi included) every example is now set as in a left-to-right
-document") claims the same thing the warning does, and is wrong in the
-same case.
-
-Fixing this does not mean settling the deferred decision. The smallest fix
-keeps the decision open: either the warning says that a right-to-left
-main language needs polyglossia, or linguexx protects its gloss and
-translation boxes from babel's reordering. Then add a Hebrew-main babelbidi
-case that measures the result, and correct the changelog wording.
+Fixing the layout means settling that decision. Until then, rerun the
+document above when babelbidi changes: the deferred entry says which
+half of a fix each engine still needs.
 
 ## XeLaTeX, tagged: right-to-left paragraphs fail veraPDF (upstream, not linguexx)
 

@@ -969,3 +969,25 @@ behind it would have to read babel's direction instead
 (`\bbl@thetextdir`, or a test that also accepts a macro conditional).
 `tests/rtl-babel.tex` then stops being a "leave it alone" case and becomes
 the babel twin of `rtl-main` and `ltr-main`.
+
+**Tried 2026-11-22, against babelbidi 1.2.0 (2026/11/17), not adopted.**
+Switching the polyglossia machinery on under babel, with the main
+direction read from babelbidi's `\bbd@main@dir` (or babel's
+`\bbl@thetextdir`; both are set by `\begin{document}`), was about fifteen
+lines and went half the way, differently per engine:
+- XeTeX: the gloss line and the translation come out right, but the
+  examples are not mirrored -- numbers stay at the left in a Hebrew-main
+  document. Probably the main direction being read before babel has
+  set what this path reads; not confirmed.
+- LuaTeX: the examples are mirrored as decided, but the Latin text inside
+  linguexx's own boxes is set right to left -- "(2)" as ")2(", "a." as
+  ".a", a gloss line letter by letter -- because babel's Lua bidi
+  (`bidi=basic`) never reorders those boxes. Declaring the tiers English
+  (`\GlossTierLang`, `\GlossTransLang`) changes nothing. Under polyglossia
+  the same unmarked input is right. A fix sets the direction of every label
+  and gloss cell itself, or gets babel's processor to run on them; both
+  depend on babel internals that were changing release to release.
+
+Meanwhile a right-to-left main language under babel gets a warning of its
+own (`rtl-babel-main`) saying the examples are not usable and naming
+polyglossia; `tests/rtl-babel-main.tex` checks it.

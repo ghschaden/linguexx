@@ -2447,11 +2447,30 @@
       { \int_use:N \tex_textdirection:D }
       { \legacy_if:nTF { @RTL } { 1 } { 0 } }
   }
+%% Two messages, because the one sentence was true of only one of the two
+%% documents it was given in.  With a left-to-right main language the
+%% examples ARE set as in any left-to-right document.  With a right-to-left
+%% one babel mirrors the lists itself and reorders the text inside
+%% linguexx's boxes -- a gloss line reversed letter by letter under LuaTeX,
+%% a translation word by word under XeTeX -- so that document is told
+%% plainly that its examples are not usable and what to load instead.
+%% The main direction is babel's \bbl@thetextdir as the main language
+%% left it at \begin{document} (babelbidi reads the same register for its
+%% \if@RTLmain).  doc/DEFERRED-DECISIONS.md, "Right-to-left documents
+%% under babel", has what supporting it would take.
 \msg_new:nnn { linguexx } { rtl-babel }
   {
     babel's~right-to-left~support~is~on,~but~linguexx~lays~out~examples~
     in~a~right-to-left~document~only~with~polyglossia.~Examples~are~set~
     left~to~right,~as~in~a~left-to-right~document.
+  }
+\msg_new:nnn { linguexx } { rtl-babel-main }
+  {
+    The~main~language~is~right~to~left~under~babel,~and~linguexx~lays~out~
+    a~right-to-left~document~only~with~polyglossia.~Under~babel~the~
+    examples~of~this~document~come~out~garbled:~babel~reorders~the~text~
+    inside~linguexx's~boxes,~so~gloss~lines~and~translations~are~
+    reversed.~Load~polyglossia~instead~of~babel~for~this~document.
   }
 \AddToHook { begindocument }
   {
@@ -2464,7 +2483,13 @@
         \bool_lazy_and:nnT
           { \cs_if_exist_p:N \bbl@bidimode }
           { \int_compare_p:nNn { \bbl@bidimode } > { 0 } }
-          { \msg_warning:nn { linguexx } { rtl-babel } }
+          {
+            \bool_lazy_and:nnTF
+              { \cs_if_exist_p:N \bbl@thetextdir }
+              { \int_compare_p:nNn { \bbl@thetextdir } > { 0 } }
+              { \msg_warning:nn { linguexx } { rtl-babel-main } }
+              { \msg_warning:nn { linguexx } { rtl-babel } }
+          }
       }
   }
 %% From \lx@mainlist, BEFORE the list's group opens: decide, and set the

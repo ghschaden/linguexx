@@ -1077,6 +1077,26 @@ def a_rtl_babel(p: Page):
                    f"{mains[2].x0:.2f}"))
     return r
 
+def a_rtl_babel_main(p: Page):
+    r"""A right-to-left MAIN language under babel: the message says that
+    the examples are not usable and names polyglossia -- once -- and the
+    left-to-right promise of rtl-babel's message is not made.  See the
+    case's header; the examples themselves are not asserted."""
+    log = " ".join(line.replace("(linguexx)", "").strip()
+                   for line in p.log.splitlines())
+    n = log.count("The main language is right to left under babel")
+    return [
+        check(n == 1, f"one warning that this document's examples need "
+                      f"polyglossia, got {n}"),
+        check("Load polyglossia instead of babel" in log,
+              "the warning says what to load instead"),
+        check("babel's right-to-left support is on" not in log,
+              "and not the warning that promises left-to-right examples"),
+        check(any(w.text == "HEMAIN" for w in p.words),
+              "the document builds and its example is on the page"),
+    ]
+
+
 
 def a_ltr_main(p: Page):
     r"""A Hebrew example in an English document is laid out as the English
