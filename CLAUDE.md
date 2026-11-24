@@ -31,10 +31,10 @@ lines in `.gitignore`. (This paragraph used to say the whole directory was
 untracked, which cost a harness fix its commit until `git ls-files` was
 asked.) It wraps the tools below so that a debugging loop costs one
 command and a few lines instead of a 40 kB log. It never restates an
-assertion: it loads `tests/runtests.py` BY PATH and reads eight names off
-it — `CASE_TIMEOUT`, `DEFAULT_PASSES`, `DOCUMENTS`, `PASSES`,
-`run_document`, `struct_has_formula`, `struct_lbl_depths`,
-`struct_ol_classes` — so nothing here can drift away from the suite. Those
+assertion: it loads `tests/runtests.py` BY PATH and reads ten names off
+it — `CASE_TIMEOUT`, `DEFAULT_PASSES`, `DEV_ENV`, `DOCUMENTS`,
+`engine_command`, `PASSES`, `run_document`, `struct_has_formula`,
+`struct_lbl_depths`, `struct_ol_classes` — so nothing here can drift away from the suite. Those
 are a CONTRACT: several are re-exports that this file alone does not call,
 so `ruff --fix` will offer to delete them as unused imports, and the one
 that says so in a comment is the one that survived. It does NOT borrow the
@@ -65,6 +65,12 @@ untracked module makes the hook fail as though a test broke.
   failure is still red; a refuted one prints as FLAKY with the command that
   refuted it. On a full green run it writes the stamp the hooks read — so does
   a raw `python3 tests/runtests.py` that prints "All green."
+- `--dev` (on `runtests.py` and on `lxx test`/`verify`/`build`/`snippet`;
+  or `LINGUEXX_DEV=1`) runs `pdflatex-dev` & co., the pre-release kernel.
+  Only the executable changes: the engine names stay plain, because
+  `show-pdf-tags` finds TeX Live through whatever `lualatex` PATH gives it,
+  and a PATH of wrappers broke it. A -dev green never writes the stamp,
+  which is about the release formats.
 - `lxx verify [--quick]` — the whole gate of the section below in one go.
 - `lxx build CASE [-e E]` / `lxx snippet -c '\ex. ...' [--preamble _preamble-tagged]`
   — compile a case or an ad-hoc repro into a build dir that STAYS

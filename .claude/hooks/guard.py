@@ -314,6 +314,9 @@ def earns_stamp(cmd, out):
         return False                    # lxx stamps that run itself
     if re.search(r"\s(-k|--filter|-e|--engine)(\s|=)", cmd):
         return False                    # a partial run proves less
+    if re.search(r"\s--dev\b|LINGUEXX_DEV=1", cmd):
+        return False                    # the stamp is about the release
+                                        # formats (runtests.DEV_ENV)
     return "All green." in out
 
 

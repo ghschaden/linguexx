@@ -326,8 +326,8 @@ def build(src: Path, engine, passes=None, outdir=None, quiet=False,
     for n in range(passes):
         try:
             proc = subprocess.run(
-                [engine, "-interaction=nonstopmode", "-halt-on-error",
-                 src.name],
+                [rt.engine_command(engine), "-interaction=nonstopmode",
+                 "-halt-on-error", src.name],
                 cwd=out, capture_output=True, text=True, timeout=rt.CASE_TIMEOUT,
                 env=env)
             rc = proc.returncode
@@ -350,7 +350,7 @@ def build(src: Path, engine, passes=None, outdir=None, quiet=False,
         head = "OK " if ok else "FAILED "
         if timed_out:
             head = "TIMED OUT "
-        print(f"{head}{src.stem} / {engine} / {passes} pass(es) "
+        print(f"{head}{src.stem} / {rt.engine_command(engine)} / {passes} pass(es) "
               f"({dt:.1f}s{pages})")
         print(f"dir: {out}")
         if digest:
@@ -881,6 +881,16 @@ def report(fails):
     return not confirmed
 
 
+def dev_run():
+    """Whether the engines are the -dev ones (runtests.DEV_ENV).
+
+    Read from the environment, which `--dev` sets: it is what carries the
+    choice into the suite's subprocess and into the serial re-run of a
+    failure, so a refuted -dev failure was refuted on -dev too.
+    """
+    return os.environ.get(runtests().DEV_ENV) == "1"
+
+
 def write_stamp(extra):
     import json
     head = sh(["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"]).stdout.strip()
@@ -902,7 +912,10 @@ def cmd_test(a):
           + ("  (failures refuted by a serial re-run)" if green and fails
              else ""))
     full_run = not a.engine and not a.filter
-    if green and full_run:
+    if green and dev_run():
+        print("(-dev formats: no green stamp; the stamp is about the release "
+              "ones)")
+    elif green and full_run:
         st = write_stamp({"scope": "suite", "summary": summary,
                           "flaky": sorted(fails)})
         print(f"green stamp written ({st['hash']} @ {st['git']})")
@@ -955,7 +968,10 @@ def cmd_verify(a):
     for good, what, dt in steps:
         print(f"  [{'OK  ' if good else 'FAIL'}] {what}" +
               (f"  ({dt:.0f}s)" if dt else ""))
-    if ok:
+    if ok and dev_run():
+        print("\nGATE PASSED on the -dev formats -- no green stamp, which "
+              "is about the release ones")
+    elif ok:
         st = write_stamp({"scope": "verify" if not a.quick else "verify-quick",
                           "summary": summary})
         print(f"\nGATE PASSED -- green stamp {st['hash']} @ {st['git']}")
@@ -1044,10 +1060,14 @@ def main():
     p.add_argument("-k", "--filter")
     p.add_argument("-j", "--jobs", type=int)
     p.add_argument("--full", action="store_true", help="raw suite output")
+    p.add_argument("--dev", action="store_true",
+                   help="use pdflatex-dev & co. (the pre-release kernel)")
     p.set_defaults(fn=cmd_test)
 
     p = sub.add_parser("verify", help="the full pre-delivery gate")
     p.add_argument("--quick", action="store_true", help="skip the manual")
+    p.add_argument("--dev", action="store_true",
+                   help="use pdflatex-dev & co. (the pre-release kernel)")
     p.add_argument("-j", "--jobs", type=int)
     p.set_defaults(fn=cmd_verify)
 
@@ -1055,6 +1075,8 @@ def main():
     p.add_argument("case")
     p.add_argument("-e", "--engine", default="pdflatex", choices=ENGINES)
     p.add_argument("-p", "--passes", type=int)
+    p.add_argument("--dev", action="store_true",
+                   help="use pdflatex-dev & co. (the pre-release kernel)")
     p.add_argument("--boxes", action="store_true")
     p.set_defaults(fn=cmd_build)
 
@@ -1065,6 +1087,8 @@ def main():
     p.add_argument("-e", "--engine", default="pdflatex", choices=ENGINES)
     p.add_argument("-p", "--passes", type=int, default=2)
     p.add_argument("--show", action="store_true", help="print the text layer")
+    p.add_argument("--dev", action="store_true",
+                   help="use pdflatex-dev & co. (the pre-release kernel)")
     p.add_argument("--boxes", action="store_true")
     p.set_defaults(fn=cmd_snippet)
 
@@ -1133,6 +1157,8 @@ def main():
     p.set_defaults(fn=cmd_stamp)
 
     a = ap.parse_args()
+    if getattr(a, "dev", False):
+        os.environ[runtests().DEV_ENV] = "1"
     return a.fn(a)
 
 

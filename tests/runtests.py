@@ -39,6 +39,7 @@ Usage:
     python3 runtests.py -v               # show every assertion, not just failures
     python3 runtests.py -j1              # one case at a time (default: DEFAULT_JOBS)
     python3 runtests.py --documents      # ... and the manual and the examples
+    python3 runtests.py --dev            # on the -dev formats (see DEV_ENV)
 
 Requires: pdflatex / xelatex / lualatex, pdftotext and pdfinfo
 (poppler-utils), qpdf (to resolve a named destination to the page it lands
@@ -70,6 +71,27 @@ import tempfile
 from pathlib import Path
 
 ENGINES = ["pdflatex", "xelatex", "lualatex"]
+#: Set to "1" in the environment (or pass --dev, which sets it), and every
+#: engine run goes to its -dev twin -- pdflatex-dev, xelatex-dev,
+#: lualatex-dev: the same binaries with the pre-release kernel's formats.
+#: The ENGINES names stay what they are everywhere else, and must: they are
+#: what ENGINES_FOR, the report and lxx's parser key on, and they are the
+#: names other tools ask kpathsea for.  (A PATH holding wrappers called
+#: `lualatex` was tried first and broke show-pdf-tags, which calls
+#: kpse.set_program_name'lualatex' and then looked for texmf.cnf beside
+#: the wrapper.)  An environment variable rather than a module flag because
+#: it has to reach the runs this file does not start itself: lxx's serial
+#: re-run of a failure and `lxx build`.  A -dev run is never a green stamp:
+#: the stamp is a claim about the release formats, and the toolchain it
+#: hashes is theirs, so main() does not print "All green." under it.
+DEV_ENV = "LINGUEXX_DEV"
+
+
+def engine_command(engine: str) -> str:
+    """The executable to run for `engine`: itself, or its -dev twin."""
+    return f"{engine}-dev" if os.environ.get(DEV_ENV) == "1" else engine
+
+
 # engine/case pairs whose failure is an artifact of the TOOLING rather than
 # a defect in the package.  Empty, and worth keeping so.
 #
@@ -484,9 +506,9 @@ def run_document(name: str, outdir: Path = None):
     src, engine, passes, checker = DOCUMENTS[name]
     if not src.is_file():
         return [(False, f"MISSING DOCUMENT FILE: {src}")]
-    if not shutil.which(engine):
-        return [(False, f"{engine} is not installed, so {src.name} was "
-                        f"not built")]
+    if not shutil.which(engine_command(engine)):
+        return [(False, f"{engine_command(engine)} is not installed, so "
+                        f"{src.name} was not built")]
     tmpdir = None
     if outdir is None:
         tmpdir = tempfile.TemporaryDirectory()
@@ -508,7 +530,8 @@ def run_document(name: str, outdir: Path = None):
         for _ in range(passes):
             try:
                 proc = subprocess.run(
-                    [engine, "-interaction=nonstopmode", "-halt-on-error",
+                    [engine_command(engine), "-interaction=nonstopmode",
+                     "-halt-on-error",
                      src.name],
                     cwd=work, capture_output=True, text=True,
                     timeout=CASE_TIMEOUT, env=env,
@@ -819,7 +842,8 @@ def run_case(name: str, engine: str, verbose: bool):
         for npass in range(PASSES.get(name, DEFAULT_PASSES)):
             try:
                 proc = subprocess.run(
-                    [engine, "-interaction=nonstopmode", "-halt-on-error",
+                    [engine_command(engine), "-interaction=nonstopmode",
+                     "-halt-on-error",
                      src.name],
                     cwd=tmp, capture_output=True, text=True,
                     timeout=CASE_TIMEOUT, env=env,
@@ -920,7 +944,17 @@ def main():
                          "and validate ua-demo with veraPDF (see DOCUMENTS); "
                          "CI passes this, and the manual costs about a "
                          "minute, which is why it is opt-in")
+    ap.add_argument("--dev", action="store_true",
+                    help="run pdflatex-dev, xelatex-dev and lualatex-dev "
+                         "(the pre-release kernel); never a green stamp, "
+                         "see DEV_ENV")
     args = ap.parse_args()
+    if args.dev:
+        os.environ[DEV_ENV] = "1"
+    dev = os.environ.get(DEV_ENV) == "1"
+    if dev:
+        print("using the -dev formats: "
+              + ", ".join(engine_command(e) for e in ENGINES))
 
     # Deliberately before -k filtering: a filtered run must still notice a
     # case file that nothing runs.
@@ -962,7 +996,7 @@ def main():
     # and a parallel run has to know the whole job list before starting.
     plan = []
     for engine in engines:
-        if not shutil.which(engine):
+        if not shutil.which(engine_command(engine)):
             plan.append((engine, None))
         else:
             plan.append((engine, [n for n in names
@@ -1058,7 +1092,10 @@ def main():
         return 1
     if stale:
         return 2
-    print("All green.")
+    # Not "All green." under -dev: that line is what earns the stamp, and
+    # the stamp is about the release formats (see DEV_ENV).
+    print("All green on the -dev formats (no stamp)." if dev
+          else "All green.")
     return 0
 
 

@@ -131,6 +131,12 @@ def stamp_cases():
          "cd x && .claude/tools/lxx verify && python3 tests/runtests.py",
          green, False),
         ("no suite at all", "echo All green.", "All green.\n", False),
+        # the -dev formats prove nothing about the release ones, even if a
+        # future wording slipped "All green." back into the output
+        ("raw suite on -dev", "python3 tests/runtests.py --dev", green,
+         False),
+        ("raw suite on -dev by env",
+         "LINGUEXX_DEV=1 python3 tests/runtests.py", green, False),
     ]
 
 
